@@ -1,0 +1,12 @@
+[project]
+name = "phd-thesis-animations"
+version = "0.1.0"
+description = "Manim scenes for thesis figures, study animations, and interpolation visualizations"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "manim>=0.20.1",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+]

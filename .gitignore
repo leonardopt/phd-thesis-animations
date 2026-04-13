@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+.env
+.env.local
+
+# macOS / editor-local
+.DS_Store
+.claude/
+
+# Manim outputs and caches
+media/
+
+# Local preview/debug captures
+*_check*.png
+slerp_follow_prompt_check*.png
+scenes/old
+media/videos/old
+assets/images/stimuli_reordered
