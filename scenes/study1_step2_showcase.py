@@ -20,7 +20,7 @@ from PIL import Image as PILImage
 import matplotlib.cm as _mcm
 
 from manim import *
-from scenes.utils import env_path
+from utils import env_path
 
 # ── Palette ────────────────────────────────────────────────────────────────────
 BG    = WHITE

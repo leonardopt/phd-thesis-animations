@@ -16,7 +16,7 @@ from pathlib import Path
 from PIL import Image as PILImage
 
 from manim import *
-from scenes.utils import env_path
+from utils import env_path
 
 # ── Palette ────────────────────────────────────────────────────────────────────
 BG    = WHITE
