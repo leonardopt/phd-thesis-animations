@@ -889,12 +889,10 @@ class Study1Stage2OrdinalEmbedding(Scene):
 # ══════════════════════════════════════════════════════════════════════════════════
 # Scene 3 — Ordinal embedding curve + final ordered image strip
 # ══════════════════════════════════════════════════════════════════════════════════
-
 class Study1Stage2EmbeddingResult(Scene):
     """
     Behavioural responses on the left, ordinal embedding algorithm underneath,
     embedding plot on the right, and final ordered image strip below.
-    Styled with a cleaner, more 3Blue1Brown-like layout.
     """
 
     def construct(self) -> None:
@@ -946,20 +944,18 @@ class Study1Stage2EmbeddingResult(Scene):
         algo_block = VGroup(algo_title, algo_sub).arrange(DOWN, buff=0.10)
         algo_block.move_to([-5.0, -0.35, 0.0])
 
-        # Smaller vertical arrow with more breathing room
         down_arrow = Arrow(
-            start=responses_block.get_bottom() + DOWN * 0.06,
-            end=algo_block.get_top() + UP * 0.06,
-            buff=0.12,
+            start=responses_block.get_bottom() + DOWN * 0.02,
+            end=algo_block.get_top() + UP * 0.02,
+            buff=0.08,
             color=LGREY,
             stroke_width=1.8,
             tip_length=0.08,
-            max_stroke_width_to_length_ratio=8,
-        )
+            max_stroke_width_to_length_ratio=7,
+        ).set_z_index(5)
 
         # ── Right: embedding plot ─────────────────────────────────────────────
-        # More compact and slightly higher, so the strip fits naturally below
-        plot_center = np.array([2.1, 0.78, 0.0])
+        plot_center = np.array([3.0, 0.78, 0.0])
 
         axes = Axes(
             x_range=[1, 10.6, 1],
@@ -969,7 +965,7 @@ class Study1Stage2EmbeddingResult(Scene):
             axis_config={
                 "color": INK,
                 "stroke_width": 1.6,
-                "include_tip": False,   # cleaner, more 3b1b-like
+                "include_tip": False,
                 "tick_size": 0.06,
             },
         ).move_to(plot_center)
@@ -990,26 +986,20 @@ class Study1Stage2EmbeddingResult(Scene):
             r"Embedding",
             color=INK,
             font_size=22,
-        ).rotate(PI / 2).next_to(axes.get_y_axis(), LEFT, buff=0.30)
+        ).rotate(PI / 2).next_to(axes.get_y_axis(), LEFT, buff=0.65)
 
-        # Larger tick labels
         x_nums = VGroup(*[
-            Tex(
-                str(i),
-                color=INK,
-                font_size=22,
-            ).move_to(axes.c2p(i, 0) + DOWN * 0.24)
+            Tex(str(i), color=INK, font_size=22).move_to(
+                axes.c2p(i, 0) + DOWN * 0.24
+            )
             for i in range(1, 11)
         ])
 
-        # Fewer and larger y tick labels for clarity
         y_tick_values = [0.00, 0.25, 0.50, 0.75, 1.00]
         y_nums = VGroup(*[
-            Tex(
-                f"{v:.2f}",
-                color=INK,
-                font_size=20,
-            ).move_to(axes.c2p(1, v) + LEFT * 0.46)
+            Tex(f"{v:.2f}", color=INK, font_size=20).move_to(
+                axes.c2p(1, v) + LEFT * 0.46
+            )
             for v in y_tick_values
         ])
 
@@ -1031,17 +1021,16 @@ class Study1Stage2EmbeddingResult(Scene):
             for p in pts
         ])
 
-        # Put the side arrow ABOVE the x-axis, not through it
-        side_arrow_y = algo_block.get_center()[1] + 0.38
+        arrow_y = algo_title.get_center()[1]
         side_arrow = Arrow(
-            start=np.array([algo_block.get_right()[0] + 0.18, side_arrow_y, 0.0]),
-            end=np.array([axes.get_left()[0] - 0.10, side_arrow_y, 0.0]),
-            buff=0.06,
+            start=np.array([algo_block.get_right()[0] + 0.4, arrow_y, 0.0]),
+            end=np.array([algo_block.get_right()[0] + 1.2, arrow_y, 0.0]),
+            buff=0.0,
             color=LGREY,
-            stroke_width=1.8,
-            tip_length=0.08,
-            max_stroke_width_to_length_ratio=8,
-        )
+            stroke_width=1.6,
+            tip_length=0.07,
+            max_stroke_width_to_length_ratio=7,
+        ).set_z_index(5)
 
         # ── Ordered image strip below the plot ───────────────────────────────
         strip_xs = [axes.c2p(i + 1, 0)[0] for i in range(10)]
@@ -1065,14 +1054,14 @@ class Study1Stage2EmbeddingResult(Scene):
             for i in range(10)
         ])
 
-        connectors = VGroup(*[
+        dot_to_img_connectors = VGroup(*[
             DashedLine(
-                start=[strip_xs[i], axes.c2p(i + 1, 0)[1] - 0.03, 0.0],
-                end=[strip_xs[i], strip_y + img_h / 2 + 0.03, 0.0],
-                color=LGREY,
-                stroke_width=0.7,
+                start=dots[i].get_center() + DOWN * 0.03,
+                end=fish_imgs[i].get_top() + UP * 0.03,
+                color=BLUE,
+                stroke_width=1.0,
                 dash_length=0.05,
-            )
+            ).set_opacity(0.55)
             for i in range(10)
         ])
 
@@ -1090,37 +1079,445 @@ class Study1Stage2EmbeddingResult(Scene):
         self.wait(0.20)
 
         self.play(
-            Create(down_arrow),
             FadeIn(algo_block, shift=UP * 0.05),
-            run_time=0.85,
+            Create(down_arrow),
+            run_time=0.80,
         )
-        self.wait(0.20)
+        self.wait(0.15)
 
-        self.play(Create(side_arrow), run_time=0.45)
+        self.play(Create(side_arrow), run_time=0.30)
+
         self.play(
             FadeIn(plot_title, shift=UP * 0.05),
             Create(axes),
             FadeIn(x_label, y_label),
             FadeIn(x_nums, y_nums),
-            run_time=1.20,
+            run_time=1.10,
         )
-        self.wait(0.20)
+        self.wait(0.15)
 
-        self.play(Create(curve), run_time=1.40)
-        self.play(FadeIn(dots, scale=1.10), run_time=0.45)
-        self.wait(0.30)
-
-        self.play(Create(connectors), run_time=0.60)
         self.play(
             LaggedStart(
-                *[FadeIn(img, scale=1.03) for img in fish_imgs],
-                lag_ratio=0.06,
+                *[FadeIn(dot, scale=1.15) for dot in dots],
+                lag_ratio=0.05,
             ),
-            run_time=0.95,
+            run_time=0.40,
         )
+
+        self.play(Create(curve), run_time=1.00)
+        self.wait(0.20)
+
+        self.play(FadeIn(strip_title, shift=UP * 0.04), run_time=0.20)
+
+        for i in range(10):
+            self.play(
+                Create(dot_to_img_connectors[i]),
+                FadeIn(fish_imgs[i], scale=1.05),
+                Create(fish_borders[i]),
+                Indicate(dots[i], color=BLUE, scale_factor=1.25),
+                run_time=0.16,
+            )
+
+        self.wait(1.20)
+
+
+##########################
+
+##########################
+
+class Study1Stage3ModelOrderToHeatmap(Scene):
+    STIMULI_DIR = Path("/Users/leonardo/similarity-judgment-task-analysis/data/assets/images/stimuli_reordered")
+    HEATMAP_PDF = Path("/Users/leonardo/phd-thesis-animations/assets/images/study1_stage2/lpips_vs_embedding_orders_heatmap.pdf")
+
+    def _natural_key(self, path: Path):
+        import re
+
+        parts = re.split(r"(\d+)", path.stem.lower())
+        return [int(part) if part.isdigit() else part for part in parts]
+
+    def _normalise(self, path: Path) -> str:
+        return path.stem.lower().replace("_", " ").replace("-", " ")
+
+    def _all_stimulus_paths(self) -> list[Path]:
+        valid_suffixes = {".png", ".jpg", ".jpeg", ".webp"}
+        paths = [
+            p for p in self.STIMULI_DIR.iterdir()
+            if p.suffix.lower() in valid_suffixes
+        ]
+        return sorted(paths, key=self._natural_key)
+
+    def _select_category_paths(self, required_keywords: tuple[str, ...], n: int = 10) -> list[Path]:
+        all_paths = self._all_stimulus_paths()
+
+        exact = [
+            p for p in all_paths
+            if all(keyword in self._normalise(p) for keyword in required_keywords)
+        ]
+        if len(exact) >= n:
+            return exact[:n]
+
+        relaxed = []
+        used = {str(p) for p in exact}
+        for p in all_paths:
+            if str(p) in used:
+                continue
+            if required_keywords[0] in self._normalise(p):
+                relaxed.append(p)
+
+        merged = exact + relaxed
+        if len(merged) >= n:
+            return merged[:n]
+
+        raise ValueError(
+            f"Could not find {n} images for keywords {required_keywords}. Found {len(merged)}."
+        )
+
+    def _pdf_first_page_to_png(self, pdf_path: Path) -> str:
+        import hashlib
+        import shutil
+        import subprocess
+        import tempfile
+
+        out_name = f"{pdf_path.stem}_{hashlib.md5(str(pdf_path).encode()).hexdigest()[:10]}.png"
+        out_path = str(Path(tempfile.gettempdir()) / out_name)
+
+        if Path(out_path).exists():
+            return out_path
+
+        if shutil.which("sips") is not None:
+            subprocess.run(
+                ["sips", "-s", "format", "png", str(pdf_path), "--out", out_path],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if Path(out_path).exists():
+                return out_path
+
+        if shutil.which("pdftoppm") is not None:
+            prefix = str(Path(tempfile.gettempdir()) / f"{Path(out_name).stem}")
+            subprocess.run(
+                ["pdftoppm", "-png", "-f", "1", "-singlefile", str(pdf_path), prefix],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            alt_path = prefix + ".png"
+            if Path(alt_path).exists():
+                return alt_path
+
+        if shutil.which("magick") is not None:
+            subprocess.run(
+                ["magick", "-density", "220", f"{pdf_path}[0]", out_path],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if Path(out_path).exists():
+                return out_path
+
+        raise FileNotFoundError(
+            "Could not convert heatmap PDF to PNG. Install sips, pdftoppm, or ImageMagick."
+        )
+
+    def _embedding_result_snapshot(self) -> Group:
+        title = Tex(
+            r"From behavioural responses to perceptual embedding",
+            color=INK,
+            font_size=34,
+        ).to_edge(UP, buff=0.28)
+
+        responses_title = Tex(
+            r"Behavioural responses",
+            color=INK,
+            font_size=28,
+        )
+        responses_main = MathTex(
+            r"\mathit{T}=\{(i,j,k)\}",
+            color=INK,
+            font_size=36,
+        )
+        responses_examples = VGroup(
+            MathTex(r"(1,3,8)", color=MGREY, font_size=25),
+            MathTex(r"(5,4,9)", color=MGREY, font_size=25),
+            MathTex(r"(7,2,10)", color=MGREY, font_size=25),
+            MathTex(r"\vdots", color=MGREY, font_size=25),
+        ).arrange(DOWN, aligned_edge=LEFT, buff=0.10)
+
+        responses_block = VGroup(
+            responses_title,
+            responses_main,
+            responses_examples,
+        ).arrange(DOWN, aligned_edge=LEFT, buff=0.20)
+        responses_block.move_to([-5.0, 1.55, 0.0])
+
+        algo_title = Tex(
+            r"Ordinal embedding algorithm",
+            color=BLUE,
+            font_size=27,
+        )
+        algo_sub = Tex(
+            r"Estimate 1D stimulus positions",
+            color=MGREY,
+            font_size=20,
+        )
+        algo_block = VGroup(algo_title, algo_sub).arrange(DOWN, buff=0.10)
+        algo_block.move_to([-5.0, -0.35, 0.0])
+
+        down_arrow = Arrow(
+            start=responses_block.get_bottom() + DOWN * 0.02,
+            end=algo_block.get_top() + UP * 0.02,
+            buff=0.08,
+            color=LGREY,
+            stroke_width=1.8,
+            tip_length=0.08,
+            max_stroke_width_to_length_ratio=7,
+        ).set_z_index(5)
+
+        plot_center = np.array([3.0, 0.78, 0.0])
+
+        axes = Axes(
+            x_range=[1, 10.6, 1],
+            y_range=[0, 1.05, 0.25],
+            x_length=5.8,
+            y_length=3.6,
+            axis_config={
+                "color": INK,
+                "stroke_width": 1.6,
+                "include_tip": False,
+                "tick_size": 0.06,
+            },
+        ).move_to(plot_center)
+
+        plot_title = Tex(
+            r"Estimated embedding",
+            color=INK,
+            font_size=25,
+        ).next_to(axes, UP, buff=0.20)
+
+        x_label = Tex(
+            r"Image number",
+            color=INK,
+            font_size=22,
+        ).next_to(axes.get_x_axis(), DOWN, buff=0.34)
+
+        y_label = Tex(
+            r"Embedding",
+            color=INK,
+            font_size=22,
+        ).rotate(PI / 2).next_to(axes.get_y_axis(), LEFT, buff=0.65)
+
+        x_nums = VGroup(*[
+            Tex(str(i), color=INK, font_size=22).move_to(
+                axes.c2p(i, 0) + DOWN * 0.24
+            )
+            for i in range(1, 11)
+        ])
+
+        y_tick_values = [0.00, 0.25, 0.50, 0.75, 1.00]
+        y_nums = VGroup(*[
+            Tex(f"{v:.2f}", color=INK, font_size=20).move_to(
+                axes.c2p(1, v) + LEFT * 0.46
+            )
+            for v in y_tick_values
+        ])
+
+        pts = [axes.c2p(i + 1, v) for i, v in enumerate(EMBED_Y)]
+
+        curve = VMobject(
+            stroke_color=BLUE,
+            stroke_width=3.0,
+        )
+        curve.set_points_smoothly(pts)
+
+        dots = VGroup(*[
+            Dot(
+                p,
+                radius=0.05,
+                color=BLUE,
+                fill_opacity=1.0,
+            )
+            for p in pts
+        ])
+
+        arrow_y = algo_title.get_center()[1]
+        side_arrow = Arrow(
+            start=np.array([algo_block.get_right()[0] + 0.4, arrow_y, 0.0]),
+            end=np.array([algo_block.get_right()[0] + 1.2, arrow_y, 0.0]),
+            buff=0.0,
+            color=LGREY,
+            stroke_width=1.6,
+            tip_length=0.07,
+            max_stroke_width_to_length_ratio=7,
+        ).set_z_index(5)
+
+        strip_xs = [axes.c2p(i + 1, 0)[0] for i in range(10)]
+        strip_y = -2.08
+        img_h = 0.50
+
+        fish_imgs = Group(*[
+            ImageMobject(fish_path(i))
+            .set_height(img_h)
+            .move_to([strip_xs[i], strip_y, 0.0])
+            for i in range(10)
+        ])
+
+        fish_borders = VGroup(*[
+            SurroundingRectangle(
+                fish_imgs[i],
+                color=LGREY,
+                stroke_width=0.8,
+                buff=0.02,
+            )
+            for i in range(10)
+        ])
+
+        dot_to_img_connectors = VGroup(*[
+            DashedLine(
+                start=dots[i].get_center() + DOWN * 0.03,
+                end=fish_imgs[i].get_top() + UP * 0.03,
+                color=BLUE,
+                stroke_width=1.0,
+                dash_length=0.05,
+            ).set_opacity(0.55)
+            for i in range(10)
+        ])
+
+        strip_title = Tex(
+            r"Final ordered image set",
+            color=INK,
+            font_size=19,
+        ).move_to([axes.get_center()[0], strip_y - 0.48, 0.0])
+
+        return Group(
+            title,
+            responses_block,
+            algo_block,
+            down_arrow,
+            side_arrow,
+            plot_title,
+            axes,
+            x_label,
+            y_label,
+            x_nums,
+            y_nums,
+            curve,
+            dots,
+            strip_title,
+            dot_to_img_connectors,
+            fish_imgs,
+            fish_borders,
+        )
+
+    def _category_row(self, image_paths: list[Path], image_height: float = 0.44) -> Group:
+        images = Group(*[
+            ImageMobject(str(path)).set_height(image_height)
+            for path in image_paths
+        ])
+        images.arrange(RIGHT, buff=0.055)
+
+        borders = Group(*[
+            SurroundingRectangle(
+                images[i],
+                color=LGREY,
+                stroke_width=0.75,
+                buff=0.016,
+            )
+            for i in range(len(images))
+        ])
+
+        return Group(images, borders)
+
+    def construct(self):
+        self.camera.background_color = BG
+
+        heatmap_png = self._pdf_first_page_to_png(self.HEATMAP_PDF)
+
+        previous_scene = self._embedding_result_snapshot()
+        self.add(previous_scene)
+        self.wait(0.25)
+        self.play(FadeOut(previous_scene), run_time=0.60)
+
+        category_specs = [
+            ("pine_med", ("pine", "med")),
+            ("bottle", ("bottle",)),
+            ("moorland_tor", ("moorland", "tor")),
+            ("train", ("train",)),
+            ("modern_building", ("modern", "building")),
+            ("observatory", ("observatory",)),
+        ]
+
+        title = Tex(
+            r"Behaviourally reordered sets",
+            color=INK,
+            font_size=30,
+        ).to_edge(UP, buff=0.35)
+
+        category_rows = Group(*[
+            self._category_row(self._select_category_paths(keywords, n=10), image_height=0.65)
+            for _, keywords in category_specs
+        ])
+        category_rows.arrange(DOWN, buff=0.20)
+        category_rows.move_to([0.0, -0.28, 0.0])
+
+        left_target_rows = category_rows.copy()
+        left_target_rows.scale(0.82)
+        left_target_rows.arrange(DOWN, buff=0.16)
+        left_target_rows.to_edge(LEFT, buff=0.28)
+        left_target_rows.shift(DOWN * 0.18)
+
+        heatmap = ImageMobject(heatmap_png).set_height(5.45)
+        heatmap.to_edge(RIGHT, buff=0.35).shift(DOWN * 0.06)
+
+        heatmap_title = Tex(
+            r"LPIPS vs embedding orders",
+            color=INK,
+            font_size=24,
+        ).next_to(heatmap, UP, buff=0.14)
+
+        heatmap_group = Group(heatmap_title, heatmap)
+        agreement_text = VGroup(
+            Tex(
+                r"Strong agreement",
+                color=INK,
+                font_size=24,
+            ),
+            Tex(
+                r"($\mathrm{Spearman\ rank\ correlation}$ of $\rho = 0.73$)",
+                color=INK,
+                font_size=20,
+            ),
+            Tex(
+                r"between LPIPS-based order and human similarity judgements",
+                color=INK,
+                font_size=20,
+            ),
+        ).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+
+        agreement_text.next_to(heatmap, DOWN, buff=0.28)
+        agreement_text.align_to(heatmap, LEFT)
+
         self.play(
-            FadeIn(fish_borders),
-            FadeIn(strip_title, shift=UP * 0.04),
-            run_time=0.25,
+            FadeIn(title, shift=UP * 0.05),
+            LaggedStart(
+                *[FadeIn(row, shift=UP * 0.05, scale=1.03) for row in category_rows],
+                lag_ratio=0.08,
+            ),
+            run_time=1.20,
         )
+        self.wait(0.35)
+
+        self.play(
+            Transform(category_rows, left_target_rows),
+            FadeIn(heatmap_group, shift=RIGHT * 0.18),
+            run_time=1.20,
+        )
+        
+        self.play(
+            FadeIn(agreement_text, shift=UP * 0.08),
+            run_time=0.6,
+        )
+        self.wait(1.2)
+
+
         self.wait(1.20)
