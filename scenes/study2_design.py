@@ -10,6 +10,7 @@ Render:
 """
 from __future__ import annotations
 
+import numpy as np
 from pathlib import Path
 from manim import *
 
@@ -223,4 +224,382 @@ class Study2ExperimentalDesign(Scene):
         n_lbl = Tex(r"$N = 42$ participants", color=INK, font_size=18) \
             .to_edge(DOWN, buff=0.38)
         self.play(FadeIn(n_lbl), run_time=0.5)
+        self.wait(2.0)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Study2DecodingOverview
+# ══════════════════════════════════════════════════════════════════════════════
+
+_D_BLUE  = "#2563EB"
+_D_AMBER = "#D97706"
+_D_GREEN = "#16A34A"
+_D_RED   = "#DC2626"
+_D_PURP  = "#7C3AED"
+_D_CYAN  = "#0891B2"
+_D_LGREY = "#D1D5DB"
+_D_MGREY = "#9CA3AF"
+
+# Brain icon used in the decoding overview
+_BRAIN_PNG_PATH = Path(
+    "/Users/leonardo/phd-thesis-animations/assets/images/study2/brain_icon_sagittal.png"
+)
+
+
+class Study2DecodingOverview(Scene):
+    """
+    Opens on the full experimental-design layout, isolates the Session 2
+    stimuli, and then maps each image to a coloured feature vector via a
+    brain icon and activity-pattern matrix.
+
+    Render:
+        uv run manim scenes/study2_design.py Study2DecodingOverview -qh
+    """
+
+    # Three S2 stimulus colours (matching Stimulus 1/2/3 order)
+    _COLS = [_D_BLUE, _D_AMBER, _D_GREEN]
+
+    # Target column (left side, after transition)
+    _COL_X  = -5.50
+    _COL_YS = [1.20, 0.00, -1.20]
+    _STACK_SCALE = 0.86
+
+    # Brain / vector layout
+    _BRAIN_Y = 0.00
+    _H_GAP   = 1.15
+
+    # Activity matrix shown below the brain before becoming a feature vector
+    _GRID_PAT = np.array([[0.9, 0.2, 0.7],
+                          [0.3, 0.8, 0.1],
+                          [0.5, 0.4, 0.9]])
+    _GRID_PERMS = [
+        np.array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+        np.array([2, 6, 0, 7, 4, 8, 1, 5, 3]),
+        np.array([8, 3, 6, 1, 4, 7, 2, 5, 0]),
+        np.array([1, 4, 7, 0, 8, 5, 2, 6, 3]),
+        np.array([5, 0, 8, 2, 6, 1, 7, 3, 4]),
+        np.array([6, 2, 5, 8, 1, 4, 0, 3, 7]),
+    ]
+    _GRID_CS  = 0.22
+    _GRID_GAP = 0.035
+    _VEC_CS   = 0.17
+    _VEC_GAP  = 0.055
+    _ROLLING_TARGETS = [
+        (str(_STIM / "ANI-CAT-T00.png"), _D_RED),
+        (str(_STIM / "ITE-VAS-T00.png"), _D_PURP),
+        (str(_STIM / "PLA-BRI-T00.png"), _D_CYAN),
+    ]
+
+    def _pattern_for_index(self, idx: int) -> np.ndarray:
+        flat = self._GRID_PAT.flatten()
+        return flat[self._GRID_PERMS[idx]].reshape(self._GRID_PAT.shape)
+
+    def _make_grid(self, center: np.ndarray, col: str, pattern: np.ndarray) -> VGroup:
+        step = self._GRID_CS + self._GRID_GAP
+        group = VGroup()
+        for r in range(3):
+            for c in range(3):
+                v = float(pattern[r, c])
+                sq = Square(
+                    side_length=self._GRID_CS,
+                    stroke_width=0.7,
+                    stroke_color=_D_LGREY,
+                ).set_fill(
+                    interpolate_color(
+                        ManimColor(WHITE), ManimColor(col), 0.10 + 0.90 * v
+                    ),
+                    opacity=1.0,
+                )
+                sq.move_to(
+                    center
+                    + RIGHT * (c - 1) * step
+                    + UP    * (1 - r) * step
+                )
+                group.add(sq)
+        return group
+
+    def _make_feature_vector(self, center: np.ndarray, col: str, pattern: np.ndarray) -> VGroup:
+        step = self._VEC_CS + self._VEC_GAP
+        group = VGroup()
+        for i, v in enumerate(pattern.flatten()):
+            cell = Square(
+                side_length=self._VEC_CS,
+                stroke_width=0.7,
+                stroke_color=_D_LGREY,
+            ).set_fill(
+                interpolate_color(
+                    ManimColor(WHITE), ManimColor(col), 0.10 + 0.90 * float(v)
+                ),
+                opacity=1.0,
+            )
+            cell.move_to(center + RIGHT * (i - 4) * step)
+            group.add(cell)
+        return group
+
+    # ── Scene ─────────────────────────────────────────────────────────────────
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        # ── Phase 0: Start from the full experimental-design end state ─────────
+        s1_title = Tex(
+            r"\textbf{Session 1 :} Memory task",
+            color=INK, font_size=TTL_SIZE,
+        ).move_to(UP * 3.05)
+
+        boxes1, xs1       = _build_row(Study2ExperimentalDesign._S1, S1_Y)
+        dots1, x_end1     = _ellipsis(xs1, S1_Y)
+        arrow1, t1        = _timeline(xs1, S1_Y, x_end1)
+        time_lbl1, ph_lb1 = _labels(Study2ExperimentalDesign._S1, xs1, S1_Y)
+
+        _S2 = [
+            {"img": LAKE, "time": "2 s",   "lbl": "Stimulus 1"},
+            {"img": None, "time": _JITTER, "lbl": "ISI"},
+            {"img": PINE, "time": "2 s",   "lbl": "Stimulus 2"},
+            {"img": None, "time": _JITTER, "lbl": "ISI"},
+            {"img": OBS,  "time": "2 s",   "lbl": "Stimulus 3"},
+        ]
+        boxes2, xs2       = _build_row(_S2, S2_Y)
+        dots2, x_end2     = _ellipsis(xs2, S2_Y)
+        arrow2, t2        = _timeline(xs2, S2_Y, x_end2)
+        time_lbl2, ph_lb2 = _labels(_S2, xs2, S2_Y)
+
+        s2_title = Tex(
+            r"\textbf{Session 2 :} Perceptual task",
+            color=INK, font_size=TTL_SIZE,
+        ).move_to(UP * (S2_Y + BOX_H / 2 + 0.74))
+
+        n_lbl = Tex(r"$N = 42$ participants", color=INK, font_size=18) \
+            .to_edge(DOWN, buff=0.38)
+
+        self.add(
+            s1_title, Group(*boxes1), dots1, arrow1, t1, time_lbl1, ph_lb1,
+            s2_title, Group(*boxes2), dots2, arrow2, t2, time_lbl2, ph_lb2,
+            n_lbl,
+        )
+        self.wait(0.4)
+
+        # Stimulus boxes are at indices 0, 2, 4; ISIs at 1, 3
+        stim_boxes = [boxes2[0], boxes2[2], boxes2[4]]
+        isi_boxes  = [boxes2[1], boxes2[3]]
+        stim_rects = [box[0] for box in stim_boxes]
+        stim_icons = [Group(box[1], box[2]) for box in stim_boxes]
+        session1_group = Group(
+            s1_title, Group(*boxes1), dots1, arrow1, t1, time_lbl1, ph_lb1,
+        )
+
+        # ── Phase 1: Highlight stimuli ─────────────────────────────────────────
+        highlights = VGroup(*[
+            SurroundingRectangle(
+                b, color=col, stroke_width=3.0, buff=0.06, corner_radius=0.12,
+            )
+            for b, col in zip(stim_boxes, self._COLS)
+        ])
+        self.play(
+            LaggedStartMap(Create, highlights, lag_ratio=0.15),
+            run_time=0.65,
+        )
+        self.wait(0.25)
+
+        # ── Phase 2: Fade non-stimuli; move stimuli to left column ─────────────
+        self.play(
+            FadeOut(session1_group),
+            FadeOut(Group(*isi_boxes)),
+            FadeOut(dots2), FadeOut(arrow2), FadeOut(t2),
+            FadeOut(time_lbl2), FadeOut(ph_lb2),
+            FadeOut(s2_title), FadeOut(n_lbl),
+            run_time=0.5,
+        )
+
+        stim_box_targets = [
+            box.copy().scale(self._STACK_SCALE).move_to(RIGHT * self._COL_X + UP * ry)
+            for box, ry in zip(stim_boxes, self._COL_YS)
+        ]
+        moving_highlights = VGroup(*[
+            SurroundingRectangle(
+                target_box, color=col, stroke_width=3.0, buff=0.06, corner_radius=0.12,
+            )
+            for target_box, col in zip(stim_box_targets, self._COLS)
+        ])
+
+        self.play(
+            *[
+                box.animate.scale(self._STACK_SCALE).move_to(RIGHT * self._COL_X + UP * ry)
+                for box, ry in zip(stim_boxes, self._COL_YS)
+            ],
+            *[
+                Transform(highlight, moving_highlight)
+                for highlight, moving_highlight in zip(highlights, moving_highlights)
+            ],
+            run_time=0.85,
+        )
+
+        # Keep the same coloured frame and let it travel with the image while
+        # the grey trial card outline disappears.
+        stacked_highlights = VGroup(*[
+            SurroundingRectangle(
+                icon, color=col, stroke_width=2.4, buff=0.05, corner_radius=0.10,
+            )
+            for icon, col in zip(stim_icons, self._COLS)
+        ])
+        self.play(
+            *[
+                rect.animate.set_stroke(opacity=0).set_fill(opacity=0)
+                for rect in stim_rects
+            ],
+            *[
+                Transform(highlight, stacked_highlight)
+                for highlight, stacked_highlight in zip(highlights, stacked_highlights)
+            ],
+            run_time=0.45,
+        )
+        self.wait(0.3)
+
+        # ── Phase 3: Brain icon is twice the stimulus-icon height ──────────────
+        icon_h = max(icon.height for icon in stim_icons)
+        brain = (
+            ImageMobject(str(_BRAIN_PNG_PATH))
+            .set_height(2.0 * icon_h)
+            .move_to(UP * self._BRAIN_Y)
+        )
+        vector_template = self._make_feature_vector(
+            ORIGIN, self._COLS[0], self._pattern_for_index(0)
+        )
+        stack_right = max(highlight.get_right()[0] for highlight in highlights)
+        brain_x = stack_right + self._H_GAP + brain.width / 2
+        vector_left_x = brain_x + brain.width / 2 + self._H_GAP
+        vector_center_x = vector_left_x + vector_template.width / 2
+        brain.move_to(np.array([brain_x, self._BRAIN_Y, 0.0]))
+        self.play(FadeIn(brain, shift=RIGHT * 0.15), run_time=0.75)
+        self.wait(0.25)
+
+        # ── Phase 4: Each image maps to a feature vector ───────────────────────
+        matrix_center = brain.get_bottom() + DOWN * 0.58
+        vector_centers = [
+            np.array([vector_center_x, row_y, 0.0]) for row_y in self._COL_YS
+        ]
+        visible_vectors: list[VGroup] = []
+
+        def vector_layout(count: int) -> list[np.ndarray]:
+            ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
+            return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
+
+        for idx, (icon, col, vec_center) in enumerate(zip(stim_icons, self._COLS, vector_centers)):
+            pattern = self._pattern_for_index(idx)
+            arr_to_brain = Arrow(
+                icon.get_right() + RIGHT * 0.12,
+                brain.get_left() + LEFT * 0.10,
+                color=_D_MGREY,
+                stroke_width=2.0,
+                buff=0.02,
+                tip_length=0.16,
+            )
+            self.play(GrowArrow(arr_to_brain), run_time=0.45)
+
+            grid = self._make_grid(matrix_center, col, pattern)
+            self.play(FadeIn(grid, shift=UP * 0.06), run_time=0.45)
+
+            arr_to_vec = Arrow(
+                grid.get_right() + RIGHT * 0.04,
+                vec_center + LEFT * (vector_template.width / 2 + 0.18),
+                color=_D_MGREY,
+                stroke_width=2.0,
+                buff=0.03,
+                tip_length=0.16,
+            )
+            self.play(GrowArrow(arr_to_vec), run_time=0.40)
+
+            vector = self._make_feature_vector(vec_center, col, pattern)
+            self.play(ReplacementTransform(grid, vector), run_time=0.70)
+            self.play(FadeOut(arr_to_brain), FadeOut(arr_to_vec), run_time=0.20)
+            visible_vectors.append(vector)
+
+        # ── Phase 5: Roll new targets into the left column and decode them ────
+        row_step = self._COL_YS[0] - self._COL_YS[1]
+        icon_center_x = stim_icons[0].get_center()[0]
+        icon_img_h = stim_icons[0][0].height
+        icon_fix_h = stim_icons[0][1].height
+
+        def make_stack_target(img_path: str, col: str) -> tuple[Group, SurroundingRectangle]:
+            img = ImageMobject(img_path).set_height(icon_img_h)
+            fix = ImageMobject(FIX).set_height(icon_fix_h).move_to(img.get_center())
+            icon = Group(img, fix)
+            frame = SurroundingRectangle(
+                icon, color=col, stroke_width=2.4, buff=0.05, corner_radius=0.10,
+            )
+            return icon, frame
+
+        visible_icons: list[Group] = list(stim_icons)
+        visible_frames: list[VMobject] = list(highlights)
+        ghost_icon: Group | None = None
+        ghost_frame: VMobject | None = None
+        ghost_y = self._COL_YS[0] + row_step * 1.02
+
+        for idx, (target_path, col) in enumerate(self._ROLLING_TARGETS, start=3):
+            new_icon, new_frame = make_stack_target(target_path, col)
+            new_icon.move_to(np.array([icon_center_x, self._COL_YS[-1] - row_step, 0.0]))
+            new_frame.move_to(new_icon.get_center())
+            self.add(new_icon, new_frame)
+
+            future_vector_centers = vector_layout(len(visible_vectors) + 1)
+            old_top_icon = visible_icons[0]
+            old_top_frame = visible_frames[0]
+            roll_anims = [
+                old_top_icon[0].animate.move_to(np.array([icon_center_x, ghost_y, 0.0])).set_opacity(0.18),
+                old_top_icon[1].animate.move_to(np.array([icon_center_x, ghost_y, 0.0])).set_opacity(0.18),
+                old_top_frame.animate.move_to(np.array([icon_center_x, ghost_y, 0.0])).set_stroke(opacity=0.18),
+                visible_icons[1].animate.move_to(np.array([icon_center_x, self._COL_YS[0], 0.0])),
+                visible_frames[1].animate.move_to(np.array([icon_center_x, self._COL_YS[0], 0.0])),
+                visible_icons[2].animate.move_to(np.array([icon_center_x, self._COL_YS[1], 0.0])),
+                visible_frames[2].animate.move_to(np.array([icon_center_x, self._COL_YS[1], 0.0])),
+                new_icon.animate.move_to(np.array([icon_center_x, self._COL_YS[2], 0.0])),
+                new_frame.animate.move_to(np.array([icon_center_x, self._COL_YS[2], 0.0])),
+            ]
+            if ghost_icon is not None and ghost_frame is not None:
+                roll_anims.extend([FadeOut(ghost_icon), FadeOut(ghost_frame)])
+            roll_anims.extend([
+                vector.animate.move_to(target_center)
+                for vector, target_center in zip(visible_vectors, future_vector_centers[:-1])
+            ])
+
+            self.play(
+                *roll_anims,
+                run_time=0.55,
+            )
+
+            ghost_icon = old_top_icon
+            ghost_frame = old_top_frame
+            visible_icons = [visible_icons[1], visible_icons[2], new_icon]
+            visible_frames = [visible_frames[1], visible_frames[2], new_frame]
+
+            pattern = self._pattern_for_index(idx)
+            arr_to_brain = Arrow(
+                new_icon.get_right() + RIGHT * 0.12,
+                brain.get_left() + LEFT * 0.10,
+                color=_D_MGREY,
+                stroke_width=2.0,
+                buff=0.02,
+                tip_length=0.16,
+            )
+            self.play(GrowArrow(arr_to_brain), run_time=0.45)
+
+            grid = self._make_grid(matrix_center, col, pattern)
+            self.play(FadeIn(grid, shift=UP * 0.06), run_time=0.45)
+
+            arr_to_vec = Arrow(
+                grid.get_right() + RIGHT * 0.04,
+                future_vector_centers[-1] + LEFT * (vector_template.width / 2 + 0.18),
+                color=_D_MGREY,
+                stroke_width=2.0,
+                buff=0.03,
+                tip_length=0.16,
+            )
+            self.play(GrowArrow(arr_to_vec), run_time=0.40)
+
+            vector = self._make_feature_vector(future_vector_centers[-1], col, pattern)
+            self.play(ReplacementTransform(grid, vector), run_time=0.70)
+            self.play(FadeOut(arr_to_brain), FadeOut(arr_to_vec), run_time=0.20)
+            visible_vectors.append(vector)
+            self.wait(0.15)
+
         self.wait(2.0)

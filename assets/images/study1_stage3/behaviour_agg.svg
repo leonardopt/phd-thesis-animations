@@ -9,6 +9,9 @@
    viewBox="0 0 1600.9591 1369.0145"
    sodipodi:docname="behaviour_agg.svg"
    inkscape:version="1.3.2 (091e20e, 2023-11-25)"
+   inkscape:export-filename="behaviour_agg.png"
+   inkscape:export-xdpi="280.48999"
+   inkscape:export-ydpi="280.48999"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -1144,15 +1147,16 @@
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#999087"
      showgrid="false"
-     inkscape:zoom="0.21932576"
-     inkscape:cx="740.90704"
-     inkscape:cy="688.47362"
+     inkscape:zoom="0.26018489"
+     inkscape:cx="413.16772"
+     inkscape:cy="643.77297"
      inkscape:window-width="1584"
-     inkscape:window-height="647"
-     inkscape:window-x="209"
+     inkscape:window-height="976"
+     inkscape:window-x="258"
      inkscape:window-y="60"
      inkscape:window-maximized="0"
-     inkscape:current-layer="g1">
+     inkscape:current-layer="g1"
+     inkscape:export-bgcolor="#ffffffff">
     <inkscape:grid
        id="grid1"
        units="px"
@@ -1404,24 +1408,24 @@
        id="path175-3-3"
        clip-path="url(#clipPath624-6)"
        transform="translate(-2320.2769,-2195.847)" />
-    <polyline
-       points="51.46,230.30 55.45,230.30 "
-       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+    <path
        id="polyline175-3"
+       clip-path="url(#clipPath623-8)"
+       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(4.2004441,0,0,4.2004441,-84.27246,143.2607)"
-       clip-path="url(#clipPath623-8)" />
-    <polyline
-       points="51.46,146.23 55.45,146.23 "
-       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 51.46,230.3 h 3.99" />
+    <path
        id="polyline176-6"
+       clip-path="url(#clipPath622-9)"
+       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(4.2004441,0,0,4.2004441,-84.27246,143.2607)"
-       clip-path="url(#clipPath622-9)" />
-    <polyline
-       points="51.46,62.16 55.45,62.16 "
-       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 51.46,146.23 h 3.99" />
+    <path
        id="polyline177-4"
+       clip-path="url(#clipPath621-4)"
+       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(4.2004441,0,0,4.2004441,-84.27246,143.2607)"
-       clip-path="url(#clipPath621-4)" />
+       d="m 51.46,62.16 h 3.99" />
     <path
        fill="none"
        stroke-width="7.11464"
@@ -1622,24 +1626,24 @@
        clip-path="url(#clipPath154-7-7)"
        transform="matrix(4.5842497,0,0,4.5842497,-515.16397,299.4608)"
        sodipodi:nodetypes="cc" />
-    <polyline
-       points="103.13,308.91 103.13,304.92 "
-       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+    <path
        id="polyline208-7"
+       clip-path="url(#clipPath485-3)"
+       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(4.2004441,0,0,4.2004441,-84.21898,131.0253)"
-       clip-path="url(#clipPath485-3)" />
-    <polyline
-       points="182.61,308.91 182.61,304.92 "
-       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 103.13,308.91 v -3.99" />
+    <path
        id="polyline209-3"
+       clip-path="url(#clipPath484-5)"
+       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(4.2004441,0,0,4.2004441,-84.21898,131.0253)"
-       clip-path="url(#clipPath484-5)" />
-    <polyline
-       points="262.08,308.91 262.08,304.92 "
-       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 182.61,308.91 v -3.99" />
+    <path
        id="polyline210-6"
+       clip-path="url(#clipPath483-3)"
+       style="fill:none;stroke:#333333;stroke-width:1.55;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(4.2004441,0,0,4.2004441,-84.21898,131.0253)"
-       clip-path="url(#clipPath483-3)" />
+       d="m 262.08,308.91 v -3.99" />
     <path
        fill="none"
        stroke-width="6.09989"
@@ -1651,15 +1655,12 @@
        d="M 148.72302,1412.6341 H 1217.1263"
        id="path69-0-7"
        style="fill:#000000;stroke:#000000" />
-    <rect
-       x="496.63028"
-       y="462.04675"
-       width="17.280001"
-       height="17.280001"
-       style="fill:#ffffff;stroke:none;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+    <path
        id="rect123-3"
        clip-path="url(#clipPath324-6)"
-       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)" />
+       style="fill:#ffffff;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)"
+       d="m 496.63028,462.04675 h 17.28 v 17.28 h -17.28 z" />
     <path
        d="m 517.96028,436.48675 v 0 l 0.04,0.27 0.11,0.26 0.18,0.23 0.23,0.22 0.29,0.19 0.33,0.16 0.38,0.14 0.41,0.09 0.44,0.07 0.47,0.02 v 0 l 0.45,-0.02 0.44,-0.06 0.41,-0.09 0.38,-0.13 0.34,-0.16 0.29,-0.19 0.24,-0.22 0.18,-0.25 0.11,-0.27 0.04,-0.29 v 0 -0.14 l -0.02,-0.15 -0.03,-0.16 -0.05,-0.16 -0.07,-0.17 -0.09,-0.15 -0.11,-0.16 -0.13,-0.14 -0.16,-0.13 -0.18,-0.12 v 0 l -0.21,-0.1 -0.21,-0.08 -0.22,-0.06 -0.22,-0.05 -0.22,-0.03 -0.23,-0.02 -0.22,-0.02 h -0.24 l -0.23,-0.01 h -0.24 v 0 h -0.1 -0.11 -0.12 -0.12 -0.12 -0.11 -0.1 -0.09 l -0.06,-0.01 h -0.04 v 0 l -0.12,-0.03 -0.11,-0.04 -0.1,-0.06 -0.09,-0.08 -0.08,-0.09 -0.07,-0.1 -0.05,-0.11 -0.04,-0.12 -0.02,-0.12 -0.01,-0.12 v 0 -0.02 -0.04 -0.05 l 0.01,-0.05 0.02,-0.07 0.02,-0.07 0.02,-0.07 0.04,-0.08 0.05,-0.08 0.06,-0.08 v 0 l 0.15,0.1 0.15,0.08 0.15,0.07 0.15,0.05 0.14,0.04 0.13,0.02 0.13,0.02 0.11,0.01 0.09,0.01 h 0.09 v 0 l 0.35,-0.02 0.33,-0.08 0.3,-0.12 0.28,-0.16 0.24,-0.19 0.21,-0.23 0.17,-0.25 0.12,-0.26 0.08,-0.29 0.02,-0.3 v 0 -0.14 l -0.02,-0.14 -0.03,-0.14 -0.04,-0.14 -0.05,-0.14 -0.06,-0.12 -0.07,-0.12 -0.08,-0.12 -0.09,-0.1 -0.09,-0.1 v 0 l 0.14,-0.12 0.14,-0.1 0.13,-0.08 0.14,-0.07 0.12,-0.05 0.12,-0.03 0.11,-0.03 0.1,-0.01 0.09,-0.01 h 0.08 v 0 h 0.01 0.01 0.01 0.02 0.01 0.01 0.02 0.01 0.02 l 0.01,0.01 v 0 l -0.04,0.02 -0.04,0.02 -0.03,0.03 -0.03,0.03 -0.02,0.03 -0.02,0.04 -0.01,0.04 -0.01,0.05 -0.01,0.04 v 0.05 0 l 0.01,0.06 0.01,0.06 0.02,0.06 0.03,0.05 0.04,0.04 0.05,0.04 0.05,0.03 0.05,0.02 0.06,0.01 0.06,0.01 v 0 l 0.04,-0.01 0.05,-0.01 0.05,-0.01 0.05,-0.02 0.05,-0.04 0.04,-0.04 0.04,-0.05 0.03,-0.06 0.02,-0.07 0.01,-0.08 v 0 l -0.01,-0.08 -0.01,-0.07 -0.03,-0.09 -0.04,-0.08 -0.06,-0.09 -0.06,-0.07 -0.09,-0.06 -0.1,-0.06 -0.13,-0.03 -0.14,-0.01 v 0 h -0.08 l -0.11,0.01 -0.12,0.02 -0.13,0.03 -0.14,0.04 -0.15,0.07 -0.16,0.07 -0.16,0.1 -0.16,0.12 -0.17,0.15 v 0 l -0.16,-0.12 -0.16,-0.09 -0.16,-0.08 -0.15,-0.06 -0.15,-0.04 -0.14,-0.04 -0.13,-0.02 -0.12,-0.01 -0.11,-0.01 h -0.09 v 0 l -0.36,0.03 -0.33,0.07 -0.3,0.12 -0.28,0.16 -0.24,0.2 -0.21,0.22 -0.16,0.25 -0.13,0.27 -0.07,0.28 -0.03,0.3 v 0 l 0.01,0.17 0.02,0.16 0.04,0.16 0.05,0.15 0.06,0.14 0.08,0.13 0.08,0.13 0.08,0.11 0.1,0.1 0.09,0.09 v 0 l -0.05,0.06 -0.06,0.08 -0.05,0.09 -0.05,0.1 -0.05,0.11 -0.05,0.12 -0.04,0.12 -0.03,0.13 -0.01,0.13 -0.01,0.14 v 0 0.12 l 0.02,0.13 0.03,0.13 0.03,0.12 0.05,0.13 0.07,0.12 0.07,0.12 0.09,0.1 0.1,0.1 0.11,0.09 v 0 l -0.22,0.07 -0.2,0.1 -0.18,0.11 -0.16,0.12 -0.13,0.13 -0.11,0.15 -0.08,0.15 -0.07,0.15 -0.03,0.16 z m 0.68,0 v 0 l 0.02,-0.18 0.04,-0.17 0.06,-0.15 0.09,-0.15 0.11,-0.12 0.12,-0.11 0.14,-0.1 0.16,-0.07 0.16,-0.05 0.17,-0.02 h 0.76 v 0 h 0.35 l 0.35,0.01 0.35,0.02 0.34,0.04 0.32,0.07 0.28,0.1 0.24,0.14 0.19,0.19 0.12,0.24 0.04,0.31 v 0 l -0.03,0.2 -0.08,0.21 -0.13,0.19 -0.17,0.17 -0.21,0.16 -0.26,0.14 -0.28,0.12 -0.32,0.08 -0.35,0.06 -0.37,0.02 v 0 l -0.38,-0.02 -0.35,-0.06 -0.33,-0.08 -0.28,-0.12 -0.26,-0.14 -0.21,-0.16 -0.17,-0.18 -0.13,-0.19 -0.07,-0.2 z m 0.72,-4.87 v 0 -0.1 -0.11 -0.12 l 0.01,-0.11 0.02,-0.11 0.02,-0.11 0.02,-0.12 0.04,-0.1 0.04,-0.11 0.05,-0.1 v 0 l 0.04,-0.05 0.05,-0.06 0.06,-0.07 0.07,-0.07 0.09,-0.07 0.1,-0.06 0.11,-0.06 0.12,-0.04 0.14,-0.03 0.15,-0.01 v 0 l 0.3,0.04 0.25,0.1 0.19,0.15 0.14,0.19 0.11,0.21 0.07,0.22 0.04,0.21 0.02,0.2 0.01,0.16 v 0.12 0 0.11 l -0.01,0.11 v 0.11 l -0.01,0.11 -0.01,0.12 -0.02,0.11 -0.03,0.11 -0.03,0.11 -0.05,0.1 -0.05,0.1 v 0 l -0.04,0.05 -0.05,0.07 -0.06,0.06 -0.07,0.07 -0.09,0.07 -0.09,0.06 -0.11,0.06 -0.13,0.04 -0.13,0.03 -0.15,0.01 v 0 l -0.31,-0.03 -0.25,-0.11 -0.19,-0.15 -0.14,-0.18 -0.1,-0.22 -0.07,-0.21 -0.04,-0.22 -0.03,-0.2 v -0.16 z"
        style="fill:#000000;fill-rule:nonzero;stroke:none;stroke-width:0.75;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
@@ -1750,51 +1751,36 @@
        id="path122-2"
        clip-path="url(#clipPath328-0)"
        transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)" />
-    <rect
-       x="496.63028"
-       y="444.76675"
-       width="17.280001"
-       height="17.280001"
-       style="fill:#ffffff;stroke:none;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+    <path
        id="rect122-7"
        clip-path="url(#clipPath327-3)"
-       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)" />
-    <line
-       x1="498.36029"
-       y1="453.40674"
-       x2="512.1803"
-       y2="453.40674"
-       style="fill:none;stroke:#000000;stroke-width:1.71;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       style="fill:#ffffff;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)"
+       d="m 496.63028,444.76675 h 17.28 v 17.28 h -17.28 z" />
+    <path
        id="line122-2"
        clip-path="url(#clipPath326-6)"
-       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)" />
-    <line
-       x1="498.36029"
-       y1="453.40674"
-       x2="512.1803"
-       y2="453.40674"
-       style="fill:none;stroke:#000000;stroke-width:1.71;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       style="fill:none;stroke:#000000;stroke-width:1.71;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)"
+       d="M 498.36029,453.40674 H 512.1803" />
+    <path
        id="line123-6"
        clip-path="url(#clipPath325-7)"
-       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)" />
-    <line
-       x1="498.36029"
-       y1="470.68677"
-       x2="512.1803"
-       y2="470.68677"
-       style="fill:none;stroke:#000000;stroke-width:1.71;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:4.55, 4.55"
+       style="fill:none;stroke:#000000;stroke-width:1.71;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)"
+       d="M 498.36029,453.40674 H 512.1803" />
+    <path
        id="line124-1"
        clip-path="url(#clipPath323-8)"
-       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)" />
-    <line
-       x1="498.36029"
-       y1="470.68677"
-       x2="512.1803"
-       y2="470.68677"
-       style="fill:none;stroke:#000000;stroke-width:1.71;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:4.55, 4.55"
+       style="fill:none;stroke:#000000;stroke-width:1.71;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:4.55, 4.55"
+       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)"
+       d="M 498.36029,470.68677 H 512.1803" />
+    <path
        id="line125-1"
        clip-path="url(#clipPath322-1)"
-       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)" />
+       style="fill:none;stroke:#000000;stroke-width:1.71;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:4.55, 4.55"
+       transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)"
+       d="M 498.36029,470.68677 H 512.1803" />
     <path
        d="m 522.30028,457.50675 v 0 l 0.14,-0.01 0.16,-0.01 0.18,-0.01 h 0.19 l 0.19,-0.01 h 0.2 0.19 0.18 0.17 0.15 v 0 h 0.15 0.17 0.19 0.19 0.19 l 0.2,0.01 h 0.19 l 0.17,0.01 0.16,0.01 0.15,0.01 v -0.38 h -0.29 v 0 h -0.25 l -0.21,-0.01 -0.15,-0.03 -0.13,-0.03 -0.08,-0.05 -0.06,-0.06 -0.04,-0.07 -0.02,-0.09 -0.01,-0.1 v -0.12 -3.04 h 1.38 v 0 h 0.07 l 0.08,0.01 h 0.1 l 0.1,0.02 0.12,0.02 0.13,0.04 0.13,0.05 0.13,0.07 0.13,0.09 0.13,0.11 v 0 l 0.12,0.13 0.1,0.13 0.08,0.13 0.05,0.13 0.04,0.15 0.03,0.15 0.02,0.17 0.01,0.18 v 0.21 0.23 0 0.22 l 0.01,0.21 0.01,0.2 0.01,0.18 0.03,0.17 0.05,0.16 0.06,0.15 0.08,0.15 0.11,0.14 0.13,0.14 v 0 l 0.16,0.11 0.16,0.1 0.16,0.08 0.16,0.07 0.17,0.05 0.16,0.04 0.15,0.02 0.15,0.02 0.13,0.01 h 0.12 v 0 l 0.26,-0.03 0.21,-0.08 0.18,-0.11 0.15,-0.15 0.12,-0.16 0.08,-0.18 0.07,-0.18 0.04,-0.16 0.02,-0.15 0.01,-0.12 v 0 -0.02 l -0.01,-0.03 v -0.03 -0.02 l -0.01,-0.03 -0.02,-0.02 -0.02,-0.02 -0.02,-0.02 -0.04,-0.01 h -0.04 v 0 h -0.04 l -0.02,0.01 -0.03,0.01 -0.01,0.02 -0.02,0.02 -0.01,0.02 v 0.03 l -0.01,0.03 v 0.02 0.03 0 l -0.04,0.23 -0.05,0.21 -0.06,0.16 -0.08,0.14 -0.08,0.11 -0.1,0.08 -0.1,0.07 -0.1,0.04 -0.09,0.02 -0.1,0.01 v 0 l -0.16,-0.02 -0.13,-0.06 -0.12,-0.09 -0.09,-0.12 -0.08,-0.16 -0.07,-0.19 -0.05,-0.23 -0.05,-0.25 -0.05,-0.29 -0.05,-0.32 -0.15,-0.96 v 0 l -0.08,-0.22 -0.1,-0.2 -0.11,-0.18 -0.13,-0.16 -0.15,-0.14 -0.16,-0.13 -0.17,-0.11 -0.18,-0.1 -0.19,-0.08 -0.2,-0.07 v 0 l 0.34,-0.1 0.33,-0.13 0.3,-0.15 0.27,-0.17 0.25,-0.19 0.21,-0.21 0.17,-0.23 0.13,-0.25 0.07,-0.26 0.03,-0.27 v 0 l -0.04,-0.34 -0.11,-0.33 -0.19,-0.31 -0.25,-0.28 -0.31,-0.25 -0.37,-0.22 -0.41,-0.18 -0.45,-0.14 -0.48,-0.08 -0.52,-0.03 h -3.77 v 0.37 h 0.29 v 0 l 0.25,0.01 0.2,0.01 0.16,0.02 0.12,0.04 0.09,0.04 0.06,0.06 0.04,0.07 0.02,0.09 0.01,0.1 v 0.13 6.32 0 0.12 l -0.01,0.1 -0.02,0.09 -0.04,0.07 -0.06,0.06 -0.09,0.05 -0.12,0.03 -0.16,0.03 -0.2,0.01 h -0.25 -0.29 z m 2.27,-4.24 v -3.11 0 -0.08 -0.07 l 0.01,-0.06 0.01,-0.06 0.01,-0.05 0.03,-0.04 0.03,-0.03 0.04,-0.03 0.06,-0.02 0.07,-0.01 v 0 l 0.05,-0.01 0.05,-0.01 h 0.06 0.08 l 0.07,-0.01 h 0.08 0.09 0.08 0.08 0.07 v 0 h 0.33 l 0.34,0.02 0.33,0.04 0.32,0.07 0.3,0.11 0.26,0.17 0.23,0.23 0.17,0.3 0.11,0.38 0.04,0.47 v 0 l -0.01,0.25 -0.04,0.25 -0.06,0.25 -0.11,0.24 -0.15,0.22 -0.2,0.19 -0.27,0.17 -0.33,0.12 -0.41,0.08 -0.49,0.03 z"
        style="fill:#000000;fill-rule:nonzero;stroke:none;stroke-width:0.75;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
@@ -1915,173 +1901,161 @@
        id="path144-8"
        clip-path="url(#clipPath302-7)"
        transform="matrix(5.980414,0,0,5.9470022,-2668.0854,-2373.0203)" />
-    <circle
-       cx="163.24309"
-       cy="264.49963"
-       r="1.95"
-       style="fill:#000000;stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+    <path
        id="circle6-4"
        clip-path="url(#clipPath762)"
-       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)" />
-    <circle
-       cx="163.24309"
-       cy="256.20963"
-       r="1.95"
-       style="fill:#000000;stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       style="stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)"
+       d="m 165.19309,264.49963 a 1.95,1.95 0 0 1 -1.95,1.95 1.95,1.95 0 0 1 -1.95,-1.95 1.95,1.95 0 0 1 1.95,-1.95 1.95,1.95 0 0 1 1.95,1.95 z" />
+    <path
        id="circle7-3"
        clip-path="url(#clipPath761)"
-       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)" />
-    <circle
-       cx="52.193092"
-       cy="312.42963"
-       r="1.95"
-       style="fill:#000000;stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       style="stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)"
+       d="m 165.19309,256.20963 a 1.95,1.95 0 0 1 -1.95,1.95 1.95,1.95 0 0 1 -1.95,-1.95 1.95,1.95 0 0 1 1.95,-1.95 1.95,1.95 0 0 1 1.95,1.95 z" />
+    <path
        id="circle8-3"
        clip-path="url(#clipPath760)"
-       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)" />
-    <circle
-       cx="52.193092"
-       cy="298.21964"
-       r="1.95"
-       style="fill:#000000;stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       style="stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)"
+       d="m 54.143092,312.42963 a 1.95,1.95 0 0 1 -1.95,1.95 1.95,1.95 0 0 1 -1.95,-1.95 1.95,1.95 0 0 1 1.95,-1.95 1.95,1.95 0 0 1 1.95,1.95 z" />
+    <path
        id="circle9-0"
        clip-path="url(#clipPath759)"
-       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)" />
-    <circle
-       cx="107.71309"
-       cy="288.83963"
-       r="1.95"
-       style="fill:#000000;stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       style="stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)"
+       d="m 54.143092,298.21964 a 1.95,1.95 0 0 1 -1.95,1.95 1.95,1.95 0 0 1 -1.95,-1.95 1.95,1.95 0 0 1 1.95,-1.95001 1.95,1.95 0 0 1 1.95,1.95001 z" />
+    <path
        id="circle10-4"
        clip-path="url(#clipPath758)"
-       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)" />
-    <circle
-       cx="107.71309"
-       cy="273.74963"
-       r="1.95"
-       style="fill:#000000;stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       style="stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)"
+       d="m 109.66309,288.83963 a 1.95,1.95 0 0 1 -1.95,1.95 1.95,1.95 0 0 1 -1.95,-1.95 1.95,1.95 0 0 1 1.95,-1.95 1.95,1.95 0 0 1 1.95,1.95 z" />
+    <path
        id="circle11-3"
        clip-path="url(#clipPath757)"
-       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)" />
-    <polyline
-       points="80.23,119.18 135.75,94.71 191.28,77.17 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       style="stroke:#000000;stroke-width:0.71;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10"
+       transform="matrix(6.005611,0,0,6.005611,33.62514,-948.3719)"
+       d="m 109.66309,273.74963 a 1.95,1.95 0 0 1 -1.95,1.95 1.95,1.95 0 0 1 -1.95,-1.95 1.95,1.95 0 0 1 1.95,-1.95 1.95,1.95 0 0 1 1.95,1.95 z" />
+    <path
        id="polyline11-7"
+       clip-path="url(#clipPath756)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath756)" />
-    <polyline
-       points="80.23,133.39 135.75,109.80 191.28,85.46 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:3.41, 3.41"
+       d="M 80.23,119.18 135.75,94.71 191.28,77.17" />
+    <path
        id="polyline12-2"
+       clip-path="url(#clipPath755)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:3.41, 3.41"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath755)" />
-    <polyline
-       points="191.28,83.76 191.28,87.16 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:3.41, 3.41"
+       d="M 80.23,133.39 135.75,109.8 191.28,85.46" />
+    <path
        id="polyline14-7"
+       clip-path="url(#clipPath753)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:3.41, 3.41"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath753)" />
-    <polyline
-       points="187.11,75.59 195.44,75.59 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 191.28,83.76 v 3.4" />
+    <path
        id="polyline16-4"
+       clip-path="url(#clipPath751)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath751)" />
-    <polyline
-       points="191.28,75.59 191.28,78.75 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 187.11,75.59 h 8.33" />
+    <path
        id="polyline17-8"
+       clip-path="url(#clipPath750)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath750)" />
-    <polyline
-       points="187.11,78.75 195.44,78.75 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 191.28,75.59 v 3.16" />
+    <path
        id="polyline18-5"
+       clip-path="url(#clipPath749)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath749)" />
-    <polyline
-       points="80.23,131.29 80.23,135.49 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:3.41, 3.41"
+       d="m 187.11,78.75 h 8.33" />
+    <path
        id="polyline20-8"
+       clip-path="url(#clipPath747)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:3.41, 3.41"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath747)" />
-    <polyline
-       points="76.06,117.08 84.39,117.08 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 80.23,131.29 v 4.2" />
+    <path
        id="polyline22-6"
+       clip-path="url(#clipPath745)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath745)" />
-    <polyline
-       points="80.23,117.08 80.23,121.29 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 76.06,117.08 h 8.33" />
+    <path
        id="polyline23-0"
+       clip-path="url(#clipPath744)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath744)" />
-    <polyline
-       points="76.06,121.29 84.39,121.29 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 80.23,117.08 v 4.21" />
+    <path
        id="polyline24-4"
+       clip-path="url(#clipPath743)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath743)" />
-    <polyline
-       points="135.75,107.81 135.75,111.79 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:3.41, 3.41"
+       d="m 76.06,121.29 h 8.33" />
+    <path
        id="polyline26-8"
+       clip-path="url(#clipPath741)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10;stroke-dasharray:3.41, 3.41"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath741)" />
-    <polyline
-       points="131.59,92.87 139.92,92.87 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 135.75,107.81 v 3.98" />
+    <path
        id="polyline28-9"
+       clip-path="url(#clipPath739)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath739)" />
-    <polyline
-       points="135.75,92.87 135.75,96.55 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 131.59,92.87 h 8.33" />
+    <path
        id="polyline29-1"
+       clip-path="url(#clipPath738)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath738)" />
-    <polyline
-       points="131.59,96.55 139.92,96.55 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 135.75,92.87 v 3.68" />
+    <path
        id="polyline30-9"
+       clip-path="url(#clipPath737)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.75365,126.8705)"
-       clip-path="url(#clipPath737)" />
-    <polyline
-       points="76.06,117.08 84.39,117.08 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 131.59,96.55 h 8.33" />
+    <path
        id="polyline22-6-8"
+       clip-path="url(#clipPath745-3)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.72359,212.3143)"
-       clip-path="url(#clipPath745-3)" />
-    <polyline
-       points="76.06,117.08 84.39,117.08 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 76.06,117.08 h 8.33" />
+    <path
        id="polyline22-6-8-0"
+       clip-path="url(#clipPath745-3-9)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,-134.72359,237.694)"
-       clip-path="url(#clipPath745-3-9)" />
-    <polyline
-       points="76.06,117.08 84.39,117.08 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 76.06,117.08 h 8.33" />
+    <path
        id="polyline22-6-8-1"
+       clip-path="url(#clipPath745-3-1)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,532.19948,-73.4226)"
-       clip-path="url(#clipPath745-3-1)" />
-    <polyline
-       points="76.06,117.08 84.39,117.08 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 76.06,117.08 h 8.33" />
+    <path
        id="polyline22-6-8-0-5"
+       clip-path="url(#clipPath745-3-9-4)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,532.19948,-52.7678)"
-       clip-path="url(#clipPath745-3-9-4)" />
-    <polyline
-       points="76.06,117.08 84.39,117.08 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 76.06,117.08 h 8.33" />
+    <path
        id="polyline22-6-8-1-2"
+       clip-path="url(#clipPath745-3-1-1)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,198.7079,70.9989)"
-       clip-path="url(#clipPath745-3-1-1)" />
-    <polyline
-       points="76.06,117.08 84.39,117.08 "
-       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:10"
+       d="m 76.06,117.08 h 8.33" />
+    <path
        id="polyline22-6-8-1-3"
+       clip-path="url(#clipPath745-3-1-9)"
+       style="fill:none;stroke:#000000;stroke-width:1.28;stroke-linejoin:round;stroke-miterlimit:10"
        transform="matrix(6.005611,0,0,6.005611,198.7079,95.2332)"
-       clip-path="url(#clipPath745-3-1-9)" />
+       d="m 76.06,117.08 h 8.33" />
   </g>
 </svg>
