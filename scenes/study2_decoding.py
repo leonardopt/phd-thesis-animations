@@ -92,6 +92,37 @@ def make_voxel_bar(
     return group
 
 
+def make_feature_row(
+    values: np.ndarray,
+    color: str = BLUE,
+    cell_w: float = 0.18,
+    cell_h: float | None = None,
+    gap: float = 0.055,
+) -> VGroup:
+    """Horizontal row of voxel-feature cells."""
+    if cell_h is None:
+        cell_h = cell_w
+
+    group = VGroup()
+    mid = (len(values) - 1) / 2
+    for i, v in enumerate(values):
+        cell = Rectangle(
+            width=cell_w,
+            height=cell_h,
+            stroke_width=0.7,
+            stroke_color=LGREY,
+        ).set_fill(
+            interpolate_color(
+                ManimColor(WHITE), ManimColor(color), 0.10 + 0.90 * float(v)
+            ),
+            opacity=1.0,
+        )
+        cell.move_to(RIGHT * (i - mid) * (cell_w + gap))
+        group.add(cell)
+    group.move_to(ORIGIN)
+    return group
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Scene 3A — What is a voxel activity pattern?
 # ══════════════════════════════════════════════════════════════════════════════
@@ -213,201 +244,344 @@ class Study2Scene3A(Scene):
 
 class Study2Scene3B(Scene):
     """
-    Phase 1 — Paradigm overview: show the two-session SVG diagram, then
-              spotlight Session 2 as the source of training data.
-    Phase 2 — Session 2 detail: three target images → voxel bar vectors.
-    Phase 3 — Classification: 3-class scatter + decision boundaries.
+    Crossvalidated prediction within Session 2:
+    previous end state -> concrete samples x features matrix -> leave-one-run-out
+    train/test highlighting -> schematic linear SVM plot with support vectors.
     """
 
-    _PARADIGM_SVG = Path(
-        "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_paradigm.svg"
-    )
-
-    # Three target images from the fMRI stimulus set
-    _IMGS = [
-        ("ANI-CAT-T00.png", BLUE,          "cat"),
-        ("BUI-MOD-T00.png", AMBER,          "building"),
-        ("LAN-MOO-T00.png", "#7C3AED",      "landscape"),
+    _ROW_COLS = [BLUE, AMBER, GREEN, RED, "#7C3AED", "#0891B2"]
+    _BASE_ROWS = [
+        np.array([0.90, 0.20, 0.70, 0.30, 0.80, 0.10, 0.50, 0.40, 0.90]),
+        np.array([0.25, 0.82, 0.18, 0.74, 0.22, 0.88, 0.30, 0.68, 0.24]),
+        np.array([0.58, 0.34, 0.86, 0.18, 0.42, 0.80, 0.16, 0.66, 0.54]),
+        np.array([0.84, 0.46, 0.12, 0.70, 0.26, 0.52, 0.92, 0.24, 0.60]),
+        np.array([0.20, 0.62, 0.48, 0.86, 0.36, 0.14, 0.74, 0.54, 0.92]),
+        np.array([0.76, 0.12, 0.56, 0.28, 0.90, 0.44, 0.18, 0.82, 0.34]),
     ]
 
-    # Mock voxel vectors per image (8 dims, clearly distinct)
-    _VECS = {
-        "cat":       np.array([0.85, 0.15, 0.70, 0.30, 0.90, 0.20, 0.65, 0.40]),
-        "building":  np.array([0.20, 0.85, 0.25, 0.80, 0.15, 0.75, 0.30, 0.90]),
-        "landscape": np.array([0.50, 0.55, 0.90, 0.10, 0.45, 0.80, 0.15, 0.60]),
-    }
+    def _row_values(self, base_idx: int, run_idx: int) -> np.ndarray:
+        base = self._BASE_ROWS[base_idx % len(self._BASE_ROWS)]
+        rolled = np.roll(base, (run_idx + base_idx) % 3)
+        jitter = 0.05 * np.sin(np.arange(base.size) * 1.15 + 0.75 * run_idx + 0.35 * base_idx)
+        return np.clip(0.84 * base + 0.16 * rolled + jitter, 0.08, 0.98)
 
-    # 2-D scatter positions per class
-    _PTS = {
-        "cat":       [(-2.2, 0.8), (-1.8, -0.1), (-2.5, 0.2), (-1.9, 1.0), (-2.4, -0.5)],
-        "building":  [( 1.6, 0.4), ( 2.0, -0.4), ( 1.3, 0.9), ( 2.2, 0.3), ( 1.8, -0.9)],
-        "landscape": [( 0.1, 1.5), (-0.3, 1.1), ( 0.5, 1.8), (-0.1, 1.3), ( 0.3, 0.9)],
-    }
+    def _matrix_row_centers(self, x: float) -> list[np.ndarray]:
+        row_h = 0.082
+        row_gap = 0.020
+        run_gap = 0.070
+        block_h = 4 * row_h + 3 * row_gap
+        total_h = 8 * block_h + 7 * run_gap
+        top = total_h / 2 - row_h / 2
+        centers: list[np.ndarray] = []
+        for run_idx in range(8):
+            block_top = top - run_idx * (block_h + run_gap)
+            for row_idx in range(4):
+                centers.append(
+                    np.array([x, block_top - row_idx * (row_h + row_gap), 0.0])
+                )
+        return centers
+
+    def _make_test_points(self, ax: Axes, fold_idx: int) -> VGroup:
+        pts = [
+            (-1.55 + 0.10 * np.sin(0.8 * fold_idx),  0.74 + 0.08 * np.cos(1.1 * fold_idx), BLUE),
+            (-1.20 + 0.12 * np.cos(0.9 * fold_idx), -0.18 + 0.08 * np.sin(1.3 * fold_idx), BLUE),
+            ( 1.20 + 0.10 * np.cos(0.7 * fold_idx),  0.52 + 0.10 * np.sin(1.0 * fold_idx), AMBER),
+            ( 1.62 + 0.12 * np.sin(1.2 * fold_idx), -0.56 + 0.08 * np.cos(0.85 * fold_idx), AMBER),
+        ]
+        return VGroup(*[
+            Dot(
+                ax.c2p(x, y),
+                radius=0.085,
+                color=col,
+                fill_color=WHITE,
+                fill_opacity=1.0,
+                stroke_width=2.2,
+            )
+            for x, y, col in pts
+        ])
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
-        # ══ Phase 1: Paradigm overview ════════════════════════════════════════
-
-        title = Tex("How do we train the classifier?", color=INK, font_size=36)
+        # ── Start from previous end state ────────────────────────────────────
+        title = Tex(r"\textbf{Session 2 :} Perceptual task", color=INK, font_size=30)
         title.to_edge(UP, buff=0.35)
-        self.play(Write(title), run_time=0.8)
-        self.wait(0.2)
+        vector_x = -1.15
+        vector_ys = np.linspace(1.45, -1.45, 6)
+        visible_vectors = VGroup(*[
+            make_feature_row(
+                self._row_values(idx, 0),
+                color=self._ROW_COLS[idx],
+                cell_w=0.17,
+                cell_h=0.17,
+                gap=0.055,
+            ).move_to(np.array([vector_x, y, 0.0]))
+            for idx, y in enumerate(vector_ys)
+        ])
+        vector_label = Tex("Feature vectors", color=MGREY, font_size=24) \
+            .next_to(visible_vectors, UP, buff=0.24)
 
-        # Show paradigm SVG centred on screen
-        paradigm = SVGMobject(str(self._PARADIGM_SVG)) \
-            .set_height(5.2).move_to(DOWN * 0.3)
-        self.play(FadeIn(paradigm, shift=UP * 0.15), run_time=0.9)
-        self.wait(0.6)
-
-        # Session labels placed over the SVG halves (left = S1, right = S2)
-        s1_lbl = Tex("Session 1", color=INK, font_size=24) \
-            .move_to(LEFT * 3.4 + UP * 2.4)
-        s1_sub = Tex("Working Memory task", color=MGREY, font_size=20) \
-            .next_to(s1_lbl, DOWN, buff=0.1)
-        s2_lbl = Tex("Session 2", color=BLUE, font_size=24) \
-            .move_to(RIGHT * 3.4 + UP * 2.4)
-        s2_sub = Tex("Perceptual task", color=BLUE, font_size=20) \
-            .next_to(s2_lbl, DOWN, buff=0.1)
-
-        self.play(
-            Write(s1_lbl), FadeIn(s1_sub),
-            Write(s2_lbl), FadeIn(s2_sub),
-            run_time=0.7,
+        summary_matrix_x = 3.35
+        summary_symbol = MathTex(
+            r"\mathbf{X}_{\mathrm{S2}} =",
+            color=INK,
+            font_size=28,
         )
-        self.wait(0.5)
-
-        # Highlight the Session 2 half with a blue rectangle
-        s2_rect = Rectangle(
-            width=6.2, height=5.5,
-            color=BLUE, stroke_width=2.5,
-        ).set_fill(BLUE, opacity=0.07).move_to(RIGHT * 3.4 + DOWN * 0.3)
-
-        train_arrow = CurvedArrow(
-            s2_rect.get_bottom() + DOWN * 0.1,
-            RIGHT * 3.4 + DOWN * 3.2,
-            angle=-TAU / 6, color=BLUE, stroke_width=2,
+        summary_matrix = MathTex(
+            r"\begin{bmatrix}"
+            r"x_{11} & x_{12} & \cdots & x_{1v} \\"
+            r"x_{21} & x_{22} & \cdots & x_{2v} \\"
+            r"\vdots & \vdots & \ddots & \vdots \\"
+            r"x_{n1} & x_{n2} & \cdots & x_{nv}"
+            r"\end{bmatrix}",
+            color=INK,
+            font_size=24,
         )
-        train_note = Tex("used to train classifier", color=BLUE, font_size=22) \
-            .next_to(train_arrow.get_end(), DOWN, buff=0.08)
-
-        self.play(Create(s2_rect), run_time=0.6)
-        self.play(Create(train_arrow), Write(train_note), run_time=0.7)
-        self.wait(0.8)
-
-        # Fade out everything except the title; transition to Phase 2
-        self.play(
-            FadeOut(VGroup(
-                paradigm, s1_lbl, s1_sub, s2_lbl, s2_sub,
-                s2_rect, train_arrow, train_note,
-            )),
-            run_time=0.6,
+        summary_group = VGroup(summary_symbol, summary_matrix).arrange(RIGHT, buff=0.18)
+        summary_group.move_to(np.array([summary_matrix_x, -0.05, 0.0]))
+        summary_title = Tex(
+            r"Multivoxel activity patterns\\during perception",
+            color=INK,
+            font_size=24,
+            tex_environment="center",
+        ).move_to(np.array([summary_group.get_center()[0], summary_matrix.get_center()[1] + 1.35, 0.0]))
+        sample_arrow = DoubleArrow(
+            summary_matrix.get_corner(UR) + RIGHT * 0.42 + UP * 0.02,
+            summary_matrix.get_corner(DR) + RIGHT * 0.42 + DOWN * 0.02,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
         )
+        sample_label = MathTex(
+            r"\text{samples (object-scenes)}",
+            color=INK,
+            font_size=18,
+        ).rotate(-PI / 2).next_to(sample_arrow, RIGHT, buff=0.10)
+        feature_arrow = DoubleArrow(
+            summary_matrix.get_corner(DL) + DOWN * 0.36,
+            summary_matrix.get_corner(DR) + DOWN * 0.36,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
+        )
+        feature_label = MathTex(
+            r"\text{features (voxels)}",
+            color=INK,
+            font_size=20,
+        ).next_to(feature_arrow, DOWN, buff=0.10)
 
-        # ══ Phase 2: image → voxel vector ════════════════════════════════════
+        self.add(
+            title,
+            visible_vectors,
+            vector_label,
+            summary_title,
+            summary_symbol,
+            summary_matrix,
+            sample_arrow,
+            sample_label,
+            feature_arrow,
+            feature_label,
+        )
+        self.wait(0.45)
 
-        subtitle = Tex(
-            r"Session 2: participant views each image once per run "
-            r"$\;\cdot\;$ brain activity recorded",
-            color=MGREY, font_size=22,
-        ).next_to(title, DOWN, buff=0.16)
-        self.play(FadeIn(subtitle), run_time=0.4)
-        self.wait(0.2)
-
-        # Three rows: image  →  bar vector
-        row_ys = [1.15, 0.0, -1.15]
-
-        all_bars   = []
-        all_vlbls  = []
-
-        for (fname, col, key), ry in zip(self._IMGS, row_ys):
-            img = ImageMobject(fmri_stim(fname)).set_height(1.2) \
-                .move_to(LEFT * 5.3 + UP * ry)
-            bdr = SurroundingRectangle(img, color=LGREY, stroke_width=1.5, buff=0.04)
-            lbl = Tex(key, color=col, font_size=21).next_to(img, LEFT, buff=0.14)
-
-            arr = Arrow(
-                LEFT * 4.4 + UP * ry,
-                LEFT * 3.0 + UP * ry,
-                color=MGREY, stroke_width=2, buff=0.1,
+        # ── Merge vectors into a full 32-row matrix ──────────────────────────
+        matrix_x = -3.20
+        row_centers = self._matrix_row_centers(matrix_x)
+        target_rows = [
+            make_feature_row(
+                self._row_values(global_idx % len(self._BASE_ROWS), global_idx // 4),
+                color=self._ROW_COLS[global_idx % len(self._ROW_COLS)],
+                cell_w=0.17,
+                cell_h=0.082,
+                gap=0.055,
+            ).move_to(row_centers[global_idx])
+            for global_idx in range(32)
+        ]
+        run_labels = VGroup(*[
+            Tex(f"run {run_idx + 1}", color=MGREY, font_size=16).next_to(
+                VGroup(*target_rows[4 * run_idx : 4 * run_idx + 4]),
+                LEFT,
+                buff=0.18,
             )
+            for run_idx in range(8)
+        ])
+        matrix_body = VGroup(*target_rows)
+        left_bracket = MathTex(r"[", color=INK).stretch_to_fit_height(matrix_body.height + 0.24)
+        right_bracket = MathTex(r"]", color=INK).stretch_to_fit_height(matrix_body.height + 0.24)
+        left_bracket.next_to(matrix_body, LEFT, buff=0.06)
+        right_bracket.next_to(matrix_body, RIGHT, buff=0.06)
+        summary_symbol_target = MathTex(
+            r"\mathbf{X}_{\mathrm{S2}}",
+            color=INK,
+            font_size=28,
+        ).next_to(left_bracket, LEFT, buff=0.22)
+        summary_title_target = summary_title.copy().scale(0.86).next_to(
+            VGroup(left_bracket, matrix_body, right_bracket), UP, buff=0.20
+        )
 
-            bar = make_voxel_bar(self._VECS[key], color=col, bar_max_h=0.85) \
-                .scale(0.78).move_to(LEFT * 1.7 + UP * ry)
-            vlbl = Tex(rf"$\mathbf{{v}}_\text{{{key[:3]}}}$", color=col, font_size=21) \
-                .next_to(bar, RIGHT, buff=0.14)
+        self.play(
+            summary_title.animate.move_to(summary_title_target.get_center()).scale(0.86),
+            summary_symbol.animate.move_to(summary_symbol_target.get_center()),
+            FadeTransform(summary_matrix, VGroup(left_bracket, right_bracket)),
+            FadeOut(sample_arrow),
+            FadeOut(sample_label),
+            FadeOut(feature_arrow),
+            FadeOut(feature_label),
+            FadeOut(vector_label),
+            *[
+                Transform(visible_vectors[idx], target_rows[idx])
+                for idx in range(len(visible_vectors))
+            ],
+            LaggedStart(
+                *[FadeIn(row) for row in target_rows[len(visible_vectors):]],
+                lag_ratio=0.03,
+            ),
+            LaggedStart(*[FadeIn(lbl) for lbl in run_labels], lag_ratio=0.05),
+            run_time=1.8,
+        )
 
-            self.play(FadeIn(Group(img, bdr)), Write(lbl), run_time=0.4)
-            self.play(GrowArrow(arr), run_time=0.35)
-            self.play(FadeIn(bar), Write(vlbl), run_time=0.4)
-            self.wait(0.1)
+        matrix_rows = [*visible_vectors, *target_rows[len(visible_vectors):]]
+        matrix_shell = VGroup(*matrix_rows, left_bracket, right_bracket)
 
-            all_bars.append(bar)
-            all_vlbls.append(vlbl)
-
-        self.wait(0.4)
-
-        # ── Divider ───────────────────────────────────────────────────────────
-        div = Line(UP * 2.6 + RIGHT * 0.0, DOWN * 2.6 + RIGHT * 0.0,
-                   color=LGREY, stroke_width=1.2)
-        self.play(Create(div), run_time=0.3)
-
-        # ══ Phase 3: 2-D scatter + decision boundaries ════════════════════════
+        # ── Arrow to classifier + SVM schematic plot ─────────────────────────
+        svm_box = RoundedRectangle(
+            width=2.95,
+            height=0.92,
+            corner_radius=0.14,
+            color=RED,
+            stroke_width=2.0,
+        ).set_fill("#FEF2F2", opacity=0.82).move_to(np.array([0.35, 0.10, 0.0]))
+        svm_label = VGroup(
+            Tex("Linear Support Vector", color=RED, font_size=18),
+            Tex("Machine Classifier", color=RED, font_size=18),
+        ).arrange(DOWN, buff=0.05).move_to(svm_box.get_center())
+        data_arrow = Arrow(
+            right_bracket.get_right() + RIGHT * 0.18,
+            svm_box.get_left() + LEFT * 0.14,
+            color=MGREY,
+            stroke_width=2.2,
+            buff=0.02,
+            tip_length=0.16,
+        )
 
         ax = Axes(
-            x_range=[-3.2, 3.2, 1],
-            y_range=[-1.4, 2.4, 1],
-            x_length=4.6,
-            y_length=3.4,
+            x_range=[-2.6, 2.6, 1],
+            y_range=[-1.6, 1.9, 1],
+            x_length=3.0,
+            y_length=2.5,
             axis_config={
-                "color": LGREY, "stroke_width": 1.5,
+                "color": LGREY,
+                "stroke_width": 1.4,
                 "include_ticks": False,
-                "tip_shape": StealthTip, "tip_length": 0.15,
+                "tip_shape": StealthTip,
+                "tip_length": 0.12,
             },
-        ).move_to(RIGHT * 3.2 + DOWN * 0.1)
+        ).move_to(np.array([4.55, -0.05, 0.0]))
+        boundary = Line(ax.c2p(-0.15, -1.35), ax.c2p(0.95, 1.55), color=RED, stroke_width=2.2)
+        margin_1 = DashedLine(ax.c2p(-0.55, -1.25), ax.c2p(0.55, 1.65), color=RED, stroke_width=1.5, dash_length=0.10)
+        margin_2 = DashedLine(ax.c2p(0.25, -1.45), ax.c2p(1.35, 1.45), color=RED, stroke_width=1.5, dash_length=0.10)
 
-        ax_xl = Tex("Voxel dim 1", color=MGREY, font_size=17) \
-            .next_to(ax.x_axis.get_right(), DOWN, buff=0.1)
-        ax_yl = Tex("Voxel dim 2", color=MGREY, font_size=17) \
-            .next_to(ax.y_axis.get_top(), LEFT, buff=0.1)
-
-        self.play(Create(ax), Write(ax_xl), Write(ax_yl), run_time=0.7)
-
-        colors_map = {"cat": BLUE, "building": AMBER, "landscape": "#7C3AED"}
-        for key, col in colors_map.items():
-            dots = VGroup(*[
-                Dot(ax.c2p(x, y), radius=0.10, color=col, fill_opacity=0.85)
-                for x, y in self._PTS[key]
-            ])
-            leg = Tex(key[:3], color=col, font_size=18) \
-                .next_to(dots[0], UP, buff=0.08)
-            self.play(
-                LaggedStartMap(FadeIn, dots, lag_ratio=0.12),
-                Write(leg),
-                run_time=0.6,
-            )
-
-        self.wait(0.3)
-
-        # Schematic decision boundaries (two dashed lines)
-        b1 = DashedLine(ax.c2p(-1.0, -1.2), ax.c2p(1.5, 2.2),
-                        color=RED, stroke_width=2.2, dash_length=0.11)
-        b2 = DashedLine(ax.c2p(-3.0, 0.6), ax.c2p(0.8, -1.2),
-                        color=RED, stroke_width=2.2, dash_length=0.11)
-        bound_lbl = Tex("decision boundaries", color=RED, font_size=18) \
+        train_blue_pts = VGroup(*[
+            Dot(ax.c2p(x, y), radius=0.075, color=BLUE, fill_opacity=0.85)
+            for x, y in [(-1.85, 0.95), (-1.55, 0.42), (-1.30, -0.10), (-1.72, -0.62), (-0.92, 0.32), (-0.58, -0.28)]
+        ])
+        train_amber_pts = VGroup(*[
+            Dot(ax.c2p(x, y), radius=0.075, color=AMBER, fill_opacity=0.85)
+            for x, y in [(1.05, 0.88), (1.44, 0.34), (1.78, -0.12), (1.52, -0.72), (0.84, 0.10), (0.58, -0.48)]
+        ])
+        support_vectors = VGroup(*[
+            Circle(radius=0.12, color=RED, stroke_width=1.8).move_to(pt.get_center())
+            for pt in [train_blue_pts[4], train_blue_pts[5], train_amber_pts[4], train_amber_pts[5]]
+        ])
+        support_label = Tex("support vectors", color=RED, font_size=16) \
             .next_to(ax, DOWN, buff=0.18)
+        fold_label = Tex("held-out run 1 / 8", color=INK, font_size=20) \
+            .next_to(ax, UP, buff=0.12)
+        current_test_pts = self._make_test_points(ax, 0)
 
-        self.play(Create(b1), Create(b2), run_time=0.7)
-        self.play(Write(bound_lbl), run_time=0.4)
-        self.wait(0.4)
+        self.play(
+            GrowArrow(data_arrow),
+            FadeIn(svm_box),
+            FadeIn(svm_label),
+            Create(ax),
+            Create(boundary),
+            Create(margin_1),
+            Create(margin_2),
+            FadeIn(train_blue_pts),
+            FadeIn(train_amber_pts),
+            FadeIn(support_vectors),
+            FadeIn(support_label),
+            FadeIn(fold_label),
+            FadeIn(current_test_pts),
+            run_time=1.15,
+        )
 
-        # ── Bottom message ─────────────────────────────────────────────────────
-        msg = Tex(
-            r"Classifier learns the \textit{perceptual} code from Session 2",
-            color=INK, font_size=24,
-        ).to_edge(DOWN, buff=0.35)
-        self.play(Write(msg), run_time=0.9)
-        self.wait(1.5)
+        # ── Leave-one-run-out highlight ──────────────────────────────────────
+        train_box = SurroundingRectangle(
+            matrix_shell,
+            color=BLUE,
+            stroke_width=1.8,
+            buff=0.05,
+            corner_radius=0.04,
+        ).set_fill(BLUE, opacity=0.04)
+        train_box.set_z_index(-1)
+        train_label = Tex("training set", color=BLUE, font_size=18) \
+            .next_to(train_box, LEFT, buff=0.14).align_to(train_box, UP)
+        test_boxes = [
+            SurroundingRectangle(
+                VGroup(*matrix_rows[4 * run_idx : 4 * run_idx + 4]),
+                color=AMBER,
+                stroke_width=2.6,
+                buff=0.03,
+                corner_radius=0.04,
+            ).set_fill(AMBER, opacity=0.10)
+            for run_idx in range(8)
+        ]
+        test_labels = [
+            Tex("test set", color=AMBER, font_size=18).next_to(box, RIGHT, buff=0.10)
+            for box in test_boxes
+        ]
+
+        current_test_box = test_boxes[0]
+        current_test_label = test_labels[0]
+        self.play(
+            FadeIn(train_box),
+            FadeIn(train_label),
+            Create(current_test_box),
+            FadeIn(current_test_label),
+            run_time=0.5,
+        )
+
+        for fold_idx in range(8):
+            new_fold_label = Tex(
+                f"held-out run {fold_idx + 1} / 8",
+                color=INK,
+                font_size=20,
+            ).move_to(fold_label.get_center())
+            new_test_pts = self._make_test_points(ax, fold_idx)
+
+            if fold_idx == 0:
+                self.play(
+                    Transform(fold_label, new_fold_label),
+                    ReplacementTransform(current_test_pts, new_test_pts),
+                    Indicate(svm_box, color=RED, scale_factor=1.02),
+                    run_time=0.55,
+                )
+                current_test_pts = new_test_pts
+            else:
+                self.play(
+                    Transform(current_test_box, test_boxes[fold_idx]),
+                    Transform(current_test_label, test_labels[fold_idx]),
+                    Transform(fold_label, new_fold_label),
+                    ReplacementTransform(current_test_pts, new_test_pts),
+                    Indicate(svm_box, color=RED, scale_factor=1.02),
+                    run_time=0.55,
+                )
+                current_test_pts = new_test_pts
+
+        self.wait(1.6)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

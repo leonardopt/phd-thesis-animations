@@ -1,12 +1,14 @@
 """
-Study 2 — Experimental Design.
+Study 2.
 
-  Study2ExperimentalDesign — two-session paradigm diagram:
-      Session 1: Memory task    (Target → Delay → Probe 1 → Buffer → Probe 2 → Response → ITI)
-      Session 2: Perceptual task (Stimulus 1 → ISI → Stimulus 2 → ISI → Stimulus 3)
+  Study2ExperimentalDesign — two-session paradigm diagram
+  Study2DecodingOverview   — Session 2 stimuli -> feature vectors -> sensory matrix
+  Study2SensoryDecoding    — crossvalidated prediction within Session 2
 
 Render:
-    uv run manim scenes/study2_design.py Study2ExperimentalDesign -qh
+    uv run manim scenes/study2.py Study2ExperimentalDesign -qh
+    uv run manim scenes/study2.py Study2DecodingOverview -qh
+    uv run manim scenes/study2.py Study2SensoryDecoding -qh
 """
 from __future__ import annotations
 
@@ -254,7 +256,7 @@ class Study2DecodingOverview(Scene):
     brain icon and activity-pattern matrix.
 
     Render:
-        uv run manim scenes/study2_design.py Study2DecodingOverview -qh
+        uv run manim scenes/study2.py Study2DecodingOverview -qh
     """
 
     # Three S2 stimulus colours (matching Stimulus 1/2/3 order)
@@ -779,3 +781,430 @@ class Study2DecodingOverview(Scene):
         )
 
         self.wait(2.0)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Study2SensoryDecoding
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _make_feature_row(
+    values: np.ndarray,
+    color: str = _D_BLUE,
+    cell_w: float = 0.18,
+    cell_h: float | None = None,
+    gap: float = 0.055,
+) -> VGroup:
+    """Horizontal row of voxel-feature cells."""
+    if cell_h is None:
+        cell_h = cell_w
+
+    group = VGroup()
+    mid = (len(values) - 1) / 2
+    for i, v in enumerate(values):
+        cell = Rectangle(
+            width=cell_w,
+            height=cell_h,
+            stroke_width=0.7,
+            stroke_color=_D_LGREY,
+        ).set_fill(
+            interpolate_color(
+                ManimColor(WHITE), ManimColor(color), 0.10 + 0.90 * float(v)
+            ),
+            opacity=1.0,
+        )
+        cell.move_to(RIGHT * (i - mid) * (cell_w + gap))
+        group.add(cell)
+    group.move_to(ORIGIN)
+    return group
+
+
+class Study2SensoryDecoding(Scene):
+    """
+    Starts from the previous end state, merges feature vectors into a
+    samples x features matrix, and illustrates leave-one-run-out decoding.
+
+    Render:
+        uv run manim scenes/study2.py Study2SensoryDecoding -qh
+    """
+
+    _ROW_COLS = [_D_BLUE, _D_AMBER, _D_GREEN, _D_RED, _D_PURP, _D_CYAN]
+    _BASE_ROWS = [
+        np.array([0.90, 0.20, 0.70, 0.30, 0.80, 0.10, 0.50, 0.40, 0.90]),
+        np.array([0.25, 0.82, 0.18, 0.74, 0.22, 0.88, 0.30, 0.68, 0.24]),
+        np.array([0.58, 0.34, 0.86, 0.18, 0.42, 0.80, 0.16, 0.66, 0.54]),
+        np.array([0.84, 0.46, 0.12, 0.70, 0.26, 0.52, 0.92, 0.24, 0.60]),
+        np.array([0.20, 0.62, 0.48, 0.86, 0.36, 0.14, 0.74, 0.54, 0.92]),
+        np.array([0.76, 0.12, 0.56, 0.28, 0.90, 0.44, 0.18, 0.82, 0.34]),
+    ]
+
+    def _row_values(self, base_idx: int, run_idx: int) -> np.ndarray:
+        base = self._BASE_ROWS[base_idx % len(self._BASE_ROWS)]
+        rolled = np.roll(base, (run_idx + base_idx) % 3)
+        jitter = 0.05 * np.sin(
+            np.arange(base.size) * 1.15 + 0.75 * run_idx + 0.35 * base_idx
+        )
+        return np.clip(0.84 * base + 0.16 * rolled + jitter, 0.08, 0.98)
+
+    def _matrix_row_centers(self, x: float) -> list[np.ndarray]:
+        row_h = 0.082
+        row_gap = 0.020
+        run_gap = 0.070
+        block_h = 4 * row_h + 3 * row_gap
+        total_h = 8 * block_h + 7 * run_gap
+        top = total_h / 2 - row_h / 2
+        centers: list[np.ndarray] = []
+        for run_idx in range(8):
+            block_top = top - run_idx * (block_h + run_gap)
+            for row_idx in range(4):
+                centers.append(
+                    np.array([x, block_top - row_idx * (row_h + row_gap), 0.0])
+                )
+        return centers
+
+    def _make_test_points(self, ax: Axes, fold_idx: int) -> VGroup:
+        pts = [
+            (
+                -1.55 + 0.10 * np.sin(0.8 * fold_idx),
+                0.74 + 0.08 * np.cos(1.1 * fold_idx),
+                _D_BLUE,
+            ),
+            (
+                -1.20 + 0.12 * np.cos(0.9 * fold_idx),
+                -0.18 + 0.08 * np.sin(1.3 * fold_idx),
+                _D_BLUE,
+            ),
+            (
+                1.20 + 0.10 * np.cos(0.7 * fold_idx),
+                0.52 + 0.10 * np.sin(1.0 * fold_idx),
+                _D_AMBER,
+            ),
+            (
+                1.62 + 0.12 * np.sin(1.2 * fold_idx),
+                -0.56 + 0.08 * np.cos(0.85 * fold_idx),
+                _D_AMBER,
+            ),
+        ]
+        return VGroup(*[
+            Dot(
+                ax.c2p(x, y),
+                radius=0.085,
+                color=col,
+                fill_color=WHITE,
+                fill_opacity=1.0,
+                stroke_width=2.2,
+            )
+            for x, y, col in pts
+        ])
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        title = Tex(r"\textbf{Session 2 :} Perceptual task", color=INK, font_size=30)
+        title.to_edge(UP, buff=0.35)
+
+        vector_x = -1.15
+        vector_ys = np.linspace(1.45, -1.45, 6)
+        visible_vectors = VGroup(*[
+            _make_feature_row(
+                self._row_values(idx, 0),
+                color=self._ROW_COLS[idx],
+                cell_w=0.17,
+                cell_h=0.17,
+                gap=0.055,
+            ).move_to(np.array([vector_x, y, 0.0]))
+            for idx, y in enumerate(vector_ys)
+        ])
+        vector_label = Tex("Feature vectors", color=_D_MGREY, font_size=24).next_to(
+            visible_vectors, UP, buff=0.24
+        )
+
+        summary_matrix_x = 3.85
+        summary_symbol = MathTex(
+            r"\mathbf{X}_{\mathrm{S2}} =",
+            color=INK,
+            font_size=28,
+        )
+        summary_matrix = MathTex(
+            r"\begin{bmatrix}"
+            r"x_{11} & x_{12} & \cdots & x_{1v} \\"
+            r"x_{21} & x_{22} & \cdots & x_{2v} \\"
+            r"\vdots & \vdots & \ddots & \vdots \\"
+            r"x_{n1} & x_{n2} & \cdots & x_{nv}"
+            r"\end{bmatrix}",
+            color=INK,
+            font_size=24,
+        )
+        summary_group = VGroup(summary_symbol, summary_matrix).arrange(RIGHT, buff=0.18)
+        summary_group.move_to(np.array([summary_matrix_x, -0.05, 0.0]))
+        summary_title = Tex(
+            r"Multivoxel activity patterns\\during perception",
+            color=INK,
+            font_size=24,
+            tex_environment="center",
+        ).move_to(
+            np.array([summary_group.get_center()[0], summary_matrix.get_center()[1] + 1.35, 0.0])
+        )
+        sample_arrow = DoubleArrow(
+            summary_matrix.get_corner(UR) + RIGHT * 0.42 + UP * 0.02,
+            summary_matrix.get_corner(DR) + RIGHT * 0.42 + DOWN * 0.02,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
+        )
+        sample_label = MathTex(
+            r"\text{samples (object-scenes)}",
+            color=INK,
+            font_size=18,
+        ).rotate(-PI / 2).next_to(sample_arrow, RIGHT, buff=0.10)
+        feature_arrow = DoubleArrow(
+            summary_matrix.get_corner(DL) + DOWN * 0.36,
+            summary_matrix.get_corner(DR) + DOWN * 0.36,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
+        )
+        feature_label = MathTex(
+            r"\text{features (voxels)}",
+            color=INK,
+            font_size=20,
+        ).next_to(feature_arrow, DOWN, buff=0.10)
+
+        self.add(
+            title,
+            visible_vectors,
+            vector_label,
+            summary_title,
+            summary_symbol,
+            summary_matrix,
+            sample_arrow,
+            sample_label,
+            feature_arrow,
+            feature_label,
+        )
+        self.wait(0.45)
+
+        matrix_x = -3.20
+        row_centers = self._matrix_row_centers(matrix_x)
+        target_rows = [
+            _make_feature_row(
+                self._row_values(global_idx % len(self._BASE_ROWS), global_idx // 4),
+                color=self._ROW_COLS[global_idx % len(self._ROW_COLS)],
+                cell_w=0.17,
+                cell_h=0.082,
+                gap=0.055,
+            ).move_to(row_centers[global_idx])
+            for global_idx in range(32)
+        ]
+        run_labels = VGroup(*[
+            Tex(f"run {run_idx + 1}", color=_D_MGREY, font_size=16).next_to(
+                VGroup(*target_rows[4 * run_idx : 4 * run_idx + 4]),
+                LEFT,
+                buff=0.18,
+            )
+            for run_idx in range(8)
+        ])
+        matrix_body = VGroup(*target_rows)
+        left_bracket = MathTex(r"[", color=INK).stretch_to_fit_height(matrix_body.height + 0.24)
+        right_bracket = MathTex(r"]", color=INK).stretch_to_fit_height(matrix_body.height + 0.24)
+        left_bracket.next_to(matrix_body, LEFT, buff=0.06)
+        right_bracket.next_to(matrix_body, RIGHT, buff=0.06)
+        summary_symbol_target = MathTex(
+            r"\mathbf{X}_{\mathrm{S2}}",
+            color=INK,
+            font_size=28,
+        ).next_to(left_bracket, LEFT, buff=0.22)
+        summary_title_target = summary_title.copy().scale(0.86).next_to(
+            VGroup(left_bracket, matrix_body, right_bracket), UP, buff=0.20
+        )
+
+        self.play(
+            summary_title.animate.move_to(summary_title_target.get_center()).scale(0.86),
+            summary_symbol.animate.move_to(summary_symbol_target.get_center()),
+            FadeTransform(summary_matrix, VGroup(left_bracket, right_bracket)),
+            FadeOut(sample_arrow),
+            FadeOut(sample_label),
+            FadeOut(feature_arrow),
+            FadeOut(feature_label),
+            FadeOut(vector_label),
+            *[
+                Transform(visible_vectors[idx], target_rows[idx])
+                for idx in range(len(visible_vectors))
+            ],
+            LaggedStart(
+                *[FadeIn(row) for row in target_rows[len(visible_vectors):]],
+                lag_ratio=0.03,
+            ),
+            LaggedStart(*[FadeIn(lbl) for lbl in run_labels], lag_ratio=0.05),
+            run_time=1.8,
+        )
+
+        matrix_rows = [*visible_vectors, *target_rows[len(visible_vectors):]]
+        matrix_shell = VGroup(*matrix_rows, left_bracket, right_bracket)
+
+        svm_box = RoundedRectangle(
+            width=2.95,
+            height=0.92,
+            corner_radius=0.14,
+            color=_D_RED,
+            stroke_width=2.0,
+        ).set_fill("#FEF2F2", opacity=0.82).move_to(np.array([0.35, 0.10, 0.0]))
+        svm_label = VGroup(
+            Tex("Linear Support Vector", color=_D_RED, font_size=18),
+            Tex("Machine Classifier", color=_D_RED, font_size=18),
+        ).arrange(DOWN, buff=0.05).move_to(svm_box.get_center())
+        data_arrow = Arrow(
+            right_bracket.get_right() + RIGHT * 0.18,
+            svm_box.get_left() + LEFT * 0.14,
+            color=_D_MGREY,
+            stroke_width=2.2,
+            buff=0.02,
+            tip_length=0.16,
+        )
+
+        ax = Axes(
+            x_range=[-2.6, 2.6, 1],
+            y_range=[-1.6, 1.9, 1],
+            x_length=3.0,
+            y_length=2.5,
+            axis_config={
+                "color": _D_LGREY,
+                "stroke_width": 1.4,
+                "include_ticks": False,
+                "tip_shape": StealthTip,
+                "tip_length": 0.12,
+            },
+        ).move_to(np.array([4.55, -0.05, 0.0]))
+        boundary = Line(ax.c2p(-0.15, -1.35), ax.c2p(0.95, 1.55), color=_D_RED, stroke_width=2.2)
+        margin_1 = DashedLine(
+            ax.c2p(-0.55, -1.25),
+            ax.c2p(0.55, 1.65),
+            color=_D_RED,
+            stroke_width=1.5,
+            dash_length=0.10,
+        )
+        margin_2 = DashedLine(
+            ax.c2p(0.25, -1.45),
+            ax.c2p(1.35, 1.45),
+            color=_D_RED,
+            stroke_width=1.5,
+            dash_length=0.10,
+        )
+
+        train_blue_pts = VGroup(*[
+            Dot(ax.c2p(x, y), radius=0.075, color=_D_BLUE, fill_opacity=0.85)
+            for x, y in [
+                (-1.85, 0.95),
+                (-1.55, 0.42),
+                (-1.30, -0.10),
+                (-1.72, -0.62),
+                (-0.92, 0.32),
+                (-0.58, -0.28),
+            ]
+        ])
+        train_amber_pts = VGroup(*[
+            Dot(ax.c2p(x, y), radius=0.075, color=_D_AMBER, fill_opacity=0.85)
+            for x, y in [
+                (1.05, 0.88),
+                (1.44, 0.34),
+                (1.78, -0.12),
+                (1.52, -0.72),
+                (0.84, 0.10),
+                (0.58, -0.48),
+            ]
+        ])
+        support_vectors = VGroup(*[
+            Circle(radius=0.12, color=_D_RED, stroke_width=1.8).move_to(pt.get_center())
+            for pt in [train_blue_pts[4], train_blue_pts[5], train_amber_pts[4], train_amber_pts[5]]
+        ])
+        support_label = Tex("support vectors", color=_D_RED, font_size=16).next_to(
+            ax, DOWN, buff=0.18
+        )
+        fold_label = Tex("held-out run 1 / 8", color=INK, font_size=20).next_to(
+            ax, UP, buff=0.12
+        )
+        current_test_pts = self._make_test_points(ax, 0)
+
+        self.play(
+            GrowArrow(data_arrow),
+            FadeIn(svm_box),
+            FadeIn(svm_label),
+            Create(ax),
+            Create(boundary),
+            Create(margin_1),
+            Create(margin_2),
+            FadeIn(train_blue_pts),
+            FadeIn(train_amber_pts),
+            FadeIn(support_vectors),
+            FadeIn(support_label),
+            FadeIn(fold_label),
+            FadeIn(current_test_pts),
+            run_time=1.15,
+        )
+
+        train_box = SurroundingRectangle(
+            matrix_shell,
+            color=_D_BLUE,
+            stroke_width=1.8,
+            buff=0.05,
+            corner_radius=0.04,
+        ).set_fill(_D_BLUE, opacity=0.04)
+        train_box.set_z_index(-1)
+        train_label = Tex("training set", color=_D_BLUE, font_size=18).next_to(
+            train_box, LEFT, buff=0.14
+        ).align_to(train_box, UP)
+        test_boxes = [
+            SurroundingRectangle(
+                VGroup(*matrix_rows[4 * run_idx : 4 * run_idx + 4]),
+                color=_D_AMBER,
+                stroke_width=2.6,
+                buff=0.03,
+                corner_radius=0.04,
+            ).set_fill(_D_AMBER, opacity=0.10)
+            for run_idx in range(8)
+        ]
+        test_labels = [
+            Tex("test set", color=_D_AMBER, font_size=18).next_to(box, RIGHT, buff=0.10)
+            for box in test_boxes
+        ]
+
+        current_test_box = test_boxes[0]
+        current_test_label = test_labels[0]
+        self.play(
+            FadeIn(train_box),
+            FadeIn(train_label),
+            Create(current_test_box),
+            FadeIn(current_test_label),
+            run_time=0.5,
+        )
+
+        for fold_idx in range(8):
+            new_fold_label = Tex(
+                f"held-out run {fold_idx + 1} / 8",
+                color=INK,
+                font_size=20,
+            ).move_to(fold_label.get_center())
+            new_test_pts = self._make_test_points(ax, fold_idx)
+
+            if fold_idx == 0:
+                self.play(
+                    Transform(fold_label, new_fold_label),
+                    ReplacementTransform(current_test_pts, new_test_pts),
+                    Indicate(svm_box, color=_D_RED, scale_factor=1.02),
+                    run_time=0.55,
+                )
+                current_test_pts = new_test_pts
+            else:
+                self.play(
+                    Transform(current_test_box, test_boxes[fold_idx]),
+                    Transform(current_test_label, test_labels[fold_idx]),
+                    Transform(fold_label, new_fold_label),
+                    ReplacementTransform(current_test_pts, new_test_pts),
+                    Indicate(svm_box, color=_D_RED, scale_factor=1.02),
+                    run_time=0.55,
+                )
+                current_test_pts = new_test_pts
+
+        self.wait(1.6)
