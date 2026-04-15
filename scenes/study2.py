@@ -3,14 +3,14 @@ Study 2.
 
   Study2ExperimentalDesign — two-session paradigm diagram
   Study2DecodingOverview   — Session 2 stimuli -> feature vectors -> sensory matrix
-  Study2SensoryDecoding    — crossvalidated prediction within Session 2
-  Study2SensoryToMemoryClassification — Session 2 matrix with Session 1 target/delay setup
+  Study2WithinSession2Decoding — crossvalidated prediction within Session 2
+  Study2CrossSessionDecoding   — train on sensory, test on sensory and memory
 
 Render:
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
     uv run manim scenes/study2.py Study2DecodingOverview -qh
-    uv run manim scenes/study2.py Study2SensoryDecoding -qh
-    uv run manim scenes/study2.py Study2SensoryToMemoryClassification -qh
+    uv run manim scenes/study2.py Study2WithinSession2Decoding -qh
+    uv run manim scenes/study2.py Study2CrossSessionDecoding -qh
 """
 from __future__ import annotations
 
@@ -30,6 +30,8 @@ LAKE_D1 = str(_STIM / "LAN-LAK-D01.png")
 LAKE_D2 = str(_STIM / "LAN-LAK-D02.png")
 PINE    = str(_STIM / "PLA-PIN-T00.png")
 OBS     = str(_STIM / "BUI-OBS-T00.png")
+CAT     = str(_STIM / "ANI-CAT-T00.png")
+SOFA    = str(Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_training/ITE-SOF-T00.png"))
 FIX     = str(Path("/Users/leonardo/phd-thesis-animations/assets/images/fixation_target.png"))
 
 # ── Layout constants ──────────────────────────────────────────────────────────
@@ -786,7 +788,7 @@ class Study2DecodingOverview(Scene):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Study2SensoryDecoding
+# Study2WithinSession2Decoding
 # ══════════════════════════════════════════════════════════════════════════════
 
 
@@ -821,13 +823,13 @@ def _make_feature_row(
     return group
 
 
-class Study2SensoryDecoding(Study2DecodingOverview):
+class Study2WithinSession2Decoding(Study2DecodingOverview):
     """
     Starts from the previous end state, merges feature vectors into a
     samples x features matrix, and illustrates leave-one-run-out decoding.
 
     Render:
-        uv run manim scenes/study2.py Study2SensoryDecoding -qh
+        uv run manim scenes/study2.py Study2WithinSession2Decoding -qh
     """
 
     _ROW_COLS = [_D_BLUE, _D_AMBER, _D_GREEN, _D_RED, _D_PURP, _D_CYAN]
@@ -1131,6 +1133,12 @@ class Study2SensoryDecoding(Study2DecodingOverview):
             Tex(r"\textbf{Support Vector Machine}", color=INK, font_size=18),
             Tex("Classifier", color=INK, font_size=18),
         ).arrange(DOWN, buff=0.05).move_to(np.array([0.55, matrix_mid_y, 0.0]))
+        svm_question = Tex(
+            "How well can the classifier\\\\discriminate between object-scene\\\\representations during perception?",
+            color=INK,
+            font_size=17,
+            tex_environment="center",
+        ).next_to(svm_label, DOWN, buff=0.22)
         label_col_x = right_bracket.get_right()[0] + 0.58
         arrow_len = 0.77
         arrow_center_x = 0.5 * (label_col_x + 0.42 + svm_label.get_left()[0])
@@ -1147,103 +1155,210 @@ class Study2SensoryDecoding(Study2DecodingOverview):
             "color": _D_LGREY,
             "stroke_width": 1.4,
             "include_ticks": False,
-            "tip_shape": StealthTip,
-            "tip_length": 0.12,
+            "include_tip": False,
         }
         train_ax = Axes(
             x_range=[-2.6, 2.6, 1],
             y_range=[-1.6, 1.9, 1],
-            x_length=2.85,
-            y_length=1.62,
+            x_length=2.70,
+            y_length=1.58,
             axis_config=plot_axis_config,
-        ).move_to(np.array([4.60, 1.05, 0.0]))
+        ).move_to(np.array([4.80, 1.16, 0.0]))
         test_ax = Axes(
             x_range=[-2.6, 2.6, 1],
             y_range=[-1.6, 1.9, 1],
-            x_length=2.85,
-            y_length=1.62,
+            x_length=2.70,
+            y_length=1.58,
             axis_config=plot_axis_config,
-        ).move_to(np.array([4.60, -0.95, 0.0]))
+        ).move_to(np.array([4.80, -1.12, 0.0]))
         train_title = Tex("training data", color=INK, font_size=18).next_to(train_ax, UP, buff=0.08)
         test_title = Tex("held-out test data", color=INK, font_size=18).next_to(test_ax, UP, buff=0.08)
+        train_x_label = Tex("voxel 1", color=INK, font_size=15).next_to(train_ax, DOWN, buff=0.10)
+        train_y_label = Tex("voxel 2", color=INK, font_size=15).rotate(PI / 2).next_to(
+            train_ax, LEFT, buff=0.08
+        )
+        test_x_label = Tex("voxel 1", color=INK, font_size=15).next_to(test_ax, DOWN, buff=0.10)
+        test_y_label = Tex("voxel 2", color=INK, font_size=15).rotate(PI / 2).next_to(
+            test_ax, LEFT, buff=0.08
+        )
+        class_example_paths = [CAT, PINE, SOFA]
+        class_cols = [_D_BLUE, _D_GREEN, _D_AMBER]
+        class_examples = Group(*[
+            Group(
+                ImageMobject(path).set_height(0.42),
+            )
+            for path in class_example_paths
+        ])
+        for icon, col in zip(class_examples, class_cols):
+            frame = SurroundingRectangle(
+                icon[0],
+                color=col,
+                stroke_width=2.1,
+                buff=0.04,
+                corner_radius=0.06,
+            )
+            icon.add(frame)
+            icon[1].move_to(icon[0].get_center())
+        class_examples.arrange(DOWN, buff=0.10).move_to(np.array([3.00, 0.98, 0.0]))
 
-        fold_error_counts = [1, 0, 1, 2, 0, 1, 1, 0]
+        fold_misclassified = [
+            [("blue", 3), ("amber", 1)],
+            [("green", 0)],
+            [("blue", 2), ("amber", 2)],
+            [("blue", 3), ("green", 1), ("amber", 0)],
+            [("green", 2)],
+            [("blue", 2), ("amber", 1)],
+            [("green", 0)],
+            [("blue", 3), ("amber", 2)],
+        ]
+        fold_error_counts = [len(items) for items in fold_misclassified]
         fold_accuracy_tex = [
-            rf"{int(100 * (4 - n_err) / 4)}\%"
+            rf"{int(round(100 * (12 - n_err) / 12))}\%"
             for n_err in fold_error_counts
         ]
 
         def _decision_shift(fold_idx: int) -> tuple[float, float]:
-            return 0.08 * np.sin(0.75 * fold_idx), 0.06 * np.cos(0.9 * fold_idx)
+            return 0.07 * np.sin(0.72 * fold_idx), 0.05 * np.cos(0.86 * fold_idx)
 
-        def _decision_lines(ax: Axes, fold_idx: int, *, with_margins: bool) -> tuple[Line, VMobject, VMobject]:
+        def _class_centers(fold_idx: int) -> dict[str, tuple[float, float]]:
             x_shift, y_shift = _decision_shift(fold_idx)
-            boundary = Line(
-                ax.c2p(-0.20 + x_shift, -1.35 + y_shift),
-                ax.c2p(0.90 + x_shift, 1.55 + y_shift),
-                color=_D_RED,
-                stroke_width=2.2,
-            )
-            if with_margins:
-                margin_1 = DashedLine(
-                    ax.c2p(-0.60 + x_shift, -1.25 + y_shift),
-                    ax.c2p(0.50 + x_shift, 1.65 + y_shift),
-                    color=_D_RED,
-                    stroke_width=1.5,
-                    dash_length=0.10,
-                )
-                margin_2 = DashedLine(
-                    ax.c2p(0.20 + x_shift, -1.45 + y_shift),
-                    ax.c2p(1.30 + x_shift, 1.45 + y_shift),
-                    color=_D_RED,
-                    stroke_width=1.5,
-                    dash_length=0.10,
-                )
-            else:
-                margin_1 = VMobject().set_opacity(0.0)
-                margin_2 = VMobject().set_opacity(0.0)
-            return boundary, margin_1, margin_2
+            return {
+                "blue": (-1.25 + 0.15 * x_shift, -0.02 + 0.10 * y_shift),
+                "green": (0.05 + 0.30 * x_shift, 0.96 + 0.70 * y_shift),
+                "amber": (1.18 + 0.25 * x_shift, -0.06 + 0.12 * y_shift),
+            }
 
-        def make_train_plot_state(fold_idx: int) -> tuple[Line, VMobject, VMobject, VGroup, VGroup, VGroup]:
-            boundary, margin_1, margin_2 = _decision_lines(train_ax, fold_idx, with_margins=True)
+        def make_train_plot_state(
+            fold_idx: int,
+        ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
+            centers = _class_centers(fold_idx)
             blue_pts = [
-                (-1.92 + 0.10 * np.sin(0.70 * fold_idx), 1.02 + 0.08 * np.cos(0.55 * fold_idx)),
-                (-1.60 + 0.08 * np.cos(0.95 * fold_idx), 0.62 + 0.08 * np.sin(0.85 * fold_idx)),
-                (-1.36 + 0.10 * np.sin(0.82 * fold_idx), 0.10 + 0.08 * np.cos(1.05 * fold_idx)),
-                (-1.72 + 0.08 * np.cos(0.60 * fold_idx), -0.55 + 0.08 * np.sin(0.78 * fold_idx)),
-                (-1.08 + 0.10 * np.sin(1.05 * fold_idx), 0.44 + 0.09 * np.cos(0.75 * fold_idx)),
-                (-0.72 + 0.10 * np.cos(0.88 * fold_idx), -0.30 + 0.08 * np.sin(0.68 * fold_idx)),
-                (-0.44 + 0.09 * np.sin(0.92 * fold_idx), 0.15 + 0.07 * np.cos(0.82 * fold_idx)),
-                (-0.30 + 0.08 * np.cos(0.74 * fold_idx), -0.52 + 0.07 * np.sin(0.90 * fold_idx)),
+                (-1.88 + 0.09 * np.sin(0.70 * fold_idx), 0.98 + 0.08 * np.cos(0.52 * fold_idx)),
+                (-1.56 + 0.08 * np.cos(0.94 * fold_idx), 0.56 + 0.08 * np.sin(0.82 * fold_idx)),
+                (-1.42 + 0.09 * np.sin(0.78 * fold_idx), -0.06 + 0.08 * np.cos(1.02 * fold_idx)),
+                (-1.72 + 0.07 * np.cos(0.60 * fold_idx), -0.64 + 0.07 * np.sin(0.76 * fold_idx)),
+                (-1.12 + 0.09 * np.sin(1.02 * fold_idx), 0.34 + 0.08 * np.cos(0.74 * fold_idx)),
+                (-0.76 + 0.08 * np.cos(0.86 * fold_idx), -0.26 + 0.07 * np.sin(0.66 * fold_idx)),
+                (-0.52 + 0.08 * np.sin(0.90 * fold_idx), 0.12 + 0.07 * np.cos(0.80 * fold_idx)),
+                (-0.40 + 0.08 * np.cos(0.74 * fold_idx), -0.38 + 0.07 * np.sin(0.88 * fold_idx)),
+            ]
+            green_pts = [
+                (-0.12 + 0.08 * np.cos(0.86 * fold_idx), 1.34 + 0.06 * np.sin(0.60 * fold_idx)),
+                (0.22 + 0.07 * np.sin(0.84 * fold_idx), 1.06 + 0.07 * np.cos(0.74 * fold_idx)),
+                (0.58 + 0.08 * np.cos(0.92 * fold_idx), 0.78 + 0.07 * np.sin(0.66 * fold_idx)),
+                (0.10 + 0.07 * np.sin(0.70 * fold_idx), 0.62 + 0.07 * np.cos(0.88 * fold_idx)),
+                (0.42 + 0.08 * np.cos(0.98 * fold_idx), 0.44 + 0.07 * np.sin(0.72 * fold_idx)),
+                (-0.20 + 0.07 * np.sin(0.90 * fold_idx), 0.86 + 0.06 * np.cos(0.78 * fold_idx)),
+                (0.72 + 0.08 * np.cos(0.76 * fold_idx), 0.22 + 0.06 * np.sin(0.90 * fold_idx)),
+                (-0.34 + 0.06 * np.sin(0.82 * fold_idx), 0.42 + 0.07 * np.cos(0.84 * fold_idx)),
             ]
             amber_pts = [
-                (1.10 + 0.10 * np.cos(0.82 * fold_idx), 0.96 + 0.08 * np.sin(0.70 * fold_idx)),
-                (1.48 + 0.09 * np.sin(0.88 * fold_idx), 0.40 + 0.08 * np.cos(0.64 * fold_idx)),
-                (1.82 + 0.08 * np.cos(1.18 * fold_idx), -0.08 + 0.07 * np.sin(0.92 * fold_idx)),
-                (1.54 + 0.09 * np.sin(0.72 * fold_idx), -0.74 + 0.08 * np.cos(1.02 * fold_idx)),
-                (0.96 + 0.10 * np.cos(1.02 * fold_idx), 0.14 + 0.08 * np.sin(0.86 * fold_idx)),
-                (0.62 + 0.10 * np.sin(1.08 * fold_idx), -0.42 + 0.08 * np.cos(0.94 * fold_idx)),
-                (0.44 + 0.08 * np.cos(0.76 * fold_idx), 0.42 + 0.07 * np.sin(0.88 * fold_idx)),
-                (0.26 + 0.08 * np.sin(0.84 * fold_idx), -0.14 + 0.07 * np.cos(0.72 * fold_idx)),
+                (1.06 + 0.09 * np.cos(0.82 * fold_idx), 0.84 + 0.08 * np.sin(0.70 * fold_idx)),
+                (1.42 + 0.08 * np.sin(0.88 * fold_idx), 0.34 + 0.08 * np.cos(0.64 * fold_idx)),
+                (1.80 + 0.08 * np.cos(1.12 * fold_idx), -0.18 + 0.07 * np.sin(0.88 * fold_idx)),
+                (1.52 + 0.09 * np.sin(0.72 * fold_idx), -0.76 + 0.08 * np.cos(0.98 * fold_idx)),
+                (1.02 + 0.08 * np.cos(1.00 * fold_idx), 0.06 + 0.08 * np.sin(0.84 * fold_idx)),
+                (0.74 + 0.09 * np.sin(1.06 * fold_idx), -0.42 + 0.08 * np.cos(0.90 * fold_idx)),
+                (0.52 + 0.08 * np.cos(0.76 * fold_idx), -0.02 + 0.06 * np.sin(0.86 * fold_idx)),
+                (0.34 + 0.08 * np.sin(0.84 * fold_idx), -0.54 + 0.06 * np.cos(0.72 * fold_idx)),
             ]
-            train_blue_pts = VGroup(*[
+            blue_group = VGroup(*[
                 Dot(train_ax.c2p(x, y), radius=0.055, color=_D_BLUE, fill_opacity=0.88)
                 for x, y in blue_pts
             ])
-            train_amber_pts = VGroup(*[
+            green_group = VGroup(*[
+                Dot(train_ax.c2p(x, y), radius=0.055, color=_D_GREEN, fill_opacity=0.88)
+                for x, y in green_pts
+            ])
+            amber_group = VGroup(*[
                 Dot(train_ax.c2p(x, y), radius=0.055, color=_D_AMBER, fill_opacity=0.88)
                 for x, y in amber_pts
             ])
             support_vectors = VGroup(*[
                 Circle(radius=0.09, color=_D_RED, stroke_width=1.7).move_to(pt.get_center())
                 for pt in [
-                    train_blue_pts[6],
-                    train_blue_pts[7],
-                    train_amber_pts[6],
-                    train_amber_pts[7],
+                    blue_group[6],
+                    green_group[6],
+                    amber_group[6],
+                    blue_group[7],
+                    amber_group[7],
                 ]
             ])
-            return boundary, margin_1, margin_2, train_blue_pts, train_amber_pts, support_vectors
+            regions = _decision_regions(train_ax, centers)
+            return regions, blue_group, green_group, amber_group, support_vectors
+
+        def _region_fill(col: str) -> ManimColor:
+            return interpolate_color(WHITE, ManimColor(col), 0.58)
+
+        def _clip_polygon_halfplane(
+            poly: list[np.ndarray], normal: np.ndarray, offset: float
+        ) -> list[np.ndarray]:
+            if not poly:
+                return []
+
+            def inside(p: np.ndarray) -> bool:
+                return float(np.dot(normal, p)) <= offset + 1e-9
+
+            def intersect(p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
+                direction = p2 - p1
+                denom = float(np.dot(normal, direction))
+                if abs(denom) < 1e-9:
+                    return p2
+                t = (offset - float(np.dot(normal, p1))) / denom
+                return p1 + t * direction
+
+            clipped: list[np.ndarray] = []
+            for idx in range(len(poly)):
+                prev = poly[idx - 1]
+                curr = poly[idx]
+                prev_in = inside(prev)
+                curr_in = inside(curr)
+                if curr_in:
+                    if not prev_in:
+                        clipped.append(intersect(prev, curr))
+                    clipped.append(curr)
+                elif prev_in:
+                    clipped.append(intersect(prev, curr))
+            return clipped
+
+        def _linear_region_polygon(
+            label: str, centers: dict[str, tuple[float, float]]
+        ) -> list[np.ndarray]:
+            x_min, x_max = -2.45, 2.45
+            y_min, y_max = -1.35, 1.55
+            poly = [
+                np.array([x_min, y_min]),
+                np.array([x_max, y_min]),
+                np.array([x_max, y_max]),
+                np.array([x_min, y_max]),
+            ]
+            c_i = np.array(centers[label], dtype=float)
+            for other_label, other_center in centers.items():
+                if other_label == label:
+                    continue
+                c_j = np.array(other_center, dtype=float)
+                normal = c_j - c_i
+                offset = 0.5 * (float(np.dot(c_j, c_j)) - float(np.dot(c_i, c_i)))
+                poly = _clip_polygon_halfplane(poly, normal, offset)
+                if len(poly) < 3:
+                    return []
+            return poly
+
+        def _decision_regions(ax: Axes, centers: dict[str, tuple[float, float]]) -> VGroup:
+            color_map = {"blue": _D_BLUE, "green": _D_GREEN, "amber": _D_AMBER}
+            regions = VGroup()
+            for label in ["blue", "green", "amber"]:
+                poly = _linear_region_polygon(label, centers)
+                if len(poly) < 3:
+                    continue
+                region = Polygon(
+                    *[ax.c2p(float(x), float(y)) for x, y in poly],
+                    stroke_width=0.0,
+                )
+                region.set_fill(_region_fill(color_map[label]), opacity=0.92)
+                region.set_z_index(-8)
+                regions.add(region)
+            return regions
 
         def _error_mark(center: np.ndarray, *, visible: bool) -> VGroup:
             size = 0.12
@@ -1255,45 +1370,67 @@ class Study2SensoryDecoding(Study2DecodingOverview):
                 mark.set_stroke(opacity=0.0)
             return mark
 
-        def make_test_plot_state(fold_idx: int) -> tuple[Line, VGroup, VGroup, VGroup]:
-            boundary, _, _ = _decision_lines(test_ax, fold_idx, with_margins=False)
-            err_count = fold_error_counts[fold_idx]
-            x_shift, y_shift = _decision_shift(fold_idx)
-            blue_is_error = err_count >= 1
-            amber_is_error = err_count >= 2
+        def make_test_plot_state(
+            fold_idx: int,
+        ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
+            centers = _class_centers(fold_idx)
+            misclassified = fold_misclassified[fold_idx]
             blue_pts = [
-                (-1.46 + 0.06 * np.sin(0.72 * fold_idx), 0.78 + 0.06 * np.cos(0.52 * fold_idx)),
-                (
-                    (0.52 if blue_is_error else -0.92) + 0.04 * np.cos(0.84 * fold_idx),
-                    (0.22 if blue_is_error else -0.30) + 0.05 * np.sin(0.76 * fold_idx),
-                ),
+                (-1.62 + 0.05 * np.sin(0.72 * fold_idx), 0.86 + 0.05 * np.cos(0.52 * fold_idx)),
+                (-1.30 + 0.05 * np.cos(0.82 * fold_idx), 0.46 + 0.05 * np.sin(0.74 * fold_idx)),
+                (-1.10 + 0.05 * np.sin(0.88 * fold_idx), -0.08 + 0.04 * np.cos(0.80 * fold_idx)),
+                (-0.90 + 0.04 * np.cos(0.78 * fold_idx), 0.18 + 0.05 * np.sin(0.70 * fold_idx)),
+            ]
+            green_pts = [
+                (-0.08 + 0.05 * np.cos(0.84 * fold_idx), 1.18 + 0.05 * np.sin(0.66 * fold_idx)),
+                (0.28 + 0.04 * np.sin(0.78 * fold_idx), 0.94 + 0.05 * np.cos(0.80 * fold_idx)),
+                (0.56 + 0.05 * np.cos(0.88 * fold_idx), 0.62 + 0.04 * np.sin(0.72 * fold_idx)),
+                (-0.18 + 0.04 * np.sin(0.82 * fold_idx), 0.74 + 0.04 * np.cos(0.74 * fold_idx)),
             ]
             amber_pts = [
-                (1.26 + 0.06 * np.cos(0.78 * fold_idx), 0.72 + 0.05 * np.sin(0.66 * fold_idx)),
-                (
-                    (-0.44 if amber_is_error else 1.08) + 0.04 * np.sin(0.82 * fold_idx),
-                    (0.18 if amber_is_error else -0.46) + 0.05 * np.cos(0.74 * fold_idx),
-                ),
+                (1.24 + 0.05 * np.cos(0.78 * fold_idx), 0.72 + 0.05 * np.sin(0.66 * fold_idx)),
+                (1.44 + 0.04 * np.sin(0.84 * fold_idx), 0.20 + 0.05 * np.cos(0.70 * fold_idx)),
+                (1.52 + 0.05 * np.sin(0.90 * fold_idx), -0.34 + 0.05 * np.cos(0.82 * fold_idx)),
+                (0.98 + 0.04 * np.cos(0.76 * fold_idx), -0.08 + 0.04 * np.sin(0.68 * fold_idx)),
             ]
-            blue_test_pts = VGroup(*[
+            wrong_positions = {
+                ("blue", 2): (0.42, 0.24),
+                ("blue", 3): (0.98, -0.08),
+                ("green", 0): (1.04, 0.08),
+                ("green", 1): (-0.92, 0.24),
+                ("green", 2): (1.10, -0.18),
+                ("amber", 0): (-0.14, 0.80),
+                ("amber", 1): (-0.88, 0.10),
+                ("amber", 2): (0.28, 0.34),
+            }
+            point_lookup = {"blue": blue_pts, "green": green_pts, "amber": amber_pts}
+            for class_name, idx in misclassified:
+                base_x, base_y = wrong_positions[(class_name, idx)]
+                point_lookup[class_name][idx] = (
+                    base_x + 0.04 * np.sin(0.88 * fold_idx + idx),
+                    base_y + 0.04 * np.cos(0.76 * fold_idx + idx),
+                )
+            blue_group = VGroup(*[
                 Dot(test_ax.c2p(x, y), radius=0.070, color=_D_BLUE, fill_opacity=0.92)
                 for x, y in blue_pts
             ])
-            amber_test_pts = VGroup(*[
+            green_group = VGroup(*[
+                Dot(test_ax.c2p(x, y), radius=0.070, color=_D_GREEN, fill_opacity=0.92)
+                for x, y in green_pts
+            ])
+            amber_group = VGroup(*[
                 Dot(test_ax.c2p(x, y), radius=0.070, color=_D_AMBER, fill_opacity=0.92)
                 for x, y in amber_pts
             ])
-            error_marks = VGroup(
-                _error_mark(blue_test_pts[1].get_center(), visible=blue_is_error),
-                _error_mark(amber_test_pts[1].get_center(), visible=amber_is_error),
-            )
-            return boundary, blue_test_pts, amber_test_pts, error_marks
+            error_marks = VGroup()
+            error_lookup = {"blue": blue_group, "green": green_group, "amber": amber_group}
+            for class_name, idx in misclassified:
+                error_marks.add(_error_mark(error_lookup[class_name][idx].get_center(), visible=True))
+            regions = _decision_regions(test_ax, centers)
+            return regions, blue_group, green_group, amber_group, error_marks
 
-        train_boundary, train_margin_1, train_margin_2, train_blue_pts, train_amber_pts, support_vectors = make_train_plot_state(0)
-        test_boundary, test_blue_pts, test_amber_pts, test_error_marks = make_test_plot_state(0)
-        support_label = Tex("support vectors", color=_D_RED, font_size=15).next_to(
-            train_ax, RIGHT, buff=0.10
-        ).align_to(train_ax, DOWN)
+        train_regions, train_blue_pts, train_green_pts, train_amber_pts, support_vectors = make_train_plot_state(0)
+        test_regions, test_blue_pts, test_green_pts, test_amber_pts, test_error_marks = make_test_plot_state(0)
         fold_label = Tex("held-out run 1 / 8", color=INK, font_size=20).next_to(
             train_title, UP, buff=0.10
         )
@@ -1309,21 +1446,26 @@ class Study2SensoryDecoding(Study2DecodingOverview):
         self.play(
             GrowArrow(data_arrow),
             FadeIn(svm_label),
+            FadeIn(svm_question),
+            FadeIn(class_examples),
             Create(train_ax),
+            FadeIn(train_regions),
             FadeIn(train_title),
+            FadeIn(train_x_label),
+            FadeIn(train_y_label),
             Create(test_ax),
+            FadeIn(test_regions),
             FadeIn(test_title),
-            Create(train_boundary),
-            Create(train_margin_1),
-            Create(train_margin_2),
+            FadeIn(test_x_label),
+            FadeIn(test_y_label),
             FadeIn(train_blue_pts),
+            FadeIn(train_green_pts),
             FadeIn(train_amber_pts),
             FadeIn(support_vectors),
-            Create(test_boundary),
             FadeIn(test_blue_pts),
+            FadeIn(test_green_pts),
             FadeIn(test_amber_pts),
             FadeIn(test_error_marks),
-            FadeIn(support_label),
             FadeIn(fold_label),
             FadeIn(accuracy_display),
             run_time=1.15,
@@ -1453,22 +1595,22 @@ class Study2SensoryDecoding(Study2DecodingOverview):
                 color=INK,
                 font_size=20,
             ).move_to(fold_label.get_center())
-            new_train_boundary, new_margin_1, new_margin_2, new_train_blue_pts, new_train_amber_pts, new_support_vectors = make_train_plot_state(fold_idx)
-            new_test_boundary, new_test_blue_pts, new_test_amber_pts, new_test_error_marks = make_test_plot_state(fold_idx)
+            new_train_regions, new_train_blue_pts, new_train_green_pts, new_train_amber_pts, new_support_vectors = make_train_plot_state(fold_idx)
+            new_test_regions, new_test_blue_pts, new_test_green_pts, new_test_amber_pts, new_test_error_marks = make_test_plot_state(fold_idx)
             new_train_overlays = make_train_overlays(fold_idx)
             new_accuracy_display = make_accuracy_display(fold_idx + 1)
 
             if fold_idx == 0:
                 self.play(
                     Transform(fold_label, new_fold_label),
-                    Transform(train_boundary, new_train_boundary),
-                    Transform(train_margin_1, new_margin_1),
-                    Transform(train_margin_2, new_margin_2),
+                    Transform(train_regions, new_train_regions),
                     Transform(train_blue_pts, new_train_blue_pts),
+                    Transform(train_green_pts, new_train_green_pts),
                     Transform(train_amber_pts, new_train_amber_pts),
                     Transform(support_vectors, new_support_vectors),
-                    Transform(test_boundary, new_test_boundary),
+                    Transform(test_regions, new_test_regions),
                     Transform(test_blue_pts, new_test_blue_pts),
+                    Transform(test_green_pts, new_test_green_pts),
                     Transform(test_amber_pts, new_test_amber_pts),
                     Transform(test_error_marks, new_test_error_marks),
                     TransformMatchingTex(accuracy_display, new_accuracy_display),
@@ -1479,14 +1621,14 @@ class Study2SensoryDecoding(Study2DecodingOverview):
             else:
                 self.play(
                     Transform(fold_label, new_fold_label),
-                    Transform(train_boundary, new_train_boundary),
-                    Transform(train_margin_1, new_margin_1),
-                    Transform(train_margin_2, new_margin_2),
+                    Transform(train_regions, new_train_regions),
                     Transform(train_blue_pts, new_train_blue_pts),
+                    Transform(train_green_pts, new_train_green_pts),
                     Transform(train_amber_pts, new_train_amber_pts),
                     Transform(support_vectors, new_support_vectors),
-                    Transform(test_boundary, new_test_boundary),
+                    Transform(test_regions, new_test_regions),
                     Transform(test_blue_pts, new_test_blue_pts),
+                    Transform(test_green_pts, new_test_green_pts),
                     Transform(test_amber_pts, new_test_amber_pts),
                     Transform(test_error_marks, new_test_error_marks),
                     FadeOut(current_train_overlays),
@@ -1505,12 +1647,6 @@ class Study2SensoryDecoding(Study2DecodingOverview):
                 current_train_overlays = new_train_overlays
 
         final_acc = Tex("crossvalidated accuracy", color=INK, font_size=20).move_to(accuracy_display.get_center())
-        final_question = Tex(
-            "How well can the classifier\\\\discriminate between object-scene\\\\representations during perception?",
-            color=INK,
-            font_size=18,
-            tex_environment="center",
-        ).next_to(final_acc, DOWN, buff=0.24)
         self.play(
             FadeOut(fold_label),
             FadeOut(current_test_box),
@@ -1518,8 +1654,11 @@ class Study2SensoryDecoding(Study2DecodingOverview):
             FadeOut(current_train_overlays),
             FadeOut(train_title),
             FadeOut(test_title),
+            FadeOut(train_x_label),
+            FadeOut(train_y_label),
+            FadeOut(test_x_label),
+            FadeOut(test_y_label),
             TransformMatchingTex(accuracy_display, final_acc),
-            FadeIn(final_question),
             run_time=0.8,
         )
 
@@ -1527,24 +1666,24 @@ class Study2SensoryDecoding(Study2DecodingOverview):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Study2SensoryToMemoryClassification
+# Study2CrossSessionDecoding
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-class Study2SensoryToMemoryClassification(Study2SensoryDecoding):
+class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
     """
-    Build the setup for sensory-to-memory classification by keeping the full
-    Session 2 perception matrix on the left and pairing it with Session 1
-    target and delay pattern readouts on the right.
+    Build a compact cross-session decoding setup that conceptually shows
+    training on Session 2 sensory patterns and testing on Session 1 sensory
+    and delay-period patterns.
 
     Render:
-        uv run manim scenes/study2.py Study2SensoryToMemoryClassification -ql
-        uv run manim scenes/study2.py Study2SensoryToMemoryClassification -qh
+        uv run manim scenes/study2.py Study2CrossSessionDecoding -ql
+        uv run manim scenes/study2.py Study2CrossSessionDecoding -qh
     """
 
     _RIGHT_ROW_SCALE = 0.56
     _RIGHT_ROW_CENTER = np.array([3.55, 0.85, 0.0])
-    _MATRIX_LEFT_CENTER = np.array([-4.45, -0.10, 0.0])
+    _TRAIN_PANEL_CENTER = np.array([-4.45, -2.05, 0.0])
     _PERCEPTION_PANEL_CENTER = np.array([2.35, -2.05, 0.0])
     _DELAY_PANEL_CENTER = np.array([5.10, -2.05, 0.0])
     _TARGET_TEST = _D_PURP
@@ -1559,59 +1698,6 @@ class Study2SensoryToMemoryClassification(Study2SensoryDecoding):
         (0, 1),
         (3, 1),
     ]
-
-    def _make_perception_matrix_parts(
-        self,
-        center: np.ndarray,
-    ) -> tuple[Tex, VGroup, VGroup, VGroup, list[VGroup]]:
-        row_templates = [
-            _make_feature_row(
-                self._row_values(global_idx % len(self._BASE_ROWS), global_idx // 4),
-                color=self._ROW_COLS[global_idx % len(self._ROW_COLS)],
-                cell_w=0.11,
-                cell_h=0.11,
-                gap=0.025,
-            )
-            for global_idx in range(32)
-        ]
-        row_centers = self._matrix_row_centers(0.0, y_shift=0.0)
-        for row, row_center in zip(row_templates, row_centers):
-            row.move_to(row_center)
-
-        run_labels = VGroup(*[
-            Tex(f"run {run_idx + 1}", color=_D_MGREY, font_size=16).next_to(
-                VGroup(*row_templates[4 * run_idx : 4 * run_idx + 4]),
-                LEFT,
-                buff=0.52,
-            )
-            for run_idx in range(8)
-        ])
-        rows_group = VGroup(*row_templates)
-        bracket_h = rows_group.height + 0.34
-        bracket_arm = 0.13
-        left_bracket = VGroup(
-            Line(UP * (bracket_h / 2), DOWN * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
-            Line(UP * (bracket_h / 2) + RIGHT * bracket_arm, UP * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
-            Line(DOWN * (bracket_h / 2) + RIGHT * bracket_arm, DOWN * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
-        )
-        right_bracket = VGroup(
-            Line(UP * (bracket_h / 2), DOWN * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
-            Line(UP * (bracket_h / 2) + LEFT * bracket_arm, UP * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
-            Line(DOWN * (bracket_h / 2) + LEFT * bracket_arm, DOWN * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
-        )
-        left_bracket.next_to(rows_group, LEFT, buff=0.18)
-        right_bracket.next_to(rows_group, RIGHT, buff=0.18)
-
-        title = Tex(
-            r"Multivoxel activity patterns\\during perception",
-            color=INK,
-            font_size=24,
-            tex_environment="center",
-        ).next_to(VGroup(left_bracket, rows_group, right_bracket), UP, buff=0.18)
-
-        matrix_group = VGroup(title, left_bracket, rows_group, right_bracket, run_labels)
-        matrix_group.move_to(center)
-        return title, left_bracket, right_bracket, run_labels, row_templates
 
     def _delay_row_values(self, base_idx: int, exemplar_idx: int = 0) -> np.ndarray:
         base = self._row_values(base_idx, exemplar_idx)
@@ -1656,8 +1742,18 @@ class Study2SensoryToMemoryClassification(Study2SensoryDecoding):
     def construct(self) -> None:
         self.camera.background_color = BG
 
-        matrix_title, left_bracket, right_bracket, run_labels, target_rows = \
-            self._make_perception_matrix_parts(self._MATRIX_LEFT_CENTER)
+        train_panel = self._make_test_matrix_panel(
+            self._TRAIN_PANEL_CENTER,
+            r"Train on sensory\\(Session 2)",
+            [
+                self._row_values(base_idx, exemplar_idx)
+                for base_idx, exemplar_idx in self._TEST_EXAMPLES
+            ],
+            [
+                self._ROW_COLS[base_idx % len(self._ROW_COLS)]
+                for base_idx, _ in self._TEST_EXAMPLES
+            ],
+        )
 
         s1_title = Tex(
             r"\textbf{Session 1 :} Memory task",
@@ -1673,14 +1769,10 @@ class Study2SensoryToMemoryClassification(Study2SensoryDecoding):
         s1_title.next_to(s1_row_group, UP, buff=0.18)
 
         self.play(
-            FadeIn(matrix_title),
-            FadeIn(left_bracket),
-            FadeIn(right_bracket),
-            FadeIn(run_labels),
-            LaggedStart(*[FadeIn(row) for row in target_rows], lag_ratio=0.03),
+            FadeIn(train_panel),
             FadeIn(s1_title),
             FadeIn(s1_row_group),
-            run_time=1.0,
+            run_time=0.85,
         )
         self.wait(0.25)
 
@@ -1716,7 +1808,7 @@ class Study2SensoryToMemoryClassification(Study2SensoryDecoding):
 
         perception_panel = self._make_test_matrix_panel(
             self._PERCEPTION_PANEL_CENTER,
-            r"Multivoxel activity patterns\\during perception",
+            r"Test on sensory\\(Session 1 target)",
             [
                 self._row_values(base_idx, exemplar_idx)
                 for base_idx, exemplar_idx in self._TEST_EXAMPLES
@@ -1728,7 +1820,7 @@ class Study2SensoryToMemoryClassification(Study2SensoryDecoding):
         )
         delay_panel = self._make_test_matrix_panel(
             self._DELAY_PANEL_CENTER,
-            r"Multivoxel activity patterns\\during delay",
+            r"Test on memory\\(Session 1 delay)",
             [
                 self._delay_row_values(base_idx, exemplar_idx)
                 for base_idx, exemplar_idx in self._TEST_EXAMPLES
