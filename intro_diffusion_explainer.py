@@ -1,18 +1,16 @@
 """
 Diffusion explainer.
 
-  Diffusion01Intro       — DDPM framing: two stochastic processes
-  Diffusion02ForwardPass — fixed forward pass from data to noise
-  Diffusion03ReversePass — learned reverse pass from noise to data
-  Diffusion04PromptGuidance — Stable Diffusion prompt guidance
-  Diffusion05BigPicture  — final DDPM summary board
+  Diffusion01WhyDiffusion        — broad intuition and SDXL framing
+  Diffusion02ForwardReverse      — forward noising and reverse denoising
+  Diffusion03PromptToContinuum   — fixed prompt to stimulus continuum
+  Diffusion04WhyItMattersForThesis — Study 1 / Study 2 payoff
 
 Render:
-    uv run manim intro_diffusion_explainer.py Diffusion01Intro -ql
-    uv run manim intro_diffusion_explainer.py Diffusion02ForwardPass -ql
-    uv run manim intro_diffusion_explainer.py Diffusion03ReversePass -ql
-    uv run manim intro_diffusion_explainer.py Diffusion04PromptGuidance -ql
-    uv run manim intro_diffusion_explainer.py Diffusion05BigPicture -ql
+    uv run manim intro_diffusion_explainer.py Diffusion01WhyDiffusion -ql
+    uv run manim intro_diffusion_explainer.py Diffusion02ForwardReverse -ql
+    uv run manim intro_diffusion_explainer.py Diffusion03PromptToContinuum -ql
+    uv run manim intro_diffusion_explainer.py Diffusion04WhyItMattersForThesis -ql
 """
 from __future__ import annotations
 
@@ -31,16 +29,26 @@ LGREY = "#D1D5DB"
 MGREY = "#6B7280"
 BLUE  = "#2563EB"
 PANEL = "#F8FAFC"
+GOLD  = "#E2A71B"
 
 # ── Asset and DDPM notation ──────────────────────────────────────────────────
 IMAGE_PATH = Path(
     "/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task/ANI-CAT-T00.png"
 )
+SDXL_PIPELINE_PATH = Path(
+    "/Users/leonardo/phd-thesis-animations/assets/images/references/sdxl_pipeline_podell_2023_core.png"
+)
+CONTINUUM_PATHS = [
+    IMAGE_PATH,
+    Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task/ANI-CAT-D01.png"),
+    Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task/ANI-CAT-D02.png"),
+    Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task/ANI-CAT-D03.png"),
+]
 
 TITLE_TEXT = "How do diffusion models work?"
-FORWARD_FORMULA = r"p(x_i \mid x_{i-1})"
-REVERSE_FORMULA = r"p_{\theta}(x_{i-1} \mid x_i)"
-PROMPT_TEXT = "photo of a cat in a room"
+FORWARD_FORMULA = r"q(x_i \mid x_{i-1})"
+REVERSE_FORMULA = r"p_{\theta}(x_{i-1} \mid x_i, c)"
+PROMPT_TEXT = "a cat in a coherent indoor scene"
 
 FORWARD_LEVELS = [0.00, 0.18, 0.38, 0.58, 0.78, 1.00]
 FORWARD_LABELS = [r"x_0", r"x_1", r"x_2", r"x_3", r"x_{T-1}", r"x_T"]
@@ -56,6 +64,18 @@ TOP_HEADING_Y = 2.16
 BOTTOM_HEADING_Y = -0.56
 EXPLANATION_Y = 2.56
 STATE_XS = np.linspace(-3.15, 4.15, len(FORWARD_LEVELS))
+FORWARD_CENTER_SHIFT = DOWN * 0.90
+
+PAIR_PROMPT_POS = LEFT * 4.15 + DOWN * 0.25
+PAIR_EMBED_POS = LEFT * 1.55 + DOWN * 0.18
+PAIR_IMAGE_POS = RIGHT * 3.55 + DOWN * 0.25
+FORWARD_LATENT_POS = DOWN * 0.10
+CONDITION_POS = LEFT * 4.15 + UP * 1.55
+INPUT_LATENT_POS = LEFT * 3.65 + DOWN * 0.18
+TIMESTEP_POS = LEFT * 1.95 + UP * 1.00
+MODEL_POS = RIGHT * 0.05 + DOWN * 0.10
+PRED_NOISE_POS = RIGHT * 2.55 + UP * 1.00
+CLEANER_POS = RIGHT * 3.75 + DOWN * 0.18
 
 np.random.seed(7)
 _BASE_NOISE: np.ndarray | None = None
@@ -76,6 +96,15 @@ class BoardParts:
     bottom_arrows: VGroup
     top_highlight: SurroundingRectangle
     bottom_highlight: SurroundingRectangle
+
+
+@dataclass
+class CenteredForwardParts:
+    heading: VGroup
+    cards: Group
+    labels: VGroup
+    arrows: VGroup
+    highlight: SurroundingRectangle
 
 
 def load_image_array(path: str | Path) -> np.ndarray:
@@ -185,6 +214,20 @@ def make_prompt_chip(prompt_text: str) -> VGroup:
     return VGroup(box, text)
 
 
+def make_prompt_tag(label: str = "Prompt") -> VGroup:
+    """Create a compact prompt tag in the SDXL palette."""
+    box = RoundedRectangle(
+        width=1.48,
+        height=0.74,
+        corner_radius=0.16,
+        stroke_color=GOLD,
+        stroke_width=2.0,
+    )
+    box.set_fill(GOLD, opacity=0.12)
+    text = Tex(label, color=INK, font_size=20)
+    return VGroup(box, text)
+
+
 def make_model_box(label: str = "model") -> VGroup:
     """Create a compact denoiser box."""
     box = RoundedRectangle(
@@ -220,27 +263,47 @@ def make_labeled_box(
 
 
 def make_embedding_block() -> VGroup:
-    """Create a simple visual stand-in for a text embedding."""
+    """Create a numeric text-embedding stand-in."""
     frame = RoundedRectangle(
-        width=1.55,
-        height=0.78,
+        width=1.78,
+        height=0.88,
         corner_radius=0.14,
-        stroke_color=BLUE,
-        stroke_width=1.8,
+        stroke_color=MGREY,
+        stroke_width=1.4,
     )
-    frame.set_fill(BLUE, opacity=0.04)
+    frame.set_fill(WHITE, opacity=0.0)
 
     rng = np.random.default_rng(7)
-    cells = VGroup(
-        *[
-            Square(side_length=0.10, stroke_width=0)
-            for _ in range(24)
-        ]
-    )
-    colors = [BLUE, "#60A5FA", MGREY, LGREY]
+    rows = VGroup()
+    for _ in range(4):
+        values = [f"{value:+.2f}" for value in rng.normal(0.0, 0.65, 4)]
+        line = Text("  ".join(values), color=MGREY, font_size=14)
+        rows.add(line)
+
+    rows.arrange(DOWN, buff=0.02)
+    rows.scale_to_fit_width(frame.width - 0.18)
+    rows.move_to(frame)
+    return VGroup(frame, rows)
+
+
+def make_noise_tensor_tile(side_length: float = 0.84) -> VGroup:
+    """Create a small native-Manim noise tensor tile."""
+    rng = np.random.default_rng(11)
+    palette = ["#2D2A88", "#6B2D90", "#A83B8F", "#F08B55", "#F6D085"]
+
+    cells = VGroup(*[Square(side_length=side_length / 8, stroke_width=0) for _ in range(64)])
     for cell in cells:
-        cell.set_fill(colors[int(rng.integers(0, len(colors)))], opacity=0.95)
-    cells.arrange_in_grid(rows=4, cols=6, buff=0.04)
+        cell.set_fill(palette[int(rng.integers(0, len(palette)))], opacity=1.0)
+
+    cells.arrange_in_grid(rows=8, cols=8, buff=0.0)
+    frame = RoundedRectangle(
+        width=cells.width + 0.12,
+        height=cells.height + 0.12,
+        corner_radius=0.08,
+        stroke_color=LGREY,
+        stroke_width=1.2,
+    )
+    frame.set_fill(WHITE, opacity=0.0)
     cells.move_to(frame)
     return VGroup(frame, cells)
 
@@ -261,6 +324,15 @@ def make_explanation_line(text: str) -> Tex:
     line = Tex(text, color=MGREY, font_size=24)
     line.move_to(UP * EXPLANATION_Y)
     return line
+
+
+def make_ddpm_intro_text() -> VGroup:
+    """Create the introductory DDPM full-name text block."""
+    full_name = Tex("Denoising Diffusion Probabilistic Models", color=INK, font_size=30)
+    acronym = Tex("(DDPMs)", color=MGREY, font_size=24)
+    block = VGroup(full_name, acronym).arrange(DOWN, buff=0.08)
+    block.move_to(UP * 0.70)
+    return block
 
 
 def make_heading(title_text: str, formula: str, formula_color: str, y: float) -> VGroup:
@@ -308,6 +380,40 @@ def build_arrows(cards: Group, color: str) -> VGroup:
         )
         arrows.add(arrow)
     return arrows
+
+
+def relative_box(
+    reference: Mobject,
+    x_ratio: float,
+    y_ratio: float,
+    width_ratio: float,
+    height_ratio: float,
+    color: str = BLUE,
+) -> RoundedRectangle:
+    """Create a highlight box positioned relative to a reference mobject."""
+    box = RoundedRectangle(
+        width=reference.width * width_ratio,
+        height=reference.height * height_ratio,
+        corner_radius=0.12,
+        stroke_color=color,
+        stroke_width=2.2,
+    )
+    box.set_fill(color, opacity=0.05)
+    box.move_to(
+        reference.get_center()
+        + RIGHT * reference.width * x_ratio
+        + UP * reference.height * y_ratio
+    )
+    return box
+
+
+def relative_point(reference: Mobject, x_ratio: float, y_ratio: float) -> np.ndarray:
+    """Return a point positioned relative to a reference mobject."""
+    return (
+        reference.get_center()
+        + RIGHT * reference.width * x_ratio
+        + UP * reference.height * y_ratio
+    )
 
 
 def build_board() -> BoardParts:
@@ -386,413 +492,462 @@ def add_board_state(
         scene.add(board.bottom_highlight)
 
 
-class Diffusion01Intro(Scene):
-    """DDPM framing with the two stochastic processes."""
+def build_centered_forward_parts(board: BoardParts) -> CenteredForwardParts:
+    """Return a centered version of the full forward process."""
+    heading = board.top_heading.copy()
+    cards = board.top_cards.copy()
+    labels = board.top_labels.copy()
+    arrows = board.top_arrows.copy()
+    highlight = board.top_highlight.copy()
+
+    heading.shift(FORWARD_CENTER_SHIFT)
+    cards.shift(FORWARD_CENTER_SHIFT)
+    labels.shift(FORWARD_CENTER_SHIFT)
+    arrows.shift(FORWARD_CENTER_SHIFT)
+    highlight.shift(FORWARD_CENTER_SHIFT)
+
+    return CenteredForwardParts(
+        heading=heading,
+        cards=cards,
+        labels=labels,
+        arrows=arrows,
+        highlight=highlight,
+    )
+
+def make_center_statement(text: str, color: str = INK, font_size: int = 34) -> Tex:
+    """Create a centered statement for the current clip."""
+    line = Tex(text, color=color, font_size=font_size)
+    line.move_to(UP * 0.18)
+    return line
+
+
+def make_top_statement(text: str, color: str = INK, font_size: int = 28) -> Tex:
+    """Create a top-aligned statement shared across clips."""
+    line = Tex(text, color=color, font_size=font_size)
+    line.to_edge(UP, buff=0.34)
+    return line
+
+
+def make_prompt_text(font_size: int = 28) -> Tex:
+    """Create the literal prompt string."""
+    return Tex(f'"{PROMPT_TEXT}"', color=INK, font_size=font_size)
+
+
+def make_text_embedding_group() -> VGroup:
+    """Create a compact text-embedding visual labeled by c."""
+    label = Tex("text embedding", color=MGREY, font_size=18)
+    symbol = MathTex(r"c", color=MGREY, font_size=28)
+    block = make_embedding_block()
+    return VGroup(label, block, symbol).arrange(DOWN, buff=0.04)
+
+
+def make_condition_stack(
+    prompt_position: np.ndarray,
+    embedding_position: np.ndarray,
+    prompt_font_size: int = 22,
+    embedding_scale: float = 0.95,
+) -> tuple[Tex, VGroup, Arrow]:
+    """Create a prompt plus embedding stack used for conditioning."""
+    prompt = make_prompt_text(font_size=prompt_font_size)
+    prompt.move_to(prompt_position)
+
+    embedding = make_text_embedding_group()
+    embedding.scale(embedding_scale)
+    embedding.move_to(embedding_position)
+
+    arrow = Arrow(
+        start=prompt.get_bottom() + DOWN * 0.05,
+        end=embedding.get_top() + UP * 0.05,
+        buff=0.08,
+        color=MGREY,
+        stroke_width=1.8,
+        tip_shape=StealthTip,
+    )
+    return prompt, embedding, arrow
+
+
+def make_continuum_strip(height: float = 1.44) -> tuple[Group, Line, VGroup, Tex]:
+    """Create the selected Study 1 continuum strip from real stimulus images."""
+    cards = Group(*[make_card(path, height=height) for path in CONTINUUM_PATHS])
+    cards.arrange(RIGHT, buff=0.22)
+    cards.move_to(RIGHT * 1.55 + UP * 0.15)
+
+    dots = VGroup(*[Dot(radius=0.045, color=MGREY, fill_opacity=1.0) for _ in cards])
+    for dot, card in zip(dots, cards):
+        dot.move_to(card.get_bottom() + DOWN * 0.35)
+
+    line = Line(
+        dots[0].get_center(),
+        dots[-1].get_center(),
+        color=LGREY,
+        stroke_width=2.0,
+    )
+    slider_label = Tex("latent interpolation", color=MGREY, font_size=20)
+    slider_label.next_to(line, DOWN, buff=0.16)
+    return cards, line, dots, slider_label
+
+
+def make_latent_card(image_array: np.ndarray, height: float = 1.92) -> Group:
+    """Create a framed latent-style card from an array."""
+    return make_card(image_array, height=height)
+
+
+def make_timestep_badge(label: str = "t") -> VGroup:
+    """Create a small timestep token."""
+    circle = Circle(radius=0.30, color=BLUE, stroke_width=1.8)
+    circle.set_fill(BLUE, opacity=0.08)
+    text = MathTex(label, color=BLUE, font_size=28)
+    return VGroup(circle, text)
+
+
+def get_latent_progression() -> list[np.ndarray]:
+    """Return a small sequence of latent states for forward or reverse visuals."""
+    clean = pixelate_array(get_forward_arrays()[0], pixels=18)
+    return [add_noise(clean, level) for level in [0.00, 0.28, 0.56, 0.82, 0.97]]
+
+
+def get_sampling_progression() -> list[np.ndarray]:
+    """Return latent states from strong noise toward a cleaner latent."""
+    clean = pixelate_array(get_forward_arrays()[0], pixels=18)
+    return [add_noise(clean, level) for level in [0.97, 0.74, 0.42, 0.14]]
+
+
+def make_exemplar_arrays() -> list[np.ndarray]:
+    """Create a few deterministic prompt-consistent image variants."""
+    clean = get_forward_arrays()[0]
+    image = Image.fromarray(to_uint8(clean))
+    resampling = Image.Resampling if hasattr(Image, "Resampling") else Image
+    width, height = image.size
+
+    crops = [
+        (0, 0, width, height),
+        (12, 6, width - 10, height - 10),
+        (22, 10, width - 18, height - 14),
+    ]
+    offsets = [
+        np.array([0.00, 0.00, 0.00], dtype=np.float32),
+        np.array([0.02, 0.01, -0.01], dtype=np.float32),
+        np.array([-0.01, 0.00, 0.02], dtype=np.float32),
+    ]
+    scales = [1.00, 1.03, 0.98]
+
+    variants: list[np.ndarray] = []
+    for crop_box, offset, scale in zip(crops, offsets, scales):
+        cropped = image.crop(crop_box).resize((width, height), resample=resampling.BICUBIC)
+        array = np.asarray(cropped).astype(np.float32) / 255.0
+        array = np.clip(array * scale + offset, 0.0, 1.0)
+        variants.append(array.astype(np.float32))
+    return variants
+
+
+class Diffusion01WhyDiffusion(Scene):
+    """Broad diffusion intuition and immediate SDXL framing."""
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        question = make_center_statement(TITLE_TEXT, font_size=38)
+        broad_line = make_center_statement(
+            "Diffusion models generate images by learning to reverse noise.",
+            font_size=34,
+        )
+        sdxl_line = make_center_statement(
+            "In Stable Diffusion XL, that reverse process is guided by text.",
+            color=MGREY,
+            font_size=31,
+        )
+        sdxl_line.shift(DOWN * 0.76)
+        sdxl_top_target = make_top_statement(
+            "In Stable Diffusion XL, that reverse process is guided by text.",
+            color=MGREY,
+            font_size=27,
+        )
+
+        self.play(FadeIn(question, shift=UP * 0.08), run_time=0.85)
+        self.wait(0.35)
+        self.play(
+            FadeOut(question, shift=UP * 0.04),
+            FadeIn(broad_line, shift=UP * 0.04),
+            run_time=0.80,
+        )
+        self.wait(0.25)
+        self.play(FadeIn(sdxl_line, shift=UP * 0.05), run_time=0.75)
+        self.wait(0.55)
+        self.play(
+            FadeOut(broad_line, shift=UP * 0.04),
+            Transform(sdxl_line, sdxl_top_target),
+            run_time=0.75,
+        )
+        self.wait(1.0)
+
+
+class Diffusion02ForwardReverse(Scene):
+    """Forward noising and reverse denoising with text guidance."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
         board = build_board()
-        title = make_title(centered=True)
-        intro_line = make_explanation_line("DDPMs use two stochastic processes.")
+        centered = build_centered_forward_parts(board)
 
-        self.play(FadeIn(title, shift=UP * 0.12), run_time=1.1)
-        self.wait(1.5)
-
-        self.play(Transform(title, board.title), run_time=1.4)
-        self.play(FadeIn(intro_line, shift=UP * 0.08), run_time=0.7)
-        self.wait(1.0)
-
-        self.play(
-            FadeIn(board.top_heading, shift=UP * 0.08),
-            FadeIn(board.bottom_heading, shift=UP * 0.08),
-            Create(board.divider),
-            run_time=1.1,
+        top_line = make_top_statement(
+            "In Stable Diffusion XL, that reverse process is guided by text.",
+            color=MGREY,
+            font_size=27,
         )
-        self.play(
-            FadeIn(board.top_cards[0], scale=0.96),
-            FadeIn(board.top_labels[0], shift=UP * 0.05),
-            FadeIn(board.bottom_cards[0], scale=0.96),
-            FadeIn(board.bottom_labels[0], shift=DOWN * 0.05),
-            run_time=1.3,
+        centered_heading = VGroup(
+            Tex("Forward", color=INK, font_size=28),
+            MathTex(FORWARD_FORMULA, color=MGREY, font_size=28),
+        ).arrange(DOWN, buff=0.08)
+        centered_heading.next_to(centered.cards, UP, buff=0.32)
+
+        forward_note = Tex("Forward: add noise", color=MGREY, font_size=22)
+        forward_note.next_to(top_line, DOWN, buff=0.28)
+        reverse_note = Tex("Reverse: remove noise, guided by text", color=BLUE, font_size=22)
+        reverse_note.next_to(top_line, DOWN, buff=0.28)
+
+        prompt_text, embedding_group, prompt_arrow = make_condition_stack(
+            prompt_position=LEFT * 5.05 + DOWN * 1.20,
+            embedding_position=LEFT * 5.05 + DOWN * 2.15,
+            prompt_font_size=22,
+            embedding_scale=0.95,
         )
-        self.wait(0.6)
 
-        self.play(FadeOut(intro_line, shift=UP * 0.06), run_time=0.6)
-        self.wait(1.0)
+        centered_group = visible_process_group(
+            centered.cards,
+            centered.labels,
+            centered.arrows,
+            len(FORWARD_LABELS),
+        )
+        top_group = visible_process_group(
+            board.top_cards,
+            board.top_labels,
+            board.top_arrows,
+            len(FORWARD_LABELS),
+        )
+        bottom_group = visible_process_group(
+            board.bottom_cards,
+            board.bottom_labels,
+            board.bottom_arrows,
+            len(REVERSE_LABELS),
+        )
 
-
-class Diffusion02ForwardPass(Scene):
-    """Fixed forward DDPM corruption from data to noise."""
-
-    def construct(self) -> None:
-        self.camera.background_color = BG
-
-        board = build_board()
-        line = make_explanation_line("The forward pass gradually corrupts data into noise.")
-
-        add_board_state(self, board, n_forward_visible=1, n_reverse_visible=1)
-
-        self.play(FadeIn(line, shift=UP * 0.08), run_time=0.6)
-        self.wait(1.0)
-        self.play(FadeOut(line, shift=UP * 0.06), run_time=0.5)
+        self.add(top_line)
+        self.play(
+            FadeIn(forward_note, shift=UP * 0.04),
+            FadeIn(centered_heading, shift=UP * 0.05),
+            FadeIn(centered.cards[0], scale=0.97),
+            FadeIn(centered.labels[0], shift=UP * 0.03),
+            run_time=0.70,
+        )
 
         for idx in range(1, len(FORWARD_LABELS)):
             self.play(
-                Create(board.top_arrows[idx - 1]),
-                FadeIn(board.top_cards[idx], scale=0.96),
-                FadeIn(board.top_labels[idx], shift=UP * 0.05),
-                run_time=1.3,
+                Create(centered.arrows[idx - 1]),
+                FadeIn(centered.cards[idx], scale=0.97),
+                FadeIn(centered.labels[idx], shift=UP * 0.03),
+                run_time=0.56,
             )
-            self.wait(0.65)
 
-        self.play(Create(board.top_highlight), run_time=0.8)
-        self.wait(1.6)
-
-
-class Diffusion03ReversePass(Scene):
-    """Learned reverse DDPM denoising from noise to data."""
-
-    def construct(self) -> None:
-        self.camera.background_color = BG
-
-        board = build_board()
-        line = make_explanation_line("The reverse process learns to undo that corruption.")
-
-        add_board_state(
-            self,
-            board,
-            n_forward_visible=len(FORWARD_LABELS),
-            n_reverse_visible=1,
-            show_top_highlight=True,
+        self.play(Create(centered.highlight), run_time=0.40)
+        self.play(
+            Transform(centered_heading, board.top_heading),
+            centered.cards.animate.shift(-FORWARD_CENTER_SHIFT),
+            centered.labels.animate.shift(-FORWARD_CENTER_SHIFT),
+            centered.arrows.animate.shift(-FORWARD_CENTER_SHIFT),
+            centered.highlight.animate.shift(-FORWARD_CENTER_SHIFT),
+            Create(board.divider),
+            FadeIn(board.bottom_heading, shift=UP * 0.05),
+            FadeOut(forward_note, shift=UP * 0.03),
+            FadeIn(reverse_note, shift=UP * 0.03),
+            FadeIn(prompt_text, shift=UP * 0.04),
+            run_time=0.95,
         )
-
-        self.play(FadeIn(line, shift=UP * 0.08), run_time=0.6)
-        self.wait(1.2)
-        self.play(FadeOut(line, shift=UP * 0.06), run_time=0.5)
+        self.play(FadeIn(embedding_group, shift=UP * 0.03), Create(prompt_arrow), run_time=0.55)
+        self.play(
+            FadeIn(board.bottom_cards[0], scale=0.97),
+            FadeIn(board.bottom_labels[0], shift=DOWN * 0.03),
+            run_time=0.45,
+        )
 
         for idx in range(1, len(REVERSE_LABELS)):
             self.play(
                 Create(board.bottom_arrows[idx - 1]),
-                FadeIn(board.bottom_cards[idx], scale=0.96),
-                FadeIn(board.bottom_labels[idx], shift=DOWN * 0.05),
-                run_time=1.35,
+                FadeIn(board.bottom_cards[idx], scale=0.97),
+                FadeIn(board.bottom_labels[idx], shift=DOWN * 0.03),
+                run_time=0.58,
             )
-            self.wait(0.70)
 
-        self.play(Create(board.bottom_highlight), run_time=0.8)
-        self.wait(1.8)
+        self.play(Create(board.bottom_highlight), run_time=0.40)
+        self.play(FadeOut(reverse_note, shift=UP * 0.03), run_time=0.25)
+        self.wait(0.9)
 
 
-class Diffusion04PromptGuidance(Scene):
-    """Stable Diffusion prompt guidance as a text-steered reverse step."""
+class Diffusion03PromptToContinuum(Scene):
+    """From fixed prompt to an actual Study 1 stimulus continuum."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
         board = build_board()
-        clean_array = get_forward_arrays()[0]
-        rough_latent_array = pixelate_array(add_noise(clean_array, 0.40), pixels=18)
-        clean_latent_array = pixelate_array(clean_array, pixels=18)
-
-        line = make_explanation_line("The prompt is encoded, then guides denoising.")
-        reference = Tex(
-            r"Rombach et al. (2022); Podell et al. (2023)",
+        top_line = make_top_statement(
+            "In Stable Diffusion XL, that reverse process is guided by text.",
             color=MGREY,
-            font_size=14,
+            font_size=27,
         )
-        reference.to_corner(DR, buff=0.18)
-
-        dim = RoundedRectangle(
-            width=12.35,
-            height=4.10,
-            corner_radius=0.16,
-            stroke_width=0,
-        )
-        dim.set_fill(WHITE, opacity=0.92)
-        dim.move_to(DOWN * 0.10)
-
-        prompt_label = Tex("prompt", color=MGREY, font_size=18)
-        prompt_text = Tex(r'"photo of a cat\\in a room"', color=INK, font_size=25)
-        prompt_group = VGroup(prompt_label, prompt_text).arrange(DOWN, aligned_edge=LEFT, buff=0.10)
-        prompt_group.move_to(LEFT * 5.00 + UP * 0.84)
-
-        text_encoder = make_labeled_box("text encoder", width=1.95, height=0.86, color=BLUE, font_size=20)
-        text_encoder.move_to(LEFT * 2.45 + UP * 0.78)
-
-        embedding_block = make_embedding_block()
-        embedding_title = Tex("text embedding", color=BLUE, font_size=18)
-        embedding_symbol = MathTex(r"c", color=BLUE, font_size=22)
-        embedding_label = VGroup(embedding_title, embedding_symbol).arrange(RIGHT, buff=0.08)
-        embedding_group = Group(embedding_block, embedding_label)
-        embedding_group.arrange(DOWN, buff=0.10, center=False)
-        embedding_label.next_to(embedding_block, UP, buff=0.10)
-        embedding_group.move_to(LEFT * 0.20 + UP * 0.82)
-
-        prompt_to_encoder = Arrow(
-            start=prompt_text.get_right() + RIGHT * 0.08,
-            end=text_encoder[0].get_left() + LEFT * 0.08,
-            buff=0.04,
-            color=MGREY,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        encoder_to_embedding = Arrow(
-            start=text_encoder[0].get_right() + RIGHT * 0.06,
-            end=embedding_block[0].get_left() + LEFT * 0.06,
-            buff=0.04,
-            color=BLUE,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
+        method_line = make_top_statement(
+            "In Study 1, we fixed the prompt and varied the latent noise.",
+            color=INK,
+            font_size=27,
         )
 
-        noisy_latent = make_card(pixelate_array(add_noise(clean_array, 1.0), pixels=18), height=0.88)
-        noisy_latent.move_to(LEFT * 4.35 + DOWN * 0.12)
-        noisy_group_label = Tex("noise latent", color=MGREY, font_size=18)
-        noisy_group_label.next_to(noisy_latent, DOWN, buff=0.10)
-
-        base_box = make_labeled_box("base", width=1.35, height=1.00, color=BLUE, font_size=22)
-        base_box.move_to(LEFT * 2.65 + DOWN * 0.12)
-
-        rough_latent = make_card(rough_latent_array, height=0.88)
-        rough_latent.move_to(LEFT * 0.95 + DOWN * 0.12)
-
-        refiner_box = make_labeled_box("refiner", width=1.55, height=1.00, color="#7CB66F", font_size=21)
-        refiner_box.move_to(RIGHT * 0.75 + DOWN * 0.12)
-
-        clean_latent = make_card(clean_latent_array, height=0.88)
-        clean_latent.move_to(RIGHT * 2.45 + DOWN * 0.12)
-        clean_label = Tex("clean latent", color=BLUE, font_size=18)
-        clean_math = MathTex(r"z_0", color=BLUE, font_size=22)
-        clean_group_label = VGroup(clean_label, clean_math).arrange(RIGHT, buff=0.08)
-        clean_group_label.next_to(clean_latent, DOWN, buff=0.10)
-
-        decoder_box = make_labeled_box("VAE\\\\decoder", width=1.45, height=1.00, color="#C77C6E", font_size=18)
-        decoder_box.move_to(RIGHT * 4.05 + DOWN * 0.12)
-
-        final_image = make_card(IMAGE_PATH, height=1.18)
-        final_image.move_to(RIGHT * 5.85 + DOWN * 0.12)
-        final_label = Tex("image", color=INK, font_size=18)
-        final_label.next_to(final_image, UP, buff=0.12)
-
-        noise_to_base = Arrow(
-            start=noisy_latent.get_right() + RIGHT * 0.06,
-            end=base_box[0].get_left() + LEFT * 0.06,
-            buff=0.04,
-            color=MGREY,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
+        top_group = visible_process_group(
+            board.top_cards,
+            board.top_labels,
+            board.top_arrows,
+            len(FORWARD_LABELS),
         )
-        base_to_rough = Arrow(
-            start=base_box[0].get_right() + RIGHT * 0.05,
-            end=rough_latent.get_left() + LEFT * 0.05,
-            buff=0.04,
-            color=MGREY,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
+        bottom_group = visible_process_group(
+            board.bottom_cards,
+            board.bottom_labels,
+            board.bottom_arrows,
+            len(REVERSE_LABELS),
         )
-        rough_to_refiner = Arrow(
-            start=rough_latent.get_right() + RIGHT * 0.06,
-            end=refiner_box[0].get_left() + LEFT * 0.06,
-            buff=0.04,
-            color=MGREY,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        refiner_to_clean = Arrow(
-            start=refiner_box[0].get_right() + RIGHT * 0.05,
-            end=clean_latent.get_left() + LEFT * 0.05,
-            buff=0.04,
-            color=BLUE,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        clean_to_decoder = Arrow(
-            start=clean_latent.get_right() + RIGHT * 0.06,
-            end=decoder_box[0].get_left() + LEFT * 0.06,
-            buff=0.04,
-            color=MGREY,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        decoder_to_image = Arrow(
-            start=decoder_box[0].get_right() + RIGHT * 0.06,
-            end=final_image.get_left() + LEFT * 0.06,
-            buff=0.04,
-            color=MGREY,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        embedding_to_base = Arrow(
-            start=embedding_block[0].get_bottom() + DOWN * 0.03 + RIGHT * 0.20,
-            end=base_box[0].get_top() + UP * 0.03,
-            buff=0.04,
-            color=BLUE,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        embedding_to_refiner = Arrow(
-            start=embedding_block[0].get_bottom() + DOWN * 0.03 + RIGHT * 0.30,
-            end=refiner_box[0].get_top() + UP * 0.03,
-            buff=0.04,
-            color=BLUE,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
+        board_group = Group(
+            board.top_heading,
+            top_group,
+            board.top_highlight,
+            board.divider,
+            board.bottom_heading,
+            bottom_group,
+            board.bottom_highlight,
         )
 
-        thesis_caption = Tex("fixed prompt = same semantic concept", color=INK, font_size=24)
-        thesis_caption.move_to(DOWN * 1.03 + LEFT * 0.20)
-        variation_note = Tex("vary the latent = different exemplar", color=MGREY, font_size=20)
-        variation_note.next_to(thesis_caption, DOWN, buff=0.10)
-        variation_note.align_to(thesis_caption, LEFT)
+        prompt_text, embedding_group, prompt_arrow = make_condition_stack(
+            prompt_position=LEFT * 5.05 + DOWN * 1.20,
+            embedding_position=LEFT * 5.05 + DOWN * 2.15,
+            prompt_font_size=22,
+            embedding_scale=0.95,
+        )
 
-        overlay_group = Group(
-            dim,
-            line,
-            reference,
-            prompt_group,
-            text_encoder,
+        prompt_target = make_prompt_text(font_size=25)
+        prompt_target.move_to(LEFT * 4.65 + UP * 0.80)
+        prompt_label = Tex("representative prompt", color=MGREY, font_size=18)
+        prompt_label.next_to(prompt_target, UP, buff=0.14)
+
+        embedding_target = make_text_embedding_group()
+        embedding_target.scale(0.98)
+        embedding_target.move_to(LEFT * 4.65 + DOWN * 0.55)
+
+        continuum_cards, continuum_line, continuum_dots, continuum_label = make_continuum_strip(height=1.42)
+        continuum_label_group = VGroup(continuum_line, continuum_dots, continuum_label)
+
+        self.add(
+            top_line,
+            board.top_heading,
+            top_group,
+            board.top_highlight,
+            board.divider,
+            board.bottom_heading,
+            bottom_group,
+            board.bottom_highlight,
+            prompt_text,
             embedding_group,
-            prompt_to_encoder,
-            encoder_to_embedding,
-            noisy_latent,
-            noisy_group_label,
-            base_box,
-            rough_latent,
-            refiner_box,
-            clean_latent,
-            clean_group_label,
-            decoder_box,
-            final_image,
-            final_label,
-            noise_to_base,
-            base_to_rough,
-            rough_to_refiner,
-            refiner_to_clean,
-            clean_to_decoder,
-            decoder_to_image,
-            embedding_to_base,
-            embedding_to_refiner,
-            thesis_caption,
-            variation_note,
-        )
-
-        add_board_state(
-            self,
-            board,
-            n_forward_visible=len(FORWARD_LABELS),
-            n_reverse_visible=len(REVERSE_LABELS),
-            show_top_highlight=True,
-            show_bottom_highlight=True,
-        )
-
-        self.play(FadeIn(dim), FadeIn(reference), FadeIn(line, shift=UP * 0.08), run_time=0.7)
-        self.play(FadeIn(prompt_group, shift=UP * 0.04), run_time=0.7)
-        self.play(
-            FadeIn(text_encoder, scale=0.96),
-            Create(prompt_to_encoder),
-            run_time=0.8,
+            prompt_arrow,
         )
         self.play(
-            Create(encoder_to_embedding),
-            FadeIn(embedding_block, scale=0.96),
-            FadeIn(embedding_label, shift=UP * 0.03),
-            run_time=0.8,
+            Transform(top_line, method_line),
+            FadeOut(board_group, shift=UP * 0.02),
+            Transform(prompt_text, prompt_target),
+            FadeOut(embedding_group, shift=DOWN * 0.02),
+            FadeOut(prompt_arrow),
+            run_time=0.95,
         )
+        self.play(FadeIn(prompt_label, shift=UP * 0.03), run_time=0.30)
+        self.play(FadeTransform(prompt_text.copy(), embedding_target), run_time=0.60)
+        self.play(FadeIn(continuum_cards[0], scale=0.97), run_time=0.45)
         self.play(
-            Create(embedding_to_base),
-            Create(embedding_to_refiner),
-            run_time=0.8,
+            LaggedStart(*[FadeIn(card, scale=0.97) for card in continuum_cards[1:]], lag_ratio=0.18),
+            run_time=1.00,
         )
-        self.play(
-            FadeIn(noisy_latent, scale=0.96),
-            FadeIn(noisy_group_label, shift=UP * 0.03),
-            FadeIn(base_box, scale=0.96),
-            Create(noise_to_base),
-            run_time=0.8,
-        )
-        self.play(
-            Indicate(base_box[0], color=BLUE, scale_factor=1.02),
-            Create(base_to_rough),
-            FadeIn(rough_latent, scale=0.96),
-            run_time=0.9,
-        )
-        self.play(
-            FadeIn(refiner_box, scale=0.96),
-            Create(rough_to_refiner),
-            run_time=0.7,
-        )
-        self.play(
-            Indicate(refiner_box[0], color="#7CB66F", scale_factor=1.02),
-            Create(refiner_to_clean),
-            FadeIn(clean_latent, scale=0.96),
-            FadeIn(clean_group_label, shift=UP * 0.03),
-            run_time=0.9,
-        )
-        self.play(
-            FadeIn(decoder_box, scale=0.96),
-            Create(clean_to_decoder),
-            run_time=0.7,
-        )
-        self.play(
-            Indicate(decoder_box[0], color="#C77C6E", scale_factor=1.02),
-            Create(decoder_to_image),
-            FadeIn(final_image, scale=0.96),
-            FadeIn(final_label, shift=UP * 0.03),
-            run_time=0.9,
-        )
-        self.play(
-            FadeIn(thesis_caption, shift=UP * 0.03),
-            FadeIn(variation_note, shift=UP * 0.03),
-            run_time=0.8,
-        )
-        self.play(
-            Indicate(prompt_text, color=BLUE, scale_factor=1.02),
-            Indicate(final_image[1], color=BLUE, scale_factor=1.02),
-            run_time=0.9,
-        )
-        self.wait(0.6)
-        self.play(FadeOut(overlay_group, shift=DOWN * 0.04), run_time=1.0)
-        self.wait(1.0)
+        self.play(FadeIn(continuum_label_group, shift=UP * 0.04), run_time=0.45)
+        self.wait(1.5)
 
 
-class Diffusion05BigPicture(Scene):
-    """Final DDPM summary with fixed and learned process contrast."""
+class Diffusion04WhyItMattersForThesis(Scene):
+    """Methods payoff for Study 1 and Study 2."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
-        board = build_board()
-        top_note = Tex("fixed forward pass", color=MGREY, font_size=20)
-        bottom_note = Tex("learned reverse pass", color=BLUE, font_size=20)
-        caption = Tex("Diffusion models learn to reverse noise", color=INK, font_size=30)
-
-        top_note.next_to(board.top_heading, DOWN, buff=0.18)
-        top_note.align_to(board.top_heading, LEFT)
-
-        bottom_note.next_to(board.bottom_heading, DOWN, buff=0.18)
-        bottom_note.align_to(board.bottom_heading, LEFT)
-
-        caption.to_edge(DOWN, buff=0.42)
-
-        add_board_state(
-            self,
-            board,
-            n_forward_visible=len(FORWARD_LABELS),
-            n_reverse_visible=len(REVERSE_LABELS),
-            show_top_highlight=True,
-            show_bottom_highlight=True,
+        top_line = make_top_statement(
+            "In Study 1, we fixed the prompt and varied the latent noise.",
+            color=INK,
+            font_size=27,
         )
 
+        prompt_target = make_prompt_text(font_size=25)
+        prompt_target.move_to(LEFT * 4.65 + UP * 0.80)
+        prompt_label = Tex("representative prompt", color=MGREY, font_size=18)
+        prompt_label.next_to(prompt_target, UP, buff=0.14)
+        embedding_target = make_text_embedding_group()
+        embedding_target.scale(0.98)
+        embedding_target.move_to(LEFT * 4.65 + DOWN * 0.55)
+
+        continuum_cards, continuum_line, continuum_dots, continuum_label = make_continuum_strip(height=1.42)
+        continuum_group = Group(continuum_cards, continuum_line, continuum_dots, continuum_label)
+
+        takeaway_1 = Tex("same prompt = same semantic content", color=INK, font_size=22)
+        takeaway_2 = Tex("latent variation = controlled perceptual differences", color=MGREY, font_size=22)
+        takeaway_group = VGroup(takeaway_1, takeaway_2).arrange(DOWN, aligned_edge=LEFT, buff=0.08)
+        takeaway_group.move_to(LEFT * 2.75 + DOWN * 2.05)
+
+        study1_box = make_labeled_box("Study 1: perceptual scaling", width=2.75, height=0.88, color=MGREY, font_size=20)
+        study2_box = make_labeled_box("Study 2: memory + fMRI", width=2.55, height=0.88, color=BLUE, font_size=20)
+        study1_box.move_to(RIGHT * 0.20 + DOWN * 2.20)
+        study2_box.move_to(RIGHT * 3.25 + DOWN * 2.20)
+
+        study_arrow_1 = Arrow(
+            start=continuum_cards[1].get_bottom() + DOWN * 0.08,
+            end=study1_box.get_top() + UP * 0.04,
+            buff=0.05,
+            color=MGREY,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+        study_arrow_2 = Arrow(
+            start=continuum_cards[2].get_bottom() + DOWN * 0.08,
+            end=study2_box.get_top() + UP * 0.04,
+            buff=0.05,
+            color=BLUE,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+
+        caption = Tex(
+            "This enabled controlled naturalistic stimulus sets for Study 1 and Study 2.",
+            color=INK,
+            font_size=23,
+        )
+        caption.to_edge(DOWN, buff=0.25)
+
+        self.add(
+            top_line,
+            prompt_target,
+            prompt_label,
+            embedding_target,
+            continuum_cards,
+            continuum_line,
+            continuum_dots,
+            continuum_label,
+        )
+        self.play(FadeIn(takeaway_group, shift=UP * 0.04), run_time=0.70)
         self.play(
-            FadeIn(top_note, shift=UP * 0.05),
-            FadeIn(bottom_note, shift=UP * 0.05),
-            run_time=0.8,
+            FadeIn(study1_box, scale=0.97),
+            FadeIn(study2_box, scale=0.97),
+            Create(study_arrow_1),
+            Create(study_arrow_2),
+            run_time=0.90,
         )
-        self.play(
-            Indicate(board.top_highlight, color=MGREY, scale_factor=1.02),
-            Indicate(board.bottom_highlight, color=BLUE, scale_factor=1.02),
-            run_time=1.0,
-        )
-        self.play(FadeIn(caption, shift=UP * 0.08), run_time=0.8)
-        self.wait(8.2)
+        self.play(FadeIn(caption, shift=UP * 0.05), run_time=0.65)
+        self.wait(2.4)
