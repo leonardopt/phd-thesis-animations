@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SIMPLE_FIGURE_PATH = ROOT / "assets" / "images" / "study1_stage3" / "behaviour_agg.svg"
 STUDY2_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01timeres.svg"
 STUDY2_GLM_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01glm.svg"
+STUDY2_TEMPGEN_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses01tempgen.svg"
 
 INK = "#262626"
 PURPLE = "#7B51A0"
@@ -34,6 +35,41 @@ def _hide_background_rect(svg: SVGMobject) -> None:
                 submob.set_stroke(opacity=0)
                 submob.set_fill(opacity=0)
                 return
+
+
+def _hide_white_regions(svg: SVGMobject, min_area_ratio: float = 0.02) -> None:
+    min_area = svg.width * svg.height * min_area_ratio
+    for submob in svg.submobjects:
+        fill_hex = _get_hex(submob.get_fill_color())
+        stroke_hex = _get_hex(submob.get_stroke_color())
+        if fill_hex == "#FFFFFF" and submob.width * submob.height >= min_area:
+            submob.set_fill(opacity=0)
+            if stroke_hex == "#FFFFFF":
+                submob.set_stroke(opacity=0)
+
+
+def _plot_frame_from_long_lines(svg: SVGMobject, *, min_span_ratio: float = 0.7) -> VGroup:
+    candidates = [
+        submob
+        for submob in svg.submobjects
+        if (
+            len(submob.get_all_points()) == 4
+            and submob.get_stroke_opacity() > 0
+            and (
+                submob.width >= svg.width * min_span_ratio
+                or submob.height >= svg.height * min_span_ratio
+            )
+        )
+    ]
+    verticals = [submob for submob in candidates if submob.height > submob.width]
+    horizontals = [submob for submob in candidates if submob.width >= submob.height]
+    if len(verticals) < 2 or len(horizontals) < 2:
+        raise ValueError("Could not identify plot frame from long SVG lines")
+    left = min(verticals, key=lambda mob: mob.get_center()[0])
+    right = max(verticals, key=lambda mob: mob.get_center()[0])
+    bottom = min(horizontals, key=lambda mob: mob.get_center()[1])
+    top = max(horizontals, key=lambda mob: mob.get_center()[1])
+    return VGroup(left, right, bottom, top)
 
 
 def _timeres_select_many(svg: SVGMobject, *, stroke_hex: str | None = None, fill_hex: str | None = None, min_points: int = 0):
@@ -456,4 +492,143 @@ class Study2GLMScatterRevealTest(Scene):
             ),
             run_time=0.8,
         )
+        self.wait(1)
+
+
+class Study2TempGenMatrixTest(Scene):
+    def construct(self):
+        center = ORIGIN + DOWN * 0.15
+        plot_height = config.frame_height * 0.74
+
+        title = Tex("Temporal generalisation", color=BLACK, font_size=28).to_edge(UP, buff=0.35)
+        underlay = (
+            ImageMobject(str(STUDY2_TEMPGEN_PATH.with_suffix(".png")))
+            .set_height(plot_height)
+            .move_to(center)
+        )
+        underlay.set_opacity(0.86)
+
+        overlay = (
+            SVGMobject(str(STUDY2_TEMPGEN_PATH))
+            .set_height(plot_height)
+            .move_to(center)
+        )
+        _hide_white_regions(overlay)
+        overlay_frame = _plot_frame_from_long_lines(overlay, min_span_ratio=0.62)
+        plot_frame = overlay_frame.copy()
+        overlay_frame.set_opacity(0)
+        plot_frame.set_z_index(4)
+        underlay.set_z_index(1)
+        overlay.set_z_index(3)
+        underlay.set_opacity(0.18)
+
+        diag_start = plot_frame.get_corner(DL)
+        diag_end = plot_frame.get_corner(UR)
+        diag_color = interpolate_color(ManimColor(PURPLE), ManimColor(GREEN), 0.38)
+        sweep = ValueTracker(0.0)
+
+        def sweep_point(alpha: float) -> np.ndarray:
+            return interpolate(diag_start, diag_end, float(np.clip(alpha, 0.0, 1.0)))
+
+        diag_glow = always_redraw(
+            lambda: Line(
+                diag_start,
+                sweep_point(sweep.get_value()),
+                color=diag_color,
+                stroke_width=18,
+            ).set_stroke(opacity=0.16).set_z_index(5)
+        )
+        diag_trace = always_redraw(
+            lambda: Line(
+                diag_start,
+                sweep_point(sweep.get_value()),
+                color=diag_color,
+                stroke_width=5.5,
+            ).set_stroke(opacity=0.95).set_z_index(6)
+        )
+        cursor_dot = always_redraw(
+            lambda: Dot(
+                sweep_point(sweep.get_value()),
+                radius=0.056,
+                color=interpolate_color(ManimColor(PURPLE), ManimColor(GREEN), sweep.get_value()),
+                fill_opacity=1.0,
+            ).set_stroke(WHITE, width=1.5).set_z_index(7)
+        )
+        x_cursor = always_redraw(
+            lambda: Line(
+                np.array([sweep_point(sweep.get_value())[0], plot_frame.get_bottom()[1] - 0.02, 0.0]),
+                np.array([sweep_point(sweep.get_value())[0], plot_frame.get_bottom()[1] + 0.09, 0.0]),
+                color=diag_color,
+                stroke_width=3.0,
+            ).set_z_index(6)
+        )
+        y_cursor = always_redraw(
+            lambda: Line(
+                np.array([plot_frame.get_left()[0] - 0.09, sweep_point(sweep.get_value())[1], 0.0]),
+                np.array([plot_frame.get_left()[0] + 0.02, sweep_point(sweep.get_value())[1], 0.0]),
+                color=diag_color,
+                stroke_width=3.0,
+            ).set_z_index(6)
+        )
+        x_guide = always_redraw(
+            lambda: DashedLine(
+                np.array([sweep_point(sweep.get_value())[0], plot_frame.get_bottom()[1], 0.0]),
+                sweep_point(sweep.get_value()),
+                color=GREY_B,
+                stroke_width=1.4,
+                dash_length=0.05,
+                dashed_ratio=0.62,
+            ).set_z_index(5)
+        )
+        y_guide = always_redraw(
+            lambda: DashedLine(
+                np.array([plot_frame.get_left()[0], sweep_point(sweep.get_value())[1], 0.0]),
+                sweep_point(sweep.get_value()),
+                color=GREY_B,
+                stroke_width=1.4,
+                dash_length=0.05,
+                dashed_ratio=0.62,
+            ).set_z_index(5)
+        )
+        diag_residue = Line(diag_start, diag_end, color=diag_color, stroke_width=8).set_stroke(opacity=0.18)
+        diag_residue.set_z_index(4)
+
+        self.play(
+            FadeIn(title, shift=UP * 0.05),
+            AnimationGroup(
+                Create(plot_frame),
+                FadeIn(underlay, shift=UP * 0.08),
+                lag_ratio=0.16,
+            ),
+            run_time=0.85,
+        )
+        self.play(
+            FadeIn(x_cursor),
+            FadeIn(y_cursor),
+            FadeIn(x_guide),
+            FadeIn(y_guide),
+            FadeIn(cursor_dot, scale=0.85),
+            FadeIn(diag_glow),
+            FadeIn(diag_trace),
+            run_time=0.25,
+        )
+        self.play(sweep.animate.set_value(1.0), run_time=1.65, rate_func=smooth)
+        self.play(
+            Flash(diag_end, color=diag_color, line_length=0.18, num_lines=10, flash_radius=0.16),
+            run_time=0.45,
+        )
+        self.play(
+            FadeIn(diag_residue),
+            underlay.animate.set_opacity(0.86),
+            FadeIn(overlay, shift=UP * 0.06),
+            FadeOut(x_cursor),
+            FadeOut(y_cursor),
+            FadeOut(x_guide),
+            FadeOut(y_guide),
+            FadeOut(cursor_dot, scale=1.15),
+            FadeOut(diag_glow),
+            FadeOut(diag_trace),
+            run_time=0.95,
+        )
+        self.play(FadeOut(diag_residue), run_time=0.35)
         self.wait(1)
