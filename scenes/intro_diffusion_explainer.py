@@ -1,18 +1,17 @@
 """
-Diffusion explainer.
+Diffusion explainer — thesis defence, 3Blue1Brown style.
 
-  Diffusion01ForwardReverse      — title plus forward/reverse intuition
-  Diffusion02PromptToContinuum   — fixed prompt to stimulus continuum
-  Diffusion03WhyItMattersForThesis — Study 1 / Study 2 payoff
+  Diffusion01TheIdea          — hook: noise becomes image; forward and reverse passes
+  Diffusion02Conditioning     — text prompt controls what emerges; three objects
+  Diffusion03ThesisConnection — why diffusion models; stimulus design payoff
 
 Render:
-    uv run manim intro_diffusion_explainer.py Diffusion01ForwardReverse -ql
-    uv run manim intro_diffusion_explainer.py Diffusion02PromptToContinuum -ql
-    uv run manim intro_diffusion_explainer.py Diffusion03WhyItMattersForThesis -ql
+    uv run manim scenes/intro_diffusion_explainer.py Diffusion01TheIdea -ql
+    uv run manim scenes/intro_diffusion_explainer.py Diffusion02Conditioning -ql
+    uv run manim scenes/intro_diffusion_explainer.py Diffusion03ThesisConnection -ql
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -26,591 +25,503 @@ INK   = "#1C1C1E"
 LGREY = "#D1D5DB"
 MGREY = "#6B7280"
 BLUE  = "#2563EB"
+GREEN = "#16A34A"
+RED   = "#DC2626"
 PANEL = "#F8FAFC"
 
-# ── Asset and DDPM notation ──────────────────────────────────────────────────
-IMAGE_PATH = Path(
-    "/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task/ANI-CAT-T00.png"
-)
+# ── Assets ────────────────────────────────────────────────────────────────────
+_STIM = Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task")
+
+CAT_PATH = _STIM / "ANI-CAT-T00.png"
+OBS_PATH = _STIM / "BUI-OBS-T00.png"
+PIN_PATH = _STIM / "PLA-PIN-T00.png"
+
 CONTINUUM_PATHS = [
-    IMAGE_PATH,
-    Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task/ANI-CAT-D01.png"),
-    Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task/ANI-CAT-D02.png"),
-    Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task/ANI-CAT-D03.png"),
+    _STIM / "ANI-CAT-T00.png",
+    _STIM / "ANI-CAT-D01.png",
+    _STIM / "ANI-CAT-D02.png",
+    _STIM / "ANI-CAT-D03.png",
 ]
 
-TITLE_TEXT = "How do diffusion models work?"
-FORWARD_FORMULA = r"q(x_i \mid x_{i-1})"
-REVERSE_FORMULA = r"p_{\theta}(x_{i-1} \mid x_i, c)"
-PROMPT_TEXT = "a cat in a coherent indoor scene"
-
-FORWARD_LEVELS = [0.00, 0.18, 0.38, 0.58, 0.78, 1.00]
-FORWARD_LABELS = [r"x_0", r"x_1", r"x_2", r"x_3", r"x_{T-1}", r"x_T"]
-REVERSE_LABELS = [r"x_T", r"x_{T-1}", r"x_3", r"x_2", r"x_1", r"x_0"]
-
-# ── Layout ────────────────────────────────────────────────────────────────────
-CARD_HEIGHT = 1.16
-TOP_ROW_Y = 1.28
-BOTTOM_ROW_Y = -1.72
-DIVIDER_Y = -0.10
-TOP_HEADING_Y = 2.16
-BOTTOM_HEADING_Y = -0.56
-STATE_XS = np.linspace(-3.15, 4.15, len(FORWARD_LEVELS))
-FORWARD_CENTER_SHIFT = DOWN * 0.90
-
-np.random.seed(7)
-_BASE_NOISE: np.ndarray | None = None
-_FORWARD_ARRAYS: list[np.ndarray] | None = None
-
-
-@dataclass
-class BoardParts:
-    top_heading: VGroup
-    bottom_heading: VGroup
-    divider: Line
-    top_cards: Group
-    top_labels: VGroup
-    top_arrows: VGroup
-    bottom_cards: Group
-    bottom_labels: VGroup
-    bottom_arrows: VGroup
-    top_highlight: SurroundingRectangle
-    bottom_highlight: SurroundingRectangle
-
-
-@dataclass
-class CenteredForwardParts:
-    heading: VGroup
-    cards: Group
-    labels: VGroup
-    arrows: VGroup
-    highlight: SurroundingRectangle
-
-
-def load_image_array(path: str | Path) -> np.ndarray:
-    """Load an RGB image as float32 in [0, 1]."""
-    image = Image.open(path).convert("RGB")
-    return np.asarray(image).astype(np.float32) / 255.0
-
-
-def to_uint8(image_array: np.ndarray) -> np.ndarray:
-    """Convert a float image in [0, 1] to uint8."""
-    return (255 * np.clip(image_array, 0.0, 1.0)).astype(np.uint8)
-
-
-def add_noise(image_array: np.ndarray, noise_level: float) -> np.ndarray:
-    """Blend an image with Gaussian noise."""
-    global _BASE_NOISE
-
-    if _BASE_NOISE is None or _BASE_NOISE.shape != image_array.shape:
-        noise = np.random.normal(0, 1, image_array.shape)
-        noise = (noise - noise.min()) / (noise.max() - noise.min())
-        _BASE_NOISE = noise.astype(np.float32)
-
-    alpha = float(np.clip(noise_level, 0.0, 1.0))
-    blended = (1.0 - alpha) * image_array + alpha * _BASE_NOISE
-    return np.clip(blended, 0.0, 1.0)
-
-
-def get_forward_arrays() -> list[np.ndarray]:
-    """Return the deterministic forward DDPM states."""
-    global _FORWARD_ARRAYS
-
-    if _FORWARD_ARRAYS is None:
-        clean = load_image_array(IMAGE_PATH)
-        _FORWARD_ARRAYS = [add_noise(clean, level) for level in FORWARD_LEVELS]
-    return _FORWARD_ARRAYS
-
-
-def get_reverse_arrays() -> list[np.ndarray]:
-    """Return the deterministic reverse DDPM states."""
-    return list(reversed(get_forward_arrays()))
-
-
-def make_image_mobject(content: str | Path | np.ndarray, height: float) -> ImageMobject:
-    """Create an ImageMobject from a path or array."""
-    if isinstance(content, (str, Path)):
-        image = ImageMobject(str(content))
-    else:
-        image = ImageMobject(to_uint8(content))
-    image.scale_to_fit_height(height)
-    return image
-
-
-def make_frame(image: ImageMobject, color: str = LGREY, buff: float = 0.08) -> RoundedRectangle:
-    """Create a rounded frame around an image."""
-    frame = RoundedRectangle(
-        width=image.width + 2 * buff,
-        height=image.height + 2 * buff,
-        corner_radius=0.16,
-        stroke_color=color,
-        stroke_width=1.5,
-    )
-    frame.set_fill(PANEL, opacity=0.0)
-    frame.move_to(image)
-    return frame
-
-
-def make_card(content: str | Path | np.ndarray, height: float) -> Group:
-    """Create a framed image card."""
-    image = make_image_mobject(content, height=height)
-    frame = make_frame(image)
-    return Group(image, frame)
-
-
-def make_embedding_block() -> VGroup:
-    """Create a numeric text-embedding stand-in."""
-    rng = np.random.default_rng(7)
-    values = [[f"{value:+.2f}" for value in rng.normal(0.0, 0.65, 4)] for _ in range(4)]
-    matrix = Matrix(
-        values,
-        h_buff=0.72,
-        v_buff=0.22,
-        element_to_mobject=lambda entry: MathTex(entry, color=MGREY, font_size=18),
-    )
-    matrix.get_brackets().set_color(MGREY)
-    matrix.scale(0.48)
-    return matrix
-
-
-def make_heading(title_text: str, formula: str, formula_color: str, y: float) -> VGroup:
-    """Create the left-aligned heading block for one process."""
-    heading = VGroup(
-        Tex(title_text, color=INK, font_size=26),
-        MathTex(formula, color=formula_color, font_size=26),
-    ).arrange(DOWN, aligned_edge=LEFT, buff=0.08)
-    heading.to_edge(LEFT, buff=0.50)
-    heading.shift(UP * (y - heading.get_center()[1]))
-    return heading
-
-
-def build_cards(arrays: list[np.ndarray], y: float) -> Group:
-    """Create a horizontal row of image cards."""
-    cards = Group()
-    for x, array in zip(STATE_XS, arrays):
-        card = make_card(array, height=CARD_HEIGHT)
-        card.move_to(RIGHT * x + UP * y)
-        cards.add(card)
-    return cards
-
-
-def build_state_labels(cards: Group, labels: list[str], direction: np.ndarray, color: str) -> VGroup:
-    """Create mathematical timestep labels for a row of cards."""
-    state_labels = VGroup()
-    for label, card in zip(labels, cards):
-        state = MathTex(label, color=color, font_size=24)
-        state.next_to(card, direction, buff=0.14)
-        state_labels.add(state)
-    return state_labels
-
-
-def build_arrows(cards: Group, color: str) -> VGroup:
-    """Create arrows between consecutive cards."""
-    arrows = VGroup()
-    for left_card, right_card in zip(cards[:-1], cards[1:]):
-        arrow = Arrow(
-            start=left_card.get_right() + RIGHT * 0.08,
-            end=right_card.get_left() + LEFT * 0.08,
-            buff=0.06,
-            color=color,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        arrows.add(arrow)
-    return arrows
-
-
-def build_board() -> BoardParts:
-    """Build the full DDPM board with all elements available."""
-    forward_arrays = get_forward_arrays()
-    reverse_arrays = get_reverse_arrays()
-
-    top_cards = build_cards(forward_arrays, TOP_ROW_Y)
-    bottom_cards = build_cards(reverse_arrays, BOTTOM_ROW_Y)
-
-    top_labels = build_state_labels(top_cards, FORWARD_LABELS, DOWN, MGREY)
-    bottom_labels = build_state_labels(bottom_cards, REVERSE_LABELS, UP, BLUE)
-
-    divider = Line(
-        start=LEFT * 6.55 + UP * DIVIDER_Y,
-        end=RIGHT * 6.55 + UP * DIVIDER_Y,
-        color=LGREY,
-        stroke_width=1.5,
-    )
-
-    return BoardParts(
-        top_heading=make_heading("Forward", FORWARD_FORMULA, MGREY, TOP_HEADING_Y),
-        bottom_heading=make_heading("Reverse", REVERSE_FORMULA, BLUE, BOTTOM_HEADING_Y),
-        divider=divider,
-        top_cards=top_cards,
-        top_labels=top_labels,
-        top_arrows=build_arrows(top_cards, MGREY),
-        bottom_cards=bottom_cards,
-        bottom_labels=bottom_labels,
-        bottom_arrows=build_arrows(bottom_cards, BLUE),
-        top_highlight=SurroundingRectangle(
-            top_cards[-1], color=MGREY, stroke_width=2.1, buff=0.08
-        ),
-        bottom_highlight=SurroundingRectangle(
-            bottom_cards[-1], color=BLUE, stroke_width=2.1, buff=0.08
-        ),
-    )
-
-
-def visible_process_group(cards: Group, labels: VGroup, arrows: VGroup, count: int) -> Group:
-    """Return the visible subset of one row up to count states."""
-    parts: list[Mobject] = []
-    if count <= 0:
-        return Group()
-
-    parts.extend([cards[0], labels[0]])
-    for idx in range(1, count):
-        parts.extend([arrows[idx - 1], cards[idx], labels[idx]])
-    return Group(*parts)
-
-
-def build_centered_forward_parts(board: BoardParts) -> CenteredForwardParts:
-    """Return a centered version of the full forward process."""
-    heading = board.top_heading.copy()
-    cards = board.top_cards.copy()
-    labels = board.top_labels.copy()
-    arrows = board.top_arrows.copy()
-    highlight = board.top_highlight.copy()
-
-    heading.shift(FORWARD_CENTER_SHIFT)
-    cards.shift(FORWARD_CENTER_SHIFT)
-    labels.shift(FORWARD_CENTER_SHIFT)
-    arrows.shift(FORWARD_CENTER_SHIFT)
-    highlight.shift(FORWARD_CENTER_SHIFT)
-
-    return CenteredForwardParts(
-        heading=heading,
-        cards=cards,
-        labels=labels,
-        arrows=arrows,
-        highlight=highlight,
-    )
-
-def make_center_statement(text: str, color: str = INK, font_size: int = 34) -> Tex:
-    """Create a centered statement for the current clip."""
-    line = Tex(text, color=color, font_size=font_size)
-    line.move_to(UP * 0.18)
-    return line
-
-
-def make_top_statement(text: str, color: str = INK, font_size: int = 28) -> Tex:
-    """Create a top-aligned statement shared across clips."""
-    line = Tex(text, color=color, font_size=font_size)
-    line.to_edge(UP, buff=0.34)
-    return line
-
-
-def make_prompt_text(font_size: int = 28) -> Tex:
-    """Create the literal prompt string."""
-    return Tex(f'"{PROMPT_TEXT}"', color=INK, font_size=font_size)
-
-
-def make_text_embedding_group() -> VGroup:
-    """Create a compact text-embedding visual labeled by c."""
-    label = Tex("text embedding", color=MGREY, font_size=16)
-    symbol = MathTex(r"c", color=MGREY, font_size=26)
-    block = make_embedding_block()
-    return VGroup(label, block, symbol).arrange(DOWN, buff=0.06)
-
-
-def make_condition_stack(
-    prompt_position: np.ndarray,
-    embedding_position: np.ndarray,
-    prompt_font_size: int = 22,
-    embedding_scale: float = 0.95,
-) -> tuple[Tex, VGroup, Arrow]:
-    """Create a prompt plus embedding stack used for conditioning."""
-    prompt = make_prompt_text(font_size=prompt_font_size)
-    prompt.move_to(prompt_position)
-
-    embedding = make_text_embedding_group()
-    embedding.scale(embedding_scale)
-    embedding.move_to(embedding_position)
-
-    arrow = Arrow(
-        start=prompt.get_bottom() + DOWN * 0.05,
-        end=embedding.get_top() + UP * 0.05,
-        buff=0.08,
-        color=MGREY,
-        stroke_width=1.8,
-        tip_shape=StealthTip,
-    )
-    return prompt, embedding, arrow
-
-
-def make_continuum_strip(height: float = 1.44) -> tuple[Group, Line, VGroup, Tex]:
-    """Create the selected Study 1 continuum strip from real stimulus images."""
-    cards = Group(*[make_card(path, height=height) for path in CONTINUUM_PATHS])
-    cards.arrange(RIGHT, buff=0.22)
-    cards.move_to(RIGHT * 1.55 + UP * 0.15)
-
-    dots = VGroup(*[Dot(radius=0.045, color=MGREY, fill_opacity=1.0) for _ in cards])
-    for dot, card in zip(dots, cards):
-        dot.move_to(card.get_bottom() + DOWN * 0.35)
-
-    line = Line(
-        dots[0].get_center(),
-        dots[-1].get_center(),
-        color=LGREY,
-        stroke_width=2.0,
-    )
-    slider_label = Tex("latent interpolation", color=MGREY, font_size=20)
-    slider_label.next_to(line, DOWN, buff=0.16)
-    return cards, line, dots, slider_label
-
-
-class Diffusion01ForwardReverse(Scene):
-    """Title plus forward noising and reverse denoising."""
+# ── Image helpers ─────────────────────────────────────────────────────────────
+np.random.seed(42)
+_SHARED_NOISE: dict[tuple, np.ndarray] = {}
+
+
+def _get_noise(shape: tuple) -> np.ndarray:
+    if shape not in _SHARED_NOISE:
+        n = np.random.normal(0, 1, shape).astype(np.float32)
+        _SHARED_NOISE[shape] = (n - n.min()) / (n.max() - n.min())
+    return _SHARED_NOISE[shape]
+
+
+def load_rgb(path: Path | str) -> np.ndarray:
+    return np.asarray(Image.open(path).convert("RGB")).astype(np.float32) / 255.0
+
+
+def blend(clean: np.ndarray, alpha: float) -> np.ndarray:
+    return np.clip((1 - alpha) * clean + alpha * _get_noise(clean.shape), 0, 1)
+
+
+def to_u8(arr: np.ndarray) -> np.ndarray:
+    return (255 * np.clip(arr, 0, 1)).astype(np.uint8)
+
+
+def imob(src: Path | str | np.ndarray, h: float) -> ImageMobject:
+    m = ImageMobject(str(src)) if isinstance(src, (Path, str)) else ImageMobject(to_u8(src))
+    return m.scale_to_fit_height(h)
+
+
+def framed(src: Path | str | np.ndarray, h: float,
+           stroke: str = LGREY, sw: float = 1.5) -> Group:
+    im = imob(src, h)
+    fr = RoundedRectangle(
+        width=im.width + 0.14, height=im.height + 0.14,
+        corner_radius=0.12, stroke_color=stroke, stroke_width=sw,
+    ).set_fill(PANEL, opacity=0).move_to(im)
+    return Group(im, fr)
+
+
+def noise_steps(path: Path | str, n: int) -> list[np.ndarray]:
+    """n arrays going from clean to pure noise."""
+    clean = load_rgb(path)
+    return [blend(clean, float(t) / (n - 1)) for t in range(n)]
+
+
+def _arrow(start: np.ndarray, end: np.ndarray,
+           color: str, sw: float = 1.8) -> Arrow:
+    return Arrow(start, end, buff=0.04, color=color,
+                 stroke_width=sw, tip_shape=StealthTip)
+
+
+def _row(arrays: list[np.ndarray], h: float, y: float,
+         stroke: str = LGREY) -> tuple[Group, VGroup]:
+    """Horizontal strip of framed cards + connecting arrows."""
+    n  = len(arrays)
+    xs = np.linspace(-5.10, 5.10, n)
+    cards = Group(*[
+        framed(a, h, stroke).move_to(RIGHT * x + UP * y)
+        for a, x in zip(arrays, xs)
+    ])
+    arrows = VGroup(*[
+        _arrow(cards[i].get_right() + RIGHT * 0.04,
+               cards[i + 1].get_left() + LEFT * 0.04, stroke)
+        for i in range(n - 1)
+    ])
+    return cards, arrows
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Scene 1 — The idea: noise → image; forward and reverse passes
+# ══════════════════════════════════════════════════════════════════════════════
+
+class Diffusion01TheIdea(Scene):
+    """
+    Open on a large noisy image of a cat — then reveal it was generated from
+    that very noise by a diffusion model. Build the forward/reverse intuition.
+    """
+
+    _LARGE_H = 2.20
+    _SMALL_H = 0.88
+    _N       = 6         # number of states in each strip
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
-        board = build_board()
-        centered = build_centered_forward_parts(board)
+        cat_clean = load_rgb(CAT_PATH)
+        levels    = np.linspace(0.0, 1.0, self._N)
+        fwd_arrs  = [blend(cat_clean, float(a)) for a in levels]
+        rev_arrs  = list(reversed(fwd_arrs))
 
-        title = make_center_statement(TITLE_TEXT, font_size=38)
-        top_line = make_top_statement(TITLE_TEXT, color=INK, font_size=29)
-        centered_heading = VGroup(
-            Tex("Forward", color=INK, font_size=28),
-            MathTex(FORWARD_FORMULA, color=MGREY, font_size=28),
-        ).arrange(DOWN, buff=0.08)
-        centered_heading.next_to(centered.cards, UP, buff=0.26)
+        # ── 1. Hook: pure noise filling the frame ─────────────────────────────
+        noise_img = imob(fwd_arrs[-1], self._LARGE_H).move_to(UP * 0.15)
+        self.play(FadeIn(noise_img), run_time=0.50)
+        self.wait(0.30)
 
-        forward_note = Tex("Forward: add noise", color=MGREY, font_size=22)
-        forward_note.next_to(top_line, DOWN, buff=0.28)
-        reverse_note = Tex("Reverse: remove noise, guided by text", color=BLUE, font_size=22)
-        reverse_note.next_to(top_line, DOWN, buff=0.28)
-
-        prompt_text, embedding_group, prompt_arrow = make_condition_stack(
-            prompt_position=LEFT * 5.05 + DOWN * 1.20,
-            embedding_position=LEFT * 5.05 + DOWN * 2.15,
-            prompt_font_size=22,
-            embedding_scale=0.95,
+        caption = Tex(
+            r"What if a neural network could clean this up, one step at a time?",
+            color=INK, font_size=26,
         )
+        caption.next_to(noise_img, DOWN, buff=0.28)
+        self.play(FadeIn(caption, shift=UP * 0.05), run_time=0.55)
+        self.wait(0.60)
 
-        self.play(FadeIn(title, shift=UP * 0.08), run_time=0.75)
-        self.wait(0.20)
+        # ── 2. Answer: reveal the cat ─────────────────────────────────────────
+        cat_img = imob(fwd_arrs[0], self._LARGE_H).move_to(noise_img.get_center())
         self.play(
-            Transform(title, top_line),
-            FadeIn(forward_note, shift=UP * 0.04),
-            FadeIn(centered_heading, shift=UP * 0.05),
-            FadeIn(centered.cards[0], scale=0.97),
-            FadeIn(centered.labels[0], shift=UP * 0.03),
-            run_time=0.80,
+            FadeOut(noise_img),
+            FadeIn(cat_img),
+            FadeOut(caption),
+            run_time=0.70,
         )
+        self.wait(0.25)
+        answer = Tex(
+            "That is exactly what a diffusion model does.",
+            color=INK, font_size=26,
+        )
+        answer.next_to(cat_img, DOWN, buff=0.28)
+        self.play(FadeIn(answer, shift=UP * 0.04), run_time=0.50)
+        self.wait(0.45)
 
-        for idx in range(1, len(FORWARD_LABELS)):
+        # ── 3. Shrink cat to left anchor; build forward row ───────────────────
+        scale_factor = self._SMALL_H / self._LARGE_H
+        fwd_y = 0.90
+
+        # Pre-build the whole strip; first card goes where cat currently is
+        fwd_cards, fwd_arrows = _row(fwd_arrs, self._SMALL_H, fwd_y)
+
+        self.play(
+            FadeOut(answer),
+            cat_img.animate.scale(scale_factor).move_to(fwd_cards[0].get_center()),
+            run_time=0.55,
+        )
+        self.remove(cat_img)
+        self.add(fwd_cards[0])   # swap in the framed version
+
+        fwd_label = Tex(
+            "Forward: add a little noise at each step",
+            color=MGREY, font_size=22,
+        )
+        fwd_formula = MathTex(
+            r"q(z_t \mid z_{t-1})",
+            color=MGREY, font_size=22,
+        )
+        fwd_header = VGroup(fwd_label, fwd_formula).arrange(RIGHT, buff=0.28)
+        fwd_header.next_to(fwd_cards, UP, buff=0.24)
+
+        self.play(FadeIn(fwd_header), run_time=0.35)
+        for i in range(1, self._N):
             self.play(
-                Create(centered.arrows[idx - 1]),
-                FadeIn(centered.cards[idx], scale=0.97),
-                FadeIn(centered.labels[idx], shift=UP * 0.03),
-                run_time=0.56,
+                Create(fwd_arrows[i - 1]),
+                FadeIn(fwd_cards[i], scale=0.96),
+                run_time=0.30,
             )
+        self.wait(0.20)
 
-        self.play(Create(centered.highlight), run_time=0.40)
-        self.play(
-            Transform(centered_heading, board.top_heading),
-            centered.cards.animate.shift(-FORWARD_CENTER_SHIFT),
-            centered.labels.animate.shift(-FORWARD_CENTER_SHIFT),
-            centered.arrows.animate.shift(-FORWARD_CENTER_SHIFT),
-            centered.highlight.animate.shift(-FORWARD_CENTER_SHIFT),
-            Create(board.divider),
-            FadeIn(board.bottom_heading, shift=UP * 0.05),
-            FadeOut(forward_note, shift=UP * 0.03),
-            FadeIn(reverse_note, shift=UP * 0.03),
-            FadeIn(prompt_text, shift=UP * 0.04),
-            run_time=0.95,
+        # ── 4. Reverse row ────────────────────────────────────────────────────
+        rev_y    = -1.40
+        rev_cards, rev_arrows = _row(rev_arrs, self._SMALL_H, rev_y, BLUE)
+
+        rev_label = Tex(
+            "Reverse: neural network removes the noise, guided by text",
+            color=BLUE, font_size=22,
         )
-        self.play(FadeIn(embedding_group, shift=UP * 0.03), Create(prompt_arrow), run_time=0.55)
+        rev_formula = MathTex(
+            r"p_\theta(z_{t-1} \mid z_t,\, c)",
+            color=BLUE, font_size=22,
+        )
+        rev_header = VGroup(rev_label, rev_formula).arrange(RIGHT, buff=0.28)
+        rev_header.next_to(rev_cards, UP, buff=0.24)
+
+        divider = Line(
+            LEFT * 6.5 + UP * (fwd_y - self._SMALL_H / 2 - 0.28),
+            RIGHT * 6.5 + UP * (fwd_y - self._SMALL_H / 2 - 0.28),
+            color=LGREY, stroke_width=1.0,
+        )
+
+        c_note = MathTex(r"c = \text{text prompt}", color=BLUE, font_size=20)
+        c_note.next_to(rev_cards, DOWN, buff=0.22)
+
+        self.play(Create(divider), FadeIn(rev_header), run_time=0.40)
+        for i in range(self._N):
+            anims = [FadeIn(rev_cards[i], scale=0.96)]
+            if i > 0:
+                anims.insert(0, Create(rev_arrows[i - 1]))
+            self.play(*anims, run_time=0.30)
+
+        self.play(FadeIn(c_note, shift=UP * 0.04), run_time=0.35)
+
+        clean_box = SurroundingRectangle(
+            rev_cards[-1], color=BLUE, stroke_width=2.0, buff=0.06,
+        )
+        self.play(Create(clean_box), run_time=0.35)
+        self.wait(1.20)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Scene 2 — The text prompt c controls what emerges
+# ══════════════════════════════════════════════════════════════════════════════
+
+class Diffusion02Conditioning(Scene):
+    """
+    Same noise z_T, three different prompts → three different images.
+    Text is turned into a vector c that steers the denoising.
+    Also: latent space framing — this is all happening 8× below pixel resolution.
+    """
+
+    _IMG_H   = 1.55
+    _N       = 5           # number of denoising steps shown per row
+
+    _OBJECTS = [
+        {"path": CAT_PATH, "prompt": "a cat in an indoor scene",   "color": BLUE},
+        {"path": OBS_PATH, "prompt": "an observatory at dusk",     "color": RED},
+        {"path": PIN_PATH, "prompt": "a pine tree in a landscape", "color": GREEN},
+    ]
+    _ROW_YS = [1.50, 0.00, -1.50]
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        heading = Tex(
+            r"The text prompt $c$ steers the reverse pass",
+            color=INK, font_size=30,
+        )
+        heading.to_edge(UP, buff=0.38)
+        self.play(FadeIn(heading, shift=UP * 0.06), run_time=0.55)
+
+        # ── Shared noise card on the far left ─────────────────────────────────
+        noise_arr = blend(load_rgb(CAT_PATH), 1.0)
+
+        noise_cards = Group(*[
+            framed(noise_arr, self._IMG_H).move_to(LEFT * 4.60 + UP * y)
+            for y in self._ROW_YS
+        ])
+        shared_label = Tex(r"same noise $z_T$", color=MGREY, font_size=18)
+        shared_label.next_to(noise_cards, LEFT, buff=0.14)
+
         self.play(
-            FadeIn(board.bottom_cards[0], scale=0.97),
-            FadeIn(board.bottom_labels[0], shift=DOWN * 0.03),
+            LaggedStartMap(FadeIn, noise_cards, lag_ratio=0.12),
+            FadeIn(shared_label),
+            run_time=0.65,
+        )
+        self.wait(0.20)
+
+        # ── Three prompts appear ───────────────────────────────────────────────
+        prompts = [
+            Tex(f'"{obj["prompt"]}"', color=obj["color"], font_size=18)
+            .move_to(UP * y)
+            for obj, y in zip(self._OBJECTS, self._ROW_YS)
+        ]
+        arrows_in = VGroup(*[
+            _arrow(noise_cards[i].get_right() + RIGHT * 0.06,
+                   prompts[i].get_left() + LEFT * 0.06,
+                   obj["color"], sw=1.6)
+            for i, obj in enumerate(self._OBJECTS)
+        ])
+        self.play(
+            LaggedStart(*[FadeIn(p, shift=RIGHT * 0.04) for p in prompts],
+                        lag_ratio=0.14),
+            run_time=0.65,
+        )
+        self.play(
+            LaggedStartMap(Create, arrows_in, lag_ratio=0.12),
+            run_time=0.50,
+        )
+        self.wait(0.20)
+
+        # ── Denoising strips per row (abridged: N states) ──────────────────────
+        cat_clean = load_rgb(CAT_PATH)
+        cat_levels = np.linspace(1.0, 0.0, self._N)
+        cat_arrs   = [blend(cat_clean, float(a)) for a in cat_levels]
+
+        obs_clean = load_rgb(OBS_PATH)
+        obs_arrs  = [blend(obs_clean, float(a)) for a in cat_levels]
+
+        pin_clean = load_rgb(PIN_PATH)
+        pin_arrs  = [blend(pin_clean, float(a)) for a in cat_levels]
+
+        all_arrs = [cat_arrs, obs_arrs, pin_arrs]
+
+        strip_xs = np.linspace(0.60, 5.80, self._N)
+
+        strips: list[Group] = []
+        strip_arrows: list[VGroup] = []
+        for obj, arrs, row_y in zip(self._OBJECTS, all_arrs, self._ROW_YS):
+            cards = Group(*[
+                framed(a, self._IMG_H - 0.2, obj["color"], sw=1.4)
+                .move_to(RIGHT * x + UP * row_y)
+                for a, x in zip(arrs, strip_xs)
+            ])
+            sarrows = VGroup(*[
+                _arrow(cards[i].get_right() + RIGHT * 0.03,
+                       cards[i + 1].get_left() + LEFT * 0.03,
+                       obj["color"], sw=1.5)
+                for i in range(self._N - 1)
+            ])
+            strips.append(cards)
+            strip_arrows.append(sarrows)
+
+        # Connect prompts to strips with an arrow
+        prompt_to_strip_arrows = VGroup(*[
+            _arrow(prompts[i].get_right() + RIGHT * 0.06,
+                   strips[i][0].get_left() + LEFT * 0.06,
+                   obj["color"], sw=1.5)
+            for i, obj in enumerate(self._OBJECTS)
+        ])
+        self.play(
+            LaggedStartMap(Create, prompt_to_strip_arrows, lag_ratio=0.12),
             run_time=0.45,
         )
 
-        for idx in range(1, len(REVERSE_LABELS)):
+        # Reveal all strips column by column
+        for col in range(self._N):
+            anims = []
+            for i in range(3):
+                anims.append(FadeIn(strips[i][col], scale=0.95))
+                if col > 0:
+                    anims.append(Create(strip_arrows[i][col - 1]))
+            self.play(*anims, run_time=0.38)
+
+        # Highlight the three clean outputs
+        highlights = VGroup(*[
+            SurroundingRectangle(
+                strips[i][-1], color=obj["color"],
+                stroke_width=2.2, buff=0.05,
+            )
+            for i, obj in enumerate(self._OBJECTS)
+        ])
+        self.play(
+            LaggedStartMap(Create, highlights, lag_ratio=0.10),
+            run_time=0.50,
+        )
+
+        # Key takeaway
+        note = Tex(
+            r"Same $z_T$, different $c$ $\;\Rightarrow\;$ different image",
+            color=INK, font_size=23,
+        )
+        note.to_edge(DOWN, buff=0.38)
+        self.play(FadeIn(note, shift=UP * 0.04), run_time=0.45)
+
+        # Latent space footnote
+        latent_note = Tex(
+            r"All of this runs in a compressed \textit{latent} space $z$ "
+            r"\textemdash\ 8$\times$ smaller than pixels, but semantically rich.",
+            color=MGREY, font_size=19,
+        )
+        latent_note.next_to(note, UP, buff=0.16)
+        self.play(FadeIn(latent_note, shift=UP * 0.03), run_time=0.45)
+        self.wait(1.80)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Scene 3 — Why diffusion models for the thesis
+# ══════════════════════════════════════════════════════════════════════════════
+
+class Diffusion03ThesisConnection(Scene):
+    """
+    Three properties map directly onto the experimental needs.
+    Payoff: the actual Study 1 continuum — same prompt, varied noise.
+    """
+
+    _CARD_H = 1.05
+    _CONT_H = 1.42
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        heading = Tex(r"Why latent diffusion for stimulus synthesis?",
+                      color=INK, font_size=30)
+        heading.to_edge(UP, buff=0.38)
+        self.play(FadeIn(heading, shift=UP * 0.06), run_time=0.50)
+
+        # ── Three properties ──────────────────────────────────────────────────
+        props = [
+            (BLUE,  r"\textbf{Photorealistic}",
+             "naturalistic images with ecological validity",
+             CAT_PATH),
+            (RED,   r"\textbf{Semantically controlled}",
+             r"text prompt $=$ category; change prompt $\Rightarrow$ change object",
+             OBS_PATH),
+            (GREEN, r"\textbf{Parametrically graded}",
+             r"same prompt + varied noise $\Rightarrow$ graded stimulus instances",
+             PIN_PATH),
+        ]
+        ys = [1.50, 0.18, -1.14]
+
+        blocks: list[VGroup] = []
+        imgs:   list[Group]  = []
+
+        for (col, title_s, body_s, img_path), y in zip(props, ys):
+            title_tex = Tex(title_s, color=col,  font_size=22)
+            body_tex  = Tex(body_s,  color=INK,  font_size=19)
+            blk = VGroup(title_tex, body_tex).arrange(RIGHT, buff=0.22)
+            blk.move_to(LEFT * 1.00 + UP * y)
+            blocks.append(blk)
+
+            im = framed(img_path, self._CARD_H, col)
+            im.move_to(RIGHT * 5.30 + UP * y)
+            imgs.append(im)
+
+        for blk, im in zip(blocks, imgs):
             self.play(
-                Create(board.bottom_arrows[idx - 1]),
-                FadeIn(board.bottom_cards[idx], scale=0.97),
-                FadeIn(board.bottom_labels[idx], shift=DOWN * 0.03),
+                FadeIn(blk, shift=RIGHT * 0.05),
+                FadeIn(im, scale=0.94),
                 run_time=0.58,
             )
+        self.wait(0.50)
 
-        self.play(Create(board.bottom_highlight), run_time=0.40)
-        self.play(FadeOut(reverse_note, shift=UP * 0.03), run_time=0.25)
-        self.wait(0.9)
-
-
-class Diffusion02PromptToContinuum(Scene):
-    """From fixed prompt to an actual Study 1 stimulus continuum."""
-
-    def construct(self) -> None:
-        self.camera.background_color = BG
-
-        board = build_board()
-        top_line = make_top_statement(TITLE_TEXT, color=INK, font_size=29)
-        method_line = make_top_statement(
-            "In Study 1, we fixed the prompt and varied the latent noise.",
-            color=INK,
-            font_size=27,
+        # ── Zoom into property 3: show the continuum ──────────────────────────
+        method_line = Tex(
+            r"Study 1: fixed prompt, varied noise seed $\Rightarrow$ stimulus continuum",
+            color=INK, font_size=23,
         )
+        method_line.next_to(heading, DOWN, buff=0.35)
 
-        top_group = visible_process_group(
-            board.top_cards,
-            board.top_labels,
-            board.top_arrows,
-            len(FORWARD_LABELS),
-        )
-        bottom_group = visible_process_group(
-            board.bottom_cards,
-            board.bottom_labels,
-            board.bottom_arrows,
-            len(REVERSE_LABELS),
-        )
-        board_group = Group(
-            board.top_heading,
-            top_group,
-            board.top_highlight,
-            board.divider,
-            board.bottom_heading,
-            bottom_group,
-            board.bottom_highlight,
-        )
-
-        prompt_text, embedding_group, prompt_arrow = make_condition_stack(
-            prompt_position=LEFT * 5.05 + DOWN * 1.20,
-            embedding_position=LEFT * 5.05 + DOWN * 2.15,
-            prompt_font_size=22,
-            embedding_scale=0.95,
-        )
-
-        prompt_target = make_prompt_text(font_size=25)
-        prompt_target.move_to(LEFT * 4.65 + UP * 0.80)
-        prompt_label = Tex("representative prompt", color=MGREY, font_size=18)
-        prompt_label.next_to(prompt_target, UP, buff=0.14)
-
-        embedding_target = make_text_embedding_group()
-        embedding_target.scale(0.98)
-        embedding_target.move_to(LEFT * 4.65 + DOWN * 0.55)
-
-        continuum_cards, continuum_line, continuum_dots, continuum_label = make_continuum_strip(height=1.42)
-        continuum_label_group = VGroup(continuum_line, continuum_dots, continuum_label)
-
-        self.add(
-            top_line,
-            board.top_heading,
-            top_group,
-            board.top_highlight,
-            board.divider,
-            board.bottom_heading,
-            bottom_group,
-            board.bottom_highlight,
-            prompt_text,
-            embedding_group,
-            prompt_arrow,
-        )
         self.play(
-            Transform(top_line, method_line),
-            FadeOut(board_group, shift=UP * 0.02),
-            Transform(prompt_text, prompt_target),
-            FadeOut(embedding_group, shift=DOWN * 0.02),
-            FadeOut(prompt_arrow),
-            run_time=0.95,
+            FadeOut(blocks[0]), FadeOut(blocks[1]),
+            FadeOut(imgs[0]),   FadeOut(imgs[1]),
+            blocks[2].animate.move_to(UP * 2.60).scale(0.82),
+            FadeOut(imgs[2]),
+            FadeIn(method_line, shift=UP * 0.04),
+            run_time=0.70,
         )
-        self.play(FadeIn(prompt_label, shift=UP * 0.03), run_time=0.30)
-        self.play(FadeTransform(prompt_text.copy(), embedding_target), run_time=0.60)
-        self.play(FadeIn(continuum_cards[0], scale=0.97), run_time=0.45)
+
+        # Continuum strip
+        cont_cards = Group(*[framed(p, self._CONT_H, BLUE) for p in CONTINUUM_PATHS])
+        cont_cards.arrange(RIGHT, buff=0.24).move_to(UP * 0.55)
+
+        prompt_lbl = Tex(
+            r'prompt: \textit{"a cat in an indoor scene"} (fixed)',
+            color=BLUE, font_size=20,
+        )
+        prompt_lbl.next_to(cont_cards, UP, buff=0.22)
+
+        # Axis under continuum
+        dots = VGroup(*[
+            Dot(radius=0.045, color=MGREY, fill_opacity=1.0)
+            .move_to(c.get_bottom() + DOWN * 0.26)
+            for c in cont_cards
+        ])
+        axis = Line(dots[0].get_center(), dots[-1].get_center(),
+                    color=LGREY, stroke_width=2.0)
+        axis_lbl = Tex(r"different noise seeds $z_T$", color=MGREY, font_size=18)
+        axis_lbl.next_to(axis, DOWN, buff=0.12)
+
+        self.play(FadeIn(prompt_lbl), run_time=0.35)
         self.play(
-            LaggedStart(*[FadeIn(card, scale=0.97) for card in continuum_cards[1:]], lag_ratio=0.18),
-            run_time=1.00,
+            LaggedStartMap(FadeIn, cont_cards, lag_ratio=0.14),
+            run_time=0.80,
         )
-        self.play(FadeIn(continuum_label_group, shift=UP * 0.04), run_time=0.45)
-        self.wait(1.5)
+        self.play(Create(axis), FadeIn(dots), FadeIn(axis_lbl), run_time=0.45)
 
+        # Study payoffs
+        s1 = VGroup(
+            Tex(r"\textbf{Study 1}", color=INK,  font_size=21),
+            Tex("perceptual scaling", color=MGREY, font_size=18),
+        ).arrange(DOWN, buff=0.04).move_to(cont_cards[1].get_center() + DOWN * 1.50)
 
-class Diffusion03WhyItMattersForThesis(Scene):
-    """Methods payoff for Study 1 and Study 2."""
+        s2 = VGroup(
+            Tex(r"\textbf{Study 2}", color=INK,  font_size=21),
+            Tex("fMRI decoding",      color=BLUE,  font_size=18),
+        ).arrange(DOWN, buff=0.04).move_to(cont_cards[2].get_center() + DOWN * 1.50)
 
-    def construct(self) -> None:
-        self.camera.background_color = BG
+        a1 = _arrow(cont_cards[1].get_bottom() + DOWN * 0.06,
+                    s1.get_top() + UP * 0.05, MGREY)
+        a2 = _arrow(cont_cards[2].get_bottom() + DOWN * 0.06,
+                    s2.get_top() + UP * 0.05, BLUE)
 
-        top_line = make_top_statement(
-            "In Study 1, we fixed the prompt and varied the latent noise.",
-            color=INK,
-            font_size=27,
-        )
-
-        prompt_target = make_prompt_text(font_size=25)
-        prompt_target.move_to(LEFT * 4.65 + UP * 0.80)
-        prompt_label = Tex("representative prompt", color=MGREY, font_size=18)
-        prompt_label.next_to(prompt_target, UP, buff=0.14)
-        embedding_target = make_text_embedding_group()
-        embedding_target.scale(0.98)
-        embedding_target.move_to(LEFT * 4.65 + DOWN * 0.55)
-
-        continuum_cards, continuum_line, continuum_dots, continuum_label = make_continuum_strip(height=1.42)
-        takeaway_1 = Tex("same prompt = same semantic content", color=INK, font_size=22)
-        takeaway_2 = Tex("latent variation = controlled perceptual differences", color=MGREY, font_size=22)
-        takeaway_group = VGroup(takeaway_1, takeaway_2).arrange(DOWN, aligned_edge=LEFT, buff=0.08)
-        takeaway_group.move_to(LEFT * 3.05 + DOWN * 2.00)
-
-        study1_text = VGroup(
-            Tex("Study 1", color=INK, font_size=23),
-            Tex("perceptual scaling", color=MGREY, font_size=21),
-        ).arrange(DOWN, buff=0.04)
-        study2_text = VGroup(
-            Tex("Study 2", color=INK, font_size=23),
-            Tex("memory + fMRI", color=BLUE, font_size=21),
-        ).arrange(DOWN, buff=0.04)
-        study1_text.move_to(RIGHT * 0.55 + DOWN * 2.22)
-        study2_text.move_to(RIGHT * 4.00 + DOWN * 2.22)
-
-        study_arrow_1 = Arrow(
-            start=continuum_cards[1].get_bottom() + DOWN * 0.06,
-            end=study1_text.get_top() + UP * 0.05,
-            buff=0.05,
-            color=MGREY,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        study_arrow_2 = Arrow(
-            start=continuum_cards[2].get_bottom() + DOWN * 0.06,
-            end=study2_text.get_top() + UP * 0.05,
-            buff=0.05,
-            color=BLUE,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
+        self.play(
+            FadeIn(s1, shift=UP * 0.03), Create(a1),
+            FadeIn(s2, shift=UP * 0.03), Create(a2),
+            run_time=0.75,
         )
 
         caption = Tex(
-            "This enabled controlled naturalistic stimulus sets for Study 1 and Study 2.",
-            color=INK,
-            font_size=23,
+            "Photorealistic. Semantically controlled. Parametrically graded. "
+            "Diffusion models were the right tool.",
+            color=INK, font_size=21,
         )
-        caption.to_edge(DOWN, buff=0.25)
-
-        self.add(
-            top_line,
-            prompt_target,
-            prompt_label,
-            embedding_target,
-            continuum_cards,
-            continuum_line,
-            continuum_dots,
-            continuum_label,
-        )
-        self.play(FadeIn(takeaway_group, shift=UP * 0.04), run_time=0.70)
-        self.play(
-            FadeIn(study1_text, shift=UP * 0.03),
-            FadeIn(study2_text, shift=UP * 0.03),
-            Create(study_arrow_1),
-            Create(study_arrow_2),
-            run_time=0.90,
-        )
-        self.play(FadeIn(caption, shift=UP * 0.05), run_time=0.65)
-        self.wait(2.4)
+        caption.to_edge(DOWN, buff=0.26)
+        self.play(FadeIn(caption, shift=UP * 0.04), run_time=0.55)
+        self.wait(2.20)

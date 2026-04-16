@@ -9,6 +9,7 @@ SIMPLE_FIGURE_PATH = ROOT / "assets" / "images" / "study1_stage3" / "behaviour_a
 STUDY2_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01timeres.svg"
 STUDY2_GLM_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01glm.svg"
 STUDY2_TEMPGEN_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses01tempgen.svg"
+STUDY2_WITHIN_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses01timeres.svg"
 
 INK = "#262626"
 PURPLE = "#7B51A0"
@@ -400,6 +401,62 @@ class Study2TimeResElementsTest(Scene):
             AnimationGroup(
                 FadeIn(band),
                 LaggedStart(*[Create(sig_band) for sig_band in significance_bands], lag_ratio=0.12),
+                lag_ratio=0.0,
+            ),
+            run_time=0.9,
+        )
+        self.wait(1)
+
+
+class Study2WithinSessionTimeResTest(Scene):
+    def construct(self):
+        svg = _load_svg(STUDY2_WITHIN_TIMERES_PATH, frame_width_ratio=0.62, frame_height_ratio=0.62)
+        _hide_background_rect(svg)
+        _timeres_hide_axis_titles(svg)
+        _timeres_hide_idealized_hrfs(svg)
+
+        plot_base = svg.copy()
+        _hide_background_rect(plot_base)
+        _timeres_hide_axis_titles(plot_base)
+        _timeres_hide_idealized_hrfs(plot_base)
+
+        animated_line = _timeres_select_single(svg, stroke_hex="#000000", min_points=50)
+        ci_band = _timeres_select_single(svg, fill_hex="#6E6E6E", min_points=100)
+        significance_bands = _timeres_significance_bands(svg)
+
+        _timeres_select_single(plot_base, stroke_hex="#000000", min_points=50).set_opacity(0)
+        _timeres_select_single(plot_base, fill_hex="#6E6E6E", min_points=100).set_opacity(0)
+        _timeres_significance_bands(plot_base).set_opacity(0)
+
+        plot_frame = _timeres_plot_frame(plot_base)
+        plot_rest = VGroup(*[submob for submob in plot_base.submobjects if submob not in plot_frame.submobjects])
+        axis_titles = _timeres_axis_titles(plot_base)
+
+        ci_band.set_stroke(opacity=0)
+        ci_band.set_fill(color="#6E6E6E", opacity=0.28)
+        ci_band.set_z_index(1)
+
+        animated_line.set_fill(opacity=0)
+        animated_line.set_stroke(color=BLACK, width=6)
+        animated_line.set_z_index(2)
+
+        significance_bands.set_stroke(color="#C49A00", width=4.8)
+        significance_bands.set_z_index(2)
+
+        self.play(
+            AnimationGroup(
+                Create(plot_frame),
+                FadeIn(plot_rest, shift=UP * 0.08),
+                LaggedStart(Write(axis_titles[0]), Write(axis_titles[1]), lag_ratio=0.15),
+                lag_ratio=0.18,
+            ),
+            run_time=1.8,
+        )
+        self.play(Create(animated_line), run_time=2.6)
+        self.play(
+            AnimationGroup(
+                FadeIn(ci_band),
+                LaggedStart(*[Create(band) for band in significance_bands], lag_ratio=0.12),
                 lag_ratio=0.0,
             ),
             run_time=0.9,

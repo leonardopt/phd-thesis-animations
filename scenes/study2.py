@@ -4145,14 +4145,17 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             ctx["glm_right_train"],
             ctx["glm_right_test"],
         ):
-            matrix[1].set_stroke(width=frame_width_final, opacity=frame_opacity_final)
+            matrix[1].set_stroke(width=frame_width_final, opacity=0.0)
 
-        left_train_tag = Tex("Train", color=INK, font_size=17).next_to(
-            ctx["glm_left_train"][1], UP, buff=0.08
-        )
-        right_train_tag = Tex("Train", color=INK, font_size=17).next_to(
-            ctx["glm_right_train"][1], UP, buff=0.08
-        )
+        target_groups = [
+            (stim_case["left_matrix"], ctx["glm_left_train"]),
+            (stim_case["right_matrix"], ctx["glm_left_test"]),
+            (delay_case["left_matrix"], ctx["glm_right_train"]),
+            (delay_case["right_matrix"], ctx["glm_right_test"]),
+        ]
+
+        for _, target_matrix in target_groups:
+            self.add(target_matrix[1])
 
         self.play(
             FadeOut(rationale["question_title"]),
@@ -4177,6 +4180,26 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             FadeOut(delay_case["test_label"], shift=UP * 0.03),
             FadeOut(delay_case["test_frame"]),
             FadeOut(cross_case["group"], shift=DOWN * 0.06),
+            FadeOut(stim_case["left_matrix"][1]),
+            FadeOut(stim_case["right_matrix"][1]),
+            FadeOut(delay_case["left_matrix"][1]),
+            FadeOut(delay_case["right_matrix"][1]),
+            ReplacementTransform(
+                VGroup(stim_case["left_matrix"][0], stim_case["left_matrix"][2]),
+                VGroup(ctx["glm_left_train"][0], ctx["glm_left_train"][2]),
+            ),
+            ReplacementTransform(
+                VGroup(stim_case["right_matrix"][0], stim_case["right_matrix"][2]),
+                VGroup(ctx["glm_left_test"][0], ctx["glm_left_test"][2]),
+            ),
+            ReplacementTransform(
+                VGroup(delay_case["left_matrix"][0], delay_case["left_matrix"][2]),
+                VGroup(ctx["glm_right_train"][0], ctx["glm_right_train"][2]),
+            ),
+            ReplacementTransform(
+                VGroup(delay_case["right_matrix"][0], delay_case["right_matrix"][2]),
+                VGroup(ctx["glm_right_test"][0], ctx["glm_right_test"][2]),
+            ),
             FadeIn(ctx["glm_title"], shift=UP * 0.06),
             Create(ctx["glm_plot_frame"]),
             FadeIn(ctx["glm_plot_rest"], shift=UP * 0.08),
@@ -4186,14 +4209,7 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         )
 
         self.play(
-            ReplacementTransform(stim_case["left_matrix"], ctx["glm_left_train"]),
-            ReplacementTransform(stim_case["right_matrix"], ctx["glm_left_test"]),
-            run_time=0.95,
-        )
-
-        self.play(
             ctx["glm_left_train"][1].animate.set_stroke(width=frame_width_emphasis, opacity=1.0),
-            FadeIn(left_train_tag, shift=UP * 0.03),
             run_time=0.45,
         )
         self.wait(0.25)
@@ -4208,15 +4224,16 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
                 lag_ratio=0.18,
             )
             if len(ctx["glm_left_points"]) > 0
-            else FadeIn(ctx["glm_left_visual"], shift=UP * 0.04)
+            else FadeIn(ctx["glm_left_extras"], shift=UP * 0.04)
         )
         self.play(
             GrowArrow(ctx["glm_left_column_arrow"]),
             run_time=0.55,
         )
-        self.wait(0.20)
         self.play(
             ctx["glm_left_test"][1].animate.set_stroke(width=frame_width_emphasis, opacity=1.0),
+            FadeIn(ctx["glm_left_train_explainer"], shift=RIGHT * 0.05),
+            FadeIn(ctx["glm_left_test_explainer"], shift=RIGHT * 0.05),
             AnimationGroup(
                 left_cloud_anim,
                 Write(ctx["glm_left_label"]),
@@ -4227,13 +4244,7 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         self.wait(0.80)
 
         self.play(
-            ReplacementTransform(delay_case["left_matrix"], ctx["glm_right_train"]),
-            ReplacementTransform(delay_case["right_matrix"], ctx["glm_right_test"]),
-            run_time=0.95,
-        )
-        self.play(
             ctx["glm_right_train"][1].animate.set_stroke(width=frame_width_emphasis, opacity=1.0),
-            FadeIn(right_train_tag, shift=UP * 0.03),
             run_time=0.45,
         )
         self.wait(0.25)
@@ -4242,9 +4253,10 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             GrowArrow(ctx["glm_right_column_arrow"]),
             run_time=0.55,
         )
-        self.wait(0.20)
         self.play(
             ctx["glm_right_test"][1].animate.set_stroke(width=frame_width_emphasis, opacity=1.0),
+            FadeIn(ctx["glm_right_train_explainer"], shift=LEFT * 0.05),
+            FadeIn(ctx["glm_right_test_explainer"], shift=LEFT * 0.05),
             AnimationGroup(
                 (
                     AnimationGroup(
@@ -4256,7 +4268,7 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
                         lag_ratio=0.18,
                     )
                     if len(ctx["glm_right_points"]) > 0
-                    else AnimationGroup(FadeIn(ctx["glm_right_extras"], shift=UP * 0.04))
+                    else FadeIn(ctx["glm_right_extras"], shift=UP * 0.04)
                 ),
                 Write(ctx["glm_right_label"]),
                 lag_ratio=0.18,
@@ -4293,8 +4305,6 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             )
         self.wait(0.60)
         self.play(
-            FadeOut(left_train_tag, shift=UP * 0.03),
-            FadeOut(right_train_tag, shift=UP * 0.03),
             ctx["glm_left_train"][1].animate.set_stroke(
                 width=frame_width_final, opacity=frame_opacity_final
             ),
@@ -4316,6 +4326,7 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         ctx: dict[str, Mobject],
     ) -> None:
         shared_ctx = self._build_results_context()
+        ctx["shared_timeres_title"] = shared_ctx["timeres_title"].copy()
         plot_shift = (
             shared_ctx["glm_plot_frame"].get_center()
             - ctx["glm_plot_frame"].get_center()
@@ -4331,6 +4342,65 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         ):
             mob.shift(plot_shift)
         ctx["glm_title"].move_to(shared_ctx["glm_title"].get_center())
+
+        left_x = (
+            ctx["glm_left_points"].get_center()[0]
+            if len(ctx["glm_left_points"]) > 0
+            else ctx["glm_left_cloud"].get_center()[0]
+        )
+        right_x = (
+            ctx["glm_right_points"].get_center()[0]
+            if len(ctx["glm_right_points"]) > 0
+            else ctx["glm_right_cloud"].get_center()[0]
+        )
+        title_bottom_y = ctx["glm_title"].get_bottom()[1]
+        plot_top_y = ctx["glm_plot_frame"].get_top()[1]
+        matrix_band_center_y = (title_bottom_y + plot_top_y) / 2
+        matrix_row_gap = 1.18
+        train_y = matrix_band_center_y + matrix_row_gap / 2
+        test_y = matrix_band_center_y - matrix_row_gap / 2
+
+        self._position_small_results_matrix(
+            ctx["glm_left_train"],
+            np.array([left_x, train_y, 0.0]),
+            label_direction=UP,
+        )
+        self._position_small_results_matrix(
+            ctx["glm_right_train"],
+            np.array([right_x, train_y, 0.0]),
+            label_direction=UP,
+        )
+        self._position_small_results_matrix(
+            ctx["glm_left_test"],
+            np.array([left_x, test_y, 0.0]),
+            label_direction=DOWN,
+        )
+        self._position_small_results_matrix(
+            ctx["glm_right_test"],
+            np.array([right_x, test_y, 0.0]),
+            label_direction=DOWN,
+        )
+        ctx["glm_left_train_explainer"].next_to(ctx["glm_left_train"][1], LEFT, buff=0.16)
+        ctx["glm_left_test_explainer"].next_to(ctx["glm_left_test"][1], LEFT, buff=0.16)
+        ctx["glm_right_train_explainer"].next_to(ctx["glm_right_train"][1], RIGHT, buff=0.16)
+        ctx["glm_right_test_explainer"].next_to(ctx["glm_right_test"][1], RIGHT, buff=0.16)
+
+        ctx["glm_left_column_arrow"].become(Arrow(
+            ctx["glm_left_train"][1].get_bottom() + DOWN * 0.08,
+            ctx["glm_left_test"][1].get_top() + UP * 0.08,
+            color=_D_MGREY,
+            stroke_width=1.7,
+            buff=0.02,
+            tip_length=0.10,
+        ))
+        ctx["glm_right_column_arrow"].become(Arrow(
+            ctx["glm_right_train"][1].get_bottom() + DOWN * 0.08,
+            ctx["glm_right_test"][1].get_top() + UP * 0.08,
+            color=_D_MGREY,
+            stroke_width=1.7,
+            buff=0.02,
+            tip_length=0.10,
+        ))
 
     def _show_left_results_final_state(self, ctx: dict) -> None:
         for matrix in (ctx["glm_train"], ctx["glm_stim_test"], ctx["glm_delay_test"]):
@@ -5526,8 +5596,10 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             label_direction=DOWN,
         ).scale(0.82)
 
-        glm_train_y = glm_plot_frame.get_top()[1] + 1.12
-        glm_test_y = glm_plot_frame.get_top()[1] + 0.42
+        matrix_band_center_y = (glm_title.get_bottom()[1] + glm_plot_frame.get_top()[1]) / 2
+        matrix_row_gap = 0.74
+        glm_train_y = matrix_band_center_y + matrix_row_gap / 2
+        glm_test_y = matrix_band_center_y - matrix_row_gap / 2
         self._position_small_results_matrix(
             glm_left_train,
             np.array([glm_left_x, glm_train_y, 0.0]),
@@ -5575,11 +5647,39 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             glm_right_test,
             glm_right_column_arrow,
         )
+        glm_left_train_explainer = VGroup(
+            Tex("Train on", color=INK, font_size=16),
+            Tex("Stimulation", color=self._GLM_ACCENT, font_size=16),
+            Tex("Session 1", color=self._GLM_ACCENT, font_size=16),
+        ).arrange(DOWN, buff=0.03, aligned_edge=RIGHT)
+        glm_left_test_explainer = VGroup(
+            Tex("Test on", color=INK, font_size=16),
+            Tex("Stimulation", color=self._GLM_ACCENT, font_size=16),
+            Tex("Session 1", color=self._GLM_ACCENT, font_size=16),
+        ).arrange(DOWN, buff=0.03, aligned_edge=RIGHT)
+        glm_right_train_explainer = VGroup(
+            Tex("Train on", color=INK, font_size=16),
+            Tex("Delay", color=self._DELAY_ACCENT, font_size=16),
+            Tex("Session 1", color=self._DELAY_ACCENT, font_size=16),
+        ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+        glm_right_test_explainer = VGroup(
+            Tex("Test on", color=INK, font_size=16),
+            Tex("Delay", color=self._DELAY_ACCENT, font_size=16),
+            Tex("Session 1", color=self._DELAY_ACCENT, font_size=16),
+        ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+        glm_left_train_explainer.next_to(glm_left_train[1], LEFT, buff=0.16)
+        glm_left_test_explainer.next_to(glm_left_test[1], LEFT, buff=0.16)
+        glm_right_train_explainer.next_to(glm_right_train[1], RIGHT, buff=0.16)
+        glm_right_test_explainer.next_to(glm_right_test[1], RIGHT, buff=0.16)
         glm_plot = Group(
             glm_title,
             glm_plot_scaffold,
             glm_left_column,
             glm_right_column,
+            glm_left_train_explainer,
+            glm_left_test_explainer,
+            glm_right_train_explainer,
+            glm_right_test_explainer,
             glm_left_cloud,
             glm_right_cloud,
             glm_significance,
@@ -5798,6 +5898,10 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             "glm_right_column_arrow": glm_right_column_arrow,
             "glm_left_column": glm_left_column,
             "glm_right_column": glm_right_column,
+            "glm_left_train_explainer": glm_left_train_explainer,
+            "glm_left_test_explainer": glm_left_test_explainer,
+            "glm_right_train_explainer": glm_right_train_explainer,
+            "glm_right_test_explainer": glm_right_test_explainer,
             "glm_left_cloud": glm_left_cloud,
             "glm_right_cloud": glm_right_cloud,
             "glm_left_points": glm_left_points,
@@ -5839,6 +5943,633 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             "cross_phase_label": cross_phase_label,
             "act2_takeaway": act2_takeaway,
         }
+
+    def _build_within_session_timeres_context(
+        self,
+        ctx: dict[str, Mobject],
+    ) -> dict[str, Mobject]:
+        timeres_svg = self._load_svg_plot(
+            self._RESULTS_TIMERES,
+            center=ctx["timeres_base"].get_center(),
+            height=ctx["timeres_base"].height,
+        )
+        self._hide_svg_background_rect(timeres_svg)
+        timeres_source_frame = self._svg_plot_frame_from_long_lines(
+            timeres_svg,
+            min_span_ratio=0.62,
+        )
+        timeres_frame = ctx["glm_plot_frame"].copy()
+        timeres_frame.set_x(timeres_source_frame.get_center()[0])
+        timeres_frame.align_to(ctx["glm_plot_frame"], DOWN)
+        pixel_step_x = config.frame_width / config.pixel_width
+        ref_phase = (ctx["glm_plot_frame"].get_left()[0] / pixel_step_x) % 1.0
+        timeres_phase = (timeres_frame.get_left()[0] / pixel_step_x) % 1.0
+        phase_delta = ((ref_phase - timeres_phase + 0.5) % 1.0) - 0.5
+        timeres_frame.shift(RIGHT * (phase_delta * pixel_step_x))
+
+        timeres_ci = self._timeres_select_single(timeres_svg, fill_hex="#6E6E6E", min_points=100)
+        timeres_trace_source = self._timeres_select_single(
+            timeres_svg,
+            stroke_hex="#000000",
+            min_points=50,
+        )
+        timeres_sig_bands = self._timeres_significance_bands(timeres_svg)
+        timeres_hrf_rect_sources = VGroup(
+            self._timeres_select_single(timeres_svg, fill_hex="#3C9553", min_points=4),
+            self._timeres_select_single(timeres_svg, fill_hex="#7570B3", min_points=4),
+            self._timeres_select_single(timeres_svg, fill_hex="#000000", min_points=4),
+        )
+        timeres_hrf_line_sources = VGroup(
+            *self._timeres_select_many(timeres_svg, stroke_hex="#3C9553", min_points=200),
+            *self._timeres_select_many(timeres_svg, stroke_hex="#7B51A0", min_points=200),
+        )
+        excluded_ids = {
+            id(submob)
+            for submob in [
+                timeres_ci,
+                timeres_trace_source,
+                *timeres_source_frame,
+                *timeres_sig_bands,
+                *timeres_hrf_rect_sources,
+                *timeres_hrf_line_sources,
+            ]
+        }
+        timeres_plot_rest_source = VGroup(*[
+            submob.copy()
+            for submob in timeres_svg.submobjects
+            if submob.get_fill_opacity() > 0.0 or submob.get_stroke_opacity() > 0.0
+            if id(submob) not in excluded_ids
+        ])
+        timeres_plot_rest = self._remap_plot_mobject(
+            timeres_plot_rest_source,
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_ci = self._remap_plot_mobject(
+            timeres_ci.copy(),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_ci.set_stroke(opacity=0.0)
+        timeres_ci.set_fill(color="#6E6E6E", opacity=0.28)
+        timeres_trace_template = self._remap_plot_mobject(
+            timeres_trace_source.copy(),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_trace_template.set_fill(opacity=0.0)
+        timeres_trace_template.set_stroke(color=BLACK, width=5.0)
+        timeres_sig_bands = self._remap_plot_mobject(
+            timeres_sig_bands.copy(),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_sig_bands.set_stroke(color="#C49A00", width=4.2)
+
+        timeres_hrf_rectangles = self._remap_plot_mobject(
+            timeres_hrf_rect_sources.copy(),
+            timeres_source_frame,
+            timeres_frame,
+        )
+
+        def make_diagonal_striped_rect(template: Mobject) -> VGroup:
+            x0, x1 = template.get_left()[0], template.get_right()[0]
+            y0, y1 = template.get_bottom()[1], template.get_top()[1]
+            background = Rectangle(
+                width=template.width,
+                height=template.height,
+                stroke_width=0.0,
+            ).set_fill(WHITE, opacity=1.0).move_to(template)
+
+            def stripe_segment(diagonal_offset: float) -> tuple[np.ndarray, np.ndarray] | None:
+                candidates = [
+                    np.array([x0, x0 + diagonal_offset, 0.0]),
+                    np.array([x1, x1 + diagonal_offset, 0.0]),
+                    np.array([y0 - diagonal_offset, y0, 0.0]),
+                    np.array([y1 - diagonal_offset, y1, 0.0]),
+                ]
+                points: list[np.ndarray] = []
+                for point in candidates:
+                    if x0 - 1e-6 <= point[0] <= x1 + 1e-6 and y0 - 1e-6 <= point[1] <= y1 + 1e-6:
+                        if not any(np.linalg.norm(point - other) < 1e-6 for other in points):
+                            points.append(point)
+                if len(points) < 2:
+                    return None
+                max_pair = None
+                max_distance = -1.0
+                for idx_a in range(len(points)):
+                    for idx_b in range(idx_a + 1, len(points)):
+                        distance = np.linalg.norm(points[idx_a] - points[idx_b])
+                        if distance > max_distance:
+                            max_distance = distance
+                            max_pair = (points[idx_a], points[idx_b])
+                return max_pair
+
+            stripe_spacing = template.height * 0.42
+            stripe_group = VGroup()
+            diagonal_min = y0 - x1
+            diagonal_max = y1 - x0
+            for diagonal_offset in np.arange(
+                diagonal_min - stripe_spacing,
+                diagonal_max + 2 * stripe_spacing,
+                stripe_spacing,
+            ):
+                segment = stripe_segment(float(diagonal_offset))
+                if segment is None:
+                    continue
+                stripe_group.add(Line(
+                    segment[0],
+                    segment[1],
+                    color=_D_PURP,
+                    stroke_width=2.2,
+                    stroke_opacity=0.95,
+                ))
+
+            border = Rectangle(
+                width=template.width,
+                height=template.height,
+                stroke_color=_D_PURP,
+                stroke_width=max(template.get_stroke_width(), 0.8),
+            ).set_fill(opacity=0.0).move_to(template)
+            border.set_stroke(opacity=0.20)
+            return VGroup(background, stripe_group, border)
+
+        timeres_hrf_rectangles = VGroup(
+            timeres_hrf_rectangles[0],
+            timeres_hrf_rectangles[1],
+            make_diagonal_striped_rect(timeres_hrf_rectangles[2]),
+        )
+        timeres_hrf_lines = self._remap_plot_mobject(
+            timeres_hrf_line_sources.copy(),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_trace_start_x = timeres_trace_template.get_left()[0]
+        for line in timeres_hrf_lines:
+            line.shift(RIGHT * (timeres_trace_start_x - line.get_left()[0]))
+
+        timeres_plot_scaffold = VGroup(
+            timeres_frame,
+            timeres_plot_rest,
+        )
+        timeres_title = ctx.get(
+            "shared_timeres_title",
+            ctx["timeres_title"],
+        ).copy()
+
+        trace_sample_props = np.linspace(0.0, 1.0, 2400)
+        trace_sample_points = np.array([
+            timeres_trace_template.point_from_proportion(float(prop))
+            for prop in trace_sample_props
+        ])
+        trace_sort_order = np.argsort(trace_sample_points[:, 0])
+        trace_sample_points = trace_sample_points[trace_sort_order]
+        trace_sample_props = trace_sample_props[trace_sort_order]
+        trace_sample_xs = trace_sample_points[:, 0]
+        trace_sample_ys = trace_sample_points[:, 1]
+        trace_unique_xs, trace_unique_idx = np.unique(trace_sample_xs, return_index=True)
+        trace_unique_props = trace_sample_props[trace_unique_idx]
+        trace_unique_ys = trace_sample_ys[trace_unique_idx]
+
+        timeres_trace_xs = np.linspace(
+            timeres_frame.get_left()[0],
+            timeres_frame.get_right()[0],
+            25,
+        )
+        test_strip_y = timeres_frame.get_top()[1] + 0.42
+        train_strip_y = test_strip_y + 0.34
+        design_strip_y = train_strip_y + 0.43
+        timeres_bin_spacing = timeres_trace_xs[1] - timeres_trace_xs[0]
+        timeres_bin_width = timeres_bin_spacing * 0.74
+        timeres_bin_height = 0.23
+        timeres_total_time = 19.2
+        design_track_height = timeres_bin_height + 0.03
+        design_fill_height = design_track_height - 0.06
+        design_start_x = timeres_trace_xs[0]
+        design_end_x = timeres_trace_xs[-1]
+        event_boundary_times = [2.0, 10.0, 12.5, 14.5]
+        design_center = np.array([
+            (design_start_x + design_end_x) / 2,
+            design_strip_y,
+            0.0,
+        ])
+
+        def phase_color(step_value: float) -> ManimColor:
+            current_time = float(
+                interpolate(
+                    0.0,
+                    timeres_total_time,
+                    np.clip(step_value / (len(timeres_trace_xs) - 1), 0.0, 1.0),
+                )
+            )
+            if current_time < 2.0:
+                return ManimColor("#A855F7")
+            if current_time < 10.0:
+                return ManimColor(_D_GREEN)
+            if current_time < 12.5:
+                return ManimColor("#A855F7")
+            return ManimColor(_D_MGREY)
+
+        def time_to_x(time_s: float) -> float:
+            return float(interpolate(
+                design_start_x,
+                design_end_x,
+                np.clip(time_s / timeres_total_time, 0.0, 1.0),
+            ))
+
+        def make_design_icon(
+            img_path: str | None,
+            start_s: float,
+            end_s: float,
+            *,
+            resp: bool = False,
+        ) -> Group:
+            icon = _box(img_path, resp=resp)
+            icon.scale_to_fit_height(design_fill_height * 0.78)
+            max_width = max(time_to_x(end_s) - time_to_x(start_s) - 0.07, 0.08)
+            if icon.width > max_width:
+                icon.scale_to_fit_width(max_width)
+            return icon
+
+        def make_design_phase(
+            start_s: float,
+            end_s: float,
+            fill_color: str,
+            fill_opacity: float,
+            icon: Mobject | None,
+        ) -> Group:
+            phase_fill = Rectangle(
+                width=time_to_x(end_s) - time_to_x(start_s),
+                height=design_fill_height,
+                stroke_width=0.0,
+            ).set_fill(fill_color, opacity=fill_opacity)
+            phase_fill.move_to(np.array([
+                (time_to_x(start_s) + time_to_x(end_s)) / 2,
+                design_strip_y,
+                0.0,
+            ]))
+            parts: list[Mobject] = [phase_fill]
+            if icon is not None:
+                parts.append(icon.copy().move_to(phase_fill))
+            return Group(*parts)
+
+        intro_timepoint = RoundedRectangle(
+            width=timeres_bin_width * 1.05,
+            height=timeres_bin_height + 0.07,
+            corner_radius=0.05,
+            stroke_color=phase_color(0.0),
+            stroke_width=2.0,
+        ).set_fill(phase_color(0.0), opacity=0.18)
+        intro_timepoint.move_to(np.array([
+            timeres_trace_xs[0],
+            train_strip_y,
+            0.0,
+        ]))
+        intro_train_label = Tex(
+            "Train",
+            color=INK,
+            font_size=16,
+        ).next_to(intro_timepoint, UP, buff=0.08)
+        timeres_train_explainer = VGroup(
+            Tex("Train and test on", color=INK, font_size=17),
+            Tex("matching trial TRs", color=INK, font_size=17),
+            Tex("Session 1", color=INK, font_size=17),
+        ).arrange(DOWN, buff=0.03)
+
+        design_frame = RoundedRectangle(
+            width=timeres_bin_width * 1.05,
+            height=design_track_height,
+            corner_radius=0.05,
+            stroke_color=GREY,
+            stroke_width=1.3,
+        ).set_fill(WHITE, opacity=0.0).move_to(design_center)
+        design_frame_target = RoundedRectangle(
+            width=design_end_x - design_start_x,
+            height=design_track_height,
+            corner_radius=0.05,
+            stroke_color=GREY,
+            stroke_width=1.3,
+        ).set_fill(WHITE, opacity=0.0).move_to(design_center)
+        timeres_train_explainer.next_to(design_frame_target, UP, buff=0.14)
+
+        design_dividers = VGroup(*[
+            Line(
+                np.array([time_to_x(boundary), design_strip_y - design_fill_height / 2, 0.0]),
+                np.array([time_to_x(boundary), design_strip_y + design_fill_height / 2, 0.0]),
+                color=_D_MGREY,
+                stroke_width=0.9,
+                stroke_opacity=0.55,
+            )
+            for boundary in event_boundary_times
+        ])
+        target_phase = make_design_phase(
+            0.0,
+            2.0,
+            "#A855F7",
+            0.16,
+            make_design_icon(LAKE, 0.0, 2.0),
+        )
+        delay_phase = make_design_phase(
+            2.0,
+            10.0,
+            _D_GREEN,
+            0.14,
+            make_design_icon(None, 2.0, 10.0),
+        )
+        probe_icons = Group(
+            make_design_icon(LAKE_D1, 10.0, 12.5),
+            make_design_icon(None, 10.0, 12.5),
+            make_design_icon(LAKE_D2, 10.0, 12.5),
+        ).arrange(RIGHT, buff=0.03)
+        probe_width = max(time_to_x(12.5) - time_to_x(10.0) - 0.07, 0.10)
+        if probe_icons.width > probe_width:
+            probe_icons.scale_to_fit_width(probe_width)
+        probe_phase = make_design_phase(
+            10.0,
+            12.5,
+            "#A855F7",
+            0.16,
+            probe_icons,
+        )
+        response_phase = make_design_phase(
+            12.5,
+            14.5,
+            _D_LGREY,
+            0.20,
+            make_design_icon(None, 12.5, 14.5, resp=True),
+        )
+        rest_phase = make_design_phase(
+            14.5,
+            timeres_total_time,
+            _D_LGREY,
+            0.10,
+            VGroup(*[
+                Dot(radius=0.014, color=_D_MGREY, fill_opacity=0.70)
+                for _ in range(3)
+            ]).arrange(RIGHT, buff=0.05),
+        )
+        design_phases = Group(
+            target_phase,
+            delay_phase,
+            probe_phase,
+            response_phase,
+            rest_phase,
+        )
+        experimental_design = Group(design_frame, design_dividers, design_phases)
+        design_label_y = design_frame_target.get_bottom()[1] - 0.20
+
+        def make_design_phase_label(text: str, center_x: float, color: str) -> Tex:
+            return Tex(
+                rf"\textbf{{{text}}}",
+                color=color,
+                font_size=20,
+            ).move_to(np.array([center_x, design_label_y, 0.0]))
+
+        design_stimulation_label = make_design_phase_label(
+            "Stimulation",
+            target_phase.get_center()[0],
+            _D_PURP,
+        )
+        design_delay_label = make_design_phase_label(
+            "Delay",
+            delay_phase.get_center()[0],
+            _D_GREEN,
+        )
+        design_probes_label = make_design_phase_label(
+            "Probes",
+            probe_phase.get_center()[0],
+            _D_PURP,
+        )
+        design_response_label = make_design_phase_label(
+            "Response",
+            response_phase.get_center()[0],
+            INK,
+        )
+
+        train_time_bins = VGroup(*[
+            RoundedRectangle(
+                width=timeres_bin_width,
+                height=timeres_bin_height,
+                corner_radius=0.03,
+                stroke_color=GREY,
+                stroke_width=1.0,
+            ).set_fill(WHITE, opacity=1.0).move_to(np.array([x, train_strip_y, 0.0]))
+            for x in timeres_trace_xs
+        ])
+        test_time_bins = VGroup(*[
+            RoundedRectangle(
+                width=timeres_bin_width,
+                height=timeres_bin_height,
+                corner_radius=0.03,
+                stroke_color=GREY,
+                stroke_width=1.0,
+            ).set_fill(WHITE, opacity=1.0).move_to(np.array([x, test_strip_y, 0.0]))
+            for x in timeres_trace_xs
+        ])
+        time_rows = VGroup(train_time_bins, test_time_bins)
+        train_row_label = Tex(
+            "Train",
+            color=INK,
+            font_size=16,
+        ).next_to(train_time_bins, LEFT, buff=0.10)
+        test_row_label = Tex(
+            "Test",
+            color=INK,
+            font_size=16,
+        ).next_to(test_time_bins, LEFT, buff=0.14)
+        trs_label = Tex(
+            "TRs",
+            color=INK,
+            font_size=16,
+        ).next_to(time_rows, RIGHT, buff=0.10)
+
+        step_tracker = ValueTracker(0)
+
+        def sweep_target_x(step_value: float) -> float:
+            step_value = float(np.clip(step_value, 0.0, len(train_time_bins) - 1))
+            return float(interpolate(
+                timeres_trace_xs[0],
+                timeres_trace_xs[-1],
+                step_value / (len(train_time_bins) - 1),
+            ))
+
+        def current_curve_point() -> np.ndarray:
+            target_x = sweep_target_x(step_tracker.get_value())
+            return np.array([
+                target_x,
+                float(np.interp(target_x, trace_unique_xs, trace_unique_ys)),
+                0.0,
+            ])
+
+        def current_trace_mobject() -> VMobject:
+            target_x = sweep_target_x(step_tracker.get_value())
+            curve_point = current_curve_point()
+            idx = int(np.searchsorted(trace_unique_xs, target_x, side="right"))
+            points = np.column_stack([
+                trace_unique_xs[:max(idx, 1)],
+                trace_unique_ys[:max(idx, 1)],
+                np.zeros(max(idx, 1)),
+            ])
+            if np.linalg.norm(points[-1] - curve_point) > 1e-6:
+                points = np.vstack([points, curve_point])
+            if len(points) < 2:
+                points = np.vstack([points[0], curve_point])
+            trace = VMobject()
+            trace.set_points_as_corners(points)
+            trace.set_stroke(
+                color=timeres_trace_template.get_stroke_color(),
+                width=timeres_trace_template.get_stroke_width(),
+                opacity=timeres_trace_template.get_stroke_opacity(),
+            )
+            trace.set_fill(opacity=0.0)
+            if target_x <= trace_unique_xs[0] + 1e-6:
+                trace.set_stroke(opacity=0.0)
+            return trace
+
+        plot_trace = always_redraw(current_trace_mobject).set_z_index(4)
+        plot_trace_head = always_redraw(lambda: Dot(
+            current_curve_point(),
+            radius=0.040,
+            color=BLACK,
+            fill_opacity=1.0,
+        ).set_stroke(WHITE, width=1.0).set_z_index(5))
+
+        def train_selector_center() -> np.ndarray:
+            return np.array([
+                sweep_target_x(step_tracker.get_value()),
+                train_strip_y,
+                0.0,
+            ])
+
+        def test_selector_center() -> np.ndarray:
+            return np.array([
+                sweep_target_x(step_tracker.get_value()),
+                test_strip_y,
+                0.0,
+            ])
+
+        train_selector = always_redraw(lambda: RoundedRectangle(
+            width=timeres_bin_width + 0.05,
+            height=timeres_bin_height + 0.07,
+            corner_radius=0.04,
+            stroke_color=phase_color(step_tracker.get_value()),
+            stroke_width=2.0,
+        ).set_fill(
+            phase_color(step_tracker.get_value()),
+            opacity=0.16,
+        ).move_to(train_selector_center()).set_z_index(4))
+        test_selector = always_redraw(lambda: RoundedRectangle(
+            width=timeres_bin_width + 0.05,
+            height=timeres_bin_height + 0.07,
+            corner_radius=0.04,
+            stroke_color=phase_color(step_tracker.get_value()),
+            stroke_width=2.0,
+        ).set_fill(
+            phase_color(step_tracker.get_value()),
+            opacity=0.16,
+        ).move_to(test_selector_center()).set_z_index(4))
+        plot_cursor = always_redraw(lambda: DashedLine(
+            test_selector_center() + DOWN * (timeres_bin_height / 2 + 0.05),
+            current_curve_point(),
+            color=_D_MGREY,
+            stroke_width=1.0,
+            dash_length=0.05,
+            dashed_ratio=0.65,
+        ).set_z_index(3))
+
+        event_projection_lines = VGroup(*[
+            DashedLine(
+                np.array([
+                    time_to_x(boundary),
+                    design_strip_y - design_fill_height / 2,
+                    0.0,
+                ]),
+                np.array([
+                    time_to_x(boundary),
+                    timeres_frame.get_bottom()[1],
+                    0.0,
+                ]),
+                color=_D_MGREY,
+                stroke_width=0.9,
+                dash_length=0.05,
+                dashed_ratio=0.65,
+            )
+            for boundary in event_boundary_times
+        ]).set_z_index(3)
+
+        timeres_plot_scaffold.set_z_index(2)
+        timeres_ci.set_z_index(2.5)
+        timeres_sig_bands.set_z_index(3)
+        timeres_hrf_rectangles.set_z_index(3)
+        timeres_hrf_lines.set_z_index(3)
+
+        timeres_full_state_group = Group(
+            timeres_title,
+            experimental_design,
+            timeres_plot_scaffold,
+            train_time_bins,
+            test_time_bins,
+            train_row_label,
+            test_row_label,
+            trs_label,
+            event_projection_lines,
+            plot_trace,
+            timeres_ci,
+            timeres_sig_bands,
+            timeres_hrf_rectangles,
+            timeres_hrf_lines,
+        )
+
+        ctx["timeres_frame"] = timeres_frame
+        ctx["trace_unique_xs"] = trace_unique_xs
+        ctx["trace_unique_props"] = trace_unique_props
+        ctx["timeres_plot_scaffold"] = timeres_plot_scaffold
+        ctx["timeres_plot_rest"] = timeres_plot_rest
+        ctx["intro_timepoint"] = intro_timepoint
+        ctx["intro_train_label"] = intro_train_label
+        ctx["timeres_train_explainer"] = timeres_train_explainer
+        ctx["design_frame"] = design_frame
+        ctx["design_frame_target"] = design_frame_target
+        ctx["design_dividers"] = design_dividers
+        ctx["target_phase"] = target_phase
+        ctx["delay_phase"] = delay_phase
+        ctx["probe_phase"] = probe_phase
+        ctx["response_phase"] = response_phase
+        ctx["rest_phase"] = rest_phase
+        ctx["design_stimulation_label"] = design_stimulation_label
+        ctx["design_delay_label"] = design_delay_label
+        ctx["design_probes_label"] = design_probes_label
+        ctx["design_response_label"] = design_response_label
+        ctx["experimental_design"] = experimental_design
+        ctx["train_time_bins"] = train_time_bins
+        ctx["test_time_bins"] = test_time_bins
+        ctx["time_bins"] = test_time_bins
+        ctx["train_row_label"] = train_row_label
+        ctx["test_row_label"] = test_row_label
+        ctx["trs_label"] = trs_label
+        ctx["step_tracker"] = step_tracker
+        ctx["train_selector"] = train_selector
+        ctx["test_selector"] = test_selector
+        ctx["plot_cursor"] = plot_cursor
+        ctx["timeres_title"] = timeres_title
+        ctx["timeres_trace"] = plot_trace
+        ctx["timeres_trace_head"] = plot_trace_head
+        ctx["timeres_ci"] = timeres_ci
+        ctx["timeres_sig_bands"] = timeres_sig_bands
+        ctx["timeres_hrf_rectangles"] = timeres_hrf_rectangles
+        ctx["timeres_hrf_lines"] = timeres_hrf_lines
+        ctx["event_projection_lines"] = event_projection_lines
+        ctx["timeres_plot"] = Group(
+            timeres_title,
+            timeres_plot_scaffold,
+            timeres_ci,
+            plot_trace,
+            timeres_sig_bands,
+            timeres_hrf_rectangles,
+            timeres_hrf_lines,
+        )
+        ctx["timeres_full_state_group"] = timeres_full_state_group
+        return ctx
 
     def _show_within_session_results_rationale(self, rationale: dict[str, Mobject]) -> None:
         self.add(rationale["frame"])
@@ -5944,6 +6675,116 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
     def _reset_to_within_session_act1_final_state(self, ctx: dict[str, Mobject]) -> None:
         self.clear()
         self._show_within_session_act1_final_state(ctx)
+
+    def _animate_within_session_timeres_results(self, ctx: dict[str, Mobject]) -> None:
+        self.play(
+            FadeIn(ctx["timeres_title"], shift=UP * 0.06),
+            FadeIn(ctx["intro_timepoint"], shift=UP * 0.06),
+            FadeIn(ctx["intro_train_label"], shift=UP * 0.04),
+            FadeIn(ctx["timeres_train_explainer"], shift=UP * 0.05),
+            run_time=0.75,
+        )
+        self.wait(0.25)
+        self.play(
+            GrowFromCenter(ctx["design_frame"]),
+            run_time=0.28,
+        )
+        self.play(
+            Transform(ctx["design_frame"], ctx["design_frame_target"]),
+            FadeIn(ctx["design_dividers"]),
+            run_time=0.7,
+        )
+        self.play(
+            FadeIn(
+                Group(
+                    ctx["target_phase"],
+                    ctx["delay_phase"],
+                    ctx["probe_phase"],
+                    ctx["response_phase"],
+                    ctx["rest_phase"],
+                ),
+                scale=0.96,
+            ),
+            run_time=0.55,
+        )
+        self.play(
+            FadeIn(ctx["timeres_plot_scaffold"], shift=UP * 0.08),
+            LaggedStart(
+                *[FadeIn(bin_mob, shift=UP * 0.03) for bin_mob in ctx["train_time_bins"]],
+                lag_ratio=0.03,
+            ),
+            LaggedStart(
+                *[FadeIn(bin_mob, shift=UP * 0.03) for bin_mob in ctx["test_time_bins"]],
+                lag_ratio=0.03,
+            ),
+            FadeIn(ctx["train_row_label"], shift=RIGHT * 0.04),
+            FadeIn(ctx["test_row_label"], shift=RIGHT * 0.04),
+            FadeIn(ctx["trs_label"], shift=RIGHT * 0.04),
+            run_time=0.8,
+        )
+        self.wait(0.2)
+        train_selector_intro = ctx["train_selector"].copy()
+        train_selector_intro.clear_updaters()
+        train_selector_intro.set_z_index(4)
+
+        self.play(
+            FadeOut(ctx["intro_train_label"], shift=UP * 0.04),
+            FadeOut(ctx["timeres_train_explainer"], shift=RIGHT * 0.04),
+            Transform(ctx["intro_timepoint"], train_selector_intro),
+            FadeIn(ctx["test_selector"]),
+            FadeIn(ctx["plot_cursor"]),
+            FadeIn(ctx["timeres_trace"]),
+            FadeIn(ctx["timeres_trace_head"]),
+            run_time=0.30,
+        )
+        self.remove(ctx["intro_timepoint"])
+        self.add(ctx["train_selector"])
+        self.play(
+            ctx["step_tracker"].animate.set_value(len(ctx["time_bins"]) - 1),
+            run_time=0.5 * (len(ctx["time_bins"]) - 1),
+            rate_func=linear,
+        )
+
+        train_selector_static = ctx["train_selector"].copy()
+        train_selector_static.clear_updaters()
+        test_selector_static = ctx["test_selector"].copy()
+        test_selector_static.clear_updaters()
+        self.remove(ctx["train_selector"], ctx["test_selector"])
+        self.add(train_selector_static, test_selector_static)
+        self.play(
+            FadeOut(train_selector_static),
+            FadeOut(test_selector_static),
+            FadeOut(ctx["plot_cursor"]),
+            FadeOut(ctx["timeres_trace_head"]),
+            LaggedStart(
+                *[Create(line) for line in ctx["event_projection_lines"]],
+                lag_ratio=0.08,
+            ),
+            run_time=0.65,
+        )
+        self.play(
+            AnimationGroup(
+                FadeIn(ctx["timeres_ci"]),
+                LaggedStart(
+                    *[Create(sig_band) for sig_band in ctx["timeres_sig_bands"]],
+                    lag_ratio=0.12,
+                ),
+                lag_ratio=0.12,
+            ),
+            run_time=0.75,
+        )
+        self.play(
+            AnimationGroup(
+                FadeIn(ctx["timeres_hrf_rectangles"]),
+                LaggedStart(
+                    *[Create(line) for line in ctx["timeres_hrf_lines"]],
+                    lag_ratio=0.12,
+                ),
+                lag_ratio=0.12,
+            ),
+            run_time=0.70,
+        )
+        self.wait(2.0)
 
     def _animate_tempgen_results(self, ctx: dict[str, Mobject]) -> None:
         tempgen_title = ctx["tempgen_title"]
@@ -6214,33 +7055,21 @@ class Study2WithinSession1DecodingResults(_Study2WithinSession1DecodingBase):
         rationale = self._build_rationale_end_static()
         self.slide_title = rationale["question_title"]
         ctx = self._build_results_stage()
-
+        self._align_within_session_act1_to_shared_layout(ctx)
+        timeres_ctx = self._build_within_session_timeres_context(ctx)
         self._show_within_session_results_rationale(rationale)
-        self._fade_from_within_session_rationale(rationale)
-        self._animate_within_session_act1_results(ctx)
+        self._animate_left_results_from_within_session_rationale(rationale, ctx)
+        self._reset_to_within_session_act1_final_state(ctx)
         self.wait(0.35)
-        self.play(
-            FadeIn(ctx["timeres_title"], shift=UP * 0.05),
-            FadeIn(ctx["timeres_base"], shift=UP * 0.08),
-            run_time=0.85,
-        )
-        self.play(Create(ctx["timeres_trace"]), run_time=1.9)
-        self.play(
-            AnimationGroup(
-                FadeIn(ctx["timeres_ci"]),
-                LaggedStart(*[Create(sig_band) for sig_band in ctx["timeres_sig_bands"]], lag_ratio=0.12),
-                lag_ratio=0.0,
-            ),
-            run_time=0.9,
-        )
+        self._animate_within_session_timeres_results(timeres_ctx)
         self.play(FadeIn(ctx["act1_takeaway"], shift=UP * 0.08), run_time=0.65)
         self.wait(1.8)
 
         self.play(
-            Transform(self.slide_title, ctx["act2_heading"]),
+            FadeIn(ctx["act2_heading"], shift=UP * 0.05),
             FadeOut(ctx["act1_takeaway"], shift=DOWN * 0.06),
             FadeOut(ctx["glm_plot"], shift=DOWN * 0.08),
-            FadeOut(ctx["timeres_plot"], shift=DOWN * 0.08),
+            FadeOut(timeres_ctx["timeres_full_state_group"], shift=DOWN * 0.08),
             run_time=0.75,
         )
         self.play(
@@ -6298,3 +7127,25 @@ class Study2WithinSession1DecodingResultsA(_Study2WithinSession1DecodingBase):
         self._animate_left_results_from_within_session_rationale(rationale, ctx)
         self._reset_to_within_session_act1_final_state(ctx)
         self.wait(2.0)
+
+
+class Study2WithinSession1DecodingResultsB(_Study2WithinSession1DecodingBase):
+    """
+    Part B: start from the within-session GLM summary frame and continue to time-resolved decoding.
+
+    Render:
+        uv run manim scenes/study2.py Study2WithinSession1DecodingResultsB -ql
+        uv run manim scenes/study2.py Study2WithinSession1DecodingResultsB -qh
+    """
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        rationale = self._build_rationale_end_static()
+        self.slide_title = rationale["question_title"]
+        ctx = self._build_results_stage()
+        self._align_within_session_act1_to_shared_layout(ctx)
+        timeres_ctx = self._build_within_session_timeres_context(ctx)
+        self._reset_to_within_session_act1_final_state(ctx)
+        self.wait(0.6)
+        self._animate_within_session_timeres_results(timeres_ctx)
