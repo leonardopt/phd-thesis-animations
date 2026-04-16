@@ -189,6 +189,27 @@ def _glm_scatter_points(group: VGroup) -> list[VMobject]:
     )
 
 
+def _glm_chance_line(svg: SVGMobject) -> VMobject:
+    plot_frame = _glm_plot_frame(svg)
+    x_tol = plot_frame.width * 0.02
+    y_tol = plot_frame.height * 0.02
+
+    candidates = [
+        submob
+        for submob in svg.submobjects
+        if (
+            len(submob.get_all_points()) == 4
+            and abs(submob.get_left()[0] - plot_frame.get_left()[0]) <= x_tol
+            and abs(submob.get_right()[0] - plot_frame.get_right()[0]) <= x_tol
+            and plot_frame.get_bottom()[1] + y_tol < submob.get_center()[1] < plot_frame.get_top()[1] - y_tol
+            and submob.height <= plot_frame.height * 0.02
+        )
+    ]
+    if not candidates:
+        raise ValueError("Could not identify GLM chance line in SVG")
+    return max(candidates, key=lambda mob: mob.width)
+
+
 def _glm_summary_marker(group: VGroup) -> tuple[VMobject, VMobject]:
     filled = [
         submob
@@ -360,25 +381,51 @@ class Study2GLMScatterRevealTest(Scene):
         _glm_hide_color_groups(base)
 
         plot_frame = _glm_plot_frame(base)
-        plot_rest = VGroup(*[submob for submob in base.submobjects if submob not in plot_frame.submobjects])
+        chance_template = _glm_chance_line(base)
+        plot_rest = VGroup(
+            *[
+                submob
+                for submob in base.submobjects
+                if submob not in plot_frame.submobjects and submob is not chance_template
+            ]
+        )
 
         left_group = _glm_group(svg, PURPLE, "left")
         right_group = _glm_group(svg, GREEN, "right")
-
-        left_points = _glm_scatter_points(left_group)
-        right_points = _glm_scatter_points(right_group)
-        left_fill, left_stroke = _glm_summary_marker(left_group)
-        right_fill, right_stroke = _glm_summary_marker(right_group)
         left_sig = _glm_significance_marker(svg, PURPLE, "left")
         right_sig = _glm_significance_marker(svg, GREEN, "right")
+        left_visual = VGroup(*[submob for submob in left_group if submob not in left_sig])
+        right_visual = VGroup(*[submob for submob in right_group if submob not in right_sig])
+
+        left_points = _glm_scatter_points(left_visual)
+        right_points = _glm_scatter_points(right_visual)
+        left_extras = VGroup(*[submob for submob in left_visual if submob not in left_points])
+        right_extras = VGroup(*[submob for submob in right_visual if submob not in right_points])
 
         left_label = _glm_bottom_label(plot_frame, left_group.get_center()[0], r"S_2 \rightarrow S_1")
         right_label = _glm_bottom_label(plot_frame, right_group.get_center()[0], r"S_2 \rightarrow D_1")
+        chance_y = chance_template.get_center()[1]
+        chance_color = chance_template.get_stroke_color()
+        chance_line = DashedLine(
+            np.array([plot_frame.get_left()[0], chance_y, 0.0]),
+            np.array([plot_frame.get_right()[0], chance_y, 0.0]),
+            color=chance_color,
+            stroke_width=2.0,
+            dash_length=0.08,
+            dashed_ratio=0.55,
+        )
+        chance_label = Tex(
+            "Chance",
+            color=chance_color,
+            font_size=14,
+        ).move_to(np.array([plot_frame.get_right()[0] - 0.26, chance_y + 0.14, 0.0]))
 
         self.play(
             AnimationGroup(
                 Create(plot_frame),
                 FadeIn(plot_rest, shift=UP * 0.08),
+                Create(chance_line),
+                FadeIn(chance_label, shift=UP * 0.04),
                 lag_ratio=0.18,
             ),
             run_time=1.4,
@@ -386,8 +433,7 @@ class Study2GLMScatterRevealTest(Scene):
         self.play(
             AnimationGroup(
                 LaggedStart(*[FadeIn(dot, scale=0.75) for dot in left_points], lag_ratio=0.04),
-                AnimationGroup(GrowFromCenter(left_fill), Create(left_stroke), lag_ratio=0.0),
-                FadeIn(left_sig, shift=UP * 0.05),
+                FadeIn(left_extras, shift=UP * 0.04),
                 Write(left_label),
                 lag_ratio=0.18,
             ),
@@ -396,11 +442,18 @@ class Study2GLMScatterRevealTest(Scene):
         self.play(
             AnimationGroup(
                 LaggedStart(*[FadeIn(dot, scale=0.75) for dot in right_points], lag_ratio=0.04),
-                AnimationGroup(GrowFromCenter(right_fill), Create(right_stroke), lag_ratio=0.0),
-                FadeIn(right_sig, shift=UP * 0.05),
+                FadeIn(right_extras, shift=UP * 0.04),
                 Write(right_label),
                 lag_ratio=0.18,
             ),
             run_time=1.8,
+        )
+        self.play(
+            AnimationGroup(
+                LaggedStart(*[FadeIn(marker, shift=UP * 0.03) for marker in left_sig], lag_ratio=0.12),
+                FadeIn(right_sig, shift=UP * 0.03),
+                lag_ratio=0.22,
+            ),
+            run_time=0.8,
         )
         self.wait(1)

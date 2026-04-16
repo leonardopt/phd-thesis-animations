@@ -5,14 +5,14 @@ Study 2.
   Study2DecodingOverview   — Session 2 stimuli -> feature vectors -> sensory matrix
   Study2WithinSession2Decoding — crossvalidated prediction within Session 2
   Study2CrossSessionDecoding   — train on sensory, test on sensory and memory
-  WithinSession1Decoding      — explain Session 1 within-session decoding and reveal results
+  Study2WithinSession1Decoding — explain Session 1 within-session decoding and reveal results
 
 Render:
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
     uv run manim scenes/study2.py Study2DecodingOverview -qh
     uv run manim scenes/study2.py Study2WithinSession2Decoding -qh
     uv run manim scenes/study2.py Study2CrossSessionDecoding -qh
-    uv run manim scenes/study2.py WithinSession1Decoding -qh
+    uv run manim scenes/study2.py Study2WithinSession1Decoding -qh
 """
 from __future__ import annotations
 
@@ -2756,6 +2756,138 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             step_props.append(float(sample_props[idx]))
         return np.array(step_props)
 
+    def _glm_svg_hex(self, color) -> str | None:
+        if color is None:
+            return None
+        if isinstance(color, str):
+            return ManimColor(color).to_hex().upper()
+        return color.to_hex().upper()
+
+    def _glm_svg_plot_frame(self, svg: SVGMobject) -> VGroup:
+        candidates = [
+            submob
+            for submob in svg.submobjects
+            if (
+                len(submob.get_all_points()) == 4
+                and submob.get_stroke_opacity() > 0.0
+                and (
+                    submob.width >= svg.width * 0.7
+                    or submob.height >= svg.height * 0.7
+                )
+            )
+        ]
+        verticals = [submob for submob in candidates if submob.height > submob.width]
+        horizontals = [submob for submob in candidates if submob.width >= submob.height]
+        if len(verticals) < 2 or len(horizontals) < 2:
+            raise ValueError("Could not identify GLM plot frame in SVG")
+        left = min(verticals, key=lambda mob: mob.get_center()[0])
+        right = max(verticals, key=lambda mob: mob.get_center()[0])
+        bottom = min(horizontals, key=lambda mob: mob.get_center()[1])
+        top = max(horizontals, key=lambda mob: mob.get_center()[1])
+        return VGroup(left, right, bottom, top)
+
+    def _glm_svg_group(self, svg: SVGMobject, color_hex: str, side: str) -> VGroup:
+        frame_center_x = self._glm_svg_plot_frame(svg).get_center()[0]
+        color_hex = color_hex.upper()
+        return VGroup(*[
+            submob
+            for submob in svg.submobjects
+            if (
+                self._glm_svg_hex(submob.get_stroke_color()) == color_hex
+                or self._glm_svg_hex(submob.get_fill_color()) == color_hex
+            )
+            and (
+                submob.get_center()[0] < frame_center_x
+                if side == "left"
+                else submob.get_center()[0] > frame_center_x
+            )
+        ])
+
+    def _glm_svg_scatter_points(self, group: VGroup) -> VGroup:
+        points = sorted(
+            [
+                submob
+                for submob in group
+                if submob.get_fill_opacity() < 0.5 and len(submob.get_all_points()) == 32
+            ],
+            key=lambda mob: (mob.get_center()[1], mob.get_center()[0]),
+        )
+        return VGroup(*points)
+
+    def _glm_svg_chance_line(self, svg: SVGMobject) -> VMobject:
+        plot_frame = self._glm_svg_plot_frame(svg)
+        x_tol = plot_frame.width * 0.02
+        y_tol = plot_frame.height * 0.02
+
+        candidates = [
+            submob
+            for submob in svg.submobjects
+            if (
+                len(submob.get_all_points()) == 4
+                and abs(submob.get_left()[0] - plot_frame.get_left()[0]) <= x_tol
+                and abs(submob.get_right()[0] - plot_frame.get_right()[0]) <= x_tol
+                and plot_frame.get_bottom()[1] + y_tol < submob.get_center()[1] < plot_frame.get_top()[1] - y_tol
+                and submob.height <= plot_frame.height * 0.02
+            )
+        ]
+        if not candidates:
+            raise ValueError("Could not identify GLM chance line in SVG")
+        return max(candidates, key=lambda mob: mob.width)
+
+    def _glm_svg_significance_marker(self, svg: SVGMobject, color_hex: str, side: str) -> VGroup:
+        plot_top = self._glm_svg_plot_frame(svg).get_top()[1]
+        frame_center_x = self._glm_svg_plot_frame(svg).get_center()[0]
+        color_hex = color_hex.upper()
+        return VGroup(*[
+            submob
+            for submob in svg.submobjects
+            if (
+                self._glm_svg_hex(submob.get_fill_color()) == color_hex
+                or self._glm_svg_hex(submob.get_stroke_color()) == color_hex
+            )
+            and submob.get_center()[1] > plot_top
+            and (
+                submob.get_center()[0] < frame_center_x
+                if side == "left"
+                else submob.get_center()[0] > frame_center_x
+            )
+        ])
+
+    def _glm_svg_hide_color_groups(self, svg: SVGMobject) -> None:
+        for submob in svg.submobjects:
+            if (
+                self._glm_svg_hex(submob.get_fill_color()) in {"#7B51A0", "#3C9553"}
+                or self._glm_svg_hex(submob.get_stroke_color()) in {"#7B51A0", "#3C9553"}
+            ):
+                submob.set_opacity(0)
+
+    def _glm_svg_bottom_label(self, plot_frame: VGroup, x: float, tex: str) -> MathTex:
+        label = MathTex(tex, color=BLACK)
+        label.scale_to_fit_width(plot_frame.width * 0.21)
+        label.move_to([x, plot_frame.get_bottom()[1] - 0.19, 0.0])
+        return label
+
+    def _remap_plot_mobject(
+        self,
+        mob: Mobject,
+        source_frame: Mobject,
+        target_frame: Mobject,
+    ) -> Mobject:
+        mapped = mob.copy()
+        source_center = source_frame.get_center()
+        mapped.stretch(
+            target_frame.width / source_frame.width,
+            dim=0,
+            about_point=source_center,
+        )
+        mapped.stretch(
+            target_frame.height / source_frame.height,
+            dim=1,
+            about_point=source_center,
+        )
+        mapped.shift(target_frame.get_center() - source_center)
+        return mapped
+
     def _build_results_context(self) -> dict:
         self.camera.background_color = BG
         layout = self._build_cross_session_layout()
@@ -2782,12 +2914,41 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         glm_plot_center = left_panel_center.copy()
         glm_plot_center[0] -= abs(left_panel_center[0]) * 0.05
         suptitle_y = 3.70
-        glm_img = (
-            ImageMobject(self._RESULTS_GLM)
+        glm_svg = (
+            SVGMobject(str(Path(self._RESULTS_GLM).with_suffix(".svg")))
             .set_height(plot_height)
             .move_to(glm_plot_center)
         )
-        glm_title_shift_right = glm_img.width * 0.10
+        glm_plot_base = glm_svg.copy()
+        self._glm_svg_hide_color_groups(glm_plot_base)
+        glm_plot_frame = self._glm_svg_plot_frame(glm_plot_base)
+        glm_chance_template = self._glm_svg_chance_line(glm_plot_base)
+        glm_plot_rest = VGroup(*[
+            submob
+            for submob in glm_plot_base.submobjects
+            if submob not in glm_plot_frame.submobjects
+            and submob is not glm_chance_template
+        ])
+        glm_accuracy_label = VGroup(*[glm_plot_rest[idx].copy() for idx in range(21, 29)])
+        glm_left_group = self._glm_svg_group(glm_svg, "#7B51A0", "left")
+        glm_right_group = self._glm_svg_group(glm_svg, "#3C9553", "right")
+        glm_left_significance = self._glm_svg_significance_marker(glm_svg, "#7B51A0", "left")
+        glm_right_significance = self._glm_svg_significance_marker(glm_svg, "#3C9553", "right")
+        glm_left_visual = VGroup(*[
+            submob for submob in glm_left_group if submob not in glm_left_significance
+        ])
+        glm_right_visual = VGroup(*[
+            submob for submob in glm_right_group if submob not in glm_right_significance
+        ])
+        glm_left_points = self._glm_svg_scatter_points(glm_left_visual)
+        glm_right_points = self._glm_svg_scatter_points(glm_right_visual)
+        glm_left_extras = VGroup(*[
+            submob for submob in glm_left_visual if submob not in glm_left_points
+        ])
+        glm_right_extras = VGroup(*[
+            submob for submob in glm_right_visual if submob not in glm_right_points
+        ])
+        glm_title_shift_right = glm_svg.width * 0.10
         glm_title = Tex(
             r"GLM-based decoding",
             color=INK,
@@ -2814,8 +2975,6 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         ).arrange(DOWN, buff=0.10, center=True)
         glm_takeaway.move_to(np.array([0.0, -3.42, 0.0]))
 
-        glm_s1_x_frac = 1000.58 / 2204.0
-        glm_d1_x_frac = 1684.62 / 2204.0
         glm_row_shift_down = plot_height * 0.10
         glm_bottom_y = 1.86 - glm_row_shift_down
         glm_train_y = glm_bottom_y + 1.04
@@ -2857,8 +3016,16 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             Tex("Session 1", color=_D_GREEN, font_size=17),
         ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
 
-        glm_left_x = glm_img.get_left()[0] + glm_img.width * glm_s1_x_frac
-        glm_right_x = glm_img.get_left()[0] + glm_img.width * glm_d1_x_frac
+        glm_left_x = (
+            glm_left_points.get_center()[0]
+            if len(glm_left_points) > 0
+            else glm_left_group.get_center()[0]
+        )
+        glm_right_x = (
+            glm_right_points.get_center()[0]
+            if len(glm_right_points) > 0
+            else glm_right_group.get_center()[0]
+        )
         glm_train_x = (glm_left_x + glm_right_x) / 2
 
         self._position_small_results_matrix(
@@ -2880,21 +3047,68 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         glm_train_explainer.shift(UP * 0.02)
         glm_stim_explainer.next_to(glm_stim_test[1], LEFT, buff=0.16)
         glm_delay_explainer.next_to(glm_delay_test[1], RIGHT, buff=0.16)
+        glm_stim_plot_label = self._glm_svg_bottom_label(
+            glm_plot_frame,
+            glm_left_x,
+            r"S_2 \rightarrow S_1",
+        )
+        glm_delay_plot_label = self._glm_svg_bottom_label(
+            glm_plot_frame,
+            glm_right_x,
+            r"S_2 \rightarrow D_1",
+        )
+        glm_chance_y = glm_chance_template.get_center()[1]
+        glm_chance_color = glm_chance_template.get_stroke_color()
+        glm_chance_line = DashedLine(
+            np.array([glm_plot_frame.get_left()[0], glm_chance_y, 0.0]),
+            np.array([glm_plot_frame.get_right()[0], glm_chance_y, 0.0]),
+            color=glm_chance_color,
+            stroke_width=2.0,
+            dash_length=0.08,
+            dashed_ratio=0.55,
+        )
+        glm_chance_label = Tex(
+            "Chance",
+            color=glm_chance_color,
+            font_size=14,
+        ).move_to(
+            np.array([glm_plot_frame.get_right()[0] - 0.26, glm_chance_y + 0.14, 0.0])
+        )
+        glm_plot_scaffold = VGroup(
+            glm_plot_frame,
+            glm_plot_rest,
+            glm_chance_line,
+            glm_chance_label,
+        )
+        glm_left_cloud = VGroup(
+            glm_left_points,
+            glm_left_extras,
+            glm_stim_plot_label,
+        )
+        glm_right_cloud = VGroup(
+            glm_right_points,
+            glm_right_extras,
+            glm_delay_plot_label,
+        )
+        glm_significance_markers = VGroup(
+            glm_left_significance,
+            glm_right_significance,
+        )
 
         for matrix in (glm_train, glm_stim_test, glm_delay_test):
             matrix[1].set_stroke(width=frame_width_final, opacity=0.0)
 
         glm_left_arrow = Arrow(
-            glm_train[1].get_bottom() + DOWN * 0.01 + LEFT * 0.15,
-            glm_stim_test[1].get_top() + UP * 0.01,
+            glm_train[1].get_bottom() + DOWN * 0.11 + LEFT * 0.18,
+            glm_stim_test[1].get_top() + UP * 0.03 + LEFT * 0.08,
             color=_D_MGREY,
             stroke_width=1.7,
             buff=0.02,
             tip_length=0.10,
         )
         glm_right_arrow = Arrow(
-            glm_train[1].get_bottom() + DOWN * 0.01 + RIGHT * 0.15,
-            glm_delay_test[1].get_top() + UP * 0.01,
+            glm_train[1].get_bottom() + DOWN * 0.11 + RIGHT * 0.18,
+            glm_delay_test[1].get_top() + UP * 0.03 + RIGHT * 0.08,
             color=_D_MGREY,
             stroke_width=1.7,
             buff=0.02,
@@ -2909,24 +3123,99 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             .set_height(plot_height)
             .move_to(right_panel_center)
         )
-        timeres_trace_template = timeres_svg[self._TIMERES_TRACE_IDX].copy()
-        timeres_frame = VGroup(*[timeres_svg[idx].copy() for idx in [61, 62, 63, 64]])
-        timeres_guides = VGroup(*[timeres_svg[idx].copy() for idx in [2, 3, 4, 5]])
-        timeres_x_ticks = VGroup(*[timeres_svg[idx].copy() for idx in range(6, 13)])
-        timeres_x_title = VGroup(*[timeres_svg[idx].copy() for idx in range(13, 22)])
-        timeres_y_ticks = VGroup(*[timeres_svg[idx].copy() for idx in range(22, 38)])
-        timeres_y_title = VGroup(*[timeres_svg[idx].copy() for idx in range(38, 59)])
-        timeres_chance = timeres_svg[1].copy()
-        timeres_ci = timeres_svg[59].copy()
-        timeres_sig_lines = VGroup(*[timeres_svg[idx].copy() for idx in [65, 66]])
+        timeres_source_frame = VGroup(*[timeres_svg[idx].copy() for idx in [61, 62, 63, 64]])
+        timeres_frame = glm_plot_frame.copy()
+        timeres_frame.set_x(timeres_source_frame.get_center()[0])
+        timeres_frame.align_to(glm_plot_frame, DOWN)
+        pixel_step_x = config.frame_width / config.pixel_width
+        ref_phase = (glm_plot_frame.get_left()[0] / pixel_step_x) % 1.0
+        timeres_phase = (timeres_frame.get_left()[0] / pixel_step_x) % 1.0
+        phase_delta = ((ref_phase - timeres_phase + 0.5) % 1.0) - 0.5
+        timeres_frame.shift(RIGHT * (phase_delta * pixel_step_x))
+        timeres_background = self._remap_plot_mobject(
+            timeres_svg[0].copy(),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_guides = self._remap_plot_mobject(
+            VGroup(*[timeres_svg[idx].copy() for idx in [2, 3, 4, 5]]),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_x_ticks = self._remap_plot_mobject(
+            VGroup(*[timeres_svg[idx].copy() for idx in range(6, 13)]),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_y_ticks = self._remap_plot_mobject(
+            VGroup(*[timeres_svg[idx].copy() for idx in range(22, 38)]),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_trace_template = self._remap_plot_mobject(
+            timeres_svg[self._TIMERES_TRACE_IDX].copy(),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_chance_template = self._remap_plot_mobject(
+            timeres_svg[1].copy(),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_ci = self._remap_plot_mobject(
+            timeres_svg[59].copy(),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_sig_lines = self._remap_plot_mobject(
+            VGroup(*[timeres_svg[idx].copy() for idx in [65, 66]]),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        # Reuse vector glyphs from the source plots so the right panel matches
+        # the left panel's line weight and label styling exactly.
+        timeres_x_label_template = self._remap_plot_mobject(
+            VGroup(*[timeres_svg[idx].copy() for idx in range(13, 22)]),
+            timeres_source_frame,
+            timeres_frame,
+        )
+        timeres_x_label = Tex("Test time (s)", color=INK)
+        timeres_x_label.scale_to_fit_height(timeres_x_label_template.height)
+        if timeres_x_label.width > timeres_x_label_template.width:
+            timeres_x_label.scale_to_fit_width(timeres_x_label_template.width)
+        timeres_x_label.move_to(timeres_x_label_template.get_center())
+        timeres_y_label = self._remap_plot_mobject(
+            glm_accuracy_label,
+            glm_plot_frame,
+            timeres_frame,
+        )
+        timeres_chance_y = timeres_chance_template.get_center()[1]
+        timeres_chance_color = glm_chance_color
+        timeres_chance_line = DashedLine(
+            np.array([timeres_frame.get_left()[0], timeres_chance_y, 0.0]),
+            np.array([timeres_frame.get_right()[0], timeres_chance_y, 0.0]),
+            color=timeres_chance_color,
+            stroke_width=2.0,
+            dash_length=0.08,
+            dashed_ratio=0.55,
+        )
+        timeres_chance_label = Tex(
+            "Chance",
+            color=timeres_chance_color,
+            font_size=14,
+        ).next_to(timeres_chance_line, DOWN, buff=0.08).align_to(
+            timeres_chance_line, RIGHT
+        ).shift(LEFT * 0.02)
         timeres_plot_scaffold = VGroup(
             timeres_frame,
+            timeres_background,
             timeres_guides,
             timeres_x_ticks,
-            timeres_x_title,
             timeres_y_ticks,
-            timeres_y_title,
+            timeres_x_label,
+            timeres_y_label,
         )
+        timeres_chance_group = VGroup(timeres_chance_line, timeres_chance_label)
         timeres_title = Tex(
             r"Raw voxel time series decoding",
             color=INK,
@@ -2950,12 +3239,19 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             r"$S_2$",
             label_direction=UP,
         )
+        timeres_train_explainer = VGroup(
+            Tex("Train on", color=INK, font_size=17),
+            Tex("Stimulation", color=_D_PURP, font_size=17),
+            Tex("Session 2", color=_D_PURP, font_size=17),
+        ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
         self._position_small_results_matrix(
             schematic_train,
-            np.array([float(np.mean(timeres_trace_xs)), timeres_strip_y + 0.68, 0.0]),
+            np.array([float(np.mean(timeres_trace_xs)), glm_train[1].get_center()[1], 0.0]),
             label_direction=UP,
         )
         schematic_train[1].set_stroke(width=frame_width_final, opacity=frame_opacity_final)
+        timeres_train_explainer.next_to(schematic_train[1], RIGHT, buff=0.16)
+        timeres_train_explainer.shift(UP * 0.02)
 
         time_bins = VGroup(*[
             RoundedRectangle(
@@ -2985,13 +3281,20 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             corner_radius=0.05,
             stroke_width=0.0,
         ).set_fill(_D_LGREY, opacity=0.18).move_to(VGroup(*time_bins[13:]))
+        experimental_design = VGroup(stim_strip, delay_strip, post_strip)
+        design_seed = RoundedRectangle(
+            width=timeres_bin_width * 1.05,
+            height=timeres_bin_height + 0.10,
+            corner_radius=0.05,
+            stroke_color=GREY,
+            stroke_width=1.3,
+        ).set_fill(WHITE, opacity=0.0).move_to(experimental_design)
 
-        time_bins_label = VGroup(
-            MathTex(r"S_1", color=test_s1_purple, font_size=18),
-            Tex("over time", color=INK, font_size=15),
-        ).arrange(DOWN, buff=0.02).next_to(
-            VGroup(*time_bins), UP, buff=0.12
-        )
+        time_bins_label = Tex(
+            "Time points",
+            color=INK,
+            font_size=16,
+        ).next_to(VGroup(*time_bins), UP, buff=0.12)
 
         delay_fixations = VGroup(*[
             Dot(radius=0.018, color=INK, fill_opacity=0.90).move_to(time_bins[idx])
@@ -3057,6 +3360,14 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             stroke_color=phase_color(step_tracker.get_value()),
             stroke_width=2.0,
         ).set_fill(phase_color(step_tracker.get_value()), opacity=0.16).move_to(step_center(step_tracker.get_value())))
+        design_intro_arrow = always_redraw(lambda: Arrow(
+            schematic_train[1].get_bottom() + DOWN * 0.04,
+            experimental_design.get_center() + UP * (experimental_design.height / 2 + 0.05),
+            color=_D_MGREY,
+            stroke_width=1.6,
+            buff=0.02,
+            tip_length=0.10,
+        ))
         sweep_arrow = always_redraw(lambda: Arrow(
             schematic_train[1].get_bottom() + DOWN * 0.04,
             step_center(step_tracker.get_value()) + UP * (timeres_bin_height / 2 + 0.05),
@@ -3081,14 +3392,18 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             lambda: self._make_partial_path(timeres_trace_template, sweep_trace_prop())
         )
         timeres_trace_head = always_redraw(lambda: Dot(
-            timeres_trace_template.point_from_proportion(max(sweep_trace_prop(), 1e-3)),
+            self._make_partial_path(
+                timeres_trace_template,
+                max(sweep_trace_prop(), 1e-3),
+            ).get_end(),
             radius=0.040,
             color=BLACK,
             fill_opacity=1.0,
         ).set_stroke(WHITE, width=1.0))
         timeres_ci.set_z_index(1)
-        timeres_chance.set_z_index(2)
+        timeres_chance_group.set_z_index(2)
         timeres_plot_scaffold.set_z_index(2)
+        design_intro_arrow.set_z_index(3)
         plot_cursor.set_z_index(3)
         timeres_sig_lines.set_z_index(3)
         timeres_trace.set_z_index(4)
@@ -3105,18 +3420,39 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             "glm_train_explainer": glm_train_explainer,
             "glm_stim_explainer": glm_stim_explainer,
             "glm_delay_explainer": glm_delay_explainer,
+            "glm_plot_frame": glm_plot_frame,
+            "glm_plot_rest": glm_plot_rest,
+            "glm_plot_scaffold": glm_plot_scaffold,
+            "glm_chance_line": glm_chance_line,
+            "glm_chance_label": glm_chance_label,
+            "glm_left_visual": glm_left_visual,
+            "glm_right_visual": glm_right_visual,
+            "glm_left_points": glm_left_points,
+            "glm_right_points": glm_right_points,
+            "glm_left_extras": glm_left_extras,
+            "glm_right_extras": glm_right_extras,
+            "glm_left_significance": glm_left_significance,
+            "glm_right_significance": glm_right_significance,
+            "glm_significance_markers": glm_significance_markers,
+            "glm_stim_plot_label": glm_stim_plot_label,
+            "glm_delay_plot_label": glm_delay_plot_label,
+            "glm_left_cloud": glm_left_cloud,
+            "glm_right_cloud": glm_right_cloud,
             "glm_left_arrow": glm_left_arrow,
             "glm_right_arrow": glm_right_arrow,
             "glm_title": glm_title,
-            "glm_img": glm_img,
             "glm_takeaway": glm_takeaway,
             "timeres_title": timeres_title,
             "timeres_plot_scaffold": timeres_plot_scaffold,
             "timeres_frame": timeres_frame,
-            "timeres_chance": timeres_chance,
+            "timeres_chance_group": timeres_chance_group,
             "timeres_ci": timeres_ci,
             "timeres_sig_lines": timeres_sig_lines,
             "schematic_train": schematic_train,
+            "timeres_train_explainer": timeres_train_explainer,
+            "experimental_design": experimental_design,
+            "design_seed": design_seed,
+            "design_intro_arrow": design_intro_arrow,
             "stim_strip": stim_strip,
             "delay_strip": delay_strip,
             "post_strip": post_strip,
@@ -3187,6 +3523,11 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             FadeIn(glm_train[2], shift=UP * 0.04),
             FadeIn(glm_stim_test[2], shift=UP * 0.04),
             FadeIn(glm_delay_test[2], shift=UP * 0.04),
+            FadeIn(ctx["glm_title"], shift=UP * 0.06),
+            Create(ctx["glm_plot_frame"]),
+            FadeIn(ctx["glm_plot_rest"], shift=UP * 0.08),
+            Create(ctx["glm_chance_line"]),
+            FadeIn(ctx["glm_chance_label"], shift=UP * 0.04),
             run_time=1.15,
         )
         self.play(
@@ -3206,13 +3547,76 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             FadeIn(ctx["glm_stim_explainer"], shift=LEFT * 0.06),
             run_time=0.45,
         )
-        self.wait(1.1)
+        self.wait(0.25)
+        left_cloud_anim = (
+            AnimationGroup(
+                LaggedStart(
+                    *[FadeIn(dot, scale=0.75) for dot in ctx["glm_left_points"]],
+                    lag_ratio=0.04,
+                ),
+                FadeIn(ctx["glm_left_extras"], shift=UP * 0.04),
+                lag_ratio=0.18,
+            )
+            if len(ctx["glm_left_points"]) > 0
+            else FadeIn(ctx["glm_left_visual"], shift=UP * 0.04)
+        )
+        self.play(
+            AnimationGroup(
+                left_cloud_anim,
+                Write(ctx["glm_stim_plot_label"]),
+                lag_ratio=0.18,
+            ),
+            run_time=1.0,
+        )
+        self.wait(1.0)
         self.play(
             glm_delay_test[1].animate.set_stroke(width=ctx["frame_width_emphasis"], opacity=1.0),
             FadeIn(ctx["glm_delay_explainer"], shift=RIGHT * 0.06),
             run_time=0.45,
         )
-        self.wait(1.2)
+        self.wait(0.25)
+        right_cloud_anim = (
+            AnimationGroup(
+                LaggedStart(
+                    *[FadeIn(dot, scale=0.75) for dot in ctx["glm_right_points"]],
+                    lag_ratio=0.04,
+                ),
+                FadeIn(ctx["glm_right_extras"], shift=UP * 0.04),
+                lag_ratio=0.18,
+            )
+            if len(ctx["glm_right_points"]) > 0
+            else FadeIn(ctx["glm_right_visual"], shift=UP * 0.04)
+        )
+        self.play(
+            AnimationGroup(
+                right_cloud_anim,
+                Write(ctx["glm_delay_plot_label"]),
+                lag_ratio=0.18,
+            ),
+            run_time=1.0,
+        )
+        significance_anims = []
+        if len(ctx["glm_left_significance"]) > 0:
+            significance_anims.append(
+                LaggedStart(
+                    *[
+                        FadeIn(marker, shift=UP * 0.03)
+                        for marker in ctx["glm_left_significance"]
+                    ],
+                    lag_ratio=0.12,
+                )
+            )
+        if len(ctx["glm_right_significance"]) > 0:
+            significance_anims.append(
+                FadeIn(ctx["glm_right_significance"], shift=UP * 0.03)
+            )
+        if significance_anims:
+            self.wait(0.35)
+            self.play(
+                AnimationGroup(*significance_anims, lag_ratio=0.22),
+                run_time=0.55,
+            )
+        self.wait(0.75)
         self.play(
             glm_train[1].animate.set_stroke(
                 width=ctx["frame_width_final"], opacity=ctx["frame_opacity_final"]
@@ -3224,12 +3628,6 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
                 width=ctx["frame_width_final"], opacity=ctx["frame_opacity_final"]
             ),
             run_time=0.35,
-        )
-        self.wait(1.8)
-        self.play(
-            FadeIn(ctx["glm_title"], shift=UP * 0.06),
-            FadeIn(ctx["glm_img"], shift=UP * 0.10),
-            run_time=0.8,
         )
         self.wait(2.0)
 
@@ -3256,29 +3654,61 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             ctx["glm_stim_explainer"],
             ctx["glm_delay_explainer"],
             ctx["glm_title"],
-            ctx["glm_img"],
+            ctx["glm_plot_scaffold"],
+            ctx["glm_left_cloud"],
+            ctx["glm_right_cloud"],
+            ctx["glm_significance_markers"],
         )
 
+    def _reset_to_left_results_final_state(self, ctx: dict) -> None:
+        self.clear()
+        self._show_left_results_final_state(ctx)
+
     def _animate_right_results(self, ctx: dict) -> None:
+        design_drop = DOWN * 0.22
+
         self.play(
             FadeIn(ctx["timeres_title"], shift=UP * 0.06),
             FadeIn(ctx["schematic_train"], shift=UP * 0.06),
-            FadeIn(ctx["stim_strip"], shift=UP * 0.04),
-            FadeIn(ctx["delay_strip"], shift=UP * 0.04),
-            FadeIn(ctx["post_strip"], shift=UP * 0.04),
-            FadeIn(ctx["time_bins"], shift=UP * 0.05),
-            FadeIn(ctx["time_bins_label"], shift=UP * 0.04),
-            run_time=0.9,
-        )
-        self.wait(0.8)
-        self.play(
-            FadeIn(ctx["timeres_plot_scaffold"], shift=UP * 0.08),
-            run_time=0.8,
+            FadeIn(ctx["timeres_train_explainer"], shift=RIGHT * 0.06),
+            run_time=0.75,
         )
         self.wait(0.25)
-        self.play(FadeIn(ctx["timeres_chance"]), run_time=0.4)
-        self.wait(0.35)
         self.play(
+            GrowArrow(ctx["design_intro_arrow"]),
+            run_time=0.35,
+        )
+        self.play(GrowFromCenter(ctx["design_seed"]), run_time=0.28)
+        self.play(
+            ctx["design_seed"].animate.stretch_to_fit_width(ctx["experimental_design"].width).move_to(
+                ctx["experimental_design"]
+            ),
+            LaggedStart(
+                FadeIn(ctx["stim_strip"], scale=0.88),
+                FadeIn(ctx["delay_strip"], scale=0.88),
+                FadeIn(ctx["post_strip"], scale=0.88),
+                lag_ratio=0.16,
+            ),
+            run_time=0.75,
+        )
+        self.play(FadeOut(ctx["design_seed"], scale=0.85), run_time=0.2)
+        self.play(
+            ctx["experimental_design"].animate.shift(design_drop),
+            run_time=0.35,
+        )
+        self.play(
+            FadeIn(ctx["timeres_plot_scaffold"], shift=UP * 0.08),
+            FadeIn(ctx["timeres_chance_group"]),
+            LaggedStart(
+                *[FadeIn(bin_mob, shift=UP * 0.03) for bin_mob in ctx["time_bins"]],
+                lag_ratio=0.03,
+            ),
+            run_time=0.8,
+        )
+        self.play(FadeIn(ctx["time_bins_label"], shift=UP * 0.04), run_time=0.35)
+        self.wait(0.2)
+        self.play(
+            FadeOut(ctx["design_intro_arrow"]),
             FadeIn(ctx["active_bin"]),
             GrowArrow(ctx["sweep_arrow"]),
             FadeIn(ctx["plot_cursor"]),
@@ -3337,6 +3767,7 @@ class Study2CrossSessionDecodingResultsA(Study2CrossSessionDecodingResults):
     def construct(self) -> None:
         ctx = self._build_results_context()
         self._animate_left_results(ctx)
+        self._reset_to_left_results_final_state(ctx)
         self.wait(2.0)
 
 
@@ -3351,67 +3782,154 @@ class Study2CrossSessionDecodingResultsB(Study2CrossSessionDecodingResults):
 
     def construct(self) -> None:
         ctx = self._build_results_context()
-        self._show_left_results_final_state(ctx)
+        self._reset_to_left_results_final_state(ctx)
         self.wait(0.6)
         self._animate_right_results(ctx)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# WithinSession1Decoding
+# Study2WithinSession1Decoding
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-class WithinSession1Decoding(Study2CrossSessionDecodingResults):
+class Study2WithinSession1Decoding(Study2CrossSessionDecodingResults):
     """
     Explain the rationale for within-session decoding in Session 1, then
     reveal the Session 1 GLM, time-resolved, cross-phase GLM, and
     temporal-generalisation results in two acts.
 
     Render:
-        uv run manim scenes/study2.py WithinSession1Decoding -ql
-        uv run manim scenes/study2.py WithinSession1Decoding -qh
+        uv run manim scenes/study2.py Study2WithinSession1Decoding -ql
+        uv run manim scenes/study2.py Study2WithinSession1Decoding -qh
     """
 
-    _RESULTS_GLM = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm.png"
-    _RESULTS_TIMERES = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01timeres.png"
-    _RESULTS_GLM_2 = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm_2_cropped.png"
-    _RESULTS_TEMPGEN = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01tempgen.png"
+    _RESULTS_GLM = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm.svg"
+    _RESULTS_TIMERES = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01timeres.svg"
+    _RESULTS_GLM_2 = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm_2.svg"
+    _RESULTS_TEMPGEN = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01tempgen.svg"
     _GLM_ACCENT = _D_PURP
     _DELAY_ACCENT = _D_GREEN
 
-    def _make_results_heading(self, text: str) -> Tex:
+    def _make_results_heading(self, text: str, color: ManimColor = _D_MGREY) -> Tex:
         return Tex(
             text,
-            color=_D_MGREY,
+            color=color,
             font_size=22,
             tex_environment="center",
         ).next_to(self.slide_title, DOWN, buff=0.12)
-
-    def _make_results_plot(
-        self,
-        path: str,
-        *,
-        title: str,
-        center: np.ndarray,
-        height: float | None = None,
-        width: float | None = None,
-    ) -> Group:
-        plot = SVGMobject(path) if path.lower().endswith(".svg") else ImageMobject(path)
-        if height is not None:
-            plot.set_height(height)
-        if width is not None:
-            plot.set_width(width)
-        plot.move_to(center)
-
-        plot_title = Tex(title, color=INK, font_size=22).move_to(
-            np.array([center[0], self.slide_title.get_bottom()[1] - 0.95, 0.0])
-        )
-        return Group(plot_title, plot)
 
     def _make_takeaway(self, lines: list[Tex]) -> VGroup:
         takeaway = VGroup(*lines).arrange(DOWN, buff=0.08, center=True)
         takeaway.move_to(np.array([0.0, -3.15, 0.0]))
         return takeaway
+
+    def _load_svg_plot(
+        self,
+        path: str,
+        *,
+        center: np.ndarray,
+        height: float,
+    ) -> SVGMobject:
+        return SVGMobject(path).set_height(height).move_to(center)
+
+    def _hide_svg_background_rect(self, svg: SVGMobject) -> None:
+        for submob in svg.submobjects:
+            fill_hex = self._glm_svg_hex(submob.get_fill_color())
+            stroke_hex = self._glm_svg_hex(submob.get_stroke_color())
+            if (
+                fill_hex == "#FFFFFF"
+                and stroke_hex == "#FFFFFF"
+                and submob.width > 0.9 * svg.width
+                and submob.height > 0.9 * svg.height
+            ):
+                submob.set_fill(opacity=0.0)
+                submob.set_stroke(opacity=0.0)
+                return
+
+    def _hide_svg_white_regions(self, svg: SVGMobject, min_area_ratio: float = 0.02) -> None:
+        min_area = svg.width * svg.height * min_area_ratio
+        for submob in svg.submobjects:
+            fill_hex = self._glm_svg_hex(submob.get_fill_color())
+            stroke_hex = self._glm_svg_hex(submob.get_stroke_color())
+            if fill_hex == "#FFFFFF" and submob.width * submob.height >= min_area:
+                submob.set_fill(opacity=0.0)
+                if stroke_hex == "#FFFFFF":
+                    submob.set_stroke(opacity=0.0)
+
+    def _timeres_select_many(
+        self,
+        svg: SVGMobject,
+        *,
+        stroke_hex: str | None = None,
+        fill_hex: str | None = None,
+        min_points: int = 0,
+    ) -> list[VMobject]:
+        stroke_hex = stroke_hex.upper() if stroke_hex else None
+        fill_hex = fill_hex.upper() if fill_hex else None
+        matches: list[VMobject] = []
+        for submob in svg.submobjects:
+            if len(submob.get_all_points()) < min_points:
+                continue
+            stroke_value = self._glm_svg_hex(submob.get_stroke_color())
+            fill_value = self._glm_svg_hex(submob.get_fill_color())
+            if stroke_hex and stroke_value != stroke_hex:
+                continue
+            if fill_hex and fill_value != fill_hex:
+                continue
+            matches.append(submob)
+        return matches
+
+    def _timeres_select_single(
+        self,
+        svg: SVGMobject,
+        *,
+        stroke_hex: str | None = None,
+        fill_hex: str | None = None,
+        min_points: int = 0,
+    ) -> VMobject:
+        matches = self._timeres_select_many(
+            svg,
+            stroke_hex=stroke_hex,
+            fill_hex=fill_hex,
+            min_points=min_points,
+        )
+        if len(matches) != 1:
+            raise ValueError(
+                f"Expected one timeres match for stroke={stroke_hex} fill={fill_hex}, found {len(matches)}"
+            )
+        return matches[0]
+
+    def _timeres_significance_bands(self, svg: SVGMobject) -> VGroup:
+        return VGroup(*self._timeres_select_many(svg, stroke_hex="#C49A00", min_points=4))
+
+    def _glm_svg_center_group(self, svg: SVGMobject, color_hex: str) -> VGroup:
+        plot_frame = self._glm_svg_plot_frame(svg)
+        x_pad = plot_frame.width * 0.03
+        y_pad = plot_frame.height * 0.03
+        color_hex = color_hex.upper()
+        return VGroup(*[
+            submob
+            for submob in svg.submobjects
+            if (
+                self._glm_svg_hex(submob.get_fill_color()) == color_hex
+                or self._glm_svg_hex(submob.get_stroke_color()) == color_hex
+            )
+            and plot_frame.get_left()[0] - x_pad <= submob.get_center()[0] <= plot_frame.get_right()[0] + x_pad
+            and plot_frame.get_bottom()[1] - y_pad <= submob.get_center()[1] <= plot_frame.get_top()[1] + y_pad
+        ])
+
+    def _glm_svg_center_significance_marker(self, svg: SVGMobject, color_hex: str) -> VGroup:
+        plot_frame = self._glm_svg_plot_frame(svg)
+        color_hex = color_hex.upper()
+        return VGroup(*[
+            submob
+            for submob in svg.submobjects
+            if (
+                self._glm_svg_hex(submob.get_fill_color()) == color_hex
+                or self._glm_svg_hex(submob.get_stroke_color()) == color_hex
+            )
+            and submob.get_center()[1] > plot_frame.get_top()[1]
+        ])
 
     def construct(self) -> None:
         self.camera.background_color = BG
@@ -3425,7 +3943,8 @@ class WithinSession1Decoding(Study2CrossSessionDecodingResults):
         self.slide_title = Tex("Within-session decoding in Session 1", color=INK, font_size=30)
         self.slide_title.to_edge(UP, buff=0.18)
         act1_heading = self._make_results_heading(
-            r"1. Is object identity decodable within Session 1?"
+            r"1. Is there any stimulus-specific information in the delay period in V1-V3?",
+            color=BLACK,
         )
         act2_heading = self._make_results_heading(
             r"2. Does the encoding code generalise to the delay?"
@@ -3462,17 +3981,123 @@ class WithinSession1Decoding(Study2CrossSessionDecodingResults):
             tex_environment="center",
         ).move_to(np.array([-4.00, -2.32, 0.0]))
 
-        glm_plot = self._make_results_plot(
+        plot_title_y = self.slide_title.get_bottom()[1] - 0.95
+
+        glm_title = Tex("GLM-based decoding", color=INK, font_size=22).move_to(
+            np.array([-3.05, plot_title_y, 0.0])
+        )
+        glm_svg = self._load_svg_plot(
             self._RESULTS_GLM,
-            title="GLM-based decoding",
             center=np.array([-3.05, -0.10, 0.0]),
             height=3.55,
         )
-        timeres_plot = self._make_results_plot(
+        glm_base = glm_svg.copy()
+        self._glm_svg_hide_color_groups(glm_base)
+        glm_plot_frame = self._glm_svg_plot_frame(glm_base)
+        glm_chance_template = self._glm_svg_chance_line(glm_base)
+        glm_plot_rest = VGroup(*[
+            submob
+            for submob in glm_base.submobjects
+            if submob not in glm_plot_frame.submobjects
+            and submob is not glm_chance_template
+        ])
+        glm_left_group = self._glm_svg_group(glm_svg, "#7B51A0", "left")
+        glm_right_group = self._glm_svg_group(glm_svg, "#3C9553", "right")
+        glm_left_significance = self._glm_svg_significance_marker(glm_svg, "#7B51A0", "left")
+        glm_right_significance = self._glm_svg_significance_marker(glm_svg, "#3C9553", "right")
+        glm_left_visual = VGroup(*[
+            submob for submob in glm_left_group if submob not in glm_left_significance
+        ])
+        glm_right_visual = VGroup(*[
+            submob for submob in glm_right_group if submob not in glm_right_significance
+        ])
+        glm_left_points = self._glm_svg_scatter_points(glm_left_visual)
+        glm_right_points = self._glm_svg_scatter_points(glm_right_visual)
+        glm_left_extras = VGroup(*[
+            submob for submob in glm_left_visual if submob not in glm_left_points
+        ])
+        glm_right_extras = VGroup(*[
+            submob for submob in glm_right_visual if submob not in glm_right_points
+        ])
+        glm_left_x = (
+            glm_left_points.get_center()[0]
+            if len(glm_left_points) > 0
+            else glm_left_group.get_center()[0]
+        )
+        glm_right_x = (
+            glm_right_points.get_center()[0]
+            if len(glm_right_points) > 0
+            else glm_right_group.get_center()[0]
+        )
+        glm_left_label = self._glm_svg_bottom_label(
+            glm_plot_frame,
+            glm_left_x,
+            r"S_1 \rightarrow S_1",
+        )
+        glm_right_label = self._glm_svg_bottom_label(
+            glm_plot_frame,
+            glm_right_x,
+            r"D_1 \rightarrow D_1",
+        )
+        glm_chance_y = glm_chance_template.get_center()[1]
+        glm_chance_color = glm_chance_template.get_stroke_color()
+        glm_chance_line = DashedLine(
+            np.array([glm_plot_frame.get_left()[0], glm_chance_y, 0.0]),
+            np.array([glm_plot_frame.get_right()[0], glm_chance_y, 0.0]),
+            color=glm_chance_color,
+            stroke_width=2.0,
+            dash_length=0.08,
+            dashed_ratio=0.55,
+        )
+        glm_chance_label = Tex(
+            "Chance",
+            color=glm_chance_color,
+            font_size=14,
+        ).move_to(
+            np.array([glm_plot_frame.get_right()[0] - 0.26, glm_chance_y + 0.14, 0.0])
+        )
+        glm_left_cloud = VGroup(glm_left_points, glm_left_extras, glm_left_label)
+        glm_right_cloud = VGroup(glm_right_points, glm_right_extras, glm_right_label)
+        glm_significance = VGroup(glm_left_significance, glm_right_significance)
+        glm_plot = Group(
+            glm_title,
+            glm_plot_frame,
+            glm_plot_rest,
+            glm_chance_line,
+            glm_chance_label,
+            glm_left_cloud,
+            glm_right_cloud,
+            glm_significance,
+        )
+
+        timeres_title = Tex("Time-resolved decoding", color=INK, font_size=22).move_to(
+            np.array([3.05, plot_title_y, 0.0])
+        )
+        timeres_svg = self._load_svg_plot(
             self._RESULTS_TIMERES,
-            title="Time-resolved decoding",
             center=np.array([3.05, -0.10, 0.0]),
             height=3.55,
+        )
+        self._hide_svg_background_rect(timeres_svg)
+        timeres_base = timeres_svg.copy()
+        self._hide_svg_background_rect(timeres_base)
+        timeres_ci = self._timeres_select_single(timeres_svg, fill_hex="#6E6E6E", min_points=100)
+        timeres_trace = self._timeres_select_single(timeres_svg, stroke_hex="#000000", min_points=50)
+        timeres_sig_bands = self._timeres_significance_bands(timeres_svg)
+        self._timeres_select_single(timeres_base, fill_hex="#6E6E6E", min_points=100).set_opacity(0.0)
+        self._timeres_select_single(timeres_base, stroke_hex="#000000", min_points=50).set_opacity(0.0)
+        self._timeres_significance_bands(timeres_base).set_opacity(0.0)
+        timeres_ci.set_stroke(opacity=0.0)
+        timeres_ci.set_fill(color="#6E6E6E", opacity=0.28)
+        timeres_trace.set_fill(opacity=0.0)
+        timeres_trace.set_stroke(color=BLACK, width=5.0)
+        timeres_sig_bands.set_stroke(color="#C49A00", width=4.2)
+        timeres_plot = Group(
+            timeres_title,
+            timeres_base,
+            timeres_ci,
+            timeres_trace,
+            timeres_sig_bands,
         )
 
         act1_takeaway_line_1 = Tex(
@@ -3493,17 +4118,87 @@ class WithinSession1Decoding(Study2CrossSessionDecodingResults):
             act1_takeaway_line_2,
         ])
 
-        glm2_plot = self._make_results_plot(
+        glm2_title = Tex("Cross-phase GLM decoding", color=INK, font_size=22).move_to(
+            np.array([-3.05, plot_title_y, 0.0])
+        )
+        glm2_svg = self._load_svg_plot(
             self._RESULTS_GLM_2,
-            title="Cross-phase GLM decoding",
             center=np.array([-3.05, -0.15, 0.0]),
             height=3.42,
         )
-        tempgen_plot = self._make_results_plot(
+        self._hide_svg_background_rect(glm2_svg)
+        glm2_base = glm2_svg.copy()
+        self._hide_svg_background_rect(glm2_base)
+        self._glm_svg_center_group(glm2_base, "#0D0F0E").set_opacity(0.0)
+        self._glm_svg_center_significance_marker(glm2_base, "#0D0F0E").set_opacity(0.0)
+        glm2_plot_frame = self._glm_svg_plot_frame(glm2_base)
+        glm2_chance_template = self._glm_svg_chance_line(glm2_base)
+        glm2_plot_rest = VGroup(*[
+            submob
+            for submob in glm2_base.submobjects
+            if submob not in glm2_plot_frame.submobjects
+            and submob is not glm2_chance_template
+        ])
+        glm2_group = self._glm_svg_center_group(glm2_svg, "#0D0F0E")
+        glm2_sig = self._glm_svg_center_significance_marker(glm2_svg, "#0D0F0E")
+        glm2_points = self._glm_svg_scatter_points(glm2_group)
+        glm2_extras = VGroup(*[
+            submob for submob in glm2_group if submob not in glm2_points
+        ])
+        glm2_label = self._glm_svg_bottom_label(
+            glm2_plot_frame,
+            glm2_points.get_center()[0] if len(glm2_points) > 0 else glm2_group.get_center()[0],
+            r"S_1 \rightarrow D_1",
+        )
+        glm2_chance_y = glm2_chance_template.get_center()[1]
+        glm2_chance_color = glm2_chance_template.get_stroke_color()
+        glm2_chance_line = DashedLine(
+            np.array([glm2_plot_frame.get_left()[0], glm2_chance_y, 0.0]),
+            np.array([glm2_plot_frame.get_right()[0], glm2_chance_y, 0.0]),
+            color=glm2_chance_color,
+            stroke_width=2.0,
+            dash_length=0.08,
+            dashed_ratio=0.55,
+        )
+        glm2_chance_label = Tex(
+            "Chance",
+            color=glm2_chance_color,
+            font_size=14,
+        ).move_to(
+            np.array([glm2_plot_frame.get_right()[0] - 0.24, glm2_chance_y + 0.14, 0.0])
+        )
+        glm2_plot = Group(
+            glm2_title,
+            glm2_plot_frame,
+            glm2_plot_rest,
+            glm2_chance_line,
+            glm2_chance_label,
+            glm2_points,
+            glm2_extras,
+            glm2_label,
+            glm2_sig,
+        )
+
+        tempgen_title = Tex("Temporal generalisation", color=INK, font_size=22).move_to(
+            np.array([3.15, plot_title_y, 0.0])
+        )
+        tempgen_center = np.array([3.15, -0.12, 0.0])
+        tempgen_underlay = (
+            ImageMobject(str(Path(self._RESULTS_TEMPGEN).with_suffix(".png")))
+            .set_height(3.55)
+            .move_to(tempgen_center)
+        )
+        tempgen_underlay.set_opacity(0.86)
+        tempgen_overlay = self._load_svg_plot(
             self._RESULTS_TEMPGEN,
-            title="Temporal generalisation",
-            center=np.array([3.15, -0.12, 0.0]),
+            center=tempgen_center,
             height=3.55,
+        )
+        self._hide_svg_white_regions(tempgen_overlay)
+        tempgen_plot = Group(
+            tempgen_title,
+            tempgen_underlay,
+            tempgen_overlay,
         )
 
         stim_small = self._make_small_results_matrix(
@@ -3607,15 +4302,56 @@ class WithinSession1Decoding(Study2CrossSessionDecodingResults):
         )
 
         self.play(
-            FadeIn(glm_plot[0], shift=UP * 0.05),
-            FadeIn(glm_plot[1], shift=UP * 0.10),
-            run_time=0.75,
+            FadeIn(glm_title, shift=UP * 0.05),
+            AnimationGroup(
+                Create(glm_plot_frame),
+                FadeIn(glm_plot_rest, shift=UP * 0.08),
+                Create(glm_chance_line),
+                FadeIn(glm_chance_label, shift=UP * 0.04),
+                lag_ratio=0.18,
+            ),
+            run_time=1.1,
         )
-        self.wait(1.0)
         self.play(
-            FadeIn(timeres_plot[0], shift=UP * 0.05),
-            FadeIn(timeres_plot[1], shift=UP * 0.10),
-            run_time=0.75,
+            AnimationGroup(
+                LaggedStart(*[FadeIn(dot, scale=0.75) for dot in glm_left_points], lag_ratio=0.04),
+                FadeIn(glm_left_extras, shift=UP * 0.04),
+                Write(glm_left_label),
+                lag_ratio=0.18,
+            ),
+            run_time=1.0,
+        )
+        self.play(
+            AnimationGroup(
+                LaggedStart(*[FadeIn(dot, scale=0.75) for dot in glm_right_points], lag_ratio=0.04),
+                FadeIn(glm_right_extras, shift=UP * 0.04),
+                Write(glm_right_label),
+                lag_ratio=0.18,
+            ),
+            run_time=1.0,
+        )
+        self.play(
+            LaggedStart(
+                *[FadeIn(marker, shift=UP * 0.03) for marker in glm_left_significance],
+                *[FadeIn(marker, shift=UP * 0.03) for marker in glm_right_significance],
+                lag_ratio=0.10,
+            ),
+            run_time=0.65,
+        )
+        self.wait(0.35)
+        self.play(
+            FadeIn(timeres_title, shift=UP * 0.05),
+            FadeIn(timeres_base, shift=UP * 0.08),
+            run_time=0.85,
+        )
+        self.play(Create(timeres_trace), run_time=1.9)
+        self.play(
+            AnimationGroup(
+                FadeIn(timeres_ci),
+                LaggedStart(*[Create(sig_band) for sig_band in timeres_sig_bands], lag_ratio=0.12),
+                lag_ratio=0.0,
+            ),
+            run_time=0.9,
         )
         self.play(FadeIn(act1_takeaway, shift=UP * 0.08), run_time=0.65)
         self.wait(1.8)
@@ -3636,15 +4372,32 @@ class WithinSession1Decoding(Study2CrossSessionDecodingResults):
         )
         self.wait(0.45)
         self.play(
-            FadeIn(glm2_plot[0], shift=UP * 0.05),
-            FadeIn(glm2_plot[1], shift=UP * 0.10),
-            run_time=0.75,
+            FadeIn(glm2_title, shift=UP * 0.05),
+            AnimationGroup(
+                Create(glm2_plot_frame),
+                FadeIn(glm2_plot_rest, shift=UP * 0.08),
+                Create(glm2_chance_line),
+                FadeIn(glm2_chance_label, shift=UP * 0.04),
+                lag_ratio=0.18,
+            ),
+            run_time=1.0,
         )
-        self.wait(1.0)
         self.play(
-            FadeIn(tempgen_plot[0], shift=UP * 0.05),
-            FadeIn(tempgen_plot[1], shift=UP * 0.10),
-            run_time=0.80,
+            AnimationGroup(
+                LaggedStart(*[FadeIn(dot, scale=0.75) for dot in glm2_points], lag_ratio=0.04),
+                FadeIn(glm2_extras, shift=UP * 0.04),
+                Write(glm2_label),
+                lag_ratio=0.18,
+            ),
+            run_time=1.0,
+        )
+        self.play(FadeIn(glm2_sig, shift=UP * 0.03), run_time=0.5)
+        self.wait(0.35)
+        self.play(
+            FadeIn(tempgen_title, shift=UP * 0.05),
+            FadeIn(tempgen_underlay, shift=UP * 0.08),
+            FadeIn(tempgen_overlay, shift=UP * 0.06),
+            run_time=0.90,
         )
         self.play(FadeIn(act2_takeaway, shift=UP * 0.08), run_time=0.65)
         self.wait(2.0)

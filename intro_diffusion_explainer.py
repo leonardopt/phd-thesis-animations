@@ -40,8 +40,7 @@ IMAGE_PATH = Path(
 TITLE_TEXT = "How do diffusion models work?"
 FORWARD_FORMULA = r"p(x_i \mid x_{i-1})"
 REVERSE_FORMULA = r"p_{\theta}(x_{i-1} \mid x_i)"
-GUIDANCE_FORMULA = r"\hat{\epsilon}=\epsilon_u + s(\epsilon_c-\epsilon_u)"
-PROMPT_TEXT = "a cat"
+PROMPT_TEXT = "photo of a cat in a room"
 
 FORWARD_LEVELS = [0.00, 0.18, 0.38, 0.58, 0.78, 1.00]
 FORWARD_LABELS = [r"x_0", r"x_1", r"x_2", r"x_3", r"x_{T-1}", r"x_T"]
@@ -150,6 +149,15 @@ def make_card(content: str | Path | np.ndarray, height: float) -> Group:
     return Group(image, frame)
 
 
+def pixelate_array(image_array: np.ndarray, pixels: int = 18) -> np.ndarray:
+    """Downsample and upsample an image to suggest a latent-space representation."""
+    image = Image.fromarray(to_uint8(image_array))
+    resampling = Image.Resampling if hasattr(Image, "Resampling") else Image
+    small = image.resize((pixels, pixels), resample=resampling.BILINEAR)
+    pixelated = small.resize(image.size, resample=resampling.NEAREST)
+    return np.asarray(pixelated).astype(np.float32) / 255.0
+
+
 def make_overlay_panel(width: float, height: float, opacity: float = 0.96) -> RoundedRectangle:
     """Create a soft panel for temporary overlays."""
     panel = RoundedRectangle(
@@ -189,6 +197,52 @@ def make_model_box(label: str = "model") -> VGroup:
     box.set_fill(BLUE, opacity=0.08)
     text = Tex(label, color=INK, font_size=22)
     return VGroup(box, text)
+
+
+def make_labeled_box(
+    label: str,
+    width: float = 1.65,
+    height: float = 0.88,
+    color: str = BLUE,
+    font_size: int = 22,
+) -> VGroup:
+    """Create a rounded process box with a centered label."""
+    box = RoundedRectangle(
+        width=width,
+        height=height,
+        corner_radius=0.14,
+        stroke_color=color,
+        stroke_width=1.8,
+    )
+    box.set_fill(color, opacity=0.08)
+    text = Tex(label, color=INK, font_size=font_size)
+    return VGroup(box, text)
+
+
+def make_embedding_block() -> VGroup:
+    """Create a simple visual stand-in for a text embedding."""
+    frame = RoundedRectangle(
+        width=1.55,
+        height=0.78,
+        corner_radius=0.14,
+        stroke_color=BLUE,
+        stroke_width=1.8,
+    )
+    frame.set_fill(BLUE, opacity=0.04)
+
+    rng = np.random.default_rng(7)
+    cells = VGroup(
+        *[
+            Square(side_length=0.10, stroke_width=0)
+            for _ in range(24)
+        ]
+    )
+    colors = [BLUE, "#60A5FA", MGREY, LGREY]
+    for cell in cells:
+        cell.set_fill(colors[int(rng.integers(0, len(colors)))], opacity=0.95)
+    cells.arrange_in_grid(rows=4, cols=6, buff=0.04)
+    cells.move_to(frame)
+    return VGroup(frame, cells)
 
 
 def make_title(centered: bool) -> Tex:
@@ -437,138 +491,190 @@ class Diffusion04PromptGuidance(Scene):
         self.camera.background_color = BG
 
         board = build_board()
-        reverse_arrays = get_reverse_arrays()
-        line = make_explanation_line("Stable Diffusion guides the reverse step with text.")
+        clean_array = get_forward_arrays()[0]
+        rough_latent_array = pixelate_array(add_noise(clean_array, 0.40), pixels=18)
+        clean_latent_array = pixelate_array(clean_array, pixels=18)
+
+        line = make_explanation_line("The prompt is encoded, then guides denoising.")
         reference = Tex(
-            r"CFG: Chapter 6; SD: Rombach et al. (2022)",
+            r"Rombach et al. (2022); Podell et al. (2023)",
             color=MGREY,
             font_size=14,
         )
         reference.to_corner(DR, buff=0.18)
 
-        top_dim = RoundedRectangle(
-            width=8.85,
-            height=1.62,
+        dim = RoundedRectangle(
+            width=12.35,
+            height=4.10,
             corner_radius=0.16,
             stroke_width=0,
         )
-        top_dim.set_fill(WHITE, opacity=0.60)
-        top_dim.move_to(RIGHT * 0.50 + UP * TOP_ROW_Y)
+        dim.set_fill(WHITE, opacity=0.92)
+        dim.move_to(DOWN * 0.10)
 
-        reverse_focus = SurroundingRectangle(
-            Group(
-                board.bottom_cards[0],
-                board.bottom_labels[0],
-                board.bottom_arrows[0],
-                board.bottom_cards[1],
-                board.bottom_labels[1],
-            ),
-            color=BLUE,
-            stroke_width=2.0,
-            buff=0.10,
-        )
-        focus_label = Tex("one reverse step", color=BLUE, font_size=18)
-        focus_label.next_to(reverse_focus, UP, buff=0.12)
+        prompt_label = Tex("prompt", color=MGREY, font_size=18)
+        prompt_text = Tex(r'"photo of a cat\\in a room"', color=INK, font_size=25)
+        prompt_group = VGroup(prompt_label, prompt_text).arrange(DOWN, aligned_edge=LEFT, buff=0.10)
+        prompt_group.move_to(LEFT * 5.00 + UP * 0.84)
 
-        panel = make_overlay_panel(width=6.25, height=3.05)
-        panel.move_to(RIGHT * 1.65 + DOWN * 0.20)
+        text_encoder = make_labeled_box("text encoder", width=1.95, height=0.86, color=BLUE, font_size=20)
+        text_encoder.move_to(LEFT * 2.45 + UP * 0.78)
 
-        prompt_chip = make_prompt_chip(PROMPT_TEXT)
-        prompt_chip.move_to(panel.get_center() + LEFT * 1.55 + UP * 0.92)
-        condition_label = MathTex(r"c", color=BLUE, font_size=24)
-        condition_label.next_to(prompt_chip, LEFT, buff=0.10)
+        embedding_block = make_embedding_block()
+        embedding_title = Tex("text embedding", color=BLUE, font_size=18)
+        embedding_symbol = MathTex(r"c", color=BLUE, font_size=22)
+        embedding_label = VGroup(embedding_title, embedding_symbol).arrange(RIGHT, buff=0.08)
+        embedding_group = Group(embedding_block, embedding_label)
+        embedding_group.arrange(DOWN, buff=0.10, center=False)
+        embedding_label.next_to(embedding_block, UP, buff=0.10)
+        embedding_group.move_to(LEFT * 0.20 + UP * 0.82)
 
-        noisy_latent = make_card(reverse_arrays[0], height=0.78)
-        noisy_latent.move_to(panel.get_center() + LEFT * 2.05 + UP * 0.08)
-        noisy_latent_label = MathTex(r"z_t", color=MGREY, font_size=24)
-        noisy_latent_label.next_to(noisy_latent, DOWN, buff=0.10)
-
-        model = make_model_box("model")
-        model.move_to(panel.get_center() + LEFT * 0.20 + UP * 0.15)
-
-        prompt_arrow = Arrow(
-            start=prompt_chip.get_bottom() + DOWN * 0.03,
-            end=model[0].get_top() + UP * 0.03,
-            buff=0.04,
-            color=BLUE,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        latent_arrow = Arrow(
-            start=noisy_latent.get_right() + RIGHT * 0.05,
-            end=model[0].get_left() + LEFT * 0.05,
+        prompt_to_encoder = Arrow(
+            start=prompt_text.get_right() + RIGHT * 0.08,
+            end=text_encoder[0].get_left() + LEFT * 0.08,
             buff=0.04,
             color=MGREY,
             stroke_width=2.0,
             tip_shape=StealthTip,
         )
-
-        eps_u = MathTex(r"\epsilon_u", color=MGREY, font_size=30)
-        eps_u_note = Tex("no prompt", color=MGREY, font_size=18)
-        eps_u_group = VGroup(eps_u, eps_u_note).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
-        eps_u_group.move_to(panel.get_center() + RIGHT * 1.55 + UP * 0.45)
-
-        eps_c = MathTex(r"\epsilon_c", color=BLUE, font_size=30)
-        eps_c_note = Tex("with text", color=BLUE, font_size=18)
-        eps_c_group = VGroup(eps_c, eps_c_note).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
-        eps_c_group.move_to(panel.get_center() + RIGHT * 1.55 + DOWN * 0.15)
-
-        uncond_arrow = Arrow(
-            start=model[0].get_right() + RIGHT * 0.05 + UP * 0.12,
-            end=eps_u_group.get_left() + LEFT * 0.06,
-            buff=0.05,
-            color=MGREY,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-        cond_arrow = Arrow(
-            start=model[0].get_right() + RIGHT * 0.05 + DOWN * 0.16,
-            end=eps_c_group.get_left() + LEFT * 0.06,
-            buff=0.05,
-            color=BLUE,
-            stroke_width=2.0,
-            tip_shape=StealthTip,
-        )
-
-        guidance_formula = MathTex(GUIDANCE_FORMULA, color=INK, font_size=28)
-        guidance_formula.move_to(panel.get_center() + LEFT * 0.45 + DOWN * 0.92)
-
-        strength_note = Tex("larger $s$ = stronger prompt pull", color=BLUE, font_size=18)
-        strength_note.next_to(guidance_formula, DOWN, buff=0.10)
-        strength_note.align_to(guidance_formula, LEFT)
-
-        guided_latent = make_card(reverse_arrays[1], height=0.64)
-        guided_latent.move_to(panel.get_center() + RIGHT * 2.18 + DOWN * 0.84)
-        guided_latent_label = MathTex(r"z_{t-1}", color=BLUE, font_size=22)
-        guided_latent_label.next_to(guided_latent, DOWN, buff=0.08)
-
-        guided_arrow = Arrow(
-            start=guidance_formula.get_right() + RIGHT * 0.06,
-            end=guided_latent.get_left() + LEFT * 0.05,
+        encoder_to_embedding = Arrow(
+            start=text_encoder[0].get_right() + RIGHT * 0.06,
+            end=embedding_block[0].get_left() + LEFT * 0.06,
             buff=0.04,
             color=BLUE,
             stroke_width=2.0,
             tip_shape=StealthTip,
         )
+
+        noisy_latent = make_card(pixelate_array(add_noise(clean_array, 1.0), pixels=18), height=0.88)
+        noisy_latent.move_to(LEFT * 4.35 + DOWN * 0.12)
+        noisy_group_label = Tex("noise latent", color=MGREY, font_size=18)
+        noisy_group_label.next_to(noisy_latent, DOWN, buff=0.10)
+
+        base_box = make_labeled_box("base", width=1.35, height=1.00, color=BLUE, font_size=22)
+        base_box.move_to(LEFT * 2.65 + DOWN * 0.12)
+
+        rough_latent = make_card(rough_latent_array, height=0.88)
+        rough_latent.move_to(LEFT * 0.95 + DOWN * 0.12)
+
+        refiner_box = make_labeled_box("refiner", width=1.55, height=1.00, color="#7CB66F", font_size=21)
+        refiner_box.move_to(RIGHT * 0.75 + DOWN * 0.12)
+
+        clean_latent = make_card(clean_latent_array, height=0.88)
+        clean_latent.move_to(RIGHT * 2.45 + DOWN * 0.12)
+        clean_label = Tex("clean latent", color=BLUE, font_size=18)
+        clean_math = MathTex(r"z_0", color=BLUE, font_size=22)
+        clean_group_label = VGroup(clean_label, clean_math).arrange(RIGHT, buff=0.08)
+        clean_group_label.next_to(clean_latent, DOWN, buff=0.10)
+
+        decoder_box = make_labeled_box("VAE\\\\decoder", width=1.45, height=1.00, color="#C77C6E", font_size=18)
+        decoder_box.move_to(RIGHT * 4.05 + DOWN * 0.12)
+
+        final_image = make_card(IMAGE_PATH, height=1.18)
+        final_image.move_to(RIGHT * 5.85 + DOWN * 0.12)
+        final_label = Tex("image", color=INK, font_size=18)
+        final_label.next_to(final_image, UP, buff=0.12)
+
+        noise_to_base = Arrow(
+            start=noisy_latent.get_right() + RIGHT * 0.06,
+            end=base_box[0].get_left() + LEFT * 0.06,
+            buff=0.04,
+            color=MGREY,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+        base_to_rough = Arrow(
+            start=base_box[0].get_right() + RIGHT * 0.05,
+            end=rough_latent.get_left() + LEFT * 0.05,
+            buff=0.04,
+            color=MGREY,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+        rough_to_refiner = Arrow(
+            start=rough_latent.get_right() + RIGHT * 0.06,
+            end=refiner_box[0].get_left() + LEFT * 0.06,
+            buff=0.04,
+            color=MGREY,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+        refiner_to_clean = Arrow(
+            start=refiner_box[0].get_right() + RIGHT * 0.05,
+            end=clean_latent.get_left() + LEFT * 0.05,
+            buff=0.04,
+            color=BLUE,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+        clean_to_decoder = Arrow(
+            start=clean_latent.get_right() + RIGHT * 0.06,
+            end=decoder_box[0].get_left() + LEFT * 0.06,
+            buff=0.04,
+            color=MGREY,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+        decoder_to_image = Arrow(
+            start=decoder_box[0].get_right() + RIGHT * 0.06,
+            end=final_image.get_left() + LEFT * 0.06,
+            buff=0.04,
+            color=MGREY,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+        embedding_to_base = Arrow(
+            start=embedding_block[0].get_bottom() + DOWN * 0.03 + RIGHT * 0.20,
+            end=base_box[0].get_top() + UP * 0.03,
+            buff=0.04,
+            color=BLUE,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+        embedding_to_refiner = Arrow(
+            start=embedding_block[0].get_bottom() + DOWN * 0.03 + RIGHT * 0.30,
+            end=refiner_box[0].get_top() + UP * 0.03,
+            buff=0.04,
+            color=BLUE,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
+        )
+
+        thesis_caption = Tex("fixed prompt = same semantic concept", color=INK, font_size=24)
+        thesis_caption.move_to(DOWN * 1.03 + LEFT * 0.20)
+        variation_note = Tex("vary the latent = different exemplar", color=MGREY, font_size=20)
+        variation_note.next_to(thesis_caption, DOWN, buff=0.10)
+        variation_note.align_to(thesis_caption, LEFT)
 
         overlay_group = Group(
-            panel,
-            prompt_chip,
-            condition_label,
+            dim,
+            line,
+            reference,
+            prompt_group,
+            text_encoder,
+            embedding_group,
+            prompt_to_encoder,
+            encoder_to_embedding,
             noisy_latent,
-            noisy_latent_label,
-            model,
-            prompt_arrow,
-            latent_arrow,
-            eps_u_group,
-            eps_c_group,
-            uncond_arrow,
-            cond_arrow,
-            guidance_formula,
-            strength_note,
-            guided_arrow,
-            guided_latent,
-            guided_latent_label,
+            noisy_group_label,
+            base_box,
+            rough_latent,
+            refiner_box,
+            clean_latent,
+            clean_group_label,
+            decoder_box,
+            final_image,
+            final_label,
+            noise_to_base,
+            base_to_rough,
+            rough_to_refiner,
+            refiner_to_clean,
+            clean_to_decoder,
+            decoder_to_image,
+            embedding_to_base,
+            embedding_to_refiner,
+            thesis_caption,
+            variation_note,
         )
 
         add_board_state(
@@ -579,61 +685,75 @@ class Diffusion04PromptGuidance(Scene):
             show_top_highlight=True,
             show_bottom_highlight=True,
         )
-        self.add(reference)
 
-        self.play(FadeIn(line, shift=UP * 0.08), run_time=0.6)
-        self.wait(0.9)
+        self.play(FadeIn(dim), FadeIn(reference), FadeIn(line, shift=UP * 0.08), run_time=0.7)
+        self.play(FadeIn(prompt_group, shift=UP * 0.04), run_time=0.7)
         self.play(
-            FadeIn(top_dim),
-            Create(reverse_focus),
-            FadeIn(focus_label, shift=UP * 0.04),
+            FadeIn(text_encoder, scale=0.96),
+            Create(prompt_to_encoder),
             run_time=0.8,
         )
         self.play(
-            FadeIn(panel, scale=0.98),
-            LaggedStart(
-                FadeIn(prompt_chip, shift=UP * 0.05),
-                FadeIn(condition_label, shift=UP * 0.05),
-                FadeIn(noisy_latent, scale=0.96),
-                FadeIn(noisy_latent_label, shift=UP * 0.04),
-                FadeIn(model, scale=0.96),
-                Create(prompt_arrow),
-                Create(latent_arrow),
-                lag_ratio=0.10,
-            ),
-            run_time=1.3,
+            Create(encoder_to_embedding),
+            FadeIn(embedding_block, scale=0.96),
+            FadeIn(embedding_label, shift=UP * 0.03),
+            run_time=0.8,
         )
         self.play(
-            LaggedStart(
-                Create(uncond_arrow),
-                FadeIn(eps_u_group, shift=RIGHT * 0.05),
-                Create(cond_arrow),
-                FadeIn(eps_c_group, shift=RIGHT * 0.05),
-                lag_ratio=0.10,
-            ),
-            run_time=1.1,
+            Create(embedding_to_base),
+            Create(embedding_to_refiner),
+            run_time=0.8,
         )
         self.play(
-            FadeIn(guidance_formula, shift=UP * 0.05),
-            FadeIn(strength_note, shift=UP * 0.04),
+            FadeIn(noisy_latent, scale=0.96),
+            FadeIn(noisy_group_label, shift=UP * 0.03),
+            FadeIn(base_box, scale=0.96),
+            Create(noise_to_base),
+            run_time=0.8,
+        )
+        self.play(
+            Indicate(base_box[0], color=BLUE, scale_factor=1.02),
+            Create(base_to_rough),
+            FadeIn(rough_latent, scale=0.96),
             run_time=0.9,
         )
         self.play(
-            Create(guided_arrow),
-            FadeIn(guided_latent, scale=0.96),
-            FadeIn(guided_latent_label, shift=UP * 0.04),
+            FadeIn(refiner_box, scale=0.96),
+            Create(rough_to_refiner),
+            run_time=0.7,
+        )
+        self.play(
+            Indicate(refiner_box[0], color="#7CB66F", scale_factor=1.02),
+            Create(refiner_to_clean),
+            FadeIn(clean_latent, scale=0.96),
+            FadeIn(clean_group_label, shift=UP * 0.03),
             run_time=0.9,
         )
+        self.play(
+            FadeIn(decoder_box, scale=0.96),
+            Create(clean_to_decoder),
+            run_time=0.7,
+        )
+        self.play(
+            Indicate(decoder_box[0], color="#C77C6E", scale_factor=1.02),
+            Create(decoder_to_image),
+            FadeIn(final_image, scale=0.96),
+            FadeIn(final_label, shift=UP * 0.03),
+            run_time=0.9,
+        )
+        self.play(
+            FadeIn(thesis_caption, shift=UP * 0.03),
+            FadeIn(variation_note, shift=UP * 0.03),
+            run_time=0.8,
+        )
+        self.play(
+            Indicate(prompt_text, color=BLUE, scale_factor=1.02),
+            Indicate(final_image[1], color=BLUE, scale_factor=1.02),
+            run_time=0.9,
+        )
+        self.wait(0.6)
+        self.play(FadeOut(overlay_group, shift=DOWN * 0.04), run_time=1.0)
         self.wait(1.0)
-        self.play(
-            FadeOut(line, shift=UP * 0.06),
-            FadeOut(top_dim),
-            FadeOut(focus_label, shift=UP * 0.04),
-            FadeOut(overlay_group, shift=DOWN * 0.04),
-            Uncreate(reverse_focus),
-            run_time=1.0,
-        )
-        self.wait(1.4)
 
 
 class Diffusion05BigPicture(Scene):
