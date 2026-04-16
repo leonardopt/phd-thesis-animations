@@ -4261,42 +4261,18 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             run_time=0.75,
         )
         self.play(
-            LaggedStart(
-                GrowArrow(
-                    ctx["delay_end_chance_arrow"],
-                    rate_func=smooth,
-                ),
-                ShowPassingFlash(
-                    ctx["delay_end_chance_arrow"].copy()
-                    .set_color(_D_RED)
-                    .set_stroke(
-                        width=7.0,
-                        opacity=0.42,
-                    ),
-                    time_width=0.50,
-                ),
-                lag_ratio=0.06,
+            GrowArrow(
+                ctx["delay_end_chance_arrow"],
+                rate_func=smooth,
             ),
-            run_time=0.80,
+            run_time=0.72,
         )
         for _ in range(3):
             self.play(
-                AnimationGroup(
-                    ctx["delay_end_chance_arrow"].animate(
-                        rate_func=there_and_back,
-                    ).shift(DOWN * 0.08),
-                    ShowPassingFlash(
-                        ctx["delay_end_chance_arrow"].copy()
-                        .set_color(_D_RED)
-                        .set_stroke(
-                            width=6.0,
-                            opacity=0.28,
-                        ),
-                        time_width=0.35,
-                    ),
-                    lag_ratio=0.0,
-                ),
-                run_time=0.32,
+                ctx["delay_end_chance_arrow"].animate(
+                    rate_func=there_and_back,
+                ).shift(DOWN * 0.045),
+                run_time=0.42,
             )
         self.wait(2.0)
 

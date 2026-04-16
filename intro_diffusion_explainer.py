@@ -900,15 +900,15 @@ class Diffusion04WhyItMattersForThesis(Scene):
         takeaway_1 = Tex("same prompt = same semantic content", color=INK, font_size=22)
         takeaway_2 = Tex("latent variation = controlled perceptual differences", color=MGREY, font_size=22)
         takeaway_group = VGroup(takeaway_1, takeaway_2).arrange(DOWN, aligned_edge=LEFT, buff=0.08)
-        takeaway_group.move_to(LEFT * 2.75 + DOWN * 2.05)
+        takeaway_group.move_to(LEFT * 3.05 + DOWN * 2.00)
 
-        study1_box = make_labeled_box("Study 1: perceptual scaling", width=2.75, height=0.88, color=MGREY, font_size=20)
-        study2_box = make_labeled_box("Study 2: memory + fMRI", width=2.55, height=0.88, color=BLUE, font_size=20)
-        study1_box.move_to(RIGHT * 0.20 + DOWN * 2.20)
-        study2_box.move_to(RIGHT * 3.25 + DOWN * 2.20)
+        study1_box = make_labeled_box("Study 1: perceptual scaling", width=3.05, height=0.88, color=MGREY, font_size=18)
+        study2_box = make_labeled_box("Study 2: memory + fMRI", width=2.75, height=0.88, color=BLUE, font_size=18)
+        study1_box.move_to(RIGHT * 0.65 + DOWN * 2.25)
+        study2_box.move_to(RIGHT * 4.10 + DOWN * 2.25)
 
         study_arrow_1 = Arrow(
-            start=continuum_cards[1].get_bottom() + DOWN * 0.08,
+            start=continuum_cards[1].get_bottom() + DOWN * 0.06,
             end=study1_box.get_top() + UP * 0.04,
             buff=0.05,
             color=MGREY,
@@ -916,7 +916,7 @@ class Diffusion04WhyItMattersForThesis(Scene):
             tip_shape=StealthTip,
         )
         study_arrow_2 = Arrow(
-            start=continuum_cards[2].get_bottom() + DOWN * 0.08,
+            start=continuum_cards[2].get_bottom() + DOWN * 0.06,
             end=study2_box.get_top() + UP * 0.04,
             buff=0.05,
             color=BLUE,
