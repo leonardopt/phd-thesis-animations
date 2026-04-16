@@ -1,16 +1,406 @@
+from pathlib import Path
+
 from manim import *
 
 config.background_color = WHITE
 
+ROOT = Path(__file__).resolve().parents[1]
+SIMPLE_FIGURE_PATH = ROOT / "assets" / "images" / "study1_stage3" / "behaviour_agg.svg"
+STUDY2_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01timeres.svg"
+STUDY2_GLM_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01glm.svg"
+
+INK = "#262626"
+PURPLE = "#7B51A0"
+GREEN = "#3C9553"
+
+
+def _get_hex(color) -> str | None:
+    return color.to_hex().upper() if color else None
+
+
+def _load_svg(path: Path, *, frame_width_ratio: float, frame_height_ratio: float) -> SVGMobject:
+    svg = SVGMobject(str(path))
+    frame_width = config.frame_width * frame_width_ratio
+    frame_height = config.frame_height * frame_height_ratio
+    svg.scale(min(frame_width / svg.width, frame_height / svg.height))
+    svg.center()
+    return svg
+
+
+def _hide_background_rect(svg: SVGMobject) -> None:
+    for submob in svg.submobjects:
+        if _get_hex(submob.get_stroke_color()) == "#FFFFFF" and _get_hex(submob.get_fill_color()) == "#FFFFFF":
+            if submob.width > 0.9 * svg.width and submob.height > 0.9 * svg.height:
+                submob.set_stroke(opacity=0)
+                submob.set_fill(opacity=0)
+                return
+
+
+def _timeres_select_many(svg: SVGMobject, *, stroke_hex: str | None = None, fill_hex: str | None = None, min_points: int = 0):
+    stroke_hex = stroke_hex.upper() if stroke_hex else None
+    fill_hex = fill_hex.upper() if fill_hex else None
+
+    matches = []
+    for submob in svg.submobjects:
+        point_count = len(submob.get_all_points())
+        if point_count < min_points:
+            continue
+
+        stroke_value = _get_hex(submob.get_stroke_color())
+        fill_value = _get_hex(submob.get_fill_color())
+
+        if stroke_hex and stroke_value != stroke_hex:
+            continue
+
+        if fill_hex and fill_value != fill_hex:
+            continue
+
+        matches.append(submob)
+
+    return matches
+
+
+def _timeres_select_single(svg: SVGMobject, *, stroke_hex: str | None = None, fill_hex: str | None = None, min_points: int = 0):
+    matches = _timeres_select_many(svg, stroke_hex=stroke_hex, fill_hex=fill_hex, min_points=min_points)
+    if len(matches) != 1:
+        raise ValueError(f"Expected 1 match, found {len(matches)} for stroke={stroke_hex} fill={fill_hex}")
+    return matches[0]
+
+
+def _timeres_plot_frame(svg: SVGMobject) -> VGroup:
+    return VGroup(*_timeres_select_many(svg, stroke_hex=INK, min_points=4))
+
+
+def _timeres_dark_text_paths(svg: SVGMobject) -> list[VMobject]:
+    return [
+        submob
+        for submob in svg.submobjects
+        if _get_hex(submob.get_fill_color()) == INK and submob.get_fill_opacity() > 0.5
+    ]
+
+
+def _timeres_axis_text_groups(svg: SVGMobject) -> tuple[VGroup, VGroup, VGroup, VGroup]:
+    plot_frame = _timeres_plot_frame(svg)
+    left = plot_frame.get_left()[0]
+    bottom = plot_frame.get_bottom()[1]
+    width = plot_frame.width
+    height = plot_frame.height
+    dark_text = _timeres_dark_text_paths(svg)
+
+    x_title = VGroup(*[submob for submob in dark_text if submob.get_center()[1] < bottom - 0.10 * height])
+    y_title = VGroup(*[submob for submob in dark_text if submob.get_center()[0] < left - 0.20 * width])
+    x_ticks = VGroup(
+        *[
+            submob
+            for submob in dark_text
+            if bottom - 0.13 * height < submob.get_center()[1] < bottom - 0.03 * height
+        ]
+    )
+    y_ticks = VGroup(
+        *[
+            submob
+            for submob in dark_text
+            if left - 0.18 * width < submob.get_center()[0] < left - 0.05 * width
+        ]
+    )
+
+    return x_title, y_title, x_ticks, y_ticks
+
+
+def _timeres_hide_axis_titles(svg: SVGMobject) -> None:
+    x_title, y_title, _, _ = _timeres_axis_text_groups(svg)
+    x_title.set_opacity(0)
+    y_title.set_opacity(0)
+
+
+def _timeres_hide_idealized_hrfs(svg: SVGMobject) -> None:
+    plot_frame = _timeres_plot_frame(svg)
+    cutoff_y = plot_frame.get_top()[1] - 0.22 * plot_frame.height
+    target_colors = {GREEN, PURPLE, "#7570B3", "#000000"}
+
+    for submob in svg.submobjects:
+        stroke_value = _get_hex(submob.get_stroke_color())
+        fill_value = _get_hex(submob.get_fill_color())
+
+        if submob.get_center()[1] < cutoff_y:
+            continue
+
+        if stroke_value in target_colors or fill_value in target_colors:
+            submob.set_opacity(0)
+
+
+def _timeres_axis_titles(svg: SVGMobject) -> VGroup:
+    plot_frame = _timeres_plot_frame(svg)
+    _, _, x_ticks, y_ticks = _timeres_axis_text_groups(svg)
+
+    x_title = Tex(r"Test time (s)", color=BLACK)
+    x_title.scale_to_fit_width(plot_frame.width * 0.42)
+    x_title.next_to(x_ticks, DOWN, buff=0.12)
+
+    y_title = Tex(r"Accuracy", color=BLACK)
+    y_title.rotate(PI / 2)
+    y_title.scale_to_fit_height(plot_frame.height * 0.26)
+    y_title.next_to(y_ticks, LEFT, buff=0.16)
+
+    return VGroup(x_title, y_title)
+
+
+def _timeres_significance_bands(svg: SVGMobject) -> VGroup:
+    return VGroup(*_timeres_select_many(svg, stroke_hex="#C49A00", min_points=4))
+
+
+def _glm_plot_frame(svg: SVGMobject) -> VGroup:
+    return VGroup(
+        *[
+            submob
+            for submob in svg.submobjects
+            if _get_hex(submob.get_stroke_color()) == INK and len(submob.get_all_points()) == 4
+        ]
+    )
+
+
+def _glm_group(svg: SVGMobject, color_hex: str, side: str) -> VGroup:
+    frame_center_x = _glm_plot_frame(svg).get_center()[0]
+    color_hex = color_hex.upper()
+
+    return VGroup(
+        *[
+            submob
+            for submob in svg.submobjects
+            if (
+                _get_hex(submob.get_stroke_color()) == color_hex
+                or _get_hex(submob.get_fill_color()) == color_hex
+            )
+            and (
+                submob.get_center()[0] < frame_center_x if side == "left" else submob.get_center()[0] > frame_center_x
+            )
+        ]
+    )
+
+
+def _glm_scatter_points(group: VGroup) -> list[VMobject]:
+    return sorted(
+        [
+            submob
+            for submob in group
+            if submob.get_fill_opacity() < 0.5 and len(submob.get_all_points()) == 32
+        ],
+        key=lambda mob: (mob.get_center()[1], mob.get_center()[0]),
+    )
+
+
+def _glm_summary_marker(group: VGroup) -> tuple[VMobject, VMobject]:
+    filled = [
+        submob
+        for submob in group
+        if submob.get_fill_opacity() > 0.9 and len(submob.get_all_points()) <= 20
+    ]
+    stroked = [
+        submob
+        for submob in group
+        if submob.get_fill_opacity() == 0 and len(submob.get_all_points()) <= 20
+    ]
+
+    if len(filled) != 1 or len(stroked) != 1:
+        raise ValueError(f"Expected one filled and one stroked summary marker, found {len(filled)} and {len(stroked)}")
+
+    return filled[0], stroked[0]
+
+
+def _glm_significance_marker(svg: SVGMobject, color_hex: str, side: str) -> VGroup:
+    plot_top = _glm_plot_frame(svg).get_top()[1]
+    frame_center_x = _glm_plot_frame(svg).get_center()[0]
+    color_hex = color_hex.upper()
+
+    return VGroup(
+        *[
+            submob
+            for submob in svg.submobjects
+            if (
+                _get_hex(submob.get_fill_color()) == color_hex
+                or _get_hex(submob.get_stroke_color()) == color_hex
+            )
+            and submob.get_center()[1] > plot_top
+            and (
+                submob.get_center()[0] < frame_center_x if side == "left" else submob.get_center()[0] > frame_center_x
+            )
+        ]
+    )
+
+
+def _glm_hide_color_groups(svg: SVGMobject) -> None:
+    for submob in svg.submobjects:
+        if _get_hex(submob.get_fill_color()) in {PURPLE, GREEN} or _get_hex(submob.get_stroke_color()) in {PURPLE, GREEN}:
+            submob.set_opacity(0)
+
+
+def _glm_bottom_label(plot_frame: VGroup, x: float, tex: str) -> MathTex:
+    label = MathTex(tex, color=BLACK)
+    label.scale_to_fit_width(plot_frame.width * 0.21)
+    label.move_to([x, plot_frame.get_bottom()[1] - 0.19, 0.0])
+    return label
+
+
 class SimpleFigure(Scene):
     def construct(self):
-        fig = SVGMobject(
-            "/Users/leonardo/phd-thesis-animations/assets/images/study1_stage3/behaviour_agg.svg"
-        )
-        fig.scale_to_fit_width(8)
-        fig.center()
+        fig = _load_svg(SIMPLE_FIGURE_PATH, frame_width_ratio=0.56, frame_height_ratio=0.72)
         fig.set_opacity(0)
 
         self.add(fig)
         self.play(fig.animate.set_opacity(1), run_time=2)
+        self.wait(1)
+
+
+class Study2TimeResLineTest(Scene):
+    def construct(self):
+        svg = _load_svg(STUDY2_TIMERES_PATH, frame_width_ratio=0.62, frame_height_ratio=0.62)
+        _hide_background_rect(svg)
+        _timeres_hide_axis_titles(svg)
+        _timeres_hide_idealized_hrfs(svg)
+
+        plot_base = svg.copy()
+        _hide_background_rect(plot_base)
+        _timeres_hide_axis_titles(plot_base)
+        _timeres_hide_idealized_hrfs(plot_base)
+
+        animated_line = _timeres_select_single(svg, stroke_hex="#000000", min_points=50)
+        ci_band = _timeres_select_single(svg, fill_hex="#6E6E6E", min_points=100)
+        significance_bands = _timeres_significance_bands(svg)
+
+        _timeres_select_single(plot_base, stroke_hex="#000000", min_points=50).set_opacity(0)
+        _timeres_select_single(plot_base, fill_hex="#6E6E6E", min_points=100).set_opacity(0)
+        _timeres_significance_bands(plot_base).set_opacity(0)
+
+        plot_frame = _timeres_plot_frame(plot_base)
+        plot_rest = VGroup(*[submob for submob in plot_base.submobjects if submob not in plot_frame.submobjects])
+        axis_titles = _timeres_axis_titles(plot_base)
+
+        ci_band.set_stroke(opacity=0)
+        ci_band.set_fill(color="#6E6E6E", opacity=0.28)
+        ci_band.set_z_index(1)
+
+        animated_line.set_fill(opacity=0)
+        animated_line.set_stroke(color=BLACK, width=6)
+        animated_line.set_z_index(2)
+
+        significance_bands.set_stroke(color="#C49A00", width=4.8)
+        significance_bands.set_z_index(2)
+
+        self.play(
+            AnimationGroup(
+                Create(plot_frame),
+                FadeIn(plot_rest, shift=UP * 0.08),
+                LaggedStart(Write(axis_titles[0]), Write(axis_titles[1]), lag_ratio=0.15),
+                lag_ratio=0.18,
+            ),
+            run_time=1.8,
+        )
+        self.play(Create(animated_line), run_time=2.6)
+        self.play(
+            AnimationGroup(
+                FadeIn(ci_band),
+                LaggedStart(*[Create(band) for band in significance_bands], lag_ratio=0.12),
+                lag_ratio=0.0,
+            ),
+            run_time=0.9,
+        )
+        self.wait(1)
+
+
+class Study2TimeResElementsTest(Scene):
+    def construct(self):
+        svg = _load_svg(STUDY2_TIMERES_PATH, frame_width_ratio=0.62, frame_height_ratio=0.62)
+        _hide_background_rect(svg)
+        _timeres_hide_axis_titles(svg)
+        _timeres_hide_idealized_hrfs(svg)
+
+        base = svg.copy()
+        _hide_background_rect(base)
+        _timeres_hide_axis_titles(base)
+        _timeres_hide_idealized_hrfs(base)
+
+        band = _timeres_select_single(svg, fill_hex="#6E6E6E", min_points=100)
+        main_line = _timeres_select_single(svg, stroke_hex="#000000", min_points=50)
+        significance_bands = _timeres_significance_bands(svg)
+
+        _timeres_select_single(base, fill_hex="#6E6E6E", min_points=100).set_opacity(0)
+        _timeres_select_single(base, stroke_hex="#000000", min_points=50).set_opacity(0)
+        _timeres_significance_bands(base).set_opacity(0)
+        base.set_opacity(0.22)
+
+        band.set_stroke(opacity=0)
+        band.set_fill(color=GREY_BROWN, opacity=0.22)
+
+        main_line.set_fill(opacity=0)
+        main_line.set_stroke(color=BLACK, width=6)
+
+        significance_bands.set_stroke(color="#C49A00", width=4.8)
+        axis_titles = _timeres_axis_titles(base)
+
+        self.play(FadeIn(base, shift=UP * 0.08), Write(axis_titles), run_time=1.4)
+        self.play(Create(main_line), run_time=2.2)
+        self.play(
+            AnimationGroup(
+                FadeIn(band),
+                LaggedStart(*[Create(sig_band) for sig_band in significance_bands], lag_ratio=0.12),
+                lag_ratio=0.0,
+            ),
+            run_time=0.9,
+        )
+        self.wait(1)
+
+
+class Study2GLMScatterRevealTest(Scene):
+    def construct(self):
+        svg = _load_svg(STUDY2_GLM_PATH, frame_width_ratio=0.68, frame_height_ratio=0.76)
+        _hide_background_rect(svg)
+
+        base = svg.copy()
+        _hide_background_rect(base)
+        _glm_hide_color_groups(base)
+
+        plot_frame = _glm_plot_frame(base)
+        plot_rest = VGroup(*[submob for submob in base.submobjects if submob not in plot_frame.submobjects])
+
+        left_group = _glm_group(svg, PURPLE, "left")
+        right_group = _glm_group(svg, GREEN, "right")
+
+        left_points = _glm_scatter_points(left_group)
+        right_points = _glm_scatter_points(right_group)
+        left_fill, left_stroke = _glm_summary_marker(left_group)
+        right_fill, right_stroke = _glm_summary_marker(right_group)
+        left_sig = _glm_significance_marker(svg, PURPLE, "left")
+        right_sig = _glm_significance_marker(svg, GREEN, "right")
+
+        left_label = _glm_bottom_label(plot_frame, left_group.get_center()[0], r"S_2 \rightarrow S_1")
+        right_label = _glm_bottom_label(plot_frame, right_group.get_center()[0], r"S_2 \rightarrow D_1")
+
+        self.play(
+            AnimationGroup(
+                Create(plot_frame),
+                FadeIn(plot_rest, shift=UP * 0.08),
+                lag_ratio=0.18,
+            ),
+            run_time=1.4,
+        )
+        self.play(
+            AnimationGroup(
+                LaggedStart(*[FadeIn(dot, scale=0.75) for dot in left_points], lag_ratio=0.04),
+                AnimationGroup(GrowFromCenter(left_fill), Create(left_stroke), lag_ratio=0.0),
+                FadeIn(left_sig, shift=UP * 0.05),
+                Write(left_label),
+                lag_ratio=0.18,
+            ),
+            run_time=1.8,
+        )
+        self.play(
+            AnimationGroup(
+                LaggedStart(*[FadeIn(dot, scale=0.75) for dot in right_points], lag_ratio=0.04),
+                AnimationGroup(GrowFromCenter(right_fill), Create(right_stroke), lag_ratio=0.0),
+                FadeIn(right_sig, shift=UP * 0.05),
+                Write(right_label),
+                lag_ratio=0.18,
+            ),
+            run_time=1.8,
+        )
         self.wait(1)

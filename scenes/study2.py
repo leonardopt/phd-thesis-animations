@@ -5,12 +5,14 @@ Study 2.
   Study2DecodingOverview   — Session 2 stimuli -> feature vectors -> sensory matrix
   Study2WithinSession2Decoding — crossvalidated prediction within Session 2
   Study2CrossSessionDecoding   — train on sensory, test on sensory and memory
+  WithinSession1Decoding      — explain Session 1 within-session decoding and reveal results
 
 Render:
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
     uv run manim scenes/study2.py Study2DecodingOverview -qh
     uv run manim scenes/study2.py Study2WithinSession2Decoding -qh
     uv run manim scenes/study2.py Study2CrossSessionDecoding -qh
+    uv run manim scenes/study2.py WithinSession1Decoding -qh
 """
 from __future__ import annotations
 
@@ -1716,14 +1718,464 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2Decoding):
         uv run manim scenes/study2.py Study2WithinSession2DecodingResults -qh
     """
 
-    def construct(self) -> None:
-        self.camera.background_color = BG
+    def _build_final_frame(self) -> dict[str, Mobject]:
+        title = Tex(
+            "Decoding object-identity during perception from early visual cortex",
+            color=INK,
+            font_size=30,
+        )
+        title.to_edge(UP, buff=0.35)
+
+        matrix_x = -4.67
+        row_centers = self._matrix_row_centers(matrix_x, y_shift=-0.18)
+        matrix_rows = [
+            _make_feature_row(
+                self._row_values(global_idx % len(self._BASE_ROWS), global_idx // 4),
+                color=self._ROW_COLS[global_idx % len(self._ROW_COLS)],
+                cell_w=0.11,
+                cell_h=0.11,
+                gap=0.025,
+            ).move_to(row_centers[global_idx])
+            for global_idx in range(32)
+        ]
+        matrix_body = VGroup(*matrix_rows)
+        run_labels = VGroup(*[
+            Tex(f"run {run_idx + 1}", color=_D_MGREY, font_size=16).next_to(
+                VGroup(*matrix_rows[4 * run_idx : 4 * run_idx + 4]),
+                LEFT,
+                buff=0.52,
+            )
+            for run_idx in range(8)
+        ])
+
+        bracket_h = matrix_body.height + 0.34
+        bracket_arm = 0.13
+        left_bracket = VGroup(
+            Line(UP * (bracket_h / 2), DOWN * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
+            Line(UP * (bracket_h / 2) + RIGHT * bracket_arm, UP * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
+            Line(DOWN * (bracket_h / 2) + RIGHT * bracket_arm, DOWN * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
+        )
+        right_bracket = VGroup(
+            Line(UP * (bracket_h / 2), DOWN * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
+            Line(UP * (bracket_h / 2) + LEFT * bracket_arm, UP * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
+            Line(DOWN * (bracket_h / 2) + LEFT * bracket_arm, DOWN * (bracket_h / 2), color=_D_LGREY, stroke_width=1.8),
+        )
+        left_bracket.next_to(matrix_body, LEFT, buff=0.18)
+        right_bracket.next_to(matrix_body, RIGHT, buff=0.18)
+
+        summary_title = Tex(
+            r"Multivoxel activity patterns\\during perception",
+            color=INK,
+            font_size=24,
+            tex_environment="center",
+        ).scale(0.86).next_to(VGroup(left_bracket, matrix_body, right_bracket), UP, buff=0.20)
+
+        matrix_mid_y = matrix_body.get_center()[1]
+        right_block_y_shift = -0.10
+        svm_label = VGroup(
+            Tex("Linear", color=INK, font_size=20),
+            Tex(r"\textbf{Support Vector Machine}", color=INK, font_size=20),
+            Tex("Classifier", color=INK, font_size=20),
+        ).arrange(DOWN, buff=0.05).move_to(np.array([0.55, matrix_mid_y + right_block_y_shift, 0.0]))
+        question = Tex(
+            "How well can the classifier\\\\discriminate between object-scene\\\\representations during perception?",
+            color=INK,
+            font_size=17,
+            tex_environment="center",
+        ).next_to(svm_label, DOWN, buff=0.22)
+
+        label_col_x = right_bracket.get_right()[0] + 0.58
+        arrow_len = 0.77
+        arrow_center_x = 0.5 * (label_col_x + 0.42 + svm_label.get_left()[0])
+        data_arrow = Arrow(
+            np.array([arrow_center_x - arrow_len / 2, matrix_mid_y + right_block_y_shift, 0.0]),
+            np.array([arrow_center_x + arrow_len / 2, matrix_mid_y + right_block_y_shift, 0.0]),
+            color=_D_MGREY,
+            stroke_width=3.8,
+            buff=0.02,
+            tip_length=0.18,
+        )
+
+        train_col = _D_BLUE
+        test_col = "#EF4444"
+        class_one_col = _D_PURP
+
+        plot_axis_config = {
+            "color": _D_LGREY,
+            "stroke_width": 1.4,
+            "include_ticks": False,
+            "include_tip": False,
+        }
+        train_ax = Axes(
+            x_range=[-2.6, 2.6, 1],
+            y_range=[-1.6, 1.9, 1],
+            x_length=2.70,
+            y_length=1.58,
+            axis_config=plot_axis_config,
+        ).move_to(np.array([4.80, 1.16 + right_block_y_shift, 0.0]))
+        test_ax = Axes(
+            x_range=[-2.6, 2.6, 1],
+            y_range=[-1.6, 1.9, 1],
+            x_length=2.70,
+            y_length=1.58,
+            axis_config=plot_axis_config,
+        ).move_to(np.array([4.80, -1.12 + right_block_y_shift, 0.0]))
+        train_frame = SurroundingRectangle(
+            train_ax, color=train_col, stroke_width=2.0, buff=0.0, corner_radius=0.02,
+        )
+        test_frame = SurroundingRectangle(
+            test_ax, color=test_col, stroke_width=2.0, buff=0.0, corner_radius=0.02,
+        )
+
+        class_examples = Group(*[
+            Group(ImageMobject(path).set_height(0.42))
+            for path in [CAT, PINE, SOFA]
+        ])
+        for icon, col in zip(class_examples, [class_one_col, _D_GREEN, _D_AMBER]):
+            frame = SurroundingRectangle(
+                icon[0],
+                color=col,
+                stroke_width=2.1,
+                buff=0.04,
+                corner_radius=0.06,
+            )
+            icon.add(frame)
+            icon[1].move_to(icon[0].get_center())
+        class_examples.arrange(RIGHT, buff=0.18).move_to(np.array([4.80, 2.54, 0.0]))
+
+        fold_misclassified = [
+            [("blue", 3), ("amber", 1)],
+            [("green", 0)],
+            [("blue", 2), ("amber", 2)],
+            [("blue", 3), ("green", 1), ("amber", 0)],
+            [("green", 2)],
+            [("blue", 2), ("amber", 1)],
+            [("green", 0)],
+            [("blue", 3), ("amber", 2)],
+        ]
+        fold_error_counts = [len(items) for items in fold_misclassified]
+        crossvalidated_accuracy = 100 * (12 * len(fold_error_counts) - sum(fold_error_counts)) / (
+            12 * len(fold_error_counts)
+        )
+
+        def _decision_shift(fold_idx: int) -> tuple[float, float]:
+            return 0.13 * np.sin(0.72 * fold_idx), 0.09 * np.cos(0.86 * fold_idx)
+
+        def _class_centers(fold_idx: int) -> dict[str, tuple[float, float]]:
+            x_shift, y_shift = _decision_shift(fold_idx)
+            return {
+                "blue": (-1.25 + 0.28 * x_shift, -0.02 + 0.20 * y_shift),
+                "green": (0.05 + 0.56 * x_shift, 0.96 + 1.05 * y_shift),
+                "amber": (1.18 + 0.44 * x_shift, -0.06 + 0.22 * y_shift),
+            }
+
+        def _region_fill(col: str) -> ManimColor:
+            return interpolate_color(WHITE, ManimColor(col), 0.58)
+
+        def _clip_polygon_halfplane(
+            poly: list[np.ndarray], normal: np.ndarray, offset: float
+        ) -> list[np.ndarray]:
+            if not poly:
+                return []
+
+            def inside(p: np.ndarray) -> bool:
+                return float(np.dot(normal, p)) <= offset + 1e-9
+
+            def intersect(p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
+                direction = p2 - p1
+                denom = float(np.dot(normal, direction))
+                if abs(denom) < 1e-9:
+                    return p2
+                t = (offset - float(np.dot(normal, p1))) / denom
+                return p1 + t * direction
+
+            clipped: list[np.ndarray] = []
+            for idx in range(len(poly)):
+                prev = poly[idx - 1]
+                curr = poly[idx]
+                prev_in = inside(prev)
+                curr_in = inside(curr)
+                if curr_in:
+                    if not prev_in:
+                        clipped.append(intersect(prev, curr))
+                    clipped.append(curr)
+                elif prev_in:
+                    clipped.append(intersect(prev, curr))
+            return clipped
+
+        def _linear_region_polygon(
+            label: str, centers: dict[str, tuple[float, float]]
+        ) -> list[np.ndarray]:
+            x_min, x_max = -2.45, 2.45
+            y_min, y_max = -1.35, 1.55
+            poly = [
+                np.array([x_min, y_min]),
+                np.array([x_max, y_min]),
+                np.array([x_max, y_max]),
+                np.array([x_min, y_max]),
+            ]
+            c_i = np.array(centers[label], dtype=float)
+            for other_label, other_center in centers.items():
+                if other_label == label:
+                    continue
+                c_j = np.array(other_center, dtype=float)
+                normal = c_j - c_i
+                offset = 0.5 * (float(np.dot(c_j, c_j)) - float(np.dot(c_i, c_i)))
+                poly = _clip_polygon_halfplane(poly, normal, offset)
+                if len(poly) < 3:
+                    return []
+            return poly
+
+        def _decision_regions(ax: Axes, centers: dict[str, tuple[float, float]]) -> VGroup:
+            color_map = {"blue": class_one_col, "green": _D_GREEN, "amber": _D_AMBER}
+            regions = VGroup()
+            for label in ["blue", "green", "amber"]:
+                poly = _linear_region_polygon(label, centers)
+                if len(poly) < 3:
+                    continue
+                region = Polygon(
+                    *[ax.c2p(float(x), float(y)) for x, y in poly],
+                    stroke_width=0.0,
+                )
+                region.set_fill(_region_fill(color_map[label]), opacity=0.92)
+                region.set_z_index(-8)
+                regions.add(region)
+            return regions
+
+        def _error_mark(center: np.ndarray) -> VGroup:
+            anchor = Circle(radius=0.082).move_to(center)
+            mark = Cross(
+                anchor,
+                stroke_color=_D_RED,
+                stroke_width=2.6,
+            ).move_to(center)
+            mark.set_z_index(6)
+            return mark
+
+        def make_train_plot_state(
+            fold_idx: int,
+        ) -> tuple[VGroup, VGroup, VGroup, VGroup]:
+            centers = _class_centers(fold_idx)
+            blue_pts = [
+                (-1.88 + 0.11 * np.sin(0.70 * fold_idx), 0.98 + 0.10 * np.cos(0.52 * fold_idx)),
+                (-1.56 + 0.10 * np.cos(0.94 * fold_idx), 0.56 + 0.10 * np.sin(0.82 * fold_idx)),
+                (-1.42 + 0.11 * np.sin(0.78 * fold_idx), -0.06 + 0.10 * np.cos(1.02 * fold_idx)),
+                (-1.72 + 0.085 * np.cos(0.60 * fold_idx), -0.64 + 0.085 * np.sin(0.76 * fold_idx)),
+                (-1.12 + 0.11 * np.sin(1.02 * fold_idx), 0.34 + 0.10 * np.cos(0.74 * fold_idx)),
+                (-0.76 + 0.10 * np.cos(0.86 * fold_idx), -0.26 + 0.085 * np.sin(0.66 * fold_idx)),
+                (-0.52 + 0.10 * np.sin(0.90 * fold_idx), 0.12 + 0.085 * np.cos(0.80 * fold_idx)),
+                (-0.40 + 0.10 * np.cos(0.74 * fold_idx), -0.38 + 0.085 * np.sin(0.88 * fold_idx)),
+            ]
+            green_pts = [
+                (-0.12 + 0.10 * np.cos(0.86 * fold_idx), 1.34 + 0.075 * np.sin(0.60 * fold_idx)),
+                (0.22 + 0.085 * np.sin(0.84 * fold_idx), 1.06 + 0.085 * np.cos(0.74 * fold_idx)),
+                (0.58 + 0.10 * np.cos(0.92 * fold_idx), 0.78 + 0.085 * np.sin(0.66 * fold_idx)),
+                (0.10 + 0.085 * np.sin(0.70 * fold_idx), 0.62 + 0.085 * np.cos(0.88 * fold_idx)),
+                (0.42 + 0.10 * np.cos(0.98 * fold_idx), 0.44 + 0.085 * np.sin(0.72 * fold_idx)),
+                (-0.20 + 0.085 * np.sin(0.90 * fold_idx), 0.86 + 0.075 * np.cos(0.78 * fold_idx)),
+                (0.72 + 0.10 * np.cos(0.76 * fold_idx), 0.22 + 0.075 * np.sin(0.90 * fold_idx)),
+                (-0.34 + 0.075 * np.sin(0.82 * fold_idx), 0.42 + 0.085 * np.cos(0.84 * fold_idx)),
+            ]
+            amber_pts = [
+                (1.06 + 0.11 * np.cos(0.82 * fold_idx), 0.84 + 0.10 * np.sin(0.70 * fold_idx)),
+                (1.42 + 0.10 * np.sin(0.88 * fold_idx), 0.34 + 0.10 * np.cos(0.64 * fold_idx)),
+                (1.80 + 0.10 * np.cos(1.12 * fold_idx), -0.18 + 0.085 * np.sin(0.88 * fold_idx)),
+                (1.52 + 0.11 * np.sin(0.72 * fold_idx), -0.76 + 0.10 * np.cos(0.98 * fold_idx)),
+                (1.02 + 0.10 * np.cos(1.00 * fold_idx), 0.06 + 0.10 * np.sin(0.84 * fold_idx)),
+                (0.74 + 0.11 * np.sin(1.06 * fold_idx), -0.42 + 0.10 * np.cos(0.90 * fold_idx)),
+                (0.52 + 0.10 * np.cos(0.76 * fold_idx), -0.02 + 0.075 * np.sin(0.86 * fold_idx)),
+                (0.34 + 0.10 * np.sin(0.84 * fold_idx), -0.54 + 0.075 * np.cos(0.72 * fold_idx)),
+            ]
+            blue_group = VGroup(*[
+                Dot(train_ax.c2p(x, y), radius=0.055, color=class_one_col, fill_opacity=0.88)
+                for x, y in blue_pts
+            ])
+            green_group = VGroup(*[
+                Dot(train_ax.c2p(x, y), radius=0.055, color=_D_GREEN, fill_opacity=0.88)
+                for x, y in green_pts
+            ])
+            amber_group = VGroup(*[
+                Dot(train_ax.c2p(x, y), radius=0.055, color=_D_AMBER, fill_opacity=0.88)
+                for x, y in amber_pts
+            ])
+            return _decision_regions(train_ax, centers), blue_group, green_group, amber_group
+
+        def make_test_plot_state(
+            fold_idx: int,
+        ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
+            centers = _class_centers(fold_idx)
+            misclassified = fold_misclassified[fold_idx]
+            blue_pts = [
+                (-1.62 + 0.05 * np.sin(0.72 * fold_idx), 0.86 + 0.05 * np.cos(0.52 * fold_idx)),
+                (-1.30 + 0.05 * np.cos(0.82 * fold_idx), 0.46 + 0.05 * np.sin(0.74 * fold_idx)),
+                (-1.10 + 0.05 * np.sin(0.88 * fold_idx), -0.08 + 0.04 * np.cos(0.80 * fold_idx)),
+                (-0.90 + 0.04 * np.cos(0.78 * fold_idx), 0.18 + 0.05 * np.sin(0.70 * fold_idx)),
+            ]
+            green_pts = [
+                (-0.08 + 0.05 * np.cos(0.84 * fold_idx), 1.18 + 0.05 * np.sin(0.66 * fold_idx)),
+                (0.28 + 0.04 * np.sin(0.78 * fold_idx), 0.94 + 0.05 * np.cos(0.80 * fold_idx)),
+                (0.56 + 0.05 * np.cos(0.88 * fold_idx), 0.62 + 0.04 * np.sin(0.72 * fold_idx)),
+                (-0.18 + 0.04 * np.sin(0.82 * fold_idx), 0.74 + 0.04 * np.cos(0.74 * fold_idx)),
+            ]
+            amber_pts = [
+                (1.24 + 0.05 * np.cos(0.78 * fold_idx), 0.72 + 0.05 * np.sin(0.66 * fold_idx)),
+                (1.44 + 0.04 * np.sin(0.84 * fold_idx), 0.20 + 0.05 * np.cos(0.70 * fold_idx)),
+                (1.52 + 0.05 * np.sin(0.90 * fold_idx), -0.34 + 0.05 * np.cos(0.82 * fold_idx)),
+                (0.98 + 0.04 * np.cos(0.76 * fold_idx), -0.08 + 0.04 * np.sin(0.68 * fold_idx)),
+            ]
+            wrong_positions = {
+                ("blue", 2): (0.42, 0.24),
+                ("blue", 3): (0.98, -0.08),
+                ("green", 0): (1.04, 0.08),
+                ("green", 1): (-0.92, 0.24),
+                ("green", 2): (1.10, -0.18),
+                ("amber", 0): (-0.14, 0.80),
+                ("amber", 1): (-0.88, 0.10),
+                ("amber", 2): (0.28, 0.34),
+            }
+            point_lookup = {"blue": blue_pts, "green": green_pts, "amber": amber_pts}
+            for class_name, idx in misclassified:
+                base_x, base_y = wrong_positions[(class_name, idx)]
+                point_lookup[class_name][idx] = (
+                    base_x + 0.04 * np.sin(0.88 * fold_idx + idx),
+                    base_y + 0.04 * np.cos(0.76 * fold_idx + idx),
+                )
+            blue_group = VGroup(*[
+                Dot(test_ax.c2p(x, y), radius=0.070, color=class_one_col, fill_opacity=0.92)
+                for x, y in blue_pts
+            ])
+            green_group = VGroup(*[
+                Dot(test_ax.c2p(x, y), radius=0.070, color=_D_GREEN, fill_opacity=0.92)
+                for x, y in green_pts
+            ])
+            amber_group = VGroup(*[
+                Dot(test_ax.c2p(x, y), radius=0.070, color=_D_AMBER, fill_opacity=0.92)
+                for x, y in amber_pts
+            ])
+            error_marks = VGroup()
+            error_lookup = {"blue": blue_group, "green": green_group, "amber": amber_group}
+            for class_name, idx in misclassified:
+                error_marks.add(_error_mark(error_lookup[class_name][idx].get_center()))
+            return _decision_regions(test_ax, centers), blue_group, green_group, amber_group, error_marks
+
+        fold_idx = 7
+        train_regions, train_blue_pts, train_green_pts, train_amber_pts = make_train_plot_state(fold_idx)
+        test_regions, test_blue_pts, test_green_pts, test_amber_pts, test_error_marks = make_test_plot_state(fold_idx)
+
+        fold_label = Tex("held-out run 8 / 8", color=INK, font_size=20).move_to(
+            np.array([4.80, -2.42 + right_block_y_shift, 0.0])
+        )
+        accuracy_anchor = MathTex(
+            r"["
+            + r", ".join([
+                rf"{int(round(100 * (12 - n_err) / 12))}\%"
+                for n_err in fold_error_counts
+            ])
+            + r"]",
+            color=INK,
+            font_size=20,
+        ).next_to(fold_label, DOWN, buff=0.16)
+        final_acc = VGroup(
+            Tex("crossvalidated accuracy", color=INK, font_size=20),
+            MathTex(rf"= {crossvalidated_accuracy:.1f}\%", color=INK, font_size=20),
+        ).arrange(RIGHT, buff=0.10).move_to(accuracy_anchor.get_center())
+
+        static_frame = Group(
+            title,
+            summary_title,
+            matrix_body,
+            left_bracket,
+            right_bracket,
+            run_labels,
+            data_arrow,
+            svm_label,
+            question,
+            class_examples,
+            train_ax,
+            train_frame,
+            train_regions,
+            train_blue_pts,
+            train_green_pts,
+            train_amber_pts,
+            test_ax,
+            test_frame,
+            test_regions,
+            test_blue_pts,
+            test_green_pts,
+            test_amber_pts,
+            test_error_marks,
+            final_acc,
+        )
+
+        fade_group = Group(
+            title,
+            summary_title,
+            matrix_body,
+            left_bracket,
+            right_bracket,
+            run_labels,
+            data_arrow,
+            svm_label,
+            class_examples,
+            train_ax,
+            train_frame,
+            train_regions,
+            train_blue_pts,
+            train_green_pts,
+            train_amber_pts,
+            test_ax,
+            test_frame,
+            test_regions,
+            test_blue_pts,
+            test_green_pts,
+            test_amber_pts,
+            test_error_marks,
+            final_acc,
+        )
+        return {
+            "static_frame": static_frame,
+            "fade_group": fade_group,
+            "question": question,
+        }
+
+    def _build_results_end_static(self) -> dict[str, Mobject]:
+        def make_small_icon(img_path: str, frame_col: str) -> Group:
+            img = ImageMobject(img_path).set_height(0.52)
+            frame = SurroundingRectangle(
+                img,
+                color=frame_col,
+                stroke_width=2.2,
+                buff=0.04,
+                corner_radius=0.06,
+            )
+            return Group(img, frame)
+
         question = Tex(
             "How well can the classifier\\\\discriminate between object-scene\\\\representations during perception?",
             color=INK,
             font_size=26,
             tex_environment="center",
-        ).move_to(np.array([-3.15, 1.10, 0.0]))
+        ).move_to(np.array([-3.15, 1.42, 0.0]))
+
+        example_specs = [
+            (SOFA, _D_AMBER, 1, 0.34),
+            (str(_STIM / "ANI-CAT-T00.png"), _D_RED, 3, 1.00),
+            (str(_STIM / "ITE-VAS-T00.png"), _D_PURP, 4, 1.00),
+            (str(_STIM / "PLA-BRI-T00.png"), _D_CYAN, 5, 1.00),
+            (PINE, _D_GREEN, 2, 0.34),
+        ]
+        example_columns = Group()
+        for img_path, frame_col, pattern_idx, opacity in example_specs:
+            icon = make_small_icon(img_path, frame_col)
+            grid = self._make_grid(ORIGIN, frame_col, self._pattern_for_index(pattern_idx))
+            if opacity < 1.0:
+                icon[0].set_opacity(opacity)
+                icon[1].set_stroke(opacity=opacity)
+                grid.set_opacity(opacity)
+            column = Group(icon, grid).arrange(DOWN, buff=0.18)
+            example_columns.add(column)
+        example_columns.arrange(RIGHT, buff=0.22, aligned_edge=UP)
+        example_columns.move_to(np.array([-3.15, -0.02, 0.0]))
 
         results_img = (
             ImageMobject("/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results.png")
@@ -1736,19 +2188,46 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2Decoding):
             color=INK,
             font_size=30,
             tex_environment="center",
-        ).move_to(np.array([-3.10, -1.60, 0.0]))
+        ).move_to(np.array([-3.15, -1.90, 0.0]))
 
-        self.play(FadeIn(question, shift=UP * 0.12), run_time=0.7)
+        frame = Group(question, example_columns, results_img, takeaway)
+        return {
+            "frame": frame,
+            "question": question,
+            "example_columns": example_columns,
+            "results_img": results_img,
+            "takeaway": takeaway,
+        }
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+        layout = self._build_final_frame()
+        static_frame = layout["static_frame"]
+        fade_group = layout["fade_group"]
+        question = layout["question"]
+
+        end_layout = self._build_results_end_static()
+        question_target = end_layout["question"]
+        example_columns = end_layout["example_columns"]
+        results_img = end_layout["results_img"]
+        takeaway = end_layout["takeaway"]
+
+        self.add(static_frame)
         self.wait(0.25)
+
+        self.play(
+            FadeOut(fade_group),
+            Transform(question, question_target),
+            run_time=0.9,
+        )
+        self.play(FadeIn(example_columns, shift=UP * 0.08), run_time=0.65)
+        self.wait(0.7)
+
         self.play(
             FadeIn(results_img, shift=RIGHT * 0.18),
             run_time=0.85,
         )
-        self.wait(0.25)
-        self.play(
-            FadeIn(takeaway, shift=UP * 0.10),
-            run_time=0.65,
-        )
+        self.play(FadeIn(takeaway, shift=UP * 0.10), run_time=0.65)
         self.wait(1.5)
 
 
@@ -1775,11 +2254,12 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
     _TRAIN_PANEL_CENTER = np.array([-4.05, -1.20, 0.0])
     _PERCEPTION_PANEL_CENTER = np.array([1.15, -1.20, 0.0])
     _DELAY_PANEL_CENTER = np.array([4.75, -1.20, 0.0])
-    _TARGET_TEST = _D_PURP
-    _DELAY_TEST = interpolate_color(WHITE, ManimColor(_D_PURP), 0.65)
-    _TRAIN_ACCENT = _D_CYAN
-    _PERCEPTION_ACCENT = _D_PURP
-    _DELAY_ACCENT = interpolate_color(WHITE, ManimColor(_D_PURP), 0.65)
+    _S1_STIM_ACCENT = ManimColor("#A855F7")
+    _TARGET_TEST = _S1_STIM_ACCENT
+    _DELAY_TEST = _D_GREEN
+    _TRAIN_ACCENT = _D_PURP
+    _PERCEPTION_ACCENT = _S1_STIM_ACCENT
+    _DELAY_ACCENT = _D_GREEN
     _TEST_EXAMPLES = [
         (0, 0),
         (1, 0),
@@ -1793,6 +2273,11 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
     _TRAIN_ROW_ORDER = [0, 1, 2, 3, 4, 5, 6, 7]
     _PERCEPTION_ROW_ORDER = [1, 4, 6, 0, 3, 7, 2, 5]
     _DELAY_ROW_ORDER = [6, 2, 7, 4, 1, 5, 0, 3]
+    _PANEL_ROLE_IDX = 0
+    _PANEL_BODY_IDX = 1
+    _PANEL_CONTENT_IDX = 2
+    _ROW_TIME_LABEL_SCALE = 1.16
+    _ROW_PHASE_LABEL_SCALE = 1.22
 
     def _make_session_row(
         self,
@@ -1826,7 +2311,8 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
     def _make_matrix_panel(
         self,
         center: np.ndarray,
-        title_text: str,
+        role_text: str,
+        content_text: str,
         row_values: list[np.ndarray],
         row_colors: list[str],
         *,
@@ -1835,8 +2321,9 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
         cell_h: float = 0.104,
         gap: float = 0.026,
         row_gap: float = 0.048,
-        title_font_size: int = 19,
-    ) -> Group:
+        role_font_size: int = 19,
+        content_font_size: int = 19,
+    ) -> VGroup:
         rows = VGroup(*[
             _make_feature_row(
                 values,
@@ -1854,19 +2341,51 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
         left_bracket.next_to(rows, LEFT, buff=0.05)
         right_bracket.next_to(rows, RIGHT, buff=0.05)
         pattern_group = VGroup(left_bracket, rows, right_bracket)
-        title = Tex(
-            title_text,
-            color=accent_color,
-            font_size=title_font_size,
-            tex_environment="center",
-        ).next_to(pattern_group, DOWN, buff=0.10, aligned_edge=LEFT)
         pattern_group.move_to(center)
-        title.next_to(pattern_group, DOWN, buff=0.10, aligned_edge=LEFT)
-        return Group(title, pattern_group)
+        role_label = Tex(
+            role_text,
+            color=INK,
+            font_size=role_font_size,
+            tex_environment="center",
+        ).next_to(pattern_group, UP, buff=0.16)
+        content_label = Tex(
+            content_text,
+            color=accent_color,
+            font_size=content_font_size,
+            tex_environment="center",
+        ).next_to(pattern_group, DOWN, buff=0.12)
+        return VGroup(role_label, pattern_group, content_label)
 
-    def construct(self) -> None:
-        self.camera.background_color = BG
+    def _make_panel_focus_frame(self, target: Mobject) -> VMobject:
+        return DashedVMobject(
+            SurroundingRectangle(
+                target,
+                color=_D_MGREY,
+                stroke_width=1.6,
+                buff=0.10,
+                corner_radius=0.08,
+            ),
+            num_dashes=44,
+            dashed_ratio=0.48,
+        )
 
+    def _make_decode_arrow(
+        self,
+        source: Mobject,
+        target: Mobject,
+        *,
+        angle: float,
+    ) -> CurvedArrow:
+        return CurvedArrow(
+            source.get_right() + UP * 0.20 + RIGHT * 0.02,
+            target.get_left() + UP * 0.20 + LEFT * 0.02,
+            angle=angle,
+            color=_D_MGREY,
+            stroke_width=1.8,
+            tip_length=0.14,
+        )
+
+    def _build_cross_session_layout(self) -> dict[str, object]:
         slide_title = Tex("Between-session decoding", color=INK, font_size=30)
         slide_title.to_edge(UP, buff=0.18)
 
@@ -1884,6 +2403,13 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
             self._S1_ROW_SCALE,
             self._S1_ROW_CENTER,
         )
+
+        for label_group in (time_lbl2, time_lbl1):
+            for label in label_group:
+                label.scale(self._ROW_TIME_LABEL_SCALE)
+        for label_group in (ph_lbl2, ph_lbl1):
+            for label in label_group:
+                label.scale(self._ROW_PHASE_LABEL_SCALE)
 
         s2_stim_highlights = VGroup(*[
             SurroundingRectangle(
@@ -1909,7 +2435,8 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
 
         train_panel = self._make_matrix_panel(
             self._TRAIN_PANEL_CENTER,
-            r"Stimulation$_2$",
+            "Train",
+            "Stimulation",
             [
                 self._row_values(base_idx, exemplar_idx)
                 for base_idx, exemplar_idx in train_examples
@@ -1922,7 +2449,8 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
         )
         perception_panel = self._make_matrix_panel(
             self._PERCEPTION_PANEL_CENTER,
-            r"Stimulation$_1$",
+            "Test",
+            "Stimulation",
             [
                 self._row_values(base_idx, exemplar_idx)
                 for base_idx, exemplar_idx in perception_examples
@@ -1935,7 +2463,8 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
         )
         delay_panel = self._make_matrix_panel(
             self._DELAY_PANEL_CENTER,
-            r"Delay$_1$",
+            "Test",
+            "Delay",
             [
                 self._delay_row_values(base_idx, exemplar_idx)
                 for base_idx, exemplar_idx in delay_examples
@@ -1946,10 +2475,11 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
             ],
             accent_color=self._DELAY_ACCENT,
         )
+
         train_arrow_targets = [
-            train_panel[0].get_top() + LEFT * 0.48 + UP * 0.02,
-            train_panel[0].get_top() + UP * 0.02,
-            train_panel[0].get_top() + RIGHT * 0.48 + UP * 0.02,
+            train_panel[self._PANEL_BODY_IDX].get_top() + LEFT * 0.48 + UP * 0.02,
+            train_panel[self._PANEL_BODY_IDX].get_top() + UP * 0.02,
+            train_panel[self._PANEL_BODY_IDX].get_top() + RIGHT * 0.48 + UP * 0.02,
         ]
         s2_to_train_arrows = VGroup(*[
             Arrow(
@@ -1963,35 +2493,6 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
             for idx, col, target_point in zip([0, 2, 4], self._COLS, train_arrow_targets)
         ])
 
-        self.play(
-            FadeIn(slide_title),
-            FadeIn(s2_title),
-            FadeIn(s2_row_group),
-            run_time=0.75,
-        )
-        self.wait(0.15)
-
-        self.play(
-            *[mob.animate.set_opacity(0.18) for mob in s2_dim_mobs],
-            LaggedStart(*[Create(hl) for hl in s2_stim_highlights], lag_ratio=0.12),
-            run_time=0.55,
-        )
-
-        self.play(
-            LaggedStart(*[GrowArrow(arr) for arr in s2_to_train_arrows], lag_ratio=0.08),
-            FadeIn(train_panel[0], shift=UP * 0.05),
-            run_time=0.75,
-        )
-        self.play(FadeIn(train_panel[1], shift=UP * 0.06), run_time=0.45)
-        self.wait(0.25)
-
-        self.play(
-            FadeIn(s1_title),
-            FadeIn(s1_row_group),
-            run_time=0.75,
-        )
-        self.wait(0.15)
-
         dim_right_mobs = [
             boxes1[idx] for idx in range(len(boxes1)) if idx not in {0, 1}
         ] + [
@@ -1999,10 +2500,6 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
         ] + [
             ph_lbl1[idx] for idx in range(len(ph_lbl1)) if idx not in {0, 1}
         ] + [dots1]
-        self.play(
-            *[mob.animate.set_opacity(0.18) for mob in dim_right_mobs],
-            run_time=0.35,
-        )
 
         target_box = boxes1[0]
         delay_box = boxes1[1]
@@ -2023,7 +2520,7 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
 
         target_arrow = Arrow(
             target_box.get_bottom() + DOWN * 0.03,
-            perception_panel[0].get_top() + LEFT * 0.12 + UP * 0.02,
+            perception_panel[self._PANEL_BODY_IDX].get_top() + LEFT * 0.12 + UP * 0.02,
             color=self._TARGET_TEST,
             stroke_width=1.7,
             buff=0.02,
@@ -2031,26 +2528,1123 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
         )
         delay_arrow = Arrow(
             delay_box.get_bottom() + DOWN * 0.03,
-            delay_panel[0].get_top() + LEFT * 0.08 + UP * 0.02,
+            delay_panel[self._PANEL_BODY_IDX].get_top() + LEFT * 0.08 + UP * 0.02,
             color=self._DELAY_TEST,
             stroke_width=1.7,
             buff=0.02,
             tip_length=0.12,
         )
 
+        return {
+            "slide_title": slide_title,
+            "s2_title": s2_title,
+            "s2_row_group": s2_row_group,
+            "s2_dim_mobs": s2_dim_mobs,
+            "s2_stim_highlights": s2_stim_highlights,
+            "train_panel": train_panel,
+            "s2_to_train_arrows": s2_to_train_arrows,
+            "s1_title": s1_title,
+            "s1_row_group": s1_row_group,
+            "dim_right_mobs": dim_right_mobs,
+            "target_hi": target_hi,
+            "delay_hi": delay_hi,
+            "perception_panel": perception_panel,
+            "delay_panel": delay_panel,
+            "target_arrow": target_arrow,
+            "delay_arrow": delay_arrow,
+        }
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+        layout = self._build_cross_session_layout()
+        slide_title = layout["slide_title"]
+        s2_title = layout["s2_title"]
+        s2_row_group = layout["s2_row_group"]
+        s2_dim_mobs = layout["s2_dim_mobs"]
+        s2_stim_highlights = layout["s2_stim_highlights"]
+        train_panel = layout["train_panel"]
+        s2_to_train_arrows = layout["s2_to_train_arrows"]
+        s1_title = layout["s1_title"]
+        s1_row_group = layout["s1_row_group"]
+        dim_right_mobs = layout["dim_right_mobs"]
+        target_hi = layout["target_hi"]
+        delay_hi = layout["delay_hi"]
+        perception_panel = layout["perception_panel"]
+        delay_panel = layout["delay_panel"]
+        target_arrow = layout["target_arrow"]
+        delay_arrow = layout["delay_arrow"]
+        train_body = train_panel[self._PANEL_BODY_IDX]
+        perception_body = perception_panel[self._PANEL_BODY_IDX]
+        delay_body = delay_panel[self._PANEL_BODY_IDX]
+
+        train_focus_frame = self._make_panel_focus_frame(train_body)
+        stim_focus_frame = self._make_panel_focus_frame(perception_body)
+        delay_focus_frame = self._make_panel_focus_frame(delay_body)
+        stim_decode_arrow = self._make_decode_arrow(train_body, perception_body, angle=-0.55)
+        delay_decode_arrow = self._make_decode_arrow(train_body, delay_body, angle=-0.34)
+
+        previous_scene = Study2WithinSession2DecodingResults._build_results_end_static(self)
+        previous_frame = previous_scene["frame"]
+        self.add(previous_frame)
+
+        self.play(
+            FadeOut(previous_frame),
+            FadeIn(slide_title),
+            FadeIn(s2_title),
+            FadeIn(s2_row_group),
+            run_time=0.75,
+        )
+        self.wait(0.15)
+
+        self.play(
+            *[mob.animate.set_opacity(0.18) for mob in s2_dim_mobs],
+            LaggedStart(*[Create(hl) for hl in s2_stim_highlights], lag_ratio=0.12),
+            run_time=0.55,
+        )
+
+        self.play(
+            LaggedStart(*[GrowArrow(arr) for arr in s2_to_train_arrows], lag_ratio=0.08),
+            FadeIn(train_panel[self._PANEL_BODY_IDX], shift=UP * 0.06),
+            FadeIn(train_panel[self._PANEL_CONTENT_IDX], shift=UP * 0.04),
+            run_time=0.75,
+        )
+        self.wait(0.25)
+
+        self.play(
+            FadeIn(s1_title),
+            FadeIn(s1_row_group),
+            run_time=0.75,
+        )
+        self.wait(0.15)
+
+        self.play(
+            *[mob.animate.set_opacity(0.18) for mob in dim_right_mobs],
+            run_time=0.35,
+        )
+
         self.play(
             Create(target_hi),
             GrowArrow(target_arrow),
-            FadeIn(perception_panel[0], shift=UP * 0.05),
+            FadeIn(perception_panel[self._PANEL_BODY_IDX], shift=UP * 0.06),
+            FadeIn(perception_panel[self._PANEL_CONTENT_IDX], shift=UP * 0.04),
             run_time=0.55,
         )
-        self.play(FadeIn(perception_panel[1], shift=UP * 0.06), run_time=0.40)
         self.wait(0.20)
         self.play(
             Create(delay_hi),
             GrowArrow(delay_arrow),
-            FadeIn(delay_panel[0], shift=UP * 0.05),
+            FadeIn(delay_panel[self._PANEL_BODY_IDX], shift=UP * 0.06),
+            FadeIn(delay_panel[self._PANEL_CONTENT_IDX], shift=UP * 0.04),
             run_time=0.55,
         )
-        self.play(FadeIn(delay_panel[1], shift=UP * 0.06), run_time=0.40)
-        self.wait(1.6)
+        self.wait(0.50)
+
+        self.play(
+            FadeOut(s2_to_train_arrows),
+            FadeOut(target_arrow),
+            FadeOut(delay_arrow),
+            FadeOut(s2_stim_highlights),
+            FadeOut(target_hi),
+            FadeOut(delay_hi),
+            Create(train_focus_frame),
+            FadeIn(train_panel[self._PANEL_ROLE_IDX], shift=UP * 0.05),
+            run_time=0.45,
+        )
+        self.play(
+            Create(stim_focus_frame),
+            FadeIn(perception_panel[self._PANEL_ROLE_IDX], shift=UP * 0.05),
+            Create(stim_decode_arrow),
+            run_time=0.75,
+        )
+        self.wait(0.85)
+        self.play(
+            ReplacementTransform(stim_focus_frame, delay_focus_frame),
+            FadeOut(perception_panel[self._PANEL_ROLE_IDX], shift=UP * 0.04),
+            FadeIn(delay_panel[self._PANEL_ROLE_IDX], shift=UP * 0.05),
+            ReplacementTransform(stim_decode_arrow, delay_decode_arrow),
+            run_time=0.85,
+        )
+        self.wait(1.2)
+
+
+class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
+    """
+    Start from the last frame of cross-session decoding.
+
+    Render:
+        uv run manim scenes/study2.py Study2CrossSessionDecodingResults -ql
+        uv run manim scenes/study2.py Study2CrossSessionDecodingResults -qh
+    """
+
+    _RESULTS_GLM = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses02ses01glm.png"
+    _RESULTS_TIMERES = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses02ses01timeres.png"
+    _MINI_TRAIN_VALUES = np.array([0.88, 0.26, 0.74, 0.34, 0.94, 0.42, 0.68, 0.20, 0.82])
+    _MINI_STIM_VALUES = np.array([0.84, 0.30, 0.70, 0.38, 0.90, 0.46, 0.64, 0.24, 0.78])
+    _MINI_DELAY_VALUES = np.array([0.20, 0.74, 0.34, 0.58, 0.26, 0.80, 0.42, 0.68, 0.24])
+    _MINI_MATRIX_SCALE = 1.5
+    _TIMERES_TRACE_IDX = 60
+    _TIMERES_SCHEMA_IDXS = {67, 68, 69, 70, 71, 72}
+
+    def _make_small_results_matrix(
+        self,
+        values: np.ndarray,
+        color: str,
+        label: str,
+        *,
+        label_direction: np.ndarray = UP,
+    ) -> VGroup:
+        rows = VGroup(*[
+            _make_feature_row(
+                values[row_idx * 3 : (row_idx + 1) * 3],
+                color=color,
+                cell_w=0.12,
+                cell_h=0.12,
+                gap=0.024,
+            )
+            for row_idx in range(3)
+        ]).arrange(DOWN, buff=0.024)
+        frame = SurroundingRectangle(
+            rows,
+            color=color,
+            stroke_width=1.5,
+            buff=0.045,
+            corner_radius=0.035,
+        )
+        matrix_label = Tex(label, color=color, font_size=13).next_to(
+            frame,
+            label_direction,
+            buff=0.04,
+        )
+        return VGroup(rows, frame, matrix_label).scale(self._MINI_MATRIX_SCALE)
+
+    def _position_small_results_matrix(
+        self,
+        matrix: VGroup,
+        center: np.ndarray,
+        *,
+        label_direction: np.ndarray = UP,
+    ) -> None:
+        rows, frame, label = matrix
+        rows.move_to(center)
+        frame.move_to(rows)
+        label.next_to(frame, label_direction, buff=0.04)
+
+    def _make_partial_path(self, template: VMobject, alpha: float) -> VMobject:
+        partial = template.copy()
+        alpha = float(np.clip(alpha, 0.0, 1.0))
+        if alpha <= 1e-4:
+            partial.set_stroke(opacity=0.0)
+            partial.set_fill(opacity=0.0)
+            return partial
+        partial.pointwise_become_partial(template, 0.0, alpha)
+        return partial
+
+    def _trace_step_proportions(self, trace_template: VMobject, step_count: int) -> np.ndarray:
+        sample_props = np.linspace(0.0, 1.0, 1200)
+        sample_xs = np.array([
+            trace_template.point_from_proportion(float(prop))[0]
+            for prop in sample_props
+        ])
+        target_xs = np.linspace(sample_xs[0], sample_xs[-1], step_count)
+
+        step_props: list[float] = []
+        for target_x in target_xs:
+            idx = int(np.searchsorted(sample_xs, target_x, side="left"))
+            idx = min(max(idx, 0), len(sample_props) - 1)
+            if idx > 0 and abs(sample_xs[idx - 1] - target_x) <= abs(sample_xs[idx] - target_x):
+                idx -= 1
+            step_props.append(float(sample_props[idx]))
+        return np.array(step_props)
+
+    def _build_results_context(self) -> dict:
+        self.camera.background_color = BG
+        layout = self._build_cross_session_layout()
+        test_s1_purple = ManimColor("#A855F7")
+
+        for mob in layout["s2_dim_mobs"]:
+            mob.set_opacity(0.18)
+        for mob in layout["dim_right_mobs"]:
+            mob.set_opacity(0.18)
+
+        train_panel = layout["train_panel"]
+        perception_panel = layout["perception_panel"]
+        delay_panel = layout["delay_panel"]
+        train_body = train_panel[self._PANEL_BODY_IDX]
+        delay_body = delay_panel[self._PANEL_BODY_IDX]
+        train_focus_frame = self._make_panel_focus_frame(train_body)
+        delay_focus_frame = self._make_panel_focus_frame(delay_body)
+        delay_decode_arrow = self._make_decode_arrow(train_body, delay_body, angle=-0.34)
+
+        plot_height = 3.55
+        left_panel_center = np.array([-3.95, -1.15, 0.0])
+        left_panel_shift_x = abs(left_panel_center[0]) * 0.10
+        left_panel_center[0] += left_panel_shift_x
+        glm_plot_center = left_panel_center.copy()
+        glm_plot_center[0] -= abs(left_panel_center[0]) * 0.05
+        suptitle_y = 3.70
+        glm_img = (
+            ImageMobject(self._RESULTS_GLM)
+            .set_height(plot_height)
+            .move_to(glm_plot_center)
+        )
+        glm_title_shift_right = glm_img.width * 0.10
+        glm_title = Tex(
+            r"GLM-based decoding",
+            color=INK,
+            font_size=22,
+        ).move_to(np.array([glm_plot_center[0] + glm_title_shift_right, suptitle_y, 0.0]))
+        takeaway_line_1 = Tex(
+            r"{{Sensory-trained}} classifiers can decode stimulus identity",
+            color=INK,
+            font_size=22,
+        )
+        takeaway_line_1.set_color_by_tex("Sensory-trained", _D_PURP)
+
+        takeaway_line_2 = Tex(
+            r"from the {{stimulation period}}, but do not generalise throughout the {{delay phase}}",
+            color=INK,
+            font_size=22,
+        )
+        takeaway_line_2.set_color_by_tex("stimulation period", test_s1_purple)
+        takeaway_line_2.set_color_by_tex("delay phase", _D_GREEN)
+
+        glm_takeaway = VGroup(
+            takeaway_line_1,
+            takeaway_line_2,
+        ).arrange(DOWN, buff=0.10, center=True)
+        glm_takeaway.move_to(np.array([0.0, -3.42, 0.0]))
+
+        glm_s1_x_frac = 1000.58 / 2204.0
+        glm_d1_x_frac = 1684.62 / 2204.0
+        glm_row_shift_down = plot_height * 0.10
+        glm_bottom_y = 1.86 - glm_row_shift_down
+        glm_train_y = glm_bottom_y + 1.04
+        frame_width_final = 1.5
+        frame_opacity_final = 0.48
+        frame_width_emphasis = 3.0
+
+        glm_train = self._make_small_results_matrix(
+            self._MINI_TRAIN_VALUES,
+            _D_PURP,
+            r"$S_2$",
+            label_direction=UP,
+        )
+        glm_stim_test = self._make_small_results_matrix(
+            self._MINI_STIM_VALUES,
+            test_s1_purple,
+            r"$S_1$",
+            label_direction=DOWN,
+        )
+        glm_delay_test = self._make_small_results_matrix(
+            self._MINI_DELAY_VALUES,
+            _D_GREEN,
+            r"$D_1$",
+            label_direction=DOWN,
+        )
+        glm_train_explainer = VGroup(
+            Tex("Train on", color=INK, font_size=17),
+            Tex("Stimulation", color=_D_PURP, font_size=17),
+            Tex("Session 2", color=_D_PURP, font_size=17),
+        ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+        glm_stim_explainer = VGroup(
+            Tex("Test on", color=INK, font_size=17),
+            Tex("Stimulation", color=test_s1_purple, font_size=17),
+            Tex("Session 1", color=test_s1_purple, font_size=17),
+        ).arrange(DOWN, buff=0.03, aligned_edge=RIGHT)
+        glm_delay_explainer = VGroup(
+            Tex("Test on", color=INK, font_size=17),
+            Tex("Delay", color=_D_GREEN, font_size=17),
+            Tex("Session 1", color=_D_GREEN, font_size=17),
+        ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+
+        glm_left_x = glm_img.get_left()[0] + glm_img.width * glm_s1_x_frac
+        glm_right_x = glm_img.get_left()[0] + glm_img.width * glm_d1_x_frac
+        glm_train_x = (glm_left_x + glm_right_x) / 2
+
+        self._position_small_results_matrix(
+            glm_train,
+            np.array([glm_train_x, glm_train_y, 0.0]),
+            label_direction=UP,
+        )
+        self._position_small_results_matrix(
+            glm_stim_test,
+            np.array([glm_left_x, glm_bottom_y, 0.0]),
+            label_direction=DOWN,
+        )
+        self._position_small_results_matrix(
+            glm_delay_test,
+            np.array([glm_right_x, glm_bottom_y, 0.0]),
+            label_direction=DOWN,
+        )
+        glm_train_explainer.next_to(glm_train[1], RIGHT, buff=0.16)
+        glm_train_explainer.shift(UP * 0.02)
+        glm_stim_explainer.next_to(glm_stim_test[1], LEFT, buff=0.16)
+        glm_delay_explainer.next_to(glm_delay_test[1], RIGHT, buff=0.16)
+
+        for matrix in (glm_train, glm_stim_test, glm_delay_test):
+            matrix[1].set_stroke(width=frame_width_final, opacity=0.0)
+
+        glm_left_arrow = Arrow(
+            glm_train[1].get_bottom() + DOWN * 0.01 + LEFT * 0.15,
+            glm_stim_test[1].get_top() + UP * 0.01,
+            color=_D_MGREY,
+            stroke_width=1.7,
+            buff=0.02,
+            tip_length=0.10,
+        )
+        glm_right_arrow = Arrow(
+            glm_train[1].get_bottom() + DOWN * 0.01 + RIGHT * 0.15,
+            glm_delay_test[1].get_top() + UP * 0.01,
+            color=_D_MGREY,
+            stroke_width=1.7,
+            buff=0.02,
+            tip_length=0.10,
+        )
+
+        right_panel_center = np.array([3.75, -1.15, 0.0])
+        right_panel_shift_x = right_panel_center[0] * 0.10
+        right_panel_center[0] -= right_panel_shift_x
+        timeres_svg = (
+            SVGMobject(str(Path(self._RESULTS_TIMERES).with_suffix(".svg")))
+            .set_height(plot_height)
+            .move_to(right_panel_center)
+        )
+        timeres_trace_template = timeres_svg[self._TIMERES_TRACE_IDX].copy()
+        timeres_frame = VGroup(*[timeres_svg[idx].copy() for idx in [61, 62, 63, 64]])
+        timeres_guides = VGroup(*[timeres_svg[idx].copy() for idx in [2, 3, 4, 5]])
+        timeres_x_ticks = VGroup(*[timeres_svg[idx].copy() for idx in range(6, 13)])
+        timeres_x_title = VGroup(*[timeres_svg[idx].copy() for idx in range(13, 22)])
+        timeres_y_ticks = VGroup(*[timeres_svg[idx].copy() for idx in range(22, 38)])
+        timeres_y_title = VGroup(*[timeres_svg[idx].copy() for idx in range(38, 59)])
+        timeres_chance = timeres_svg[1].copy()
+        timeres_ci = timeres_svg[59].copy()
+        timeres_sig_lines = VGroup(*[timeres_svg[idx].copy() for idx in [65, 66]])
+        timeres_plot_scaffold = VGroup(
+            timeres_frame,
+            timeres_guides,
+            timeres_x_ticks,
+            timeres_x_title,
+            timeres_y_ticks,
+            timeres_y_title,
+        )
+        timeres_title = Tex(
+            r"Raw voxel time series decoding",
+            color=INK,
+            font_size=22,
+        ).move_to(np.array([3.82 - right_panel_shift_x, suptitle_y, 0.0]))
+
+        timeres_trace_step_props = self._trace_step_proportions(timeres_trace_template, 25)
+        timeres_trace_xs = np.linspace(
+            timeres_trace_template.get_left()[0],
+            timeres_trace_template.get_right()[0],
+            25,
+        )
+        timeres_strip_y = timeres_frame.get_top()[1] + 0.76
+        timeres_bin_spacing = timeres_trace_xs[1] - timeres_trace_xs[0]
+        timeres_bin_width = timeres_bin_spacing * 0.74
+        timeres_bin_height = 0.23
+
+        schematic_train = self._make_small_results_matrix(
+            self._MINI_TRAIN_VALUES,
+            _D_PURP,
+            r"$S_2$",
+            label_direction=UP,
+        )
+        self._position_small_results_matrix(
+            schematic_train,
+            np.array([float(np.mean(timeres_trace_xs)), timeres_strip_y + 0.68, 0.0]),
+            label_direction=UP,
+        )
+        schematic_train[1].set_stroke(width=frame_width_final, opacity=frame_opacity_final)
+
+        time_bins = VGroup(*[
+            RoundedRectangle(
+                width=timeres_bin_width,
+                height=timeres_bin_height,
+                corner_radius=0.03,
+                stroke_color=GREY,
+                stroke_width=1.0,
+            ).set_fill(WHITE, opacity=1.0).move_to(np.array([x, timeres_strip_y, 0.0]))
+            for x in timeres_trace_xs
+        ])
+        stim_strip = RoundedRectangle(
+            width=VGroup(*time_bins[:3]).width + 0.08,
+            height=timeres_bin_height + 0.10,
+            corner_radius=0.05,
+            stroke_width=0.0,
+        ).set_fill(test_s1_purple, opacity=0.12).move_to(VGroup(*time_bins[:3]))
+        delay_strip = RoundedRectangle(
+            width=VGroup(*time_bins[3:13]).width + 0.08,
+            height=timeres_bin_height + 0.10,
+            corner_radius=0.05,
+            stroke_width=0.0,
+        ).set_fill(_D_GREEN, opacity=0.12).move_to(VGroup(*time_bins[3:13]))
+        post_strip = RoundedRectangle(
+            width=VGroup(*time_bins[13:]).width + 0.08,
+            height=timeres_bin_height + 0.10,
+            corner_radius=0.05,
+            stroke_width=0.0,
+        ).set_fill(_D_LGREY, opacity=0.18).move_to(VGroup(*time_bins[13:]))
+
+        time_bins_label = VGroup(
+            MathTex(r"S_1", color=test_s1_purple, font_size=18),
+            Tex("over time", color=INK, font_size=15),
+        ).arrange(DOWN, buff=0.02).next_to(
+            VGroup(*time_bins), UP, buff=0.12
+        )
+
+        delay_fixations = VGroup(*[
+            Dot(radius=0.018, color=INK, fill_opacity=0.90).move_to(time_bins[idx])
+            for idx in range(3, 13)
+        ])
+
+        active_target = _box(LAKE)
+        active_target.scale_to_fit_height(timeres_bin_height * 0.82)
+        active_target.move_to(time_bins[0])
+
+        memory_target = _box(LAKE)
+        memory_target.scale_to_fit_height(timeres_bin_height * 0.82)
+        memory_frame = SurroundingRectangle(
+            memory_target,
+            color=test_s1_purple,
+            stroke_width=1.3,
+            buff=0.02,
+            corner_radius=0.03,
+        )
+        memory_item = Group(memory_frame, memory_target)
+        memory_item.move_to(
+            np.array([
+                time_bins[0].get_left()[0] - (memory_item.width / 2) - 0.12,
+                timeres_strip_y,
+                0.0,
+            ])
+        )
+
+        step_tracker = ValueTracker(0)
+
+        def active_step() -> int:
+            return int(np.clip(np.round(step_tracker.get_value()), 0, len(time_bins) - 1))
+
+        def step_center(step_value: float) -> np.ndarray:
+            step_value = float(np.clip(step_value, 0.0, len(time_bins) - 1))
+            low_idx = int(np.floor(step_value))
+            high_idx = min(low_idx + 1, len(time_bins) - 1)
+            alpha = step_value - low_idx
+            return interpolate(time_bins[low_idx].get_center(), time_bins[high_idx].get_center(), alpha)
+
+        def sweep_trace_prop() -> float:
+            step_value = float(np.clip(step_tracker.get_value(), 0.0, len(time_bins) - 1))
+            low_idx = int(np.floor(step_value))
+            high_idx = min(low_idx + 1, len(timeres_trace_step_props) - 1)
+            alpha = step_value - low_idx
+            return float(interpolate(
+                timeres_trace_step_props[low_idx],
+                timeres_trace_step_props[high_idx],
+                alpha,
+            ))
+
+        def phase_color(step_value: float) -> ManimColor:
+            if step_value < 3:
+                return test_s1_purple
+            if step_value < 13:
+                return ManimColor(_D_GREEN)
+            return ManimColor(_D_MGREY)
+
+        active_bin = always_redraw(lambda: RoundedRectangle(
+            width=timeres_bin_width + 0.05,
+            height=timeres_bin_height + 0.07,
+            corner_radius=0.04,
+            stroke_color=phase_color(step_tracker.get_value()),
+            stroke_width=2.0,
+        ).set_fill(phase_color(step_tracker.get_value()), opacity=0.16).move_to(step_center(step_tracker.get_value())))
+        sweep_arrow = always_redraw(lambda: Arrow(
+            schematic_train[1].get_bottom() + DOWN * 0.04,
+            step_center(step_tracker.get_value()) + UP * (timeres_bin_height / 2 + 0.05),
+            color=_D_MGREY,
+            stroke_width=1.6,
+            buff=0.02,
+            tip_length=0.10,
+        ))
+        plot_cursor = always_redraw(lambda: DashedLine(
+            step_center(step_tracker.get_value()) + DOWN * (timeres_bin_height / 2 + 0.05),
+            np.array([
+                step_center(step_tracker.get_value())[0],
+                timeres_frame.get_top()[1] + 0.03,
+                0.0,
+            ]),
+            color=_D_MGREY,
+            stroke_width=1.0,
+            dash_length=0.05,
+            dashed_ratio=0.65,
+        ))
+        timeres_trace = always_redraw(
+            lambda: self._make_partial_path(timeres_trace_template, sweep_trace_prop())
+        )
+        timeres_trace_head = always_redraw(lambda: Dot(
+            timeres_trace_template.point_from_proportion(max(sweep_trace_prop(), 1e-3)),
+            radius=0.040,
+            color=BLACK,
+            fill_opacity=1.0,
+        ).set_stroke(WHITE, width=1.0))
+        timeres_ci.set_z_index(1)
+        timeres_chance.set_z_index(2)
+        timeres_plot_scaffold.set_z_index(2)
+        plot_cursor.set_z_index(3)
+        timeres_sig_lines.set_z_index(3)
+        timeres_trace.set_z_index(4)
+        timeres_trace_head.set_z_index(5)
+
+        return {
+            "layout": layout,
+            "train_focus_frame": train_focus_frame,
+            "delay_focus_frame": delay_focus_frame,
+            "delay_decode_arrow": delay_decode_arrow,
+            "glm_train": glm_train,
+            "glm_stim_test": glm_stim_test,
+            "glm_delay_test": glm_delay_test,
+            "glm_train_explainer": glm_train_explainer,
+            "glm_stim_explainer": glm_stim_explainer,
+            "glm_delay_explainer": glm_delay_explainer,
+            "glm_left_arrow": glm_left_arrow,
+            "glm_right_arrow": glm_right_arrow,
+            "glm_title": glm_title,
+            "glm_img": glm_img,
+            "glm_takeaway": glm_takeaway,
+            "timeres_title": timeres_title,
+            "timeres_plot_scaffold": timeres_plot_scaffold,
+            "timeres_frame": timeres_frame,
+            "timeres_chance": timeres_chance,
+            "timeres_ci": timeres_ci,
+            "timeres_sig_lines": timeres_sig_lines,
+            "schematic_train": schematic_train,
+            "stim_strip": stim_strip,
+            "delay_strip": delay_strip,
+            "post_strip": post_strip,
+            "time_bins": time_bins,
+            "time_bins_label": time_bins_label,
+            "delay_fixations": delay_fixations,
+            "active_target": active_target,
+            "memory_item": memory_item,
+            "active_bin": active_bin,
+            "sweep_arrow": sweep_arrow,
+            "plot_cursor": plot_cursor,
+            "timeres_trace": timeres_trace,
+            "timeres_trace_head": timeres_trace_head,
+            "step_tracker": step_tracker,
+            "frame_width_final": frame_width_final,
+            "frame_opacity_final": frame_opacity_final,
+            "frame_width_emphasis": frame_width_emphasis,
+        }
+
+    def _animate_left_results(self, ctx: dict) -> None:
+        layout = ctx["layout"]
+        glm_train = ctx["glm_train"]
+        glm_stim_test = ctx["glm_stim_test"]
+        glm_delay_test = ctx["glm_delay_test"]
+
+        self.add(
+            layout["slide_title"],
+            layout["s2_title"],
+            layout["s2_row_group"],
+            layout["s1_title"],
+            layout["s1_row_group"],
+            layout["train_panel"][self._PANEL_BODY_IDX],
+            layout["train_panel"][self._PANEL_CONTENT_IDX],
+            layout["train_panel"][self._PANEL_ROLE_IDX],
+            ctx["train_focus_frame"],
+            layout["perception_panel"][self._PANEL_BODY_IDX],
+            layout["perception_panel"][self._PANEL_CONTENT_IDX],
+            layout["delay_panel"][self._PANEL_BODY_IDX],
+            layout["delay_panel"][self._PANEL_CONTENT_IDX],
+            layout["delay_panel"][self._PANEL_ROLE_IDX],
+            ctx["delay_focus_frame"],
+            ctx["delay_decode_arrow"],
+        )
+        self.wait(0.35)
+
+        self.add(glm_train[1], glm_stim_test[1], glm_delay_test[1])
+
+        self.play(
+            FadeOut(layout["slide_title"]),
+            FadeOut(layout["s2_title"]),
+            FadeOut(layout["s2_row_group"]),
+            FadeOut(layout["s1_title"]),
+            FadeOut(layout["s1_row_group"]),
+            FadeOut(ctx["train_focus_frame"]),
+            FadeOut(ctx["delay_focus_frame"]),
+            FadeOut(ctx["delay_decode_arrow"]),
+            FadeOut(layout["train_panel"][self._PANEL_ROLE_IDX]),
+            FadeOut(layout["train_panel"][self._PANEL_CONTENT_IDX]),
+            FadeOut(layout["perception_panel"][self._PANEL_CONTENT_IDX]),
+            FadeOut(layout["delay_panel"][self._PANEL_ROLE_IDX]),
+            FadeOut(layout["delay_panel"][self._PANEL_CONTENT_IDX]),
+            ReplacementTransform(layout["train_panel"][self._PANEL_BODY_IDX], glm_train[0]),
+            ReplacementTransform(
+                layout["perception_panel"][self._PANEL_BODY_IDX],
+                glm_stim_test[0],
+            ),
+            ReplacementTransform(layout["delay_panel"][self._PANEL_BODY_IDX], glm_delay_test[0]),
+            FadeIn(glm_train[2], shift=UP * 0.04),
+            FadeIn(glm_stim_test[2], shift=UP * 0.04),
+            FadeIn(glm_delay_test[2], shift=UP * 0.04),
+            run_time=1.15,
+        )
+        self.play(
+            glm_train[1].animate.set_stroke(width=ctx["frame_width_emphasis"], opacity=1.0),
+            FadeIn(ctx["glm_train_explainer"], shift=RIGHT * 0.06),
+            run_time=0.45,
+        )
+        self.wait(2.0)
+        self.play(
+            GrowArrow(ctx["glm_left_arrow"]),
+            GrowArrow(ctx["glm_right_arrow"]),
+            run_time=0.55,
+        )
+        self.wait(0.45)
+        self.play(
+            glm_stim_test[1].animate.set_stroke(width=ctx["frame_width_emphasis"], opacity=1.0),
+            FadeIn(ctx["glm_stim_explainer"], shift=LEFT * 0.06),
+            run_time=0.45,
+        )
+        self.wait(1.1)
+        self.play(
+            glm_delay_test[1].animate.set_stroke(width=ctx["frame_width_emphasis"], opacity=1.0),
+            FadeIn(ctx["glm_delay_explainer"], shift=RIGHT * 0.06),
+            run_time=0.45,
+        )
+        self.wait(1.2)
+        self.play(
+            glm_train[1].animate.set_stroke(
+                width=ctx["frame_width_final"], opacity=ctx["frame_opacity_final"]
+            ),
+            glm_stim_test[1].animate.set_stroke(
+                width=ctx["frame_width_final"], opacity=ctx["frame_opacity_final"]
+            ),
+            glm_delay_test[1].animate.set_stroke(
+                width=ctx["frame_width_final"], opacity=ctx["frame_opacity_final"]
+            ),
+            run_time=0.35,
+        )
+        self.wait(1.8)
+        self.play(
+            FadeIn(ctx["glm_title"], shift=UP * 0.06),
+            FadeIn(ctx["glm_img"], shift=UP * 0.10),
+            run_time=0.8,
+        )
+        self.wait(2.0)
+
+    def _show_left_results_final_state(self, ctx: dict) -> None:
+        for matrix in (ctx["glm_train"], ctx["glm_stim_test"], ctx["glm_delay_test"]):
+            matrix[1].set_stroke(
+                width=ctx["frame_width_final"],
+                opacity=ctx["frame_opacity_final"],
+            )
+
+        self.add(
+            ctx["glm_train"][0],
+            ctx["glm_train"][1],
+            ctx["glm_train"][2],
+            ctx["glm_stim_test"][0],
+            ctx["glm_stim_test"][1],
+            ctx["glm_stim_test"][2],
+            ctx["glm_delay_test"][0],
+            ctx["glm_delay_test"][1],
+            ctx["glm_delay_test"][2],
+            ctx["glm_left_arrow"],
+            ctx["glm_right_arrow"],
+            ctx["glm_train_explainer"],
+            ctx["glm_stim_explainer"],
+            ctx["glm_delay_explainer"],
+            ctx["glm_title"],
+            ctx["glm_img"],
+        )
+
+    def _animate_right_results(self, ctx: dict) -> None:
+        self.play(
+            FadeIn(ctx["timeres_title"], shift=UP * 0.06),
+            FadeIn(ctx["schematic_train"], shift=UP * 0.06),
+            FadeIn(ctx["stim_strip"], shift=UP * 0.04),
+            FadeIn(ctx["delay_strip"], shift=UP * 0.04),
+            FadeIn(ctx["post_strip"], shift=UP * 0.04),
+            FadeIn(ctx["time_bins"], shift=UP * 0.05),
+            FadeIn(ctx["time_bins_label"], shift=UP * 0.04),
+            run_time=0.9,
+        )
+        self.wait(0.8)
+        self.play(
+            FadeIn(ctx["timeres_plot_scaffold"], shift=UP * 0.08),
+            run_time=0.8,
+        )
+        self.wait(0.25)
+        self.play(FadeIn(ctx["timeres_chance"]), run_time=0.4)
+        self.wait(0.35)
+        self.play(
+            FadeIn(ctx["active_bin"]),
+            GrowArrow(ctx["sweep_arrow"]),
+            FadeIn(ctx["plot_cursor"]),
+            FadeIn(ctx["timeres_trace"]),
+            FadeIn(ctx["timeres_trace_head"]),
+            FadeIn(ctx["active_target"], scale=0.92),
+            run_time=0.45,
+        )
+        self.play(
+            ctx["step_tracker"].animate.set_value(2.0),
+            ctx["active_target"].animate.move_to(ctx["time_bins"][2]),
+            run_time=1.0,
+            rate_func=linear,
+        )
+        self.wait(0.35)
+        self.play(
+            ctx["active_target"].animate.move_to(ctx["memory_item"].get_center()).set_opacity(0.0),
+            FadeIn(ctx["memory_item"]),
+            LaggedStart(*[FadeIn(dot) for dot in ctx["delay_fixations"]], lag_ratio=0.08),
+            run_time=0.55,
+        )
+        self.play(
+            ctx["step_tracker"].animate.set_value(12.0),
+            run_time=2.1,
+            rate_func=linear,
+        )
+        self.wait(0.30)
+        self.play(
+            ctx["step_tracker"].animate.set_value(len(ctx["time_bins"]) - 1),
+            run_time=1.65,
+            rate_func=linear,
+        )
+        self.play(
+            FadeIn(ctx["timeres_ci"]),
+            FadeIn(ctx["timeres_sig_lines"]),
+            run_time=0.6,
+        )
+        self.play(FadeIn(ctx["glm_takeaway"], shift=UP * 0.08), run_time=0.6)
+        self.wait(2.0)
+
+    def construct(self) -> None:
+        ctx = self._build_results_context()
+        self._animate_left_results(ctx)
+        self._animate_right_results(ctx)
+
+
+class Study2CrossSessionDecodingResultsA(Study2CrossSessionDecodingResults):
+    """
+    Part A: stop on the GLM plot summary.
+
+    Render:
+        uv run manim scenes/study2.py Study2CrossSessionDecodingResultsA -ql
+        uv run manim scenes/study2.py Study2CrossSessionDecodingResultsA -qh
+    """
+
+    def construct(self) -> None:
+        ctx = self._build_results_context()
+        self._animate_left_results(ctx)
+        self.wait(2.0)
+
+
+class Study2CrossSessionDecodingResultsB(Study2CrossSessionDecodingResults):
+    """
+    Part B: start from the final GLM summary frame and continue to time-resolved decoding.
+
+    Render:
+        uv run manim scenes/study2.py Study2CrossSessionDecodingResultsB -ql
+        uv run manim scenes/study2.py Study2CrossSessionDecodingResultsB -qh
+    """
+
+    def construct(self) -> None:
+        ctx = self._build_results_context()
+        self._show_left_results_final_state(ctx)
+        self.wait(0.6)
+        self._animate_right_results(ctx)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WithinSession1Decoding
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class WithinSession1Decoding(Study2CrossSessionDecodingResults):
+    """
+    Explain the rationale for within-session decoding in Session 1, then
+    reveal the Session 1 GLM, time-resolved, cross-phase GLM, and
+    temporal-generalisation results in two acts.
+
+    Render:
+        uv run manim scenes/study2.py WithinSession1Decoding -ql
+        uv run manim scenes/study2.py WithinSession1Decoding -qh
+    """
+
+    _RESULTS_GLM = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm.png"
+    _RESULTS_TIMERES = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01timeres.png"
+    _RESULTS_GLM_2 = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm_2_cropped.png"
+    _RESULTS_TEMPGEN = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01tempgen.png"
+    _GLM_ACCENT = _D_PURP
+    _DELAY_ACCENT = _D_GREEN
+
+    def _make_results_heading(self, text: str) -> Tex:
+        return Tex(
+            text,
+            color=_D_MGREY,
+            font_size=22,
+            tex_environment="center",
+        ).next_to(self.slide_title, DOWN, buff=0.12)
+
+    def _make_results_plot(
+        self,
+        path: str,
+        *,
+        title: str,
+        center: np.ndarray,
+        height: float | None = None,
+        width: float | None = None,
+    ) -> Group:
+        plot = SVGMobject(path) if path.lower().endswith(".svg") else ImageMobject(path)
+        if height is not None:
+            plot.set_height(height)
+        if width is not None:
+            plot.set_width(width)
+        plot.move_to(center)
+
+        plot_title = Tex(title, color=INK, font_size=22).move_to(
+            np.array([center[0], self.slide_title.get_bottom()[1] - 0.95, 0.0])
+        )
+        return Group(plot_title, plot)
+
+    def _make_takeaway(self, lines: list[Tex]) -> VGroup:
+        takeaway = VGroup(*lines).arrange(DOWN, buff=0.08, center=True)
+        takeaway.move_to(np.array([0.0, -3.15, 0.0]))
+        return takeaway
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        layout = self._build_cross_session_layout()
+        for mob in layout["s2_dim_mobs"]:
+            mob.set_opacity(0.18)
+        for mob in layout["dim_right_mobs"]:
+            mob.set_opacity(0.18)
+
+        self.slide_title = Tex("Within-session decoding in Session 1", color=INK, font_size=30)
+        self.slide_title.to_edge(UP, buff=0.18)
+        act1_heading = self._make_results_heading(
+            r"1. Is object identity decodable within Session 1?"
+        )
+        act2_heading = self._make_results_heading(
+            r"2. Does the encoding code generalise to the delay?"
+        )
+
+        intro_question = VGroup(
+            Tex(
+                "Cross-session decoding showed that sensory-trained",
+                color=INK,
+                font_size=21,
+            ),
+            Tex(
+                "classifiers do not generalise throughout the full delay.",
+                color=INK,
+                font_size=21,
+            ),
+            Tex(
+                "We now ask whether Session 1 still carries",
+                color=INK,
+                font_size=21,
+            ),
+            Tex(
+                "stimulus-specific information in its own format.",
+                color=INK,
+                font_size=21,
+            ),
+        ).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
+        intro_question.move_to(np.array([-4.00, -1.08, 0.0]))
+
+        repeated_note = Tex(
+            r"Within-Session 1 identity decoding uses repeated stimuli only.",
+            color=_D_MGREY,
+            font_size=18,
+            tex_environment="center",
+        ).move_to(np.array([-4.00, -2.32, 0.0]))
+
+        glm_plot = self._make_results_plot(
+            self._RESULTS_GLM,
+            title="GLM-based decoding",
+            center=np.array([-3.05, -0.10, 0.0]),
+            height=3.55,
+        )
+        timeres_plot = self._make_results_plot(
+            self._RESULTS_TIMERES,
+            title="Time-resolved decoding",
+            center=np.array([3.05, -0.10, 0.0]),
+            height=3.55,
+        )
+
+        act1_takeaway_line_1 = Tex(
+            r"Object identity is decodable within {{encoding}} and within {{delay}}.",
+            color=INK,
+            font_size=24,
+        )
+        act1_takeaway_line_1.set_color_by_tex("encoding", self._GLM_ACCENT)
+        act1_takeaway_line_1.set_color_by_tex("delay", self._DELAY_ACCENT)
+        act1_takeaway_line_2 = Tex(
+            r"Time-resolved decoding shows reliable delay-period information in Session 1.",
+            color=INK,
+            font_size=24,
+            tex_environment="center",
+        )
+        act1_takeaway = self._make_takeaway([
+            act1_takeaway_line_1,
+            act1_takeaway_line_2,
+        ])
+
+        glm2_plot = self._make_results_plot(
+            self._RESULTS_GLM_2,
+            title="Cross-phase GLM decoding",
+            center=np.array([-3.05, -0.15, 0.0]),
+            height=3.42,
+        )
+        tempgen_plot = self._make_results_plot(
+            self._RESULTS_TEMPGEN,
+            title="Temporal generalisation",
+            center=np.array([3.15, -0.12, 0.0]),
+            height=3.55,
+        )
+
+        stim_small = self._make_small_results_matrix(
+            self._row_values(0, 0),
+            self._GLM_ACCENT,
+            r"$S_1$",
+            label_direction=UP,
+        )
+        delay_small = self._make_small_results_matrix(
+            self._delay_row_values(0, 0),
+            self._DELAY_ACCENT,
+            r"$D_1$",
+            label_direction=UP,
+        )
+        self._position_small_results_matrix(
+            stim_small,
+            np.array([-0.95, 2.18, 0.0]),
+            label_direction=UP,
+        )
+        self._position_small_results_matrix(
+            delay_small,
+            np.array([0.95, 2.18, 0.0]),
+            label_direction=UP,
+        )
+        cross_phase_arrow = Arrow(
+            stim_small[1].get_right() + RIGHT * 0.06,
+            delay_small[1].get_left() + LEFT * 0.06,
+            color=_D_MGREY,
+            stroke_width=1.8,
+            buff=0.02,
+            tip_length=0.12,
+        )
+        cross_phase_label = Tex(
+            "Cross-phase test",
+            color=_D_MGREY,
+            font_size=17,
+        ).next_to(cross_phase_arrow, UP, buff=0.08)
+
+        act2_takeaway_line_1 = Tex(
+            r"{{Encoding}} patterns do not generalise cleanly to the {{delay}}.",
+            color=INK,
+            font_size=24,
+        )
+        act2_takeaway_line_1.set_color_by_tex("Encoding", self._GLM_ACCENT)
+        act2_takeaway_line_1.set_color_by_tex("delay", self._DELAY_ACCENT)
+        act2_takeaway_line_2 = Tex(
+            r"Temporal generalisation indicates a distinct, non-stationary code across the trial.",
+            color=INK,
+            font_size=24,
+            tex_environment="center",
+        )
+        act2_takeaway = self._make_takeaway([
+            act2_takeaway_line_1,
+            act2_takeaway_line_2,
+        ])
+
+        self.add(self.slide_title, act1_heading)
+        self.play(
+            FadeIn(layout["s2_title"]),
+            FadeIn(layout["s2_row_group"]),
+            FadeIn(layout["s1_title"]),
+            FadeIn(layout["s1_row_group"]),
+            run_time=0.80,
+        )
+        self.wait(0.15)
+        self.play(
+            layout["s2_title"].animate.set_opacity(0.18),
+            layout["s2_row_group"].animate.set_opacity(0.18),
+            run_time=0.40,
+        )
+        self.play(
+            Create(layout["target_hi"]),
+            Create(layout["delay_hi"]),
+            FadeIn(intro_question, shift=UP * 0.06),
+            FadeIn(repeated_note, shift=UP * 0.04),
+            run_time=0.75,
+        )
+        self.play(
+            GrowArrow(layout["target_arrow"]),
+            GrowArrow(layout["delay_arrow"]),
+            FadeIn(layout["perception_panel"], shift=UP * 0.08),
+            FadeIn(layout["delay_panel"], shift=UP * 0.08),
+            run_time=0.80,
+        )
+        self.wait(1.3)
+
+        self.play(
+            FadeOut(layout["s2_title"]),
+            FadeOut(layout["s2_row_group"]),
+            FadeOut(layout["s1_title"]),
+            FadeOut(layout["s1_row_group"]),
+            FadeOut(layout["target_hi"]),
+            FadeOut(layout["delay_hi"]),
+            FadeOut(layout["target_arrow"]),
+            FadeOut(layout["delay_arrow"]),
+            FadeOut(layout["perception_panel"]),
+            FadeOut(layout["delay_panel"]),
+            FadeOut(intro_question),
+            FadeOut(repeated_note),
+            run_time=0.75,
+        )
+
+        self.play(
+            FadeIn(glm_plot[0], shift=UP * 0.05),
+            FadeIn(glm_plot[1], shift=UP * 0.10),
+            run_time=0.75,
+        )
+        self.wait(1.0)
+        self.play(
+            FadeIn(timeres_plot[0], shift=UP * 0.05),
+            FadeIn(timeres_plot[1], shift=UP * 0.10),
+            run_time=0.75,
+        )
+        self.play(FadeIn(act1_takeaway, shift=UP * 0.08), run_time=0.65)
+        self.wait(1.8)
+
+        self.play(
+            Transform(act1_heading, act2_heading),
+            FadeOut(act1_takeaway, shift=DOWN * 0.06),
+            FadeOut(glm_plot, shift=DOWN * 0.08),
+            FadeOut(timeres_plot, shift=DOWN * 0.08),
+            run_time=0.75,
+        )
+        self.play(
+            FadeIn(stim_small, shift=UP * 0.05),
+            FadeIn(delay_small, shift=UP * 0.05),
+            GrowArrow(cross_phase_arrow),
+            FadeIn(cross_phase_label, shift=UP * 0.04),
+            run_time=0.70,
+        )
+        self.wait(0.45)
+        self.play(
+            FadeIn(glm2_plot[0], shift=UP * 0.05),
+            FadeIn(glm2_plot[1], shift=UP * 0.10),
+            run_time=0.75,
+        )
+        self.wait(1.0)
+        self.play(
+            FadeIn(tempgen_plot[0], shift=UP * 0.05),
+            FadeIn(tempgen_plot[1], shift=UP * 0.10),
+            run_time=0.80,
+        )
+        self.play(FadeIn(act2_takeaway, shift=UP * 0.08), run_time=0.65)
+        self.wait(2.0)
