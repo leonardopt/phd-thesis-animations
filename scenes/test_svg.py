@@ -10,6 +10,7 @@ STUDY2_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_se
 STUDY2_GLM_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01glm.svg"
 STUDY2_TEMPGEN_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses01tempgen.svg"
 STUDY2_WITHIN_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses01timeres.svg"
+STUDY2_TEMP_GEN_MAT_PATH = ROOT / "assets" / "images" / "study2" / "temp_gen_mat.svg"
 
 INK = "#262626"
 PURPLE = "#7B51A0"
@@ -71,6 +72,79 @@ def _plot_frame_from_long_lines(svg: SVGMobject, *, min_span_ratio: float = 0.7)
     bottom = min(horizontals, key=lambda mob: mob.get_center()[1])
     top = max(horizontals, key=lambda mob: mob.get_center()[1])
     return VGroup(left, right, bottom, top)
+
+
+def _tempgen_column_covers(
+    plot_frame: VGroup,
+    *,
+    columns: int = 16,
+    rows: int = 16,
+    inset: float = 0.02,
+) -> list[VGroup]:
+    left = plot_frame.get_left()[0] + inset
+    right = plot_frame.get_right()[0] - inset
+    bottom = plot_frame.get_bottom()[1] + inset
+    top = plot_frame.get_top()[1] - inset
+    cell_width = (right - left) / columns
+    cell_height = (top - bottom) / rows
+
+    column_groups: list[VGroup] = []
+    for column_idx in range(columns):
+        column_group = VGroup()
+        for row_idx in range(rows):
+            cover = Rectangle(
+                width=cell_width + 0.01,
+                height=cell_height + 0.01,
+                stroke_width=0,
+            ).set_fill(WHITE, opacity=1.0)
+            cover.move_to(np.array([
+                left + (column_idx + 0.5) * cell_width,
+                bottom + (row_idx + 0.5) * cell_height,
+                0.0,
+            ]))
+            cover.set_z_index(3.5)
+            column_group.add(cover)
+        column_groups.append(column_group)
+    return column_groups
+
+
+def _tempgen_mat_cells(svg: SVGMobject) -> list[VMobject]:
+    min_cell = svg.width * 0.02
+    max_cell = svg.width * 0.05
+    return [
+        submob
+        for submob in svg.submobjects
+        if (
+            len(submob.get_all_points()) == 16
+            and submob.get_fill_opacity() > 0.9
+            and 0.9 <= (submob.width / max(submob.height, 1e-6)) <= 1.1
+            and min_cell <= submob.width <= max_cell
+            and min_cell <= submob.height <= max_cell
+        )
+    ]
+
+
+def _tempgen_mat_columns(svg: SVGMobject) -> list[VGroup]:
+    cells = sorted(_tempgen_mat_cells(svg), key=lambda mob: (mob.get_center()[0], mob.get_center()[1]))
+    if not cells:
+        return []
+
+    cell_width = np.median([cell.width for cell in cells])
+    threshold = cell_width * 0.6
+    grouped_columns: list[list[VMobject]] = []
+    for cell in cells:
+        if (
+            not grouped_columns
+            or abs(cell.get_center()[0] - grouped_columns[-1][0].get_center()[0]) > threshold
+        ):
+            grouped_columns.append([cell])
+        else:
+            grouped_columns[-1].append(cell)
+
+    return [
+        VGroup(*sorted(column, key=lambda mob: mob.get_center()[1]))
+        for column in grouped_columns
+    ]
 
 
 def _timeres_select_many(svg: SVGMobject, *, stroke_hex: str | None = None, fill_hex: str | None = None, min_points: int = 0):
@@ -577,115 +651,74 @@ class Study2TempGenMatrixTest(Scene):
         plot_frame.set_z_index(4)
         underlay.set_z_index(1)
         overlay.set_z_index(3)
-        underlay.set_opacity(0.18)
-
-        diag_start = plot_frame.get_corner(DL)
-        diag_end = plot_frame.get_corner(UR)
-        diag_color = interpolate_color(ManimColor(PURPLE), ManimColor(GREEN), 0.38)
-        sweep = ValueTracker(0.0)
-
-        def sweep_point(alpha: float) -> np.ndarray:
-            return interpolate(diag_start, diag_end, float(np.clip(alpha, 0.0, 1.0)))
-
-        diag_glow = always_redraw(
-            lambda: Line(
-                diag_start,
-                sweep_point(sweep.get_value()),
-                color=diag_color,
-                stroke_width=18,
-            ).set_stroke(opacity=0.16).set_z_index(5)
-        )
-        diag_trace = always_redraw(
-            lambda: Line(
-                diag_start,
-                sweep_point(sweep.get_value()),
-                color=diag_color,
-                stroke_width=5.5,
-            ).set_stroke(opacity=0.95).set_z_index(6)
-        )
-        cursor_dot = always_redraw(
-            lambda: Dot(
-                sweep_point(sweep.get_value()),
-                radius=0.056,
-                color=interpolate_color(ManimColor(PURPLE), ManimColor(GREEN), sweep.get_value()),
-                fill_opacity=1.0,
-            ).set_stroke(WHITE, width=1.5).set_z_index(7)
-        )
-        x_cursor = always_redraw(
-            lambda: Line(
-                np.array([sweep_point(sweep.get_value())[0], plot_frame.get_bottom()[1] - 0.02, 0.0]),
-                np.array([sweep_point(sweep.get_value())[0], plot_frame.get_bottom()[1] + 0.09, 0.0]),
-                color=diag_color,
-                stroke_width=3.0,
-            ).set_z_index(6)
-        )
-        y_cursor = always_redraw(
-            lambda: Line(
-                np.array([plot_frame.get_left()[0] - 0.09, sweep_point(sweep.get_value())[1], 0.0]),
-                np.array([plot_frame.get_left()[0] + 0.02, sweep_point(sweep.get_value())[1], 0.0]),
-                color=diag_color,
-                stroke_width=3.0,
-            ).set_z_index(6)
-        )
-        x_guide = always_redraw(
-            lambda: DashedLine(
-                np.array([sweep_point(sweep.get_value())[0], plot_frame.get_bottom()[1], 0.0]),
-                sweep_point(sweep.get_value()),
-                color=GREY_B,
-                stroke_width=1.4,
-                dash_length=0.05,
-                dashed_ratio=0.62,
-            ).set_z_index(5)
-        )
-        y_guide = always_redraw(
-            lambda: DashedLine(
-                np.array([plot_frame.get_left()[0], sweep_point(sweep.get_value())[1], 0.0]),
-                sweep_point(sweep.get_value()),
-                color=GREY_B,
-                stroke_width=1.4,
-                dash_length=0.05,
-                dashed_ratio=0.62,
-            ).set_z_index(5)
-        )
-        diag_residue = Line(diag_start, diag_end, color=diag_color, stroke_width=8).set_stroke(opacity=0.18)
-        diag_residue.set_z_index(4)
+        column_covers = _tempgen_column_covers(plot_frame)
+        cover_group = VGroup(*[cover for column in column_covers for cover in column])
 
         self.play(
             FadeIn(title, shift=UP * 0.05),
             AnimationGroup(
                 Create(plot_frame),
                 FadeIn(underlay, shift=UP * 0.08),
-                lag_ratio=0.16,
+                FadeIn(overlay, shift=UP * 0.08),
+                FadeIn(cover_group),
+                lag_ratio=0.12,
             ),
-            run_time=0.85,
-        )
-        self.play(
-            FadeIn(x_cursor),
-            FadeIn(y_cursor),
-            FadeIn(x_guide),
-            FadeIn(y_guide),
-            FadeIn(cursor_dot, scale=0.85),
-            FadeIn(diag_glow),
-            FadeIn(diag_trace),
-            run_time=0.25,
-        )
-        self.play(sweep.animate.set_value(1.0), run_time=1.65, rate_func=smooth)
-        self.play(
-            Flash(diag_end, color=diag_color, line_length=0.18, num_lines=10, flash_radius=0.16),
-            run_time=0.45,
-        )
-        self.play(
-            FadeIn(diag_residue),
-            underlay.animate.set_opacity(0.86),
-            FadeIn(overlay, shift=UP * 0.06),
-            FadeOut(x_cursor),
-            FadeOut(y_cursor),
-            FadeOut(x_guide),
-            FadeOut(y_guide),
-            FadeOut(cursor_dot, scale=1.15),
-            FadeOut(diag_glow),
-            FadeOut(diag_trace),
             run_time=0.95,
         )
-        self.play(FadeOut(diag_residue), run_time=0.35)
+        self.play(
+            LaggedStart(
+                *[
+                    LaggedStart(
+                        *[
+                            FadeOut(cover, scale=0.92)
+                            for cover in column
+                        ],
+                        lag_ratio=0.1,
+                    )
+                    for column in column_covers
+                ],
+                lag_ratio=0.14,
+            ),
+            run_time=2.6,
+        )
+        self.wait(1)
+
+
+class Study2TempGenMatTest(Scene):
+    def construct(self):
+        svg = _load_svg(STUDY2_TEMP_GEN_MAT_PATH, frame_width_ratio=0.54, frame_height_ratio=0.78)
+        _hide_background_rect(svg)
+
+        scaffold = svg.copy()
+        _hide_background_rect(scaffold)
+        for column in _tempgen_mat_columns(scaffold):
+            column.set_opacity(0.0)
+
+        animated_svg = svg.copy()
+        _hide_background_rect(animated_svg)
+        columns = _tempgen_mat_columns(animated_svg)
+        animated_cells = VGroup(*[
+            cell
+            for column in columns
+            for cell in column
+        ])
+        animated_cells.set_z_index(3)
+
+        self.play(FadeIn(scaffold, shift=UP * 0.05), run_time=0.8)
+        self.play(
+            LaggedStart(
+                *[
+                    LaggedStart(
+                        *[
+                            FadeIn(cell, shift=UP * 0.01, scale=0.94)
+                            for cell in column
+                        ],
+                        lag_ratio=0.08,
+                    )
+                    for column in columns
+                ],
+                lag_ratio=0.12,
+            ),
+            run_time=2.8,
+        )
         self.wait(1)

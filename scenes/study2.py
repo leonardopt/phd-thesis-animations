@@ -7,6 +7,12 @@ Study 2.
   Study2CrossSessionDecoding   — train on sensory, test on sensory and memory
   Study2WithinSession1Decoding        — explain the Session 1 within-session rationale
   Study2WithinSession1DecodingResults — reveal Session 1 within-session decoding results
+  Study2LTMResultsExplainer           — one-slide summary of repetition/LTM results
+  Study2SupplementalRoiTimecourses    — compare sensory -> memory time courses across other ROIs
+  Study2SupplementalRoiTimecoursesA   — Train Session 2 -> Test Session 1 ROI time courses
+  Study2SupplementalRoiTimecoursesB   — transition from A into the second SVG time-course panel
+  Study2WithinSession1TrainTestPanel  — static train/test within Session 1 panel
+  Study2SupplementalRoiTempGenMats    — compare temporal-generalisation matrices across all ROIs
 
 Render:
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
@@ -15,12 +21,25 @@ Render:
     uv run manim scenes/study2.py Study2CrossSessionDecoding -qh
     uv run manim scenes/study2.py Study2WithinSession1Decoding -qh
     uv run manim scenes/study2.py Study2WithinSession1DecodingResults -qh
+    uv run manim scenes/study2.py Study2LTMResultsExplainer -qh
+    uv run manim scenes/study2.py Study2SupplementalRoiTimecourses -qh
+    uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesA -qh
+    uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesB -qh
+    uv run manim scenes/study2.py Study2WithinSession1TrainTestPanel -qh
+    uv run manim scenes/study2.py Study2SupplementalRoiTempGenMats -qh
 """
 from __future__ import annotations
 
 import numpy as np
+import re
+import shutil
+import subprocess
+import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
+from PIL import Image
 from manim import *
+from svgelements import Path as SVGPath
 
 # ── Palette ───────────────────────────────────────────────────────────────────
 BG   = WHITE
@@ -3605,7 +3624,7 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
             for idx, boundary in enumerate(event_boundary_times)
         ])
         delay_end_arrow_length = 0.75
-        delay_end_arrow_lift = delay_end_arrow_length * 0.15
+        delay_end_arrow_lift = delay_end_arrow_length * 0.15 * 1.30
         delay_end_chance_arrow = Arrow(
             np.array([
                 time_to_x(10.0),
@@ -4612,6 +4631,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
     _RESULTS_TIMERES = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01timeres.svg"
     _RESULTS_GLM_2 = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm_2.svg"
     _RESULTS_TEMPGEN = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01tempgen.svg"
+    _TEMPGEN_LOGIC_MATRIX = "/Users/leonardo/phd-thesis-animations/assets/images/study2/temp_gen_mat.svg"
+    _TEMPGEN_LOGIC_MATRIX_COLORBAR_FILL = "/Users/leonardo/phd-thesis-animations/assets/images/study2/temp_gen_mat_colorbar_fill.png"
     _CROSSSESSION_RESULTSB_LAST = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_last_frame.png"
     _CROSSSESSION_RESULTSB_LEFT_PLOT = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_left_plot.png"
     _CROSSSESSION_RESULTSB_RIGHT_PLOT = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_right_plot.png"
@@ -5098,11 +5119,16 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             submob
             for submob in svg.submobjects
             if (
-                len(submob.get_all_points()) == 4
-                and submob.get_stroke_opacity() > 0.0
+                submob.get_stroke_opacity() > 0.0
                 and (
-                    submob.width >= svg.width * min_span_ratio
-                    or submob.height >= svg.height * min_span_ratio
+                    (
+                        submob.width >= svg.width * min_span_ratio
+                        and submob.height <= svg.height * 0.12
+                    )
+                    or (
+                        submob.height >= svg.height * min_span_ratio
+                        and submob.width <= svg.width * 0.12
+                    )
                 )
             )
         ]
@@ -5115,6 +5141,41 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         bottom = min(horizontals, key=lambda mob: mob.get_center()[1])
         top = max(horizontals, key=lambda mob: mob.get_center()[1])
         return VGroup(left, right, bottom, top)
+
+    def _make_tempgen_column_covers(
+        self,
+        plot_frame: VGroup,
+        *,
+        columns: int = 16,
+        rows: int = 16,
+        inset: float = 0.02,
+        fill_color: ParsableManimColor = BG,
+    ) -> list[VGroup]:
+        left = plot_frame.get_left()[0] + inset
+        right = plot_frame.get_right()[0] - inset
+        bottom = plot_frame.get_bottom()[1] + inset
+        top = plot_frame.get_top()[1] - inset
+        cell_width = (right - left) / columns
+        cell_height = (top - bottom) / rows
+
+        column_groups: list[VGroup] = []
+        for column_idx in range(columns):
+            column_group = VGroup()
+            for row_idx in range(rows):
+                cover = Rectangle(
+                    width=cell_width + 0.01,
+                    height=cell_height + 0.01,
+                    stroke_width=0.0,
+                ).set_fill(fill_color, opacity=1.0)
+                cover.move_to(np.array([
+                    left + (column_idx + 0.5) * cell_width,
+                    bottom + (row_idx + 0.5) * cell_height,
+                    0.0,
+                ]))
+                cover.set_z_index(3.5)
+                column_group.add(cover)
+            column_groups.append(column_group)
+        return column_groups
 
     def _timeres_select_many(
         self,
@@ -5974,6 +6035,19 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             min_points=50,
         )
         timeres_sig_bands = self._timeres_significance_bands(timeres_svg)
+        zero_line_candidates = [
+            submob
+            for submob in timeres_svg.submobjects
+            if len(submob.get_all_points()) >= 4
+            if self._glm_svg_hex(submob.get_stroke_color()) == "#999999"
+            if submob.width > timeres_source_frame.width * 0.8
+            if submob.width >= submob.height
+        ]
+        zero_line_source = (
+            max(zero_line_candidates, key=lambda mob: mob.width)
+            if zero_line_candidates
+            else None
+        )
         timeres_hrf_rect_sources = VGroup(
             self._timeres_select_single(timeres_svg, fill_hex="#3C9553", min_points=4),
             self._timeres_select_single(timeres_svg, fill_hex="#7570B3", min_points=4),
@@ -6148,6 +6222,15 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         design_start_x = timeres_trace_xs[0]
         design_end_x = timeres_trace_xs[-1]
         event_boundary_times = [2.0, 10.0, 12.5, 14.5]
+        zero_line_y = (
+            self._remap_plot_mobject(
+                zero_line_source.copy(),
+                timeres_source_frame,
+                timeres_frame,
+            ).get_center()[1]
+            if zero_line_source is not None
+            else timeres_frame.get_bottom()[1] + timeres_frame.height * 0.12
+        )
         design_center = np.array([
             (design_start_x + design_end_x) / 2,
             design_strip_y,
@@ -6232,7 +6315,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         ).next_to(intro_timepoint, UP, buff=0.08)
         timeres_train_explainer = VGroup(
             Tex("Train and test on", color=INK, font_size=17),
-            Tex("matching trial TRs", color=INK, font_size=17),
+            Tex("matching trial timepoints", color=INK, font_size=17),
             Tex("Session 1", color=INK, font_size=17),
         ).arrange(DOWN, buff=0.03)
 
@@ -6251,6 +6334,13 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             stroke_width=1.3,
         ).set_fill(WHITE, opacity=0.0).move_to(design_center)
         timeres_train_explainer.next_to(design_frame_target, UP, buff=0.14)
+        explainer_top_limit = min(
+            timeres_title.get_bottom()[1] - 0.08,
+            config.frame_height / 2 - 0.12,
+        )
+        explainer_shift_room = explainer_top_limit - timeres_train_explainer.get_top()[1]
+        if explainer_shift_room > 0.0:
+            timeres_train_explainer.shift(UP * (0.20 * explainer_shift_room))
 
         design_dividers = VGroup(*[
             Line(
@@ -6496,6 +6586,44 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             )
             for boundary in event_boundary_times
         ]).set_z_index(3)
+        delay_end_x = time_to_x(10.0)
+        ci_sample_props = np.linspace(0.0, 1.0, 3200)
+        ci_sample_points = np.array([
+            timeres_ci.point_from_proportion(float(prop))
+            for prop in ci_sample_props
+        ])
+        ci_sample_window = max(timeres_frame.width / 300, 0.015)
+        ci_points_near_delay_end = ci_sample_points[
+            np.abs(ci_sample_points[:, 0] - delay_end_x) <= ci_sample_window
+        ]
+        if len(ci_points_near_delay_end) > 0:
+            delay_end_ci_upper_y = float(np.max(ci_points_near_delay_end[:, 1]))
+        else:
+            delay_end_ci_upper_y = float(
+                ci_sample_points[
+                    int(np.argmin(np.abs(ci_sample_points[:, 0] - delay_end_x))),
+                    1,
+                ]
+            )
+        delay_end_arrow_length = 0.75
+        delay_end_arrow_gap = 0.06
+        delay_end_chance_arrow = Arrow(
+            np.array([
+                delay_end_x,
+                delay_end_ci_upper_y + delay_end_arrow_gap + delay_end_arrow_length,
+                0.0,
+            ]),
+            np.array([
+                delay_end_x,
+                delay_end_ci_upper_y + delay_end_arrow_gap,
+                0.0,
+            ]),
+            color=_D_RED,
+            stroke_width=3.6,
+            buff=0.0,
+            tip_length=0.17,
+            tip_shape=StealthTip,
+        ).set_z_index(4)
 
         timeres_plot_scaffold.set_z_index(2)
         timeres_ci.set_z_index(2.5)
@@ -6518,10 +6646,12 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             timeres_sig_bands,
             timeres_hrf_rectangles,
             timeres_hrf_lines,
+            delay_end_chance_arrow,
         )
 
         ctx["timeres_frame"] = timeres_frame
         ctx["trace_unique_xs"] = trace_unique_xs
+        ctx["trace_unique_ys"] = trace_unique_ys
         ctx["trace_unique_props"] = trace_unique_props
         ctx["timeres_plot_scaffold"] = timeres_plot_scaffold
         ctx["timeres_plot_rest"] = timeres_plot_rest
@@ -6559,6 +6689,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         ctx["timeres_hrf_rectangles"] = timeres_hrf_rectangles
         ctx["timeres_hrf_lines"] = timeres_hrf_lines
         ctx["event_projection_lines"] = event_projection_lines
+        ctx["delay_end_chance_arrow"] = delay_end_chance_arrow
         ctx["timeres_plot"] = Group(
             timeres_title,
             timeres_plot_scaffold,
@@ -6567,6 +6698,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             timeres_sig_bands,
             timeres_hrf_rectangles,
             timeres_hrf_lines,
+            delay_end_chance_arrow,
         )
         ctx["timeres_full_state_group"] = timeres_full_state_group
         return ctx
@@ -6676,11 +6808,42 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         self.clear()
         self._show_within_session_act1_final_state(ctx)
 
+    def _prepare_within_session_resultsb_final_state(
+        self,
+        timeres_ctx: dict[str, Mobject],
+    ) -> None:
+        timeres_ctx["step_tracker"].set_value(len(timeres_ctx["time_bins"]) - 1)
+        timeres_ctx["design_frame"].become(timeres_ctx["design_frame_target"].copy())
+        timeres_ctx["timeres_trace"].update()
+        timeres_ctx["timeres_trace_head"].update()
+
+    def _show_within_session_resultsb_final_state(
+        self,
+        timeres_ctx: dict[str, Mobject],
+    ) -> None:
+        self._prepare_within_session_resultsb_final_state(timeres_ctx)
+        self.add(
+            timeres_ctx["timeres_title"],
+            timeres_ctx["timeres_train_explainer"],
+            timeres_ctx["experimental_design"],
+            timeres_ctx["train_time_bins"],
+            timeres_ctx["test_time_bins"],
+            timeres_ctx["train_row_label"],
+            timeres_ctx["test_row_label"],
+            timeres_ctx["trs_label"],
+            timeres_ctx["event_projection_lines"],
+            timeres_ctx["timeres_plot_scaffold"],
+            timeres_ctx["timeres_trace"],
+            timeres_ctx["timeres_ci"],
+            timeres_ctx["timeres_sig_bands"],
+            timeres_ctx["timeres_hrf_rectangles"],
+            timeres_ctx["timeres_hrf_lines"],
+            timeres_ctx["delay_end_chance_arrow"],
+        )
+
     def _animate_within_session_timeres_results(self, ctx: dict[str, Mobject]) -> None:
         self.play(
             FadeIn(ctx["timeres_title"], shift=UP * 0.06),
-            FadeIn(ctx["intro_timepoint"], shift=UP * 0.06),
-            FadeIn(ctx["intro_train_label"], shift=UP * 0.04),
             FadeIn(ctx["timeres_train_explainer"], shift=UP * 0.05),
             run_time=0.75,
         )
@@ -6720,24 +6883,14 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             FadeIn(ctx["train_row_label"], shift=RIGHT * 0.04),
             FadeIn(ctx["test_row_label"], shift=RIGHT * 0.04),
             FadeIn(ctx["trs_label"], shift=RIGHT * 0.04),
-            run_time=0.8,
-        )
-        self.wait(0.2)
-        train_selector_intro = ctx["train_selector"].copy()
-        train_selector_intro.clear_updaters()
-        train_selector_intro.set_z_index(4)
-
-        self.play(
-            FadeOut(ctx["intro_train_label"], shift=UP * 0.04),
-            FadeOut(ctx["timeres_train_explainer"], shift=RIGHT * 0.04),
-            Transform(ctx["intro_timepoint"], train_selector_intro),
+            FadeIn(ctx["train_selector"]),
             FadeIn(ctx["test_selector"]),
             FadeIn(ctx["plot_cursor"]),
             FadeIn(ctx["timeres_trace"]),
             FadeIn(ctx["timeres_trace_head"]),
-            run_time=0.30,
+            run_time=0.8,
         )
-        self.remove(ctx["intro_timepoint"])
+        self.wait(0.2)
         self.add(ctx["train_selector"])
         self.play(
             ctx["step_tracker"].animate.set_value(len(ctx["time_bins"]) - 1),
@@ -6784,6 +6937,853 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             ),
             run_time=0.70,
         )
+        self.play(
+            GrowArrow(
+                ctx["delay_end_chance_arrow"],
+                rate_func=smooth,
+            ),
+            run_time=0.72,
+        )
+        for _ in range(3):
+            self.play(
+                ctx["delay_end_chance_arrow"].animate(
+                    rate_func=there_and_back,
+                ).shift(DOWN * 0.045),
+                run_time=0.42,
+            )
+        self.wait(2.0)
+
+    def _build_within_session_tempgen_logic_context(
+        self,
+        ctx: dict[str, Mobject],
+        timeres_ctx: dict[str, Mobject],
+    ) -> dict[str, object]:
+        logic_matrix_frame = ctx["tempgen_plot_frame"].copy().move_to(
+            ctx["glm2_plot_frame"].get_center()
+        )
+        logic_matrix_frame.set_stroke(color="#2F2F2F", width=2.0, opacity=0.92)
+
+        design_stacked_target = timeres_ctx["experimental_design"].copy()
+        design_stacked_target.set_width(logic_matrix_frame.width)
+        train_bins_stacked_target = timeres_ctx["train_time_bins"].copy()
+        train_bins_stacked_target.set_width(logic_matrix_frame.width)
+        test_bins_stacked_target = timeres_ctx["test_time_bins"].copy()
+        test_bins_stacked_target.set_width(logic_matrix_frame.width)
+
+        stacked_center_x = ctx["glm2_plot_frame"].get_center()[0]
+        stacked_train_y = ctx["glm2_plot_frame"].get_center()[1] - 0.10
+        stacked_test_gap = 0.18
+        stacked_design_gap = 0.26
+        train_bins_stacked_target.move_to(np.array([stacked_center_x, stacked_train_y, 0.0]))
+        test_bins_stacked_target.next_to(train_bins_stacked_target, DOWN, buff=stacked_test_gap)
+        design_stacked_target.next_to(train_bins_stacked_target, UP, buff=stacked_design_gap)
+
+        train_label_stacked_target = timeres_ctx["train_row_label"].copy()
+        train_label_stacked_target.next_to(train_bins_stacked_target, LEFT, buff=0.10)
+
+        test_label_stacked_target = timeres_ctx["test_row_label"].copy()
+        test_label_stacked_target.next_to(test_bins_stacked_target, LEFT, buff=0.14)
+
+        logic_axis_seconds_gap = 0.42
+
+        design_target = timeres_ctx["experimental_design"].copy()
+        design_target.set_width(logic_matrix_frame.width)
+        design_target.next_to(logic_matrix_frame, UP, buff=0.38)
+
+        train_bins_target = timeres_ctx["train_time_bins"].copy()
+        train_bins_target.set_width(logic_matrix_frame.width)
+        train_bins_target.next_to(logic_matrix_frame, DOWN, buff=logic_axis_seconds_gap)
+
+        test_bins_target = timeres_ctx["test_time_bins"].copy()
+        test_bins_target.rotate(PI / 2)
+        test_bins_target.set_height(logic_matrix_frame.height)
+        test_bins_target.next_to(logic_matrix_frame, LEFT, buff=logic_axis_seconds_gap)
+
+        train_label_target = timeres_ctx["train_row_label"].copy()
+        train_label_target.next_to(train_bins_target, DOWN, buff=0.12)
+
+        test_label_target = timeres_ctx["test_row_label"].copy()
+        test_label_target.next_to(test_bins_target, LEFT, buff=0.12)
+
+        cell_count = len(train_bins_target)
+
+        def axis_spacing(axis_values: np.ndarray, fallback: float) -> float:
+            if len(axis_values) <= 1:
+                return fallback
+            deltas = np.abs(np.diff(axis_values))
+            deltas = deltas[deltas > 1e-6]
+            if len(deltas) == 0:
+                return fallback
+            return float(np.mean(deltas))
+
+        train_center_xs = np.array([
+            bin_mobject.get_center()[0]
+            for bin_mobject in train_bins_target
+        ])
+        test_center_ys = np.array([
+            bin_mobject.get_center()[1]
+            for bin_mobject in test_bins_target
+        ])
+        cell_width = axis_spacing(train_center_xs, train_bins_target[0].width)
+        cell_height = axis_spacing(test_center_ys, test_bins_target[0].height)
+        matrix_left = float(train_center_xs[0] - cell_width / 2)
+        matrix_right = float(train_center_xs[-1] + cell_width / 2)
+        matrix_bottom = float(test_center_ys[0] - cell_height / 2)
+        matrix_top = float(test_center_ys[-1] + cell_height / 2)
+        cell_size = min(cell_width, cell_height)
+
+        logic_matrix_frame.stretch_to_fit_width((matrix_right - matrix_left) + 0.06)
+        logic_matrix_frame.stretch_to_fit_height((matrix_top - matrix_bottom) + 0.06)
+        logic_matrix_frame.move_to(np.array([
+            (matrix_left + matrix_right) / 2,
+            (matrix_bottom + matrix_top) / 2,
+            0.0,
+        ]))
+        matrix_total_time = 19.2
+
+        def matrix_time_to_x(time_s: float) -> float:
+            return float(interpolate(
+                train_center_xs[0],
+                train_center_xs[-1],
+                np.clip(time_s / matrix_total_time, 0.0, 1.0),
+            ))
+
+        x_tick_specs = [
+            (0.0, "0"),
+            (5.0, "5"),
+            (10.0, "10"),
+            (15.0, "15 s"),
+        ]
+        matrix_x_ticks = VGroup()
+        for tick_time, tick_label in x_tick_specs:
+            tick_x = matrix_time_to_x(tick_time)
+            tick_mark = Line(
+                np.array([tick_x, logic_matrix_frame.get_bottom()[1], 0.0]),
+                np.array([tick_x, logic_matrix_frame.get_bottom()[1] - 0.055, 0.0]),
+                color="#5A5A5A",
+                stroke_width=1.2,
+            )
+            tick_text = Tex(tick_label, color=INK, font_size=13).next_to(
+                tick_mark,
+                DOWN,
+                buff=0.05,
+            )
+            matrix_x_ticks.add(VGroup(tick_mark, tick_text))
+        matrix_x_ticks.set_z_index(4.15)
+
+        logic_matrix_svg = self._load_svg_plot(
+            self._TEMPGEN_LOGIC_MATRIX,
+            center=logic_matrix_frame.get_center(),
+            height=logic_matrix_frame.height + 0.10,
+        )
+        self._hide_svg_background_rect(logic_matrix_svg)
+        try:
+            logic_matrix_source_frame = self._svg_plot_frame_from_long_lines(
+                logic_matrix_svg,
+                min_span_ratio=0.48,
+            )
+        except ValueError:
+            logic_matrix_source_frame = logic_matrix_svg
+        else:
+            logic_matrix_source_frame.set_opacity(0.0)
+        source_left = logic_matrix_source_frame.get_left()[0] - 1e-3
+        source_right = logic_matrix_source_frame.get_right()[0] + 1e-3
+        source_bottom = logic_matrix_source_frame.get_bottom()[1] - 1e-3
+        source_top = logic_matrix_source_frame.get_top()[1] + 1e-3
+        if isinstance(logic_matrix_source_frame, VGroup):
+            source_frame_ids = {id(submob) for submob in logic_matrix_source_frame}
+        else:
+            source_frame_ids = {id(logic_matrix_source_frame)}
+        logic_matrix_body_source = VGroup(*[
+            submob.copy()
+            for submob in logic_matrix_svg.submobjects
+            if id(submob) not in source_frame_ids
+            if len(submob.get_all_points()) > 0
+            if source_left <= submob.get_center()[0] <= source_right
+            if source_bottom <= submob.get_center()[1] <= source_top
+        ])
+        logic_matrix_overlay = self._remap_plot_mobject(
+            logic_matrix_body_source,
+            logic_matrix_source_frame,
+            logic_matrix_frame,
+        )
+        logic_matrix_overlay.set_z_index(2.1)
+        colorbar_fill_width = logic_matrix_frame.width * (9.3599997 / 238.11023)
+        colorbar_fill_height = logic_matrix_frame.height * (238.08 / 238.11023)
+        logic_matrix_colorbar_fill = ImageMobject(self._TEMPGEN_LOGIC_MATRIX_COLORBAR_FILL)
+        logic_matrix_colorbar_fill.set_height(colorbar_fill_height)
+        logic_matrix_colorbar_fill.stretch_to_fit_width(colorbar_fill_width)
+        logic_matrix_colorbar_fill.move_to(np.array([
+            logic_matrix_frame.get_right()[0] + colorbar_fill_width / 2,
+            logic_matrix_frame.get_center()[1],
+            0.0,
+        ]))
+        logic_matrix_colorbar_fill.set_z_index(3.95)
+        logic_matrix_colorbar_border = Rectangle(
+            width=colorbar_fill_width,
+            height=colorbar_fill_height,
+            stroke_color="#262626",
+            stroke_width=1.2,
+        ).set_fill(opacity=0.0).move_to(logic_matrix_colorbar_fill).set_z_index(4.02)
+        logic_matrix_colorbar_ticks = VGroup()
+        for tick_alpha, tick_label in [
+            (1.0, "-0.10"),
+            (0.75, "-0.05"),
+            (0.50, "0.00"),
+            (0.25, "0.05"),
+            (0.0, "0.10"),
+        ]:
+            tick_y = interpolate(
+                logic_matrix_colorbar_border.get_bottom()[1],
+                logic_matrix_colorbar_border.get_top()[1],
+                tick_alpha,
+            )
+            tick_anchor = Dot(
+                np.array([logic_matrix_colorbar_border.get_right()[0] + 0.018, tick_y, 0.0]),
+                radius=0.001,
+                fill_opacity=0.0,
+                stroke_opacity=0.0,
+            )
+            tick_text = Tex(tick_label, color=INK, font_size=13).next_to(
+                tick_anchor,
+                RIGHT,
+                buff=0.04,
+            )
+            logic_matrix_colorbar_ticks.add(tick_text)
+        logic_matrix_colorbar_ticks.set_z_index(4.08)
+        accuracy_label = Tex("Accuracy", color=INK, font_size=16).rotate(PI / 2)
+        accuracy_label.next_to(logic_matrix_colorbar_ticks, RIGHT, buff=0.12)
+        accuracy_label.set_z_index(4.1)
+        logic_matrix_colorbar = Group(
+            logic_matrix_colorbar_fill,
+            logic_matrix_colorbar_border,
+            logic_matrix_colorbar_ticks,
+            accuracy_label,
+        )
+
+        def interpolated_center(bin_group: VGroup, value: float) -> np.ndarray:
+            low_idx = int(np.clip(np.floor(value), 0, len(bin_group) - 1))
+            high_idx = min(low_idx + 1, len(bin_group) - 1)
+            alpha = float(np.clip(value - low_idx, 0.0, 1.0))
+            return interpolate(
+                bin_group[low_idx].get_center(),
+                bin_group[high_idx].get_center(),
+                alpha,
+            )
+
+        def axis_center(axis_values: np.ndarray, value: float) -> float:
+            low_idx = int(np.clip(np.floor(value), 0, len(axis_values) - 1))
+            high_idx = min(low_idx + 1, len(axis_values) - 1)
+            alpha = float(np.clip(value - low_idx, 0.0, 1.0))
+            return float(interpolate(axis_values[low_idx], axis_values[high_idx], alpha))
+
+        def matrix_cell_center(column_value: float, row_value: float) -> np.ndarray:
+            x = axis_center(train_center_xs, column_value)
+            y = axis_center(test_center_ys, row_value)
+            return np.array([x, y, 0.0])
+
+        train_tracker = ValueTracker(0.0)
+        test_tracker = ValueTracker(0.0)
+        selector_color = ManimColor("#0D0F0E")
+        selector_fill_opacity = 0.12
+
+        train_selector = always_redraw(lambda: RoundedRectangle(
+            width=train_bins_target[0].width + 0.05,
+            height=train_bins_target[0].height + 0.07,
+            corner_radius=0.04,
+            stroke_color=selector_color,
+            stroke_width=2.0,
+        ).set_fill(selector_color, opacity=selector_fill_opacity).move_to(
+            interpolated_center(train_bins_target, train_tracker.get_value())
+        ).set_z_index(4))
+
+        test_selector = always_redraw(lambda: RoundedRectangle(
+            width=test_bins_target[0].width + 0.05,
+            height=test_bins_target[0].height + 0.07,
+            corner_radius=0.04,
+            stroke_color=selector_color,
+            stroke_width=2.0,
+        ).set_fill(selector_color, opacity=selector_fill_opacity).move_to(
+            interpolated_center(test_bins_target, test_tracker.get_value())
+        ).set_z_index(4))
+
+        cursor_corner_radius = min(cell_width, cell_height) * 0.08
+        matrix_cursor = always_redraw(lambda: RoundedRectangle(
+            width=cell_width * 0.96,
+            height=cell_height * 0.96,
+            corner_radius=cursor_corner_radius,
+            stroke_color=selector_color,
+            stroke_width=1.5,
+        ).set_fill(selector_color, opacity=0.08).move_to(
+            matrix_cell_center(train_tracker.get_value(), test_tracker.get_value())
+        ).set_z_index(4))
+
+        train_projection = always_redraw(lambda: DashedLine(
+            interpolated_center(train_bins_target, train_tracker.get_value()) + UP * (
+                train_bins_target[0].height / 2 + 0.04
+            ),
+            matrix_cell_center(train_tracker.get_value(), test_tracker.get_value()) + DOWN * (cell_height / 2),
+            color="#7D7D7D",
+            stroke_width=1.0,
+            dash_length=0.045,
+            dashed_ratio=0.65,
+        ).set_z_index(3))
+
+        test_projection = always_redraw(lambda: DashedLine(
+            interpolated_center(test_bins_target, test_tracker.get_value()) + RIGHT * (
+                test_bins_target[0].width / 2 + 0.04
+            ),
+            matrix_cell_center(train_tracker.get_value(), test_tracker.get_value()) + LEFT * (cell_width / 2),
+            color="#7D7D7D",
+            stroke_width=1.0,
+            dash_length=0.045,
+            dashed_ratio=0.65,
+        ).set_z_index(3))
+
+        right_plot_frame_target = logic_matrix_frame.copy()
+        right_plot_frame_target.set_x(ctx["tempgen_plot_frame"].get_center()[0])
+        right_plot_frame_target.align_to(logic_matrix_frame, DOWN)
+        right_plot_frame_target.set_y(logic_matrix_frame.get_center()[1])
+        right_plot_inner_source = [
+            submob.copy()
+            for submob in timeres_ctx["timeres_plot_rest"].submobjects
+            if timeres_ctx["timeres_frame"].get_left()[0] - 0.02
+            <= submob.get_center()[0]
+            <= timeres_ctx["timeres_frame"].get_right()[0] + 0.02
+        ]
+        right_plot_y_tick_source = [
+            submob.copy()
+            for submob in timeres_ctx["timeres_plot_rest"].submobjects
+            if timeres_ctx["timeres_frame"].get_left()[0] - 0.38
+            <= submob.get_center()[0]
+            < timeres_ctx["timeres_frame"].get_left()[0] - 0.02
+            if timeres_ctx["timeres_frame"].get_bottom()[1] - 0.04
+            <= submob.get_center()[1]
+            <= timeres_ctx["timeres_frame"].get_top()[1] + 0.04
+            if submob.height <= timeres_ctx["timeres_frame"].height * 0.16
+        ]
+        right_plot_rest_source = VGroup(
+            *right_plot_inner_source,
+            *right_plot_y_tick_source,
+        )
+        right_plot_frame = right_plot_frame_target.copy()
+        right_plot_rest = self._remap_plot_mobject(
+            right_plot_rest_source,
+            timeres_ctx["timeres_frame"],
+            right_plot_frame_target,
+        )
+        right_plot_y_label = Tex("Accuracy", color=INK, font_size=18)
+        right_plot_y_label.rotate(PI / 2)
+        right_plot_y_label.scale_to_fit_height(right_plot_frame.height * 0.24)
+        right_plot_y_label.next_to(right_plot_frame, LEFT, buff=0.16)
+        right_plot_scaffold = VGroup(
+            right_plot_frame,
+            right_plot_rest,
+            right_plot_y_label,
+        )
+        right_plot_ci = self._remap_plot_mobject(
+            timeres_ctx["timeres_ci"].copy(),
+            timeres_ctx["timeres_frame"],
+            right_plot_frame_target,
+        )
+        right_timeres_trace = timeres_ctx["timeres_trace"].copy()
+        right_timeres_trace.clear_updaters()
+        right_plot_trace = self._remap_plot_mobject(
+            right_timeres_trace,
+            timeres_ctx["timeres_frame"],
+            right_plot_frame_target,
+        )
+        for submob in right_plot_trace.family_members_with_points():
+            submob.set_stroke(color=BLACK, opacity=1.0)
+            submob.set_fill(opacity=0.0)
+        right_plot_trace.set_stroke(color=BLACK, opacity=1.0)
+        right_plot_scaffold.set_z_index(2.15)
+        right_plot_ci.set_z_index(2.8)
+        right_plot_trace.set_z_index(4.6)
+
+        peak_trace_idx = int(np.argmax(timeres_ctx["trace_unique_ys"]))
+        peak_source_x = float(timeres_ctx["trace_unique_xs"][peak_trace_idx])
+        peak_source_y = float(timeres_ctx["trace_unique_ys"][peak_trace_idx])
+        peak_x_alpha = np.clip(
+            (peak_source_x - timeres_ctx["timeres_frame"].get_left()[0]) / timeres_ctx["timeres_frame"].width,
+            0.0,
+            1.0,
+        )
+        peak_y_alpha = np.clip(
+            (peak_source_y - timeres_ctx["timeres_frame"].get_bottom()[1]) / timeres_ctx["timeres_frame"].height,
+            0.0,
+            1.0,
+        )
+        peak_curve_point = np.array([
+            interpolate(
+                right_plot_frame_target.get_left()[0],
+                right_plot_frame_target.get_right()[0],
+                peak_x_alpha,
+            ),
+            interpolate(
+                right_plot_frame_target.get_bottom()[1],
+                right_plot_frame_target.get_top()[1],
+                peak_y_alpha,
+            ),
+            0.0,
+        ])
+        peak_column_center_x = float(interpolate(
+            matrix_left + cell_width / 2,
+            matrix_right - cell_width / 2,
+            peak_x_alpha,
+        ))
+        peak_column_idx = int(np.argmin(np.abs(train_center_xs - peak_column_center_x)))
+        peak_column_center_x = float(train_center_xs[peak_column_idx])
+        peak_curve_marker = Dot(
+            peak_curve_point,
+            radius=0.055,
+            color=_D_RED,
+            fill_opacity=1.0,
+        ).set_stroke(WHITE, width=1.8).set_z_index(5.2)
+        peak_curve_ring = Circle(
+            radius=0.13,
+            stroke_color=_D_RED,
+            stroke_width=2.0,
+        ).set_fill(opacity=0.0).move_to(peak_curve_point).set_z_index(5.1)
+        def time_to_tracker_value(time_s: float) -> float:
+            return float(np.clip(
+                (cell_count - 1) * (time_s / matrix_total_time),
+                0.0,
+                cell_count - 1,
+            ))
+
+        def make_peak_matrix_column(
+            height: float,
+            center_y: float,
+        ) -> VGroup:
+            peak_matrix_column_fill = Rectangle(
+                width=cell_width * 1.02,
+                height=height,
+                stroke_width=0.0,
+            ).set_fill(WHITE, opacity=0.16)
+            peak_matrix_column_outer = RoundedRectangle(
+                width=cell_width * 1.04,
+                height=height,
+                corner_radius=min(cell_width, cell_height) * 0.11,
+                stroke_color=WHITE,
+                stroke_width=4.0,
+            ).set_fill(opacity=0.0)
+            peak_matrix_column_inner = RoundedRectangle(
+                width=cell_width * 1.00,
+                height=height,
+                corner_radius=min(cell_width, cell_height) * 0.10,
+                stroke_color=BLACK,
+                stroke_width=1.8,
+            ).set_fill(opacity=0.0)
+            return VGroup(
+                peak_matrix_column_fill.set_z_index(3.72),
+                peak_matrix_column_outer.set_z_index(3.94),
+                peak_matrix_column_inner.set_z_index(3.95),
+            ).move_to(
+                np.array([
+                    peak_column_center_x,
+                    center_y,
+                    0.0,
+                ])
+            )
+
+        peak_column_height = (matrix_top - matrix_bottom) + 0.14
+        peak_matrix_column = make_peak_matrix_column(
+            peak_column_height,
+            (matrix_bottom + matrix_top) / 2,
+        )
+        subselect_low_value = time_to_tracker_value(13.0)
+        subselect_high_value = time_to_tracker_value(15.0)
+        subselect_low_y = axis_center(test_center_ys, subselect_low_value)
+        subselect_high_y = axis_center(test_center_ys, subselect_high_value)
+        peak_matrix_column_focus = make_peak_matrix_column(
+            abs(subselect_high_y - subselect_low_y) + cell_height * 1.12,
+            (subselect_low_y + subselect_high_y) / 2,
+        )
+        final_takeaway = Tex(
+            r"Representational discontinuity throughout the delay phase",
+            color=INK,
+            font_size=24,
+            tex_environment="center",
+        )
+        final_takeaway.scale_to_fit_width(config.frame_width * 0.68)
+        final_takeaway.to_edge(UP, buff=0.26)
+        final_takeaway.set_z_index(5.3)
+
+        matrix_cover_columns: list[VGroup] = []
+        for column_idx in range(cell_count):
+            column_covers = VGroup()
+            for row_idx in range(cell_count):
+                cell_center = np.array([
+                    train_center_xs[column_idx],
+                    test_center_ys[row_idx],
+                    0.0,
+                ])
+                cover = Rectangle(
+                    width=cell_width + 0.012,
+                    height=cell_height + 0.012,
+                    stroke_width=0.0,
+                ).set_fill(BG, opacity=1.0).move_to(cell_center)
+                cover.set_z_index(3.25)
+                column_covers.add(cover)
+            matrix_cover_columns.append(column_covers)
+        matrix_cover_group = VGroup(*matrix_cover_columns)
+
+        diagonal_trace = Line(
+            matrix_cell_center(1.35, 1.35),
+            matrix_cell_center(float(cell_count - 1) - 1.35, float(cell_count - 1) - 1.35),
+        )
+        diagonal_trace.set_stroke(
+            color=BLACK,
+            width=2.7,
+            opacity=0.94,
+        )
+        diagonal_trace.set_fill(opacity=0.0)
+        diagonal_trace.set_z_index(4.8)
+
+        demo_column_count = min(10, cell_count)
+        demo_fill_durations = [
+            1.55,
+            0.94,
+            0.84,
+            0.76,
+            0.68,
+            0.61,
+            0.55,
+            0.50,
+            0.46,
+            0.42,
+        ][:demo_column_count]
+        demo_shift_durations = [
+            0.28,
+            0.25,
+            0.22,
+            0.20,
+            0.18,
+            0.16,
+            0.14,
+            0.13,
+            0.12,
+        ][: max(demo_column_count - 1, 0)]
+
+        return {
+            "ctx": ctx,
+            "timeres_ctx": timeres_ctx,
+            "design_stacked_target": design_stacked_target,
+            "train_bins_stacked_target": train_bins_stacked_target,
+            "test_bins_stacked_target": test_bins_stacked_target,
+            "train_label_stacked_target": train_label_stacked_target,
+            "test_label_stacked_target": test_label_stacked_target,
+            "design_target": design_target,
+            "train_bins_target": train_bins_target,
+            "test_bins_target": test_bins_target,
+            "train_label_target": train_label_target,
+            "test_label_target": test_label_target,
+            "logic_matrix_frame": logic_matrix_frame,
+            "logic_matrix_overlay": logic_matrix_overlay,
+            "logic_matrix_colorbar": logic_matrix_colorbar,
+            "accuracy_label": accuracy_label,
+            "matrix_x_ticks": matrix_x_ticks,
+            "right_plot_scaffold": right_plot_scaffold,
+            "right_plot_ci": right_plot_ci,
+            "right_plot_trace": right_plot_trace,
+            "peak_curve_marker": peak_curve_marker,
+            "peak_curve_ring": peak_curve_ring,
+            "peak_matrix_column": peak_matrix_column,
+            "peak_matrix_column_focus": peak_matrix_column_focus,
+            "peak_column_idx": peak_column_idx,
+            "final_takeaway": final_takeaway,
+            "matrix_cover_columns": matrix_cover_columns,
+            "matrix_cover_group": matrix_cover_group,
+            "train_tracker": train_tracker,
+            "test_tracker": test_tracker,
+            "train_selector": train_selector,
+            "test_selector": test_selector,
+            "matrix_cursor": matrix_cursor,
+            "train_projection": train_projection,
+            "test_projection": test_projection,
+            "diagonal_trace": diagonal_trace,
+            "cell_count": cell_count,
+            "demo_column_count": demo_column_count,
+            "demo_fill_durations": demo_fill_durations,
+            "demo_shift_durations": demo_shift_durations,
+            "subselect_low_value": subselect_low_value,
+            "subselect_high_value": subselect_high_value,
+        }
+
+    def _show_within_session_resultsc_final_state(
+        self,
+        ctx: dict[str, Mobject],
+        timeres_ctx: dict[str, Mobject],
+    ) -> dict[str, object]:
+        self._prepare_within_session_resultsb_final_state(timeres_ctx)
+        logic_ctx = self._build_within_session_tempgen_logic_context(ctx, timeres_ctx)
+
+        timeres_ctx["experimental_design"] = logic_ctx["design_target"].copy()
+        timeres_ctx["train_time_bins"] = logic_ctx["train_bins_target"].copy()
+        timeres_ctx["test_time_bins"] = logic_ctx["test_bins_target"].copy()
+        timeres_ctx["train_row_label"] = logic_ctx["train_label_target"].copy()
+        timeres_ctx["test_row_label"] = logic_ctx["test_label_target"].copy()
+        logic_ctx["train_tracker"].set_value(float(logic_ctx["cell_count"] - 1))
+        logic_ctx["test_tracker"].set_value(float(logic_ctx["cell_count"] - 1))
+
+        self.add(
+            timeres_ctx["experimental_design"],
+            timeres_ctx["train_time_bins"],
+            timeres_ctx["test_time_bins"],
+            timeres_ctx["train_row_label"],
+            timeres_ctx["test_row_label"],
+            logic_ctx["logic_matrix_frame"],
+            logic_ctx["logic_matrix_overlay"],
+            logic_ctx["logic_matrix_colorbar"],
+            logic_ctx["matrix_x_ticks"],
+            logic_ctx["matrix_cursor"],
+            logic_ctx["diagonal_trace"],
+        )
+        return logic_ctx
+
+    def _animate_within_session_tempgen_logic(
+        self,
+        ctx: dict[str, Mobject],
+        timeres_ctx: dict[str, Mobject],
+    ) -> None:
+        logic_ctx = self._build_within_session_tempgen_logic_context(ctx, timeres_ctx)
+        design_stacked_target = logic_ctx["design_stacked_target"]
+        train_bins_stacked_target = logic_ctx["train_bins_stacked_target"]
+        test_bins_stacked_target = logic_ctx["test_bins_stacked_target"]
+        train_label_stacked_target = logic_ctx["train_label_stacked_target"]
+        test_label_stacked_target = logic_ctx["test_label_stacked_target"]
+        design_target = logic_ctx["design_target"]
+        train_bins_target = logic_ctx["train_bins_target"]
+        test_bins_target = logic_ctx["test_bins_target"]
+        train_label_target = logic_ctx["train_label_target"]
+        test_label_target = logic_ctx["test_label_target"]
+        logic_matrix_frame = logic_ctx["logic_matrix_frame"]
+        logic_matrix_overlay = logic_ctx["logic_matrix_overlay"]
+        logic_matrix_colorbar = logic_ctx["logic_matrix_colorbar"]
+        matrix_x_ticks = logic_ctx["matrix_x_ticks"]
+        matrix_cover_columns = logic_ctx["matrix_cover_columns"]
+        matrix_cover_group = logic_ctx["matrix_cover_group"]
+        train_tracker = logic_ctx["train_tracker"]
+        test_tracker = logic_ctx["test_tracker"]
+        train_selector = logic_ctx["train_selector"]
+        test_selector = logic_ctx["test_selector"]
+        matrix_cursor = logic_ctx["matrix_cursor"]
+        train_projection = logic_ctx["train_projection"]
+        test_projection = logic_ctx["test_projection"]
+        diagonal_trace = logic_ctx["diagonal_trace"]
+        cell_count = logic_ctx["cell_count"]
+        demo_column_count = logic_ctx["demo_column_count"]
+        demo_fill_durations = logic_ctx["demo_fill_durations"]
+        demo_shift_durations = logic_ctx["demo_shift_durations"]
+
+        self.play(
+            FadeOut(ctx["glm_plot"], shift=LEFT * 0.45),
+            FadeOut(timeres_ctx["timeres_title"], shift=UP * 0.05),
+            FadeOut(timeres_ctx["timeres_train_explainer"], shift=UP * 0.05),
+            FadeOut(timeres_ctx["timeres_plot_scaffold"], shift=DOWN * 0.05),
+            FadeOut(timeres_ctx["timeres_trace"], shift=DOWN * 0.05),
+            FadeOut(timeres_ctx["timeres_ci"], shift=DOWN * 0.05),
+            FadeOut(timeres_ctx["timeres_sig_bands"], shift=DOWN * 0.05),
+            FadeOut(timeres_ctx["timeres_hrf_rectangles"], shift=DOWN * 0.05),
+            FadeOut(timeres_ctx["timeres_hrf_lines"], shift=DOWN * 0.05),
+            FadeOut(timeres_ctx["event_projection_lines"]),
+            FadeOut(timeres_ctx["delay_end_chance_arrow"], shift=UP * 0.05),
+            FadeOut(timeres_ctx["trs_label"], shift=RIGHT * 0.04),
+            Transform(timeres_ctx["experimental_design"], design_stacked_target),
+            Transform(timeres_ctx["train_time_bins"], train_bins_stacked_target),
+            Transform(timeres_ctx["test_time_bins"], test_bins_stacked_target),
+            Transform(timeres_ctx["train_row_label"], train_label_stacked_target),
+            Transform(timeres_ctx["test_row_label"], test_label_stacked_target),
+            run_time=1.55,
+            rate_func=smooth,
+        )
+        self.wait(0.20)
+        self.play(
+            Transform(timeres_ctx["experimental_design"], design_target),
+            Transform(timeres_ctx["train_time_bins"], train_bins_target),
+            Transform(timeres_ctx["test_time_bins"], test_bins_target),
+            Transform(timeres_ctx["train_row_label"], train_label_target),
+            Transform(timeres_ctx["test_row_label"], test_label_target),
+            run_time=1.35,
+            rate_func=smooth,
+        )
+        self.wait(0.15)
+        self.play(
+            Create(logic_matrix_frame),
+            FadeIn(logic_matrix_colorbar, shift=LEFT * 0.04),
+            run_time=0.90,
+        )
+        self.add(logic_matrix_overlay, matrix_cover_group)
+        self.play(
+            FadeIn(matrix_x_ticks, shift=DOWN * 0.02),
+            run_time=0.35,
+        )
+
+        self.play(
+            FadeIn(train_selector),
+            FadeIn(test_selector),
+            FadeIn(matrix_cursor),
+            FadeIn(train_projection),
+            FadeIn(test_projection),
+            run_time=0.40,
+        )
+
+        for demo_step_idx in range(demo_column_count):
+            column_group = matrix_cover_columns[demo_step_idx]
+            if demo_step_idx > 0:
+                self.play(
+                    train_tracker.animate.set_value(demo_step_idx),
+                    test_tracker.animate.set_value(0.0),
+                    run_time=demo_shift_durations[demo_step_idx - 1],
+                    rate_func=smooth,
+                )
+            self.play(
+                test_tracker.animate.set_value(cell_count - 1),
+                LaggedStart(*[FadeOut(cover) for cover in column_group], lag_ratio=0.05),
+                run_time=demo_fill_durations[demo_step_idx],
+                rate_func=linear,
+            )
+
+        remaining_cover_groups = [
+            column_group
+            for column_idx, column_group in enumerate(matrix_cover_columns)
+            if column_idx >= demo_column_count
+        ]
+        self.play(
+            FadeOut(train_projection),
+            FadeOut(test_projection),
+            run_time=0.18,
+        )
+        self.play(
+            train_tracker.animate.set_value(cell_count - 1),
+            test_tracker.animate.set_value(cell_count - 1),
+            LaggedStart(
+                *[FadeOut(group) for group in remaining_cover_groups],
+                lag_ratio=0.035,
+            ),
+            run_time=1.05,
+        )
+        self.wait(0.18)
+        self.play(
+            train_tracker.animate.set_value(0.0),
+            test_tracker.animate.set_value(0.0),
+            run_time=0.42,
+            rate_func=smooth,
+        )
+        self.play(
+            train_tracker.animate.set_value(cell_count - 1),
+            test_tracker.animate.set_value(cell_count - 1),
+            Create(diagonal_trace),
+            run_time=1.0,
+            rate_func=linear,
+        )
+        self.play(
+            FadeOut(train_selector),
+            FadeOut(test_selector),
+            run_time=0.35,
+        )
+        self.wait(2.0)
+
+    def _animate_within_session_tempgen_followup(
+        self,
+        logic_ctx: dict[str, object],
+    ) -> None:
+        train_tracker = logic_ctx["train_tracker"]
+        test_tracker = logic_ctx["test_tracker"]
+        train_selector = logic_ctx["train_selector"]
+        test_selector = logic_ctx["test_selector"]
+        matrix_cursor = logic_ctx["matrix_cursor"]
+        diagonal_trace = logic_ctx["diagonal_trace"]
+        right_plot_scaffold = logic_ctx["right_plot_scaffold"]
+        right_plot_ci = logic_ctx["right_plot_ci"]
+        right_plot_trace = logic_ctx["right_plot_trace"]
+        peak_curve_marker = logic_ctx["peak_curve_marker"]
+        peak_curve_ring = logic_ctx["peak_curve_ring"]
+        peak_matrix_column = logic_ctx["peak_matrix_column"]
+        peak_matrix_column_focus = logic_ctx["peak_matrix_column_focus"]
+        peak_column_idx = logic_ctx["peak_column_idx"]
+        subselect_low_value = logic_ctx["subselect_low_value"]
+        subselect_high_value = logic_ctx["subselect_high_value"]
+        final_takeaway = logic_ctx["final_takeaway"]
+
+        self.play(
+            FadeIn(right_plot_scaffold, shift=LEFT * 0.06),
+            FadeIn(right_plot_ci),
+            Create(right_plot_trace),
+            FadeOut(matrix_cursor),
+            run_time=0.85,
+        )
+        n_curves_needed = right_plot_trace.get_num_curves()
+        n_curves_have = diagonal_trace.get_num_curves()
+        if n_curves_needed > n_curves_have:
+            diagonal_trace.insert_n_curves(n_curves_needed - n_curves_have)
+        diagonal_trace_template = diagonal_trace.copy()
+        for cycle_idx in range(2):
+            right_curve_target = right_plot_trace.copy().set_z_index(4.8)
+            for submob in right_curve_target.family_members_with_points():
+                submob.set_stroke(color=BLACK, opacity=1.0)
+                submob.set_fill(opacity=0.0)
+            self.play(
+                Transform(diagonal_trace, right_curve_target),
+                right_plot_trace.animate.set_stroke(color="#C49A00", opacity=1.0),
+                run_time=1.1,
+                rate_func=smooth,
+            )
+            self.play(
+                Transform(diagonal_trace, diagonal_trace_template.copy()),
+                right_plot_trace.animate.set_stroke(color=BLACK, opacity=1.0),
+                run_time=1.1,
+                rate_func=smooth,
+            )
+        for submob in right_plot_trace.family_members_with_points():
+            submob.set_stroke(color=BLACK, opacity=1.0)
+            submob.set_fill(opacity=0.0)
+        right_plot_trace.set_stroke(color=BLACK, opacity=1.0)
+        self.play(
+            FadeIn(peak_curve_marker, scale=0.65),
+            Create(peak_curve_ring),
+            FadeIn(peak_matrix_column, scale=1.03),
+            run_time=0.55,
+        )
+        self.play(
+            Indicate(peak_curve_ring, scale_factor=1.06),
+            AnimationGroup(
+                Indicate(peak_matrix_column[1], scale_factor=1.01),
+                Indicate(peak_matrix_column[2], scale_factor=1.01),
+                lag_ratio=0.0,
+            ),
+            run_time=0.70,
+        )
+        train_tracker.set_value(float(peak_column_idx))
+        test_tracker.set_value(0.0)
+        self.play(
+            FadeIn(train_selector),
+            FadeIn(test_selector),
+            FadeIn(matrix_cursor),
+            run_time=0.30,
+        )
+        self.play(
+            test_tracker.animate.set_value(subselect_low_value),
+            run_time=0.85,
+            rate_func=smooth,
+        )
+        self.play(
+            test_tracker.animate.set_value(subselect_high_value),
+            run_time=0.45,
+            rate_func=smooth,
+        )
+        self.play(
+            test_tracker.animate.set_value(subselect_low_value),
+            run_time=0.45,
+            rate_func=smooth,
+        )
+        self.play(
+            Transform(peak_matrix_column, peak_matrix_column_focus),
+            run_time=0.55,
+            rate_func=smooth,
+        )
+        self.play(FadeIn(final_takeaway, shift=DOWN * 0.06), run_time=0.50)
         self.wait(2.0)
 
     def _animate_tempgen_results(self, ctx: dict[str, Mobject]) -> None:
@@ -6791,149 +7791,45 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         tempgen_underlay = ctx["tempgen_underlay"]
         tempgen_plot_frame = ctx["tempgen_plot_frame"]
         tempgen_overlay = ctx["tempgen_overlay"]
-
-        tempgen_underlay.set_opacity(0.18)
-        tempgen_overlay.set_opacity(0.0)
-
-        diag_start = tempgen_plot_frame.get_corner(DL)
-        diag_end = tempgen_plot_frame.get_corner(UR)
-        diag_color = interpolate_color(
-            ManimColor(self._GLM_ACCENT),
-            ManimColor(self._DELAY_ACCENT),
-            0.38,
+        tempgen_underlay.set_opacity(ctx["tempgen_underlay_final_opacity"])
+        tempgen_overlay.set_opacity(1.0)
+        tempgen_column_covers = self._make_tempgen_column_covers(
+            tempgen_plot_frame,
+            fill_color=BG,
         )
-        sweep_tracker = ValueTracker(0.0)
-
-        def sweep_point(alpha: float) -> np.ndarray:
-            return interpolate(diag_start, diag_end, float(np.clip(alpha, 0.0, 1.0)))
-
-        diag_glow_template = Line(diag_start, diag_end, color=diag_color, stroke_width=18)
-        diag_glow_template.set_stroke(opacity=0.16)
-        diag_trace_template = Line(diag_start, diag_end, color=diag_color, stroke_width=5.5)
-        diag_trace_template.set_stroke(opacity=0.95)
-
-        tempgen_diag_glow = always_redraw(
-            lambda: self._make_partial_path(diag_glow_template, sweep_tracker.get_value()).set_z_index(5)
-        )
-        tempgen_diag_trace = always_redraw(
-            lambda: self._make_partial_path(diag_trace_template, sweep_tracker.get_value()).set_z_index(6)
-        )
-        tempgen_cursor_dot = always_redraw(
-            lambda: Dot(
-                sweep_point(sweep_tracker.get_value()),
-                radius=0.056,
-                color=interpolate_color(
-                    ManimColor(self._GLM_ACCENT),
-                    ManimColor(self._DELAY_ACCENT),
-                    sweep_tracker.get_value(),
-                ),
-                fill_opacity=1.0,
-            ).set_stroke(WHITE, width=1.5).set_z_index(7)
-        )
-        tempgen_x_cursor = always_redraw(
-            lambda: Line(
-                np.array([
-                    sweep_point(sweep_tracker.get_value())[0],
-                    tempgen_plot_frame.get_bottom()[1] - 0.02,
-                    0.0,
-                ]),
-                np.array([
-                    sweep_point(sweep_tracker.get_value())[0],
-                    tempgen_plot_frame.get_bottom()[1] + 0.09,
-                    0.0,
-                ]),
-                color=diag_color,
-                stroke_width=3.0,
-            ).set_z_index(6)
-        )
-        tempgen_y_cursor = always_redraw(
-            lambda: Line(
-                np.array([
-                    tempgen_plot_frame.get_left()[0] - 0.09,
-                    sweep_point(sweep_tracker.get_value())[1],
-                    0.0,
-                ]),
-                np.array([
-                    tempgen_plot_frame.get_left()[0] + 0.02,
-                    sweep_point(sweep_tracker.get_value())[1],
-                    0.0,
-                ]),
-                color=diag_color,
-                stroke_width=3.0,
-            ).set_z_index(6)
-        )
-        tempgen_x_guide = always_redraw(
-            lambda: DashedLine(
-                np.array([
-                    sweep_point(sweep_tracker.get_value())[0],
-                    tempgen_plot_frame.get_bottom()[1],
-                    0.0,
-                ]),
-                sweep_point(sweep_tracker.get_value()),
-                color=_D_MGREY,
-                stroke_width=1.4,
-                dash_length=0.05,
-                dashed_ratio=0.62,
-            ).set_z_index(5)
-        )
-        tempgen_y_guide = always_redraw(
-            lambda: DashedLine(
-                np.array([
-                    tempgen_plot_frame.get_left()[0],
-                    sweep_point(sweep_tracker.get_value())[1],
-                    0.0,
-                ]),
-                sweep_point(sweep_tracker.get_value()),
-                color=_D_MGREY,
-                stroke_width=1.4,
-                dash_length=0.05,
-                dashed_ratio=0.62,
-            ).set_z_index(5)
-        )
-        tempgen_diag_residue = diag_trace_template.copy().set_stroke(width=8.0, opacity=0.18).set_z_index(4)
+        tempgen_cover_group = VGroup(*[
+            cover
+            for column in tempgen_column_covers
+            for cover in column
+        ])
 
         self.play(
             FadeIn(tempgen_title, shift=UP * 0.05),
             AnimationGroup(
                 Create(tempgen_plot_frame),
                 FadeIn(tempgen_underlay, shift=UP * 0.08),
-                lag_ratio=0.16,
+                FadeIn(tempgen_overlay, shift=UP * 0.08),
+                FadeIn(tempgen_cover_group),
+                lag_ratio=0.12,
             ),
-            run_time=0.85,
-        )
-        self.play(
-            FadeIn(tempgen_x_cursor),
-            FadeIn(tempgen_y_cursor),
-            FadeIn(tempgen_x_guide),
-            FadeIn(tempgen_y_guide),
-            FadeIn(tempgen_cursor_dot, scale=0.85),
-            FadeIn(tempgen_diag_glow),
-            FadeIn(tempgen_diag_trace),
-            run_time=0.25,
-        )
-        self.play(
-            sweep_tracker.animate.set_value(1.0),
-            run_time=1.65,
-            rate_func=smooth,
-        )
-        self.play(
-            Flash(diag_end, color=diag_color, line_length=0.18, num_lines=10, flash_radius=0.16),
-            run_time=0.45,
-        )
-        self.play(
-            FadeIn(tempgen_diag_residue),
-            tempgen_underlay.animate.set_opacity(ctx["tempgen_underlay_final_opacity"]),
-            FadeIn(tempgen_overlay, shift=UP * 0.06),
-            FadeOut(tempgen_x_cursor),
-            FadeOut(tempgen_y_cursor),
-            FadeOut(tempgen_x_guide),
-            FadeOut(tempgen_y_guide),
-            FadeOut(tempgen_cursor_dot, scale=1.15),
-            FadeOut(tempgen_diag_glow),
-            FadeOut(tempgen_diag_trace),
             run_time=0.95,
         )
-        self.play(FadeOut(tempgen_diag_residue), run_time=0.35)
+        self.play(
+            LaggedStart(
+                *[
+                    LaggedStart(
+                        *[
+                            FadeOut(cover, scale=0.92)
+                            for cover in column
+                        ],
+                        lag_ratio=0.1,
+                    )
+                    for column in tempgen_column_covers
+                ],
+                lag_ratio=0.14,
+            ),
+            run_time=2.6,
+        )
 
 
 class Study2WithinSession1Decoding(_Study2WithinSession1DecodingBase):
@@ -7149,3 +8045,1330 @@ class Study2WithinSession1DecodingResultsB(_Study2WithinSession1DecodingBase):
         self._reset_to_within_session_act1_final_state(ctx)
         self.wait(0.6)
         self._animate_within_session_timeres_results(timeres_ctx)
+
+
+class Study2WithinSession1DecodingResultsC(_Study2WithinSession1DecodingBase):
+    """
+    Part C: start from the final time-resolved frame and turn the train/test TR
+    logic into an orthogonal temporal-generalisation matrix construction, stopping
+    once the matrix diagonal is highlighted.
+
+    Render:
+        uv run manim scenes/study2.py Study2WithinSession1DecodingResultsC -ql
+        uv run manim scenes/study2.py Study2WithinSession1DecodingResultsC -qh
+    """
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        rationale = self._build_rationale_end_static()
+        self.slide_title = rationale["question_title"]
+        ctx = self._build_results_stage()
+        self._align_within_session_act1_to_shared_layout(ctx)
+        timeres_ctx = self._build_within_session_timeres_context(ctx)
+        self._show_within_session_act1_final_state(ctx)
+        self._show_within_session_resultsb_final_state(timeres_ctx)
+        self.wait(0.6)
+        self._animate_within_session_tempgen_logic(ctx, timeres_ctx)
+
+
+class Study2WithinSession1DecodingResultsD(_Study2WithinSession1DecodingBase):
+    """
+    Part D: start from the highlighted temporal-generalisation diagonal and map
+    it onto the time-resolved curve and late-stage interpretation.
+
+    Render:
+        uv run manim scenes/study2.py Study2WithinSession1DecodingResultsD -ql
+        uv run manim scenes/study2.py Study2WithinSession1DecodingResultsD -qh
+    """
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        rationale = self._build_rationale_end_static()
+        self.slide_title = rationale["question_title"]
+        ctx = self._build_results_stage()
+        self._align_within_session_act1_to_shared_layout(ctx)
+        timeres_ctx = self._build_within_session_timeres_context(ctx)
+        logic_ctx = self._show_within_session_resultsc_final_state(ctx, timeres_ctx)
+        self.wait(0.6)
+        self._animate_within_session_tempgen_followup(logic_ctx)
+
+
+class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
+    """
+    One-slide explainer for the Study 2 long-term-memory repetition results.
+
+    Render:
+        uv run manim scenes/study2.py Study2LTMResultsExplainer -ql
+        uv run manim scenes/study2.py Study2LTMResultsExplainer -qh
+    """
+
+    _LTM_GLM = (
+        "/Users/leonardo/phd-thesis-animations/assets/images/study2/"
+        "figure_LTM_decoding_stimulation-delay_GLM.svg"
+    )
+    _LTM_TIMERES = (
+        "/Users/leonardo/phd-thesis-animations/assets/images/study2/"
+        "figure_LTM_decoding_timeresolved.svg"
+    )
+
+    def _ltm_question_text(self) -> str:
+        return (
+            r"Do {{Repeated}} and {{Non-repeated}} stimuli differ\\"
+            r"in their similarity to sensory representations?"
+        )
+
+    def _clean_ltm_svg_path(self, svg_path: str, *, remove_text: bool = False) -> Path:
+        svg_file = Path(svg_path)
+        cache_dir = Path(tempfile.gettempdir()) / "study2_ltm_svg_cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        suffix = "_clean_notext" if remove_text else "_clean"
+        clean_path = cache_dir / f"{svg_file.stem}{suffix}.svg"
+        if clean_path.exists() and clean_path.stat().st_mtime >= svg_file.stat().st_mtime:
+            return clean_path
+
+        tree = ET.parse(svg_file)
+        root = tree.getroot()
+        parent_map = {child: parent for parent in root.iter() for child in parent}
+
+        removed_any = False
+        for element in list(root.iter()):
+            tag = element.tag.split("}")[-1]
+            if tag == "path" and element.get("d") is None:
+                parent = parent_map.get(element)
+                if parent is not None:
+                    parent.remove(element)
+                    removed_any = True
+            elif remove_text and tag == "text":
+                parent = parent_map.get(element)
+                if parent is not None:
+                    parent.remove(element)
+                    removed_any = True
+
+        if removed_any:
+            tree.write(clean_path, encoding="utf-8", xml_declaration=True)
+        else:
+            clean_path.write_text(svg_file.read_text())
+        return clean_path
+
+    def _load_ltm_svg_plot(
+        self,
+        svg_path: str,
+        *,
+        center: np.ndarray,
+        height: float,
+        remove_text: bool = False,
+    ) -> SVGMobject:
+        svg = SVGMobject(str(self._clean_ltm_svg_path(svg_path, remove_text=remove_text)))
+        svg.set_height(height)
+        svg.move_to(center)
+        self._hide_svg_background_rect(svg)
+        return svg
+
+    def _make_ltm_takeaway(self) -> VGroup:
+        takeaway_line = Tex(
+            r"{{Repetition}} improved behaviour, but did not change {{sensory-trained}} {{delay-period}} decoding.",
+            color=INK,
+            font_size=21,
+            tex_environment="center",
+        )
+        takeaway_line.set_color_by_tex("Repetition", _D_AMBER)
+        takeaway_line.set_color_by_tex("sensory-trained", self._GLM_ACCENT)
+        takeaway_line.set_color_by_tex("delay-period", self._DELAY_ACCENT)
+        return self._make_takeaway([takeaway_line])
+
+    def _ltm_timeres_frame(self, timeres_svg: SVGMobject) -> VGroup:
+        frame_lines = [
+            submob
+            for submob in timeres_svg.submobjects
+            if self._glm_svg_hex(submob.get_stroke_color()) == "#262626"
+        ]
+        verticals = [
+            submob
+            for submob in frame_lines
+            if submob.height > submob.width and submob.height > timeres_svg.height * 0.55
+        ]
+        horizontals = [
+            submob
+            for submob in frame_lines
+            if submob.width >= submob.height and submob.width > timeres_svg.width * 0.30
+        ]
+        if len(verticals) < 2 or len(horizontals) < 2:
+            raise ValueError("Could not identify LTM time-resolved plot frame")
+        return VGroup(
+            min(verticals, key=lambda mob: mob.get_center()[0]),
+            max(verticals, key=lambda mob: mob.get_center()[0]),
+            min(horizontals, key=lambda mob: mob.get_center()[1]),
+            max(horizontals, key=lambda mob: mob.get_center()[1]),
+        )
+
+    def _align_ltm_plot_frame(
+        self,
+        svg: SVGMobject,
+        frame: VGroup,
+        *,
+        target_center_x: float,
+        target_top: float,
+        target_height: float,
+    ) -> VGroup:
+        scale_factor = target_height / frame.height
+        svg.scale(scale_factor)
+        svg.shift(RIGHT * (target_center_x - frame.get_center()[0]))
+        svg.shift(UP * (target_top - frame.get_top()[1]))
+        return frame
+
+    def _make_ltm_timeres_text_overlay(self, timeres_svg: SVGMobject, frame: VGroup) -> VGroup:
+
+        chance_candidates = [
+            submob
+            for submob in self._timeres_select_many(timeres_svg, stroke_hex="#808080", min_points=4)
+            if submob.width > frame.width * 0.80
+        ]
+        if not chance_candidates:
+            raise ValueError("Could not identify LTM time-resolved chance line")
+        chance_line = max(chance_candidates, key=lambda mob: mob.width)
+
+        def _legend_line(color_hex: str) -> VMobject:
+            candidates = [
+                submob
+                for submob in self._timeres_select_many(timeres_svg, stroke_hex=color_hex, min_points=4)
+                if submob.get_center()[0] > frame.get_right()[0] + 0.05
+                and submob.width < frame.width * 0.25
+            ]
+            if not candidates:
+                raise ValueError(f"Could not identify LTM legend line for {color_hex}")
+            return max(candidates, key=lambda mob: mob.width)
+
+        legend_blue = _legend_line("#4E79A7")
+        legend_orange = _legend_line("#F28E2B")
+
+        x_tick_values = ["0", "4", "8", "12", "16"]
+        x_tick_positions = np.linspace(frame.get_left()[0], frame.get_right()[0], len(x_tick_values))
+        x_ticks = VGroup(*[
+            Tex(value, color=INK, font_size=18).move_to(
+                np.array([x, frame.get_bottom()[1] - 0.14, 0.0])
+            )
+            for value, x in zip(x_tick_values, x_tick_positions)
+        ])
+        x_label = Tex("Test time (s)", color=INK, font_size=20).move_to(
+            np.array([frame.get_center()[0], frame.get_bottom()[1] - 0.38, 0.0])
+        )
+
+        y_step = (chance_line.get_center()[1] - (frame.get_top()[1] - 0.14)) / 3
+        y_tick_values = ["0.00", "0.06", "0.12", "0.18"]
+        y_ticks = VGroup(*[
+            Tex(value, color=INK, font_size=18).move_to(
+                np.array([frame.get_left()[0] - 0.32, chance_line.get_center()[1] - idx * y_step, 0.0])
+            )
+            for idx, value in enumerate(y_tick_values)
+        ])
+        y_label = Tex("Accuracy (minus chance)", color=INK, font_size=20)
+        y_label.rotate(PI / 2)
+        y_label.move_to(np.array([frame.get_left()[0] - 0.82, frame.get_center()[1], 0.0]))
+
+        roi_title = Tex("EVC (V1, V2, V3)", color=INK, font_size=13).move_to(
+            np.array([frame.get_center()[0], frame.get_top()[1] + 0.12, 0.0])
+        )
+
+        legend_blue_label = Tex("Non-repeated", color=INK, font_size=15).next_to(
+            legend_blue,
+            RIGHT,
+            buff=0.12,
+        )
+        legend_orange_label = Tex("Repeated", color=INK, font_size=15).next_to(
+            legend_orange,
+            RIGHT,
+            buff=0.12,
+        )
+
+        return VGroup(
+            x_ticks,
+            x_label,
+            y_ticks,
+            y_label,
+            roi_title,
+            legend_blue_label,
+            legend_orange_label,
+        )
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        question = self._make_results_heading(
+            self._ltm_question_text(),
+            color=BLACK,
+            font_size=24,
+        ).to_edge(UP, buff=0.18)
+        question.set_color_by_tex("Repeated", _D_AMBER)
+        question.set_color_by_tex("Non-repeated", _D_BLUE)
+
+        plot_title_y = question.get_bottom()[1] - 0.88
+        glm_title = Tex("GLM-based decoding", color=INK, font_size=22).move_to(
+            np.array([-3.05, plot_title_y, 0.0])
+        )
+        timeres_title = Tex("Time-resolved decoding", color=INK, font_size=22).move_to(
+            np.array([3.05, plot_title_y, 0.0])
+        )
+        glm_frame_center_x = -3.05
+        timeres_frame_center_x = 3.05
+        target_frame_top = glm_title.get_bottom()[1] - 0.84
+        target_frame_height = 3.34
+
+        glm_svg = self._load_ltm_svg_plot(
+            self._LTM_GLM,
+            center=np.array([glm_frame_center_x, -0.28, 0.0]),
+            height=4.28,
+        )
+        glm_frame = self._glm_svg_plot_frame(glm_svg)
+        self._align_ltm_plot_frame(
+            glm_svg,
+            glm_frame,
+            target_center_x=glm_frame_center_x,
+            target_top=target_frame_top,
+            target_height=target_frame_height,
+        )
+        timeres_svg = self._load_ltm_svg_plot(
+            self._LTM_TIMERES,
+            center=np.array([timeres_frame_center_x, -0.28, 0.0]),
+            height=4.28,
+            remove_text=True,
+        )
+        timeres_frame = self._ltm_timeres_frame(timeres_svg)
+        timeres_frame = self._align_ltm_plot_frame(
+            timeres_svg,
+            timeres_frame,
+            target_center_x=timeres_frame_center_x,
+            target_top=target_frame_top,
+            target_height=target_frame_height,
+        )
+        glm_title.move_to(np.array([glm_frame_center_x, plot_title_y, 0.0]))
+        timeres_title.move_to(np.array([timeres_frame_center_x, plot_title_y, 0.0]))
+        timeres_text = self._make_ltm_timeres_text_overlay(timeres_svg, timeres_frame)
+
+        plots = Group(
+            glm_title,
+            glm_svg,
+            timeres_title,
+            timeres_svg,
+            timeres_text,
+        )
+
+        takeaway = self._make_ltm_takeaway()
+        takeaway.move_to(np.array([0.0, -3.28, 0.0]))
+
+        self.play(FadeIn(question, shift=UP * 0.06), run_time=0.55)
+        self.play(
+            LaggedStart(
+                FadeIn(glm_title, shift=UP * 0.05),
+                FadeIn(timeres_title, shift=UP * 0.05),
+                FadeIn(glm_svg, shift=RIGHT * 0.10),
+                FadeIn(timeres_svg, shift=LEFT * 0.10),
+                FadeIn(timeres_text, shift=LEFT * 0.08),
+                lag_ratio=0.18,
+            ),
+            run_time=1.1,
+        )
+        self.play(FadeIn(takeaway, shift=UP * 0.08), run_time=0.65)
+        self.wait(2.0)
+
+
+class Study2SupplementalRoiTimecourses(Scene):
+    """
+    Compare the supplemental ROI sensory -> memory temporal time courses.
+
+    Render:
+        uv run manim scenes/study2.py Study2SupplementalRoiTimecourses -ql
+        uv run manim scenes/study2.py Study2SupplementalRoiTimecourses -qh
+    """
+
+    _SUPPL_ROI_DIR = Path(
+        "/Users/leonardo/phd-thesis-animations/assets/images/study2/suppl_rois"
+    )
+    _ROI_SVGS = [
+        ("EVC (V1-V3)", _SUPPL_ROI_DIR / "decoding_suppl_roi-v1v2v3.svg"),
+        ("V1", _SUPPL_ROI_DIR / "decoding_suppl_roi-V1.svg"),
+        ("V2", _SUPPL_ROI_DIR / "decoding_suppl_roi-V2.svg"),
+        ("V3", _SUPPL_ROI_DIR / "decoding_suppl_roi-V3.svg"),
+        ("LO1", _SUPPL_ROI_DIR / "decoding_suppl_roi-LO1.svg"),
+        ("LO2", _SUPPL_ROI_DIR / "decoding_suppl_roi-LO2.svg"),
+        ("IPS0 / IPS1", _SUPPL_ROI_DIR / "decoding_suppl_roi-IPS0IPS1.svg"),
+        ("IPS2 / IPS3", _SUPPL_ROI_DIR / "decoding_suppl_roi-IPS2IPS3.svg"),
+    ]
+    _TIMERES_SOURCE_BOX = (430.0, 545.0, 748.0, 850.0)
+    _PLOT_WIDTH = 2.62
+    _RASTER_DENSITY = 180
+    _PANEL_TITLE = r"Train Session 2 $\rightarrow$ Test Session 1"
+    _ROW_X_LABEL = "Test time (s)"
+    _AXES_INDEX = 3
+    _POLY_GROUP_ID = "PolyCollection_1"
+    _CHANCE_GROUP_ID = "line2d_11"
+    _EVENT_GROUP_IDS = ("line2d_12", "line2d_13", "line2d_14", "line2d_15")
+    _TRACE_GROUP_ID = "line2d_16"
+    _SPINE_GROUP_IDS = ("patch_13", "patch_14", "patch_15", "patch_16")
+    _AXIS_STROKE = "#262626"
+    _EVENT_STROKE = "#A9A9A9"
+    _CHANCE_STROKE = "#808080"
+    _SIG_STROKE = "#C49A00"
+    _SKIP_AXIS_TEXTS = {
+        "Test time (s)",
+        "Train and test time (s)",
+        "Accuracy (chance subtr)",
+    }
+
+    def _cached_svg_raster(self, svg_path: Path) -> Path:
+        cache_dir = Path(tempfile.gettempdir()) / "study2_suppl_roi_cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        raster_path = cache_dir / f"{svg_path.stem}_d{self._RASTER_DENSITY}.png"
+        if raster_path.exists() and raster_path.stat().st_mtime >= svg_path.stat().st_mtime:
+            return raster_path
+
+        magick_bin = shutil.which("magick")
+        if magick_bin is None:
+            raise RuntimeError("ImageMagick `magick` is required to rasterize supplemental ROI SVGs")
+
+        subprocess.run(
+            [
+                magick_bin,
+                "-density",
+                str(self._RASTER_DENSITY),
+                str(svg_path),
+                str(raster_path),
+            ],
+            check=True,
+        )
+        return raster_path
+
+    @classmethod
+    def _panel_spec(cls) -> dict[str, object]:
+        return {
+            "title": cls._PANEL_TITLE,
+            "row_x_label": cls._ROW_X_LABEL,
+            "axes_index": cls._AXES_INDEX,
+            "poly_group_id": cls._POLY_GROUP_ID,
+            "chance_group_id": cls._CHANCE_GROUP_ID,
+            "event_group_ids": cls._EVENT_GROUP_IDS,
+            "trace_group_id": cls._TRACE_GROUP_ID,
+            "spine_group_ids": cls._SPINE_GROUP_IDS,
+        }
+
+    def _extract_target_axes_block(self, svg_path: Path, *, axes_index: int) -> str:
+        match = re.search(
+            rf'<g id="axes_{axes_index}">(.*?)<g id="axes_{axes_index + 1}">',
+            svg_path.read_text(),
+            flags=re.S,
+        )
+        if match is None:
+            raise RuntimeError(f"Could not locate axes_{axes_index} block in {svg_path}")
+        return match.group(1)
+
+    def _extract_group_path(self, axes_block: str, group_id: str) -> list[tuple[float, float]]:
+        match = re.search(
+            rf'<g id="{group_id}">\s*<path d="(.*?)"',
+            axes_block,
+            flags=re.S,
+        )
+        if match is None:
+            raise RuntimeError(f"Could not locate {group_id} in supplemental ROI SVG")
+
+        values = [float(value) for value in re.findall(r"-?\d+(?:\.\d+)?", match.group(1))]
+        if not values or len(values) % 2 != 0:
+            raise RuntimeError(f"Unexpected path data for {group_id}")
+
+        return [(values[i], values[i + 1]) for i in range(0, len(values), 2)]
+
+    def _extract_matching_group_paths(
+        self,
+        axes_block: str,
+        group_prefix: str,
+    ) -> list[list[tuple[float, float]]]:
+        matches = re.finditer(
+            rf'<g id="({group_prefix}\d+)">\s*<path d="(.*?)"',
+            axes_block,
+            flags=re.S,
+        )
+        paths: list[list[tuple[float, float]]] = []
+        for match in matches:
+            values = [float(value) for value in re.findall(r"-?\d+(?:\.\d+)?", match.group(2))]
+            if values and len(values) % 2 == 0:
+                paths.append([(values[i], values[i + 1]) for i in range(0, len(values), 2)])
+        return paths
+
+    def _extract_polycollection_polygon(self, axes_block: str, group_id: str) -> list[tuple[float, float]]:
+        match = re.search(
+            (
+                rf'<g id="{group_id}">.*?<path id="([^"]+)" d="(.*?)"\s*/>.*?'
+                r'<use xlink:href="#\1" x="([-0-9.]+)" y="([-0-9.]+)"'
+            ),
+            axes_block,
+            flags=re.S,
+        )
+        if match is None:
+            raise RuntimeError(f"Could not locate {group_id} in supplemental ROI SVG")
+
+        values = [float(value) for value in re.findall(r"-?\d+(?:\.\d+)?", match.group(2))]
+        if not values or len(values) % 2 != 0:
+            raise RuntimeError("Unexpected path data for PolyCollection_1")
+
+        x_offset = float(match.group(3))
+        y_offset = float(match.group(4))
+        return [
+            (values[i] + x_offset, values[i + 1] + y_offset)
+            for i in range(0, len(values), 2)
+        ]
+
+    def _extract_text_specs(self, axes_block: str) -> list[dict[str, object]]:
+        matches = re.finditer(
+            (
+                r'<!--\s*(.*?)\s*-->\s*<g style="fill: #262626" '
+                r'transform="translate\(([-0-9.]+) ([-0-9.]+)\)'
+                r'(?: rotate\(([-0-9.]+)\))? scale\(([-0-9.]+) ([-0-9.]+)\)">'
+            ),
+            axes_block,
+            flags=re.S,
+        )
+        specs: list[dict[str, object]] = []
+        for match in matches:
+            specs.append(
+                {
+                    "text": match.group(1).strip(),
+                    "position": (float(match.group(2)), float(match.group(3))),
+                    "rotation": float(match.group(4)) if match.group(4) else 0.0,
+                }
+            )
+        return specs
+
+    def _supplemental_overlay_spec(
+        self,
+        svg_path: Path,
+        panel_spec: dict[str, object],
+    ) -> dict[str, object]:
+        axes_block = self._extract_target_axes_block(
+            svg_path,
+            axes_index=int(panel_spec["axes_index"]),
+        )
+        return {
+            "ci": [self._extract_polycollection_polygon(axes_block, str(panel_spec["poly_group_id"]))],
+            "texts": self._extract_text_specs(axes_block),
+            "chance": [self._extract_group_path(axes_block, str(panel_spec["chance_group_id"]))],
+            "events": [
+                self._extract_group_path(axes_block, str(group_id))
+                for group_id in panel_spec["event_group_ids"]
+            ],
+            "trace": [self._extract_group_path(axes_block, str(panel_spec["trace_group_id"]))],
+            "spines": [
+                self._extract_group_path(axes_block, str(group_id))
+                for group_id in panel_spec["spine_group_ids"]
+            ],
+            "significance": self._extract_matching_group_paths(axes_block, "LineCollection_"),
+        }
+
+    def _make_plot_canvas(self) -> Rectangle:
+        x0, y0, x1, y1 = self._TIMERES_SOURCE_BOX
+        canvas = Rectangle(
+            width=self._PLOT_WIDTH,
+            height=self._PLOT_WIDTH * ((y1 - y0) / (x1 - x0)),
+            stroke_width=0.0,
+        )
+        canvas.set_fill(opacity=0.0)
+        canvas.set_stroke(opacity=0.0)
+        return canvas
+
+    def _source_point_to_plot(self, plot: Mobject, point: tuple[float, float]) -> np.ndarray:
+        x0, y0, x1, y1 = self._TIMERES_SOURCE_BOX
+        px, py = point
+        u = (px - x0) / (x1 - x0)
+        v = (py - y0) / (y1 - y0)
+        top_left = plot.get_corner(UL)
+        return top_left + RIGHT * (u * plot.width) + DOWN * (v * plot.height)
+
+    def _plot_polyline(
+        self,
+        plot: Mobject,
+        source_points: list[tuple[float, float]],
+        *,
+        color: str,
+        stroke_width: float,
+    ) -> VMobject:
+        points = [self._source_point_to_plot(plot, point) for point in source_points]
+        polyline = VMobject()
+        polyline.set_points_as_corners(points)
+        polyline.set_fill(opacity=0.0)
+        polyline.set_stroke(color=color, width=stroke_width)
+        return polyline
+
+    def _plot_polygon(
+        self,
+        plot: Mobject,
+        source_points: list[tuple[float, float]],
+        *,
+        color: str,
+        fill_opacity: float,
+    ) -> Polygon:
+        points = [self._source_point_to_plot(plot, point) for point in source_points]
+        polygon = Polygon(*points, stroke_width=0.0)
+        polygon.set_fill(color, opacity=fill_opacity)
+        return polygon
+
+    def _plot_line(
+        self,
+        plot: Mobject,
+        source_points: list[tuple[float, float]],
+        *,
+        color: str,
+        stroke_width: float,
+        dashed: bool = False,
+        dash_length: float = 0.08,
+    ) -> VMobject:
+        start = self._source_point_to_plot(plot, source_points[0])
+        end = self._source_point_to_plot(plot, source_points[-1])
+        if dashed:
+            line = DashedLine(start, end, dash_length=dash_length)
+        else:
+            line = Line(start, end)
+        line.set_stroke(color=color, width=stroke_width)
+        return line
+
+    def _make_text_overlay(self, plot: Mobject, specs: list[dict[str, object]]) -> VGroup:
+        labels = VGroup()
+        for spec in specs:
+            text = str(spec["text"])
+            if text in self._SKIP_AXIS_TEXTS:
+                continue
+            font_size = 12 if re.fullmatch(r"[0-9.]+", text) else 13
+            label = Tex(text, color=INK, font_size=font_size)
+            label.move_to(self._source_point_to_plot(plot, spec["position"]))
+            if abs(float(spec["rotation"])) > 1e-3:
+                label.rotate(PI / 2)
+            labels.add(label)
+        return labels
+
+    def _make_plot_group(self, svg_path: Path, panel_spec: dict[str, object]) -> Group:
+        spec = self._supplemental_overlay_spec(svg_path, panel_spec)
+        plot = self._make_plot_canvas()
+        overlay = VGroup(
+            self._plot_polygon(
+                plot,
+                spec["ci"][0],
+                color="#6E6E6E",
+                fill_opacity=0.30,
+            )
+        )
+
+        for source_points in spec["events"]:
+            overlay.add(
+                self._plot_line(
+                    plot,
+                    source_points,
+                    color=self._EVENT_STROKE,
+                    stroke_width=1.5,
+                    dashed=True,
+                    dash_length=0.07,
+                )
+            )
+
+        overlay.add(
+            self._plot_line(
+                plot,
+                spec["chance"][0],
+                color=self._CHANCE_STROKE,
+                stroke_width=1.8,
+                dashed=True,
+                dash_length=0.10,
+            )
+        )
+
+        for source_points in spec["significance"]:
+            overlay.add(
+                self._plot_line(
+                    plot,
+                    source_points,
+                    color=self._SIG_STROKE,
+                    stroke_width=3.2,
+                )
+            )
+
+        for source_points in spec["spines"]:
+            overlay.add(
+                self._plot_line(
+                    plot,
+                    source_points,
+                    color=self._AXIS_STROKE,
+                    stroke_width=1.8,
+                )
+            )
+
+        overlay.add(
+            self._plot_polyline(
+                plot,
+                spec["trace"][0],
+                color=BLACK,
+                stroke_width=3.4,
+            )
+        )
+        overlay.add(self._make_text_overlay(plot, spec["texts"]))
+        return Group(plot, overlay)
+
+    def _make_roi_card(self, label: str, svg_path: Path, panel_spec: dict[str, object]) -> Group:
+        plot_group = self._make_plot_group(svg_path, panel_spec)
+        roi_label = Tex(label, color=INK, font_size=23)
+        if roi_label.width > plot_group.width * 1.08:
+            roi_label.scale_to_fit_width(plot_group.width * 1.08)
+        card = Group(roi_label, plot_group).arrange(DOWN, buff=0.12)
+        return card
+
+    def _make_row_group(self, cards: list[Group], row_x_label: str) -> tuple[Group, Group]:
+        row_cards = Group(*cards).arrange(RIGHT, buff=0.34, aligned_edge=UP)
+        accuracy_label = Tex("Accuracy", color=INK, font_size=17).rotate(PI / 2)
+        accuracy_label.next_to(row_cards, LEFT, buff=0.16)
+        test_time_label = Tex(row_x_label, color=INK, font_size=17)
+        if test_time_label.width > row_cards.width * 0.72:
+            test_time_label.scale_to_fit_width(row_cards.width * 0.72)
+        test_time_label.next_to(row_cards, DOWN, buff=0.10)
+        return Group(row_cards, accuracy_label, test_time_label), row_cards
+
+    def _build_panel(self, panel_spec: dict[str, object]) -> dict[str, object]:
+        title = Tex(str(panel_spec["title"]), color=INK, font_size=24).to_edge(UP, buff=0.20)
+        cards = [
+            self._make_roi_card(label, svg_path, panel_spec)
+            for label, svg_path in self._ROI_SVGS
+        ]
+        top_row_group, top_row_cards = self._make_row_group(
+            cards[:4],
+            row_x_label=str(panel_spec["row_x_label"]),
+        )
+        bottom_row_group, bottom_row_cards = self._make_row_group(
+            cards[4:],
+            row_x_label=str(panel_spec["row_x_label"]),
+        )
+        grid = Group(top_row_group, bottom_row_group).arrange(DOWN, buff=0.48, center=True)
+        grid.scale_to_fit_width(config.frame_width - 0.9)
+
+        title_gap = 0.34
+        bottom_margin = 0.26
+        max_grid_height = title.get_bottom()[1] - (-config.frame_height / 2 + bottom_margin) - title_gap
+        if grid.height > max_grid_height:
+            grid.scale_to_fit_height(max_grid_height)
+        grid.next_to(title, DOWN, buff=title_gap)
+        return {
+            "title": title,
+            "grid": grid,
+            "cards": cards,
+            "top_row_group": top_row_group,
+            "bottom_row_group": bottom_row_group,
+            "top_row_cards": top_row_cards,
+            "bottom_row_cards": bottom_row_cards,
+        }
+
+    def _play_panel_intro(self, panel: dict[str, object]) -> None:
+        self.play(FadeIn(panel["title"], shift=UP * 0.06), run_time=0.45)
+        self.play(
+            LaggedStart(
+                *[FadeIn(card, shift=UP * 0.08) for card in panel["top_row_cards"]],
+                lag_ratio=0.10,
+            ),
+            run_time=1.05,
+        )
+        self.play(
+            FadeIn(panel["top_row_group"][1], shift=RIGHT * 0.04),
+            FadeIn(panel["top_row_group"][2], shift=UP * 0.04),
+            run_time=0.35,
+        )
+        self.play(
+            LaggedStart(
+                *[FadeIn(card, shift=UP * 0.08) for card in panel["bottom_row_cards"]],
+                lag_ratio=0.12,
+            ),
+            run_time=0.95,
+        )
+        self.play(
+            FadeIn(panel["bottom_row_group"][1], shift=RIGHT * 0.04),
+            FadeIn(panel["bottom_row_group"][2], shift=UP * 0.04),
+            run_time=0.35,
+        )
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+        panel = self._build_panel(self._panel_spec())
+        self._play_panel_intro(panel)
+        self.wait(2.0)
+
+
+class Study2WithinSession1TrainTestPanel(_Study2WithinSession1DecodingBase):
+    """
+    Static panel B: train and test within Session 1.
+
+    Render:
+        uv run manim scenes/study2.py Study2WithinSession1TrainTestPanel -ql
+        uv run manim scenes/study2.py Study2WithinSession1TrainTestPanel -qh
+    """
+
+    def _build_panel_group(self) -> Group:
+        ctx = self._build_results_stage()
+        self._align_within_session_act1_to_shared_layout(ctx)
+        timeres_ctx = self._build_within_session_timeres_context(ctx)
+        self._prepare_within_session_resultsb_final_state(timeres_ctx)
+
+        timeres_ctx["timeres_trace"].update()
+        timeres_ctx["timeres_trace"].clear_updaters()
+        timeres_ctx["timeres_title"].become(
+            Tex(
+                r"Train Session 1 $\rightarrow$ Test Session 1",
+                color=INK,
+                font_size=22,
+            ).move_to(timeres_ctx["timeres_title"])
+        )
+
+        panel_group = Group(
+            timeres_ctx["timeres_title"],
+            timeres_ctx["timeres_train_explainer"],
+            timeres_ctx["experimental_design"],
+            timeres_ctx["train_time_bins"],
+            timeres_ctx["test_time_bins"],
+            timeres_ctx["train_row_label"],
+            timeres_ctx["test_row_label"],
+            timeres_ctx["trs_label"],
+            timeres_ctx["event_projection_lines"],
+            timeres_ctx["timeres_plot_scaffold"],
+            timeres_ctx["timeres_trace"],
+            timeres_ctx["timeres_ci"],
+            timeres_ctx["timeres_sig_bands"],
+            timeres_ctx["timeres_hrf_rectangles"],
+            timeres_ctx["timeres_hrf_lines"],
+            timeres_ctx["delay_end_chance_arrow"],
+        )
+
+        panel_group.shift(LEFT * panel_group.get_center()[0])
+        top_target = config.frame_height / 2 - 0.58
+        panel_group.shift(UP * (top_target - panel_group.get_top()[1]))
+
+        bottom_limit = -config.frame_height / 2 + 0.24
+        if panel_group.get_bottom()[1] < bottom_limit:
+            panel_group.shift(UP * (bottom_limit - panel_group.get_bottom()[1]))
+        return panel_group
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+        rationale = self._build_rationale_end_static()
+        self.slide_title = rationale["question_title"]
+
+        panel_group = self._build_panel_group()
+
+        self.play(FadeIn(panel_group, shift=UP * 0.06), run_time=0.9)
+        self.wait(2.0)
+
+
+class Study2SupplementalRoiTimecoursesA(Study2SupplementalRoiTimecourses):
+    """
+    Alias for panel A.
+
+    Render:
+        uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesA -ql
+        uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesA -qh
+    """
+
+
+class Study2SupplementalRoiTimecoursesB(Study2SupplementalRoiTimecourses):
+    """
+    Alias for panel B.
+
+    Render:
+        uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesB -ql
+        uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesB -qh
+    """
+
+    _PANEL_TITLE = r"Train Session 1 $\rightarrow$ Test Session 1"
+    _ROW_X_LABEL = "Train and test time (s)"
+    _AXES_INDEX = 5
+    _POLY_GROUP_ID = "PolyCollection_2"
+    _CHANCE_GROUP_ID = "line2d_24"
+    _EVENT_GROUP_IDS = ("line2d_25", "line2d_26", "line2d_27", "line2d_28")
+    _TRACE_GROUP_ID = "line2d_29"
+    _SPINE_GROUP_IDS = ("patch_23", "patch_24", "patch_25", "patch_26")
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        panel_a = self._build_panel(Study2SupplementalRoiTimecoursesA._panel_spec())
+        panel_b = self._build_panel(self._panel_spec())
+
+        self._play_panel_intro(panel_a)
+        self.wait(0.25)
+
+        top_row_transition = AnimationGroup(
+            FadeOut(panel_a["top_row_group"], shift=UP * 0.04),
+            FadeIn(panel_b["top_row_group"], shift=UP * 0.04),
+            lag_ratio=0.20,
+        )
+        bottom_row_transition = AnimationGroup(
+            FadeOut(panel_a["bottom_row_group"], shift=UP * 0.04),
+            FadeIn(panel_b["bottom_row_group"], shift=UP * 0.04),
+            lag_ratio=0.20,
+        )
+        self.play(
+            TransformMatchingTex(panel_a["title"], panel_b["title"]),
+            LaggedStart(top_row_transition, bottom_row_transition, lag_ratio=0.10),
+            run_time=1.45,
+        )
+        self.wait(2.0)
+
+
+class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
+    """
+    Compare temporal-generalisation matrices across ROI definitions.
+
+    Render:
+        uv run manim scenes/study2.py Study2SupplementalRoiTempGenMats -ql
+        uv run manim scenes/study2.py Study2SupplementalRoiTempGenMats -qh
+    """
+
+    _ROI_SVGS = [
+        (r"V1--V3", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-v1v2v3.svg"),
+        ("V1", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-V1.svg"),
+        ("V2", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-V2.svg"),
+        ("V3", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-V3.svg"),
+        ("LO1", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-LO1.svg"),
+        ("LO2", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-LO2.svg"),
+        ("IPS0 / IPS1", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-IPS0IPS1.svg"),
+        ("IPS2 / IPS3", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-IPS2IPS3.svg"),
+    ]
+    _TEMPGEN_PLOT_HEIGHT = 2.02
+    _TEMPGEN_SOURCE_PLOT_BOX = (
+        316.771654,
+        204.094488,
+        554.88189,
+        442.204724,
+    )
+    _TEMPGEN_SOURCE_COLORBAR_BOX = (
+        566.7874,
+        204.094488,
+        576.31181,
+        442.204724,
+    )
+    _TEMPGEN_SOURCE_CROP_BOX = (
+        315.4,
+        202.7,
+        582.6,
+        443.6,
+    )
+    _TEMPGEN_AXIS_TICKS = (0, 4, 8, 12, 16)
+    _TEMPGEN_COLORBAR_TICKS = (-0.10, -0.05, 0.00, 0.05, 0.10)
+
+    def _sanitized_tempgen_svg(self, svg_path: Path) -> Path:
+        cache_dir = Path(tempfile.gettempdir()) / "study2_tempgen_svg_sanitized"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        sanitized_path = cache_dir / svg_path.name
+        if sanitized_path.exists() and sanitized_path.stat().st_mtime >= svg_path.stat().st_mtime:
+            return sanitized_path
+
+        tree = ET.parse(svg_path)
+        root = tree.getroot()
+        parent_map = {child: parent for parent in root.iter() for child in parent}
+        for elem in list(root.iter()):
+            if elem.tag.endswith("path") and elem.get("d") is None:
+                parent = parent_map.get(elem)
+                if parent is not None:
+                    parent.remove(elem)
+        tree.write(sanitized_path, encoding="utf-8", xml_declaration=True)
+        return sanitized_path
+
+    def _tempgen_transform_matrix(self, transform: str) -> tuple[float, float, float, float, float, float]:
+        transform = transform.strip()
+        matrix_match = re.search(
+            r"matrix\(\s*([-0-9.eE]+)[ ,]+([-0-9.eE]+)[ ,]+([-0-9.eE]+)[ ,]+([-0-9.eE]+)[ ,]+([-0-9.eE]+)[ ,]+([-0-9.eE]+)\s*\)",
+            transform,
+        )
+        if matrix_match is not None:
+            return tuple(float(matrix_match.group(index)) for index in range(1, 7))
+
+        translate_match = re.search(
+            r"translate\(\s*([-0-9.eE]+)(?:[ ,]+([-0-9.eE]+))?\s*\)",
+            transform,
+        )
+        if translate_match is not None:
+            return (
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                float(translate_match.group(1)),
+                float(translate_match.group(2) or 0.0),
+            )
+
+        return (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+
+    def _tempgen_svg_context(self, svg_path: Path) -> tuple[ET.Element, tuple[float, float, float, float], tuple[float, float]]:
+        root = ET.parse(self._sanitized_tempgen_svg(svg_path)).getroot()
+        view_box = tuple(float(value) for value in root.get("viewBox").replace(",", " ").split())
+
+        wrapper_offset = (0.0, 0.0)
+        for elem in root.iter():
+            transform = elem.get("transform")
+            if transform is None:
+                continue
+            a, b, c, d, e, f = self._tempgen_transform_matrix(transform)
+            if (
+                abs(a - 1.0) < 1e-6
+                and abs(b) < 1e-6
+                and abs(c) < 1e-6
+                and abs(d - 1.0) < 1e-6
+                and e < -100
+                and f < -100
+            ):
+                wrapper_offset = (e, f)
+                break
+
+        return root, view_box, wrapper_offset
+
+    def _tempgen_source_point_to_raster(
+        self,
+        *,
+        view_box: tuple[float, float, float, float],
+        wrapper_offset: tuple[float, float],
+        raster_size: tuple[int, int],
+        point: tuple[float, float],
+    ) -> tuple[float, float]:
+        view_x0, view_y0, view_w, view_h = view_box
+        offset_x, offset_y = wrapper_offset
+        display_x = point[0] + offset_x
+        display_y = point[1] + offset_y
+        raster_w, raster_h = raster_size
+        return (
+            (display_x - view_x0) / view_w * raster_w,
+            (display_y - view_y0) / view_h * raster_h,
+        )
+
+    def _supplemental_tempgen_panel(
+        self,
+        svg_path: Path,
+    ) -> np.ndarray:
+        raster_path = self._cached_svg_raster(svg_path)
+        _, view_box, wrapper_offset = self._tempgen_svg_context(svg_path)
+
+        with Image.open(raster_path) as image:
+            image = image.convert("RGBA")
+            top_left = self._tempgen_source_point_to_raster(
+                view_box=view_box,
+                wrapper_offset=wrapper_offset,
+                raster_size=image.size,
+                point=(self._TEMPGEN_SOURCE_CROP_BOX[0], self._TEMPGEN_SOURCE_CROP_BOX[1]),
+            )
+            bottom_right = self._tempgen_source_point_to_raster(
+                view_box=view_box,
+                wrapper_offset=wrapper_offset,
+                raster_size=image.size,
+                point=(self._TEMPGEN_SOURCE_CROP_BOX[2], self._TEMPGEN_SOURCE_CROP_BOX[3]),
+            )
+            crop_box = (
+                max(0, int(np.floor(min(top_left[0], bottom_right[0])))),
+                max(0, int(np.floor(min(top_left[1], bottom_right[1])))),
+                min(image.width, int(np.ceil(max(top_left[0], bottom_right[0])))),
+                min(image.height, int(np.ceil(max(top_left[1], bottom_right[1])))),
+            )
+            return np.array(image.crop(crop_box))
+
+    def _tempgen_path_polylines(
+        self,
+        path_d: str,
+    ) -> list[list[tuple[float, float]]]:
+        element = SVGPath(path_d)
+        polylines: list[list[tuple[float, float]]] = []
+        current: list[tuple[float, float]] = []
+        for segment in element:
+            segment_name = type(segment).__name__
+            if segment_name == "Move":
+                if len(current) >= 2:
+                    polylines.append(current)
+                current = [(float(segment.end.x), float(segment.end.y))]
+                continue
+
+            if not current and getattr(segment, "start", None) is not None:
+                current = [(float(segment.start.x), float(segment.start.y))]
+
+            if getattr(segment, "end", None) is not None:
+                current.append((float(segment.end.x), float(segment.end.y)))
+
+            if segment_name == "Close" and current:
+                current.append(current[0])
+
+        if len(current) >= 2:
+            polylines.append(current)
+        return polylines
+
+    def _tempgen_source_point_to_plot(
+        self,
+        plot: ImageMobject,
+        *,
+        source_box: tuple[float, float, float, float],
+        point: tuple[float, float],
+    ) -> np.ndarray:
+        src_x0, src_y0, src_x1, src_y1 = source_box
+        px, py = point
+        u = (px - src_x0) / (src_x1 - src_x0)
+        v = (py - src_y0) / (src_y1 - src_y0)
+        top_left = plot.get_corner(UL)
+        return top_left + RIGHT * (u * plot.width) + DOWN * (v * plot.height)
+
+    def _tempgen_polyline_mobject(
+        self,
+        plot: ImageMobject,
+        *,
+        source_box: tuple[float, float, float, float],
+        source_points: list[tuple[float, float]],
+        color: str,
+        stroke_width: float,
+    ) -> VMobject:
+        points = [
+            self._tempgen_source_point_to_plot(
+                plot,
+                source_box=source_box,
+                point=point,
+            )
+            for point in source_points
+        ]
+        polyline = VMobject()
+        polyline.set_points_as_corners(points)
+        polyline.set_fill(opacity=0.0)
+        polyline.set_stroke(color=color, width=stroke_width)
+        return polyline
+
+    def _make_tempgen_overlay(
+        self,
+        plot: ImageMobject,
+        *,
+        source_box: tuple[float, float, float, float],
+        svg_path: Path,
+    ) -> VGroup:
+        root, _, _ = self._tempgen_svg_context(svg_path)
+        overlay = VGroup()
+        box_x0, box_y0, box_x1, box_y1 = source_box
+        stroke_paths: list[tuple[str, list[list[tuple[float, float]]]]] = []
+        for elem in root.iter():
+            if not elem.tag.endswith("path"):
+                continue
+            path_d = elem.get("d")
+            if not path_d:
+                continue
+            style = (elem.get("style") or "").replace(" ", "").lower()
+            if "stroke:#000000" not in style and "stroke:#262626" not in style:
+                continue
+            polylines = self._tempgen_path_polylines(path_d)
+            if not polylines:
+                continue
+            xs = [point[0] for polyline in polylines for point in polyline]
+            ys = [point[1] for polyline in polylines for point in polyline]
+            if max(xs) < box_x0 or min(xs) > box_x1 or max(ys) < box_y0 or min(ys) > box_y1:
+                continue
+            stroke_paths.append((style, polylines))
+
+        for style, polylines in stroke_paths:
+            is_black = "stroke:#000000" in style
+            is_dashed = "stroke-dasharray" in style
+            color = "#000000" if is_black else "#262626"
+            if is_dashed and polylines:
+                start = self._tempgen_source_point_to_plot(
+                    plot,
+                    source_box=source_box,
+                    point=polylines[0][0],
+                )
+                end = self._tempgen_source_point_to_plot(
+                    plot,
+                    source_box=source_box,
+                    point=polylines[0][-1],
+                )
+                overlay.add(
+                    DashedLine(
+                        start,
+                        end,
+                        dash_length=0.09,
+                    ).set_stroke(color=color, width=1.4)
+                )
+                continue
+
+            for polyline in polylines:
+                overlay.add(
+                    self._tempgen_polyline_mobject(
+                        plot,
+                        source_box=source_box,
+                        source_points=polyline,
+                        color=color,
+                        stroke_width=2.0 if is_black else 1.4,
+                    )
+                )
+
+        overlay.set_z_index(3)
+        return overlay
+
+    def _make_tempgen_text_overlay(self, plot: ImageMobject) -> VGroup:
+        plot_left = self._tempgen_source_point_to_plot(
+            plot,
+            source_box=self._TEMPGEN_SOURCE_CROP_BOX,
+            point=(self._TEMPGEN_SOURCE_PLOT_BOX[0], self._TEMPGEN_SOURCE_PLOT_BOX[3]),
+        )
+        plot_right = self._tempgen_source_point_to_plot(
+            plot,
+            source_box=self._TEMPGEN_SOURCE_CROP_BOX,
+            point=(self._TEMPGEN_SOURCE_PLOT_BOX[2], self._TEMPGEN_SOURCE_PLOT_BOX[3]),
+        )
+        plot_top = self._tempgen_source_point_to_plot(
+            plot,
+            source_box=self._TEMPGEN_SOURCE_CROP_BOX,
+            point=(self._TEMPGEN_SOURCE_PLOT_BOX[0], self._TEMPGEN_SOURCE_PLOT_BOX[1]),
+        )
+        colorbar_left = self._tempgen_source_point_to_plot(
+            plot,
+            source_box=self._TEMPGEN_SOURCE_CROP_BOX,
+            point=(self._TEMPGEN_SOURCE_COLORBAR_BOX[0], self._TEMPGEN_SOURCE_COLORBAR_BOX[3]),
+        )
+        colorbar_right = self._tempgen_source_point_to_plot(
+            plot,
+            source_box=self._TEMPGEN_SOURCE_CROP_BOX,
+            point=(self._TEMPGEN_SOURCE_COLORBAR_BOX[2], self._TEMPGEN_SOURCE_COLORBAR_BOX[3]),
+        )
+        colorbar_top = self._tempgen_source_point_to_plot(
+            plot,
+            source_box=self._TEMPGEN_SOURCE_CROP_BOX,
+            point=(self._TEMPGEN_SOURCE_COLORBAR_BOX[0], self._TEMPGEN_SOURCE_COLORBAR_BOX[1]),
+        )
+
+        plot_left_x = float(plot_left[0])
+        plot_right_x = float(plot_right[0])
+        plot_bottom_y = float(plot_left[1])
+        plot_top_y = float(plot_top[1])
+        colorbar_left_x = float(colorbar_left[0])
+        colorbar_right_x = float(colorbar_right[0])
+        colorbar_bottom_y = float(colorbar_left[1])
+        colorbar_top_y = float(colorbar_top[1])
+
+        tick_font_size = 10
+        axis_font_size = 11
+        cbar_font_size = 10
+        tick_length = 0.05
+        x_tick_y = plot_bottom_y - 0.14
+        x_label_y = plot_bottom_y - 0.34
+        y_tick_x = plot_left_x - 0.15
+        y_label_x = plot_left_x - 0.37
+        cbar_tick_x0 = colorbar_right_x + 0.01
+        cbar_tick_x1 = cbar_tick_x0 + tick_length
+        cbar_label_x = cbar_tick_x1 + 0.12
+        cbar_title_x = cbar_label_x + 0.34
+
+        labels = VGroup()
+
+        x_positions = np.linspace(plot_left_x, plot_right_x, len(self._TEMPGEN_AXIS_TICKS))
+        y_positions = np.linspace(plot_bottom_y, plot_top_y, len(self._TEMPGEN_AXIS_TICKS))
+        cbar_positions = np.linspace(
+            colorbar_bottom_y,
+            colorbar_top_y,
+            len(self._TEMPGEN_COLORBAR_TICKS),
+        )
+
+        for x_pos, tick in zip(x_positions, self._TEMPGEN_AXIS_TICKS):
+            labels.add(
+                Line(
+                    np.array([x_pos, plot_bottom_y, 0.0]),
+                    np.array([x_pos, plot_bottom_y + tick_length, 0.0]),
+                ).set_stroke("#262626", width=1.2)
+            )
+            tick_label = Tex(str(tick), color=INK, font_size=tick_font_size)
+            tick_label.move_to(np.array([x_pos, x_tick_y, 0.0]))
+            labels.add(tick_label)
+
+        for y_pos, tick in zip(y_positions, self._TEMPGEN_AXIS_TICKS):
+            labels.add(
+                Line(
+                    np.array([plot_left_x, y_pos, 0.0]),
+                    np.array([plot_left_x - tick_length, y_pos, 0.0]),
+                ).set_stroke("#262626", width=1.2)
+            )
+            tick_label = Tex(str(tick), color=INK, font_size=tick_font_size)
+            tick_label.move_to(np.array([y_tick_x, y_pos, 0.0]))
+            labels.add(tick_label)
+
+        x_label = Tex("Train time (s)", color=INK, font_size=axis_font_size)
+        x_label.move_to(np.array([(plot_left_x + plot_right_x) / 2, x_label_y, 0.0]))
+        labels.add(x_label)
+
+        y_label = Tex("Test time (s)", color=INK, font_size=axis_font_size)
+        y_label.rotate(PI / 2)
+        y_label.move_to(np.array([y_label_x, (plot_top_y + plot_bottom_y) / 2, 0.0]))
+        labels.add(y_label)
+
+        for y_pos, tick in zip(cbar_positions, self._TEMPGEN_COLORBAR_TICKS):
+            labels.add(
+                Line(
+                    np.array([cbar_tick_x0, y_pos, 0.0]),
+                    np.array([cbar_tick_x1, y_pos, 0.0]),
+                ).set_stroke("#262626", width=1.2)
+            )
+            tick_label = Tex(f"{tick:.2f}", color=INK, font_size=cbar_font_size)
+            tick_label.move_to(np.array([cbar_label_x, y_pos, 0.0]))
+            labels.add(tick_label)
+
+        cbar_title = Tex("Accuracy (minus chance)", color=INK, font_size=cbar_font_size)
+        cbar_title.rotate(PI / 2)
+        cbar_title.move_to(
+            np.array([cbar_title_x, (colorbar_top_y + colorbar_bottom_y) / 2, 0.0])
+        )
+        labels.add(cbar_title)
+
+        labels.set_z_index(4)
+        return labels
+
+    def _make_tempgen_plot_group(self, svg_path: Path) -> Group:
+        panel_array = self._supplemental_tempgen_panel(svg_path)
+        plot = ImageMobject(panel_array)
+        plot.set_height(self._TEMPGEN_PLOT_HEIGHT)
+        overlay = self._make_tempgen_overlay(
+            plot,
+            source_box=self._TEMPGEN_SOURCE_CROP_BOX,
+            svg_path=svg_path,
+        )
+        labels = self._make_tempgen_text_overlay(plot)
+        return Group(plot, overlay, labels)
+
+    def _make_tempgen_roi_card(self, label: str, svg_path: Path) -> Group:
+        plot_group = self._make_tempgen_plot_group(svg_path)
+        roi_label = Tex(label, color=INK, font_size=23)
+        if roi_label.width > plot_group.width * 1.08:
+            roi_label.scale_to_fit_width(plot_group.width * 1.08)
+        return Group(roi_label, plot_group).arrange(DOWN, buff=0.12)
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        title = Tex(
+            r"Temporal-generalisation matrices across ROIs",
+            color=INK,
+            font_size=26,
+        ).to_edge(UP, buff=0.22)
+
+        cards = [self._make_tempgen_roi_card(label, svg_path) for label, svg_path in self._ROI_SVGS]
+        top_row = Group(*cards[:4]).arrange(RIGHT, buff=0.34, aligned_edge=UP)
+        bottom_row = Group(*cards[4:]).arrange(RIGHT, buff=0.34, aligned_edge=UP)
+        grid = Group(top_row, bottom_row).arrange(DOWN, buff=0.48, center=True)
+        grid.scale_to_fit_width(config.frame_width - 0.9)
+
+        title_gap = 0.34
+        bottom_margin = 0.26
+        max_grid_height = title.get_bottom()[1] - (-config.frame_height / 2 + bottom_margin) - title_gap
+        if grid.height > max_grid_height:
+            grid.scale_to_fit_height(max_grid_height)
+        grid.next_to(title, DOWN, buff=title_gap)
+
+        self.play(FadeIn(title, shift=UP * 0.06), run_time=0.55)
+        self.play(
+            LaggedStart(
+                *[FadeIn(card, shift=UP * 0.08) for card in top_row],
+                lag_ratio=0.10,
+            ),
+            run_time=1.05,
+        )
+        self.play(
+            LaggedStart(
+                *[FadeIn(card, shift=UP * 0.08) for card in bottom_row],
+                lag_ratio=0.10,
+            ),
+            run_time=1.00,
+        )
+        self.wait(2.0)

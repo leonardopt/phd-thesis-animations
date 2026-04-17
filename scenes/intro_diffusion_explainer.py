@@ -244,13 +244,12 @@ class Diffusion01TheIdea(Scene):
 
 class Diffusion02Conditioning(Scene):
     """
-    Same noise z_T, three different prompts → three different images.
-    Text is turned into a vector c that steers the denoising.
-    Also: latent space framing — this is all happening 8× below pixel resolution.
+    Same z_T, three different prompts → three different images.
+    The mechanism from Scene 1 already showed *how*; this shows *control*.
+    Latent space framing added as a brief footnote.
     """
 
-    _IMG_H   = 1.55
-    _N       = 5           # number of denoising steps shown per row
+    _IMG_H = 1.60
 
     _OBJECTS = [
         {"path": CAT_PATH, "prompt": "a cat in an indoor scene",   "color": BLUE},
@@ -269,14 +268,15 @@ class Diffusion02Conditioning(Scene):
         heading.to_edge(UP, buff=0.38)
         self.play(FadeIn(heading, shift=UP * 0.06), run_time=0.55)
 
-        # ── Shared noise card on the far left ─────────────────────────────────
+        # ── Shared noise on the left (load once from path, add noise in numpy) ─
         noise_arr = blend(load_rgb(CAT_PATH), 1.0)
 
         noise_cards = Group(*[
-            framed(noise_arr, self._IMG_H).move_to(LEFT * 4.60 + UP * y)
+            framed(noise_arr, self._IMG_H)
+            .move_to(LEFT * 4.60 + UP * y)
             for y in self._ROW_YS
         ])
-        shared_label = Tex(r"same noise $z_T$", color=MGREY, font_size=18)
+        shared_label = Tex(r"same noise $z_T$", color=MGREY, font_size=19)
         shared_label.next_to(noise_cards, LEFT, buff=0.14)
 
         self.play(
@@ -286,110 +286,70 @@ class Diffusion02Conditioning(Scene):
         )
         self.wait(0.20)
 
-        # ── Three prompts appear ───────────────────────────────────────────────
+        # ── Three text prompts in the centre ──────────────────────────────────
         prompts = [
-            Tex(f'"{obj["prompt"]}"', color=obj["color"], font_size=18)
+            Tex(f'"{obj["prompt"]}"', color=obj["color"], font_size=19)
             .move_to(UP * y)
             for obj, y in zip(self._OBJECTS, self._ROW_YS)
         ]
-        arrows_in = VGroup(*[
-            _arrow(noise_cards[i].get_right() + RIGHT * 0.06,
-                   prompts[i].get_left() + LEFT * 0.06,
-                   obj["color"], sw=1.6)
-            for i, obj in enumerate(self._OBJECTS)
-        ])
         self.play(
             LaggedStart(*[FadeIn(p, shift=RIGHT * 0.04) for p in prompts],
                         lag_ratio=0.14),
             run_time=0.65,
         )
-        self.play(
-            LaggedStartMap(Create, arrows_in, lag_ratio=0.12),
-            run_time=0.50,
-        )
-        self.wait(0.20)
 
-        # ── Denoising strips per row (abridged: N states) ──────────────────────
-        cat_clean = load_rgb(CAT_PATH)
-        cat_levels = np.linspace(1.0, 0.0, self._N)
-        cat_arrs   = [blend(cat_clean, float(a)) for a in cat_levels]
-
-        obs_clean = load_rgb(OBS_PATH)
-        obs_arrs  = [blend(obs_clean, float(a)) for a in cat_levels]
-
-        pin_clean = load_rgb(PIN_PATH)
-        pin_arrs  = [blend(pin_clean, float(a)) for a in cat_levels]
-
-        all_arrs = [cat_arrs, obs_arrs, pin_arrs]
-
-        strip_xs = np.linspace(0.60, 5.80, self._N)
-
-        strips: list[Group] = []
-        strip_arrows: list[VGroup] = []
-        for obj, arrs, row_y in zip(self._OBJECTS, all_arrs, self._ROW_YS):
-            cards = Group(*[
-                framed(a, self._IMG_H - 0.2, obj["color"], sw=1.4)
-                .move_to(RIGHT * x + UP * row_y)
-                for a, x in zip(arrs, strip_xs)
-            ])
-            sarrows = VGroup(*[
-                _arrow(cards[i].get_right() + RIGHT * 0.03,
-                       cards[i + 1].get_left() + LEFT * 0.03,
-                       obj["color"], sw=1.5)
-                for i in range(self._N - 1)
-            ])
-            strips.append(cards)
-            strip_arrows.append(sarrows)
-
-        # Connect prompts to strips with an arrow
-        prompt_to_strip_arrows = VGroup(*[
-            _arrow(prompts[i].get_right() + RIGHT * 0.06,
-                   strips[i][0].get_left() + LEFT * 0.06,
-                   obj["color"], sw=1.5)
+        # Arrows: noise → prompt
+        arrows_in = VGroup(*[
+            _arrow(noise_cards[i].get_right() + RIGHT * 0.05,
+                   prompts[i].get_left()       + LEFT  * 0.05,
+                   obj["color"], sw=1.6)
             for i, obj in enumerate(self._OBJECTS)
         ])
+        self.play(LaggedStartMap(Create, arrows_in, lag_ratio=0.12), run_time=0.50)
+        self.wait(0.20)
+
+        # ── Clean outputs on the right (loaded from disk, fast) ───────────────
+        result_cards = Group(*[
+            framed(obj["path"], self._IMG_H, obj["color"])
+            .move_to(RIGHT * 4.60 + UP * y)
+            for obj, y in zip(self._OBJECTS, self._ROW_YS)
+        ])
+        arrows_out = VGroup(*[
+            _arrow(prompts[i].get_right() + RIGHT * 0.05,
+                   result_cards[i].get_left() + LEFT * 0.05,
+                   obj["color"], sw=1.6)
+            for i, obj in enumerate(self._OBJECTS)
+        ])
+        self.play(LaggedStartMap(Create, arrows_out, lag_ratio=0.12), run_time=0.50)
         self.play(
-            LaggedStartMap(Create, prompt_to_strip_arrows, lag_ratio=0.12),
-            run_time=0.45,
+            LaggedStartMap(FadeIn, result_cards, lag_ratio=0.12),
+            run_time=0.65,
         )
 
-        # Reveal all strips column by column
-        for col in range(self._N):
-            anims = []
-            for i in range(3):
-                anims.append(FadeIn(strips[i][col], scale=0.95))
-                if col > 0:
-                    anims.append(Create(strip_arrows[i][col - 1]))
-            self.play(*anims, run_time=0.38)
-
-        # Highlight the three clean outputs
         highlights = VGroup(*[
             SurroundingRectangle(
-                strips[i][-1], color=obj["color"],
-                stroke_width=2.2, buff=0.05,
+                result_cards[i], color=obj["color"],
+                stroke_width=2.2, buff=0.06,
             )
             for i, obj in enumerate(self._OBJECTS)
         ])
-        self.play(
-            LaggedStartMap(Create, highlights, lag_ratio=0.10),
-            run_time=0.50,
-        )
+        self.play(LaggedStartMap(Create, highlights, lag_ratio=0.10), run_time=0.50)
+        self.wait(0.30)
 
-        # Key takeaway
+        # ── Key callouts ──────────────────────────────────────────────────────
         note = Tex(
             r"Same $z_T$, different $c$ $\;\Rightarrow\;$ different image",
             color=INK, font_size=23,
         )
         note.to_edge(DOWN, buff=0.38)
-        self.play(FadeIn(note, shift=UP * 0.04), run_time=0.45)
-
-        # Latent space footnote
         latent_note = Tex(
-            r"All of this runs in a compressed \textit{latent} space $z$ "
-            r"\textemdash\ 8$\times$ smaller than pixels, but semantically rich.",
+            r"All of this runs in a compressed \textit{latent} space"
+            r" \textemdash\ 8$\times$ smaller than pixels, but semantically rich.",
             color=MGREY, font_size=19,
         )
         latent_note.next_to(note, UP, buff=0.16)
+
+        self.play(FadeIn(note, shift=UP * 0.04), run_time=0.45)
         self.play(FadeIn(latent_note, shift=UP * 0.03), run_time=0.45)
         self.wait(1.80)
 
