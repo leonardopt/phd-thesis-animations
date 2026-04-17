@@ -5163,6 +5163,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         cover_bottom: bool = True,
         cover_top: bool = True,
         bottom_min_height: float = 0.0,
+        right_gutter_width: float = 0.0,
         z_index: float = 2.2,
     ) -> VGroup:
         # Matplotlib clips the heatmap and contours to the square plot box, but
@@ -5227,6 +5228,20 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
                 ]))
                 top_mask.set_z_index(z_index)
                 masks.add(top_mask)
+
+        if right_gutter_width > 1e-3:
+            right_gutter = Rectangle(
+                width=right_gutter_width + bleed,
+                height=plot_frame.height + 2 * bleed,
+                stroke_width=0.0,
+            ).set_fill(fill_color, opacity=1.0)
+            right_gutter.move_to(np.array([
+                plot_frame.get_right()[0] + right_gutter_width / 2 - bleed / 2,
+                plot_frame.get_center()[1],
+                0.0,
+            ]))
+            right_gutter.set_z_index(z_index)
+            masks.add(right_gutter)
 
         return masks
 
@@ -7277,6 +7292,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             logic_matrix_panel,
             logic_matrix_frame,
             bottom_min_height=logic_matrix_panel.height * 0.18,
+            right_gutter_width=cell_width * 0.55,
             z_index=2.2,
         )
         logic_matrix_underlay = VGroup(logic_matrix_panel, logic_matrix_label_masks)
