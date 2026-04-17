@@ -11,7 +11,6 @@ Study 2.
   Study2SupplementalRoiTimecourses    — compare sensory -> memory time courses across other ROIs
   Study2SupplementalRoiTimecoursesA   — Train Session 2 -> Test Session 1 ROI time courses
   Study2SupplementalRoiTimecoursesB   — transition from A into the second SVG time-course panel
-  Study2WithinSession1TrainTestPanel  — static train/test within Session 1 panel
   Study2SupplementalRoiTempGenMats    — compare temporal-generalisation matrices across all ROIs
 
 Render:
@@ -25,11 +24,9 @@ Render:
     uv run manim scenes/study2.py Study2SupplementalRoiTimecourses -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesA -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesB -qh
-    uv run manim scenes/study2.py Study2WithinSession1TrainTestPanel -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTempGenMats -qh
 """
 from __future__ import annotations
-
 import numpy as np
 import re
 import shutil
@@ -57,10 +54,9 @@ _STUDY2_SCENE_ORDER: dict[str, str] = {
     "Study2WithinSession1DecodingResultsC":  "12",
     "Study2WithinSession1DecodingResultsD":  "13",
     "Study2LTMResultsExplainer":             "14",
-    "Study2WithinSession1TrainTestPanel":    "15",
-    "Study2SupplementalRoiTimecoursesA":     "16",
-    "Study2SupplementalRoiTimecoursesB":     "17",
-    "Study2SupplementalRoiTempGenMats":      "18",
+    "Study2SupplementalRoiTimecoursesA":     "15",
+    "Study2SupplementalRoiTimecoursesB":     "16",
+    "Study2SupplementalRoiTempGenMats":      "17",
 }
 
 
@@ -4665,7 +4661,6 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
     _RESULTS_GLM_2 = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm_2.svg"
     _RESULTS_TEMPGEN = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01tempgen.svg"
     _TEMPGEN_LOGIC_MATRIX = "/Users/leonardo/phd-thesis-animations/assets/images/study2/temp_gen_mat.svg"
-    _TEMPGEN_LOGIC_MATRIX_COLORBAR_FILL = "/Users/leonardo/phd-thesis-animations/assets/images/study2/temp_gen_mat_colorbar_fill.png"
     _CROSSSESSION_RESULTSB_LAST = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_last_frame.png"
     _CROSSSESSION_RESULTSB_LEFT_PLOT = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_left_plot.png"
     _CROSSSESSION_RESULTSB_RIGHT_PLOT = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_right_plot.png"
@@ -5118,6 +5113,123 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
     ) -> SVGMobject:
         return SVGMobject(path).set_height(height).move_to(center)
 
+    def _tempgen_svg_plot_frame(self, svg: SVGMobject) -> VGroup:
+        return self._svg_plot_frame_from_long_lines(
+            svg,
+            min_span_ratio=0.48,
+            max_thickness_ratio=0.02,
+        )
+
+    def _shared_sanitized_tempgen_svg(self, svg_path: str | Path) -> Path:
+        svg_path = Path(svg_path)
+        cache_dir = Path(tempfile.gettempdir()) / "study2_tempgen_svg_sanitized"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        sanitized_path = cache_dir / svg_path.name
+        if sanitized_path.exists() and sanitized_path.stat().st_mtime >= svg_path.stat().st_mtime:
+            return sanitized_path
+
+        tree = ET.parse(svg_path)
+        root = tree.getroot()
+        parent_map = {child: parent for parent in root.iter() for child in parent}
+        for elem in list(root.iter()):
+            if elem.tag.endswith("path") and elem.get("d") is None:
+                parent = parent_map.get(elem)
+                if parent is not None:
+                    parent.remove(elem)
+        tree.write(sanitized_path, encoding="utf-8", xml_declaration=True)
+        return sanitized_path
+
+    def _load_tempgen_svg_with_frame(
+        self,
+        *,
+        center: np.ndarray,
+        height: float,
+    ) -> tuple[SVGMobject, VGroup]:
+        svg = self._load_svg_plot(
+            str(self._shared_sanitized_tempgen_svg(self._TEMPGEN_LOGIC_MATRIX)),
+            center=center,
+            height=height,
+        )
+        self._hide_svg_background_rect(svg)
+        return svg, self._tempgen_svg_plot_frame(svg)
+
+    def _tempgen_plot_clip_masks(
+        self,
+        panel: Mobject,
+        plot_frame: Mobject,
+        *,
+        fill_color: ParsableManimColor = BG,
+        cover_left: bool = True,
+        cover_bottom: bool = True,
+        cover_top: bool = True,
+        bottom_min_height: float = 0.0,
+        z_index: float = 2.2,
+    ) -> VGroup:
+        # Matplotlib clips the heatmap and contours to the square plot box, but
+        # Manim's SVG importer does not consistently honor that clip path.
+        masks = VGroup()
+        bleed = 0.002
+
+        if cover_left:
+            left_mask_width = max(
+                0.0,
+                plot_frame.get_left()[0] - panel.get_left()[0] - bleed,
+            )
+            if left_mask_width > 1e-3:
+                left_mask = Rectangle(
+                    width=left_mask_width,
+                    height=panel.height,
+                    stroke_width=0.0,
+                ).set_fill(fill_color, opacity=1.0)
+                left_mask.move_to(np.array([
+                    panel.get_left()[0] + left_mask_width / 2,
+                    panel.get_center()[1],
+                    0.0,
+                ]))
+                left_mask.set_z_index(z_index)
+                masks.add(left_mask)
+
+        if cover_bottom:
+            bottom_mask_height = max(
+                0.0,
+                plot_frame.get_bottom()[1] - panel.get_bottom()[1] - bleed,
+            )
+            if bottom_mask_height > 1e-3 or bottom_min_height > 1e-3:
+                bottom_mask_height = max(bottom_mask_height, bottom_min_height)
+                bottom_mask = Rectangle(
+                    width=panel.width,
+                    height=bottom_mask_height,
+                    stroke_width=0.0,
+                ).set_fill(fill_color, opacity=1.0)
+                bottom_mask.move_to(np.array([
+                    panel.get_center()[0],
+                    plot_frame.get_bottom()[1] - bottom_mask_height / 2 - 0.01,
+                    0.0,
+                ]))
+                bottom_mask.set_z_index(z_index)
+                masks.add(bottom_mask)
+
+        if cover_top:
+            top_mask_height = max(
+                0.0,
+                panel.get_top()[1] - plot_frame.get_top()[1] - bleed,
+            )
+            if top_mask_height > 1e-3:
+                top_mask = Rectangle(
+                    width=plot_frame.width,
+                    height=top_mask_height,
+                    stroke_width=0.0,
+                ).set_fill(fill_color, opacity=1.0)
+                top_mask.move_to(np.array([
+                    plot_frame.get_center()[0],
+                    plot_frame.get_top()[1] + top_mask_height / 2 + 0.01,
+                    0.0,
+                ]))
+                top_mask.set_z_index(z_index)
+                masks.add(top_mask)
+
+        return masks
+
     def _hide_svg_background_rect(self, svg: SVGMobject) -> None:
         for submob in svg.submobjects:
             fill_hex = self._glm_svg_hex(submob.get_fill_color())
@@ -5147,6 +5259,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         svg: SVGMobject,
         *,
         min_span_ratio: float = 0.7,
+        max_thickness_ratio: float | None = None,
     ) -> VGroup:
         candidates = [
             submob
@@ -5167,6 +5280,17 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         ]
         verticals = [submob for submob in candidates if submob.height > submob.width]
         horizontals = [submob for submob in candidates if submob.width >= submob.height]
+        if max_thickness_ratio is not None:
+            verticals = [
+                submob
+                for submob in verticals
+                if submob.width <= svg.width * max_thickness_ratio
+            ]
+            horizontals = [
+                submob
+                for submob in horizontals
+                if submob.height <= svg.height * max_thickness_ratio
+            ]
         if len(verticals) < 2 or len(horizontals) < 2:
             raise ValueError("Could not identify SVG plot frame from long lines")
         left = min(verticals, key=lambda mob: mob.get_center()[0])
@@ -5892,24 +6016,21 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             np.array([3.15, plot_title_y, 0.0])
         )
         tempgen_center = np.array([3.15, -0.12, 0.0])
-        tempgen_underlay = (
-            ImageMobject(str(Path(self._RESULTS_TEMPGEN).with_suffix(".png")))
-            .set_height(3.55)
-            .move_to(tempgen_center)
-        )
-        tempgen_underlay.set_opacity(0.86)
-        tempgen_overlay = self._load_svg_plot(
-            self._RESULTS_TEMPGEN,
+        tempgen_underlay, tempgen_source_frame = self._load_tempgen_svg_with_frame(
             center=tempgen_center,
             height=3.55,
         )
-        self._hide_svg_white_regions(tempgen_overlay)
-        tempgen_overlay_frame = self._svg_plot_frame_from_long_lines(
-            tempgen_overlay,
-            min_span_ratio=0.62,
+        tempgen_source_frame.set_opacity(0.0)
+        tempgen_underlay.set_opacity(0.86)
+        tempgen_plot_frame = tempgen_source_frame.copy().set_stroke(
+            color="#262626",
+            width=1.8,
         )
-        tempgen_plot_frame = tempgen_overlay_frame.copy()
-        tempgen_overlay_frame.set_opacity(0.0)
+        tempgen_overlay = self._tempgen_plot_clip_masks(
+            tempgen_underlay,
+            tempgen_plot_frame,
+            z_index=3.0,
+        )
         tempgen_plot_frame.set_z_index(4)
         tempgen_underlay_final_opacity = 0.86
         tempgen_underlay.set_opacity(tempgen_underlay_final_opacity)
@@ -7032,11 +7153,33 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         test_bins_target.set_height(logic_matrix_frame.height)
         test_bins_target.next_to(logic_matrix_frame, LEFT, buff=logic_axis_seconds_gap)
 
-        train_label_target = timeres_ctx["train_row_label"].copy()
+        train_label_target = Tex(
+            "Train time (s)",
+            color=INK,
+            font_size=16,
+        )
         train_label_target.next_to(train_bins_target, DOWN, buff=0.12)
 
-        test_label_target = timeres_ctx["test_row_label"].copy()
+        test_label_target = Tex(
+            "Test time (s)",
+            color=INK,
+            font_size=16,
+        )
         test_label_target.next_to(test_bins_target, LEFT, buff=0.12)
+
+        for mob in [
+            design_stacked_target,
+            train_bins_stacked_target,
+            test_bins_stacked_target,
+            train_label_stacked_target,
+            test_label_stacked_target,
+            design_target,
+            train_bins_target,
+            test_bins_target,
+            train_label_target,
+            test_label_target,
+        ]:
+            mob.set_z_index(4.25)
 
         cell_count = len(train_bins_target)
 
@@ -7059,36 +7202,35 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         ])
         cell_width = axis_spacing(train_center_xs, train_bins_target[0].width)
         cell_height = axis_spacing(test_center_ys, test_bins_target[0].height)
-        matrix_left = float(train_center_xs[0] - cell_width / 2)
-        matrix_right = float(train_center_xs[-1] + cell_width / 2)
-        matrix_bottom = float(test_center_ys[0] - cell_height / 2)
-        matrix_top = float(test_center_ys[-1] + cell_height / 2)
         cell_size = min(cell_width, cell_height)
-
-        logic_matrix_frame.stretch_to_fit_width((matrix_right - matrix_left) + 0.06)
-        logic_matrix_frame.stretch_to_fit_height((matrix_top - matrix_bottom) + 0.06)
-        logic_matrix_frame.move_to(np.array([
-            (matrix_left + matrix_right) / 2,
-            (matrix_bottom + matrix_top) / 2,
-            0.0,
-        ]))
+        matrix_left = float(logic_matrix_frame.get_left()[0])
+        matrix_right = float(logic_matrix_frame.get_right()[0])
+        matrix_bottom = float(logic_matrix_frame.get_bottom()[1])
+        matrix_top = float(logic_matrix_frame.get_top()[1])
         matrix_total_time = 19.2
 
         def matrix_time_to_x(time_s: float) -> float:
             return float(interpolate(
-                train_center_xs[0],
-                train_center_xs[-1],
+                matrix_left,
+                matrix_right,
                 np.clip(time_s / matrix_total_time, 0.0, 1.0),
             ))
 
-        x_tick_specs = [
+        def matrix_time_to_y(time_s: float) -> float:
+            return float(interpolate(
+                matrix_bottom,
+                matrix_top,
+                np.clip(time_s / matrix_total_time, 0.0, 1.0),
+            ))
+
+        axis_tick_specs = [
             (0.0, "0"),
             (5.0, "5"),
             (10.0, "10"),
-            (15.0, "15 s"),
+            (15.0, "15"),
         ]
         matrix_x_ticks = VGroup()
-        for tick_time, tick_label in x_tick_specs:
+        for tick_time, tick_label in axis_tick_specs:
             tick_x = matrix_time_to_x(tick_time)
             tick_mark = Line(
                 np.array([tick_x, logic_matrix_frame.get_bottom()[1], 0.0]),
@@ -7096,104 +7238,48 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
                 color="#5A5A5A",
                 stroke_width=1.2,
             )
-            tick_text = Tex(tick_label, color=INK, font_size=13).next_to(
+            tick_text = Tex(tick_label, color=INK, font_size=15).next_to(
                 tick_mark,
                 DOWN,
                 buff=0.05,
             )
             matrix_x_ticks.add(VGroup(tick_mark, tick_text))
         matrix_x_ticks.set_z_index(4.15)
+        matrix_y_ticks = VGroup()
+        for tick_time, tick_label in axis_tick_specs:
+            tick_y = matrix_time_to_y(tick_time)
+            tick_mark = Line(
+                np.array([logic_matrix_frame.get_left()[0], tick_y, 0.0]),
+                np.array([logic_matrix_frame.get_left()[0] - 0.055, tick_y, 0.0]),
+                color="#5A5A5A",
+                stroke_width=1.2,
+            )
+            tick_text = Tex(tick_label, color=INK, font_size=15).next_to(
+                tick_mark,
+                LEFT,
+                buff=0.05,
+            )
+            matrix_y_ticks.add(VGroup(tick_mark, tick_text))
+        matrix_y_ticks.set_z_index(4.15)
 
-        logic_matrix_svg = self._load_svg_plot(
-            self._TEMPGEN_LOGIC_MATRIX,
+        logic_matrix_svg, logic_matrix_source_frame = self._load_tempgen_svg_with_frame(
             center=logic_matrix_frame.get_center(),
             height=logic_matrix_frame.height + 0.10,
         )
-        self._hide_svg_background_rect(logic_matrix_svg)
-        try:
-            logic_matrix_source_frame = self._svg_plot_frame_from_long_lines(
-                logic_matrix_svg,
-                min_span_ratio=0.48,
-            )
-        except ValueError:
-            logic_matrix_source_frame = logic_matrix_svg
-        else:
-            logic_matrix_source_frame.set_opacity(0.0)
-        source_left = logic_matrix_source_frame.get_left()[0] - 1e-3
-        source_right = logic_matrix_source_frame.get_right()[0] + 1e-3
-        source_bottom = logic_matrix_source_frame.get_bottom()[1] - 1e-3
-        source_top = logic_matrix_source_frame.get_top()[1] + 1e-3
-        if isinstance(logic_matrix_source_frame, VGroup):
-            source_frame_ids = {id(submob) for submob in logic_matrix_source_frame}
-        else:
-            source_frame_ids = {id(logic_matrix_source_frame)}
-        logic_matrix_body_source = VGroup(*[
-            submob.copy()
-            for submob in logic_matrix_svg.submobjects
-            if id(submob) not in source_frame_ids
-            if len(submob.get_all_points()) > 0
-            if source_left <= submob.get_center()[0] <= source_right
-            if source_bottom <= submob.get_center()[1] <= source_top
-        ])
-        logic_matrix_overlay = self._remap_plot_mobject(
-            logic_matrix_body_source,
+        logic_matrix_source_frame.set_opacity(0.0)
+        logic_matrix_panel = self._remap_plot_mobject(
+            logic_matrix_svg,
             logic_matrix_source_frame,
             logic_matrix_frame,
         )
-        logic_matrix_overlay.set_z_index(2.1)
-        colorbar_gap = logic_matrix_frame.width * (11.90551 / 238.11023)
-        colorbar_fill_width = logic_matrix_frame.width * (9.3599997 / 238.11023)
-        colorbar_fill_height = logic_matrix_frame.height * (238.08 / 238.11023)
-        logic_matrix_colorbar_fill = ImageMobject(self._TEMPGEN_LOGIC_MATRIX_COLORBAR_FILL)
-        logic_matrix_colorbar_fill.set_height(colorbar_fill_height)
-        logic_matrix_colorbar_fill.stretch_to_fit_width(colorbar_fill_width)
-        logic_matrix_colorbar_fill.move_to(np.array([
-            logic_matrix_frame.get_right()[0] + colorbar_gap + colorbar_fill_width / 2,
-            logic_matrix_frame.get_center()[1],
-            0.0,
-        ]))
-        logic_matrix_colorbar_fill.set_z_index(3.95)
-        logic_matrix_colorbar_border = Rectangle(
-            width=colorbar_fill_width,
-            height=colorbar_fill_height,
-            stroke_color="#262626",
-            stroke_width=1.2,
-        ).set_fill(opacity=0.0).move_to(logic_matrix_colorbar_fill).set_z_index(4.02)
-        logic_matrix_colorbar_ticks = VGroup()
-        for tick_alpha, tick_label in [
-            (1.0, "-0.10"),
-            (0.75, "-0.05"),
-            (0.50, "0.00"),
-            (0.25, "0.05"),
-            (0.0, "0.10"),
-        ]:
-            tick_y = interpolate(
-                logic_matrix_colorbar_border.get_bottom()[1],
-                logic_matrix_colorbar_border.get_top()[1],
-                tick_alpha,
-            )
-            tick_anchor = Dot(
-                np.array([logic_matrix_colorbar_border.get_right()[0] + 0.018, tick_y, 0.0]),
-                radius=0.001,
-                fill_opacity=0.0,
-                stroke_opacity=0.0,
-            )
-            tick_text = Tex(tick_label, color=INK, font_size=13).next_to(
-                tick_anchor,
-                RIGHT,
-                buff=0.04,
-            )
-            logic_matrix_colorbar_ticks.add(tick_text)
-        logic_matrix_colorbar_ticks.set_z_index(4.08)
-        accuracy_label = Tex("Accuracy", color=INK, font_size=16).rotate(PI / 2)
-        accuracy_label.next_to(logic_matrix_colorbar_ticks, RIGHT, buff=0.12)
-        accuracy_label.set_z_index(4.1)
-        logic_matrix_colorbar = Group(
-            logic_matrix_colorbar_fill,
-            logic_matrix_colorbar_border,
-            logic_matrix_colorbar_ticks,
-            accuracy_label,
+        logic_matrix_panel.set_z_index(2.1)
+        logic_matrix_label_masks = self._tempgen_plot_clip_masks(
+            logic_matrix_panel,
+            logic_matrix_frame,
+            bottom_min_height=logic_matrix_panel.height * 0.18,
+            z_index=2.2,
         )
+        logic_matrix_underlay = VGroup(logic_matrix_panel, logic_matrix_label_masks)
 
         def interpolated_center(bin_group: VGroup, value: float) -> np.ndarray:
             low_idx = int(np.clip(np.floor(value), 0, len(bin_group) - 1))
@@ -7229,7 +7315,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             stroke_width=2.0,
         ).set_fill(selector_color, opacity=selector_fill_opacity).move_to(
             interpolated_center(train_bins_target, train_tracker.get_value())
-        ).set_z_index(4))
+        ).set_z_index(4.6))
 
         test_selector = always_redraw(lambda: RoundedRectangle(
             width=test_bins_target[0].width + 0.05,
@@ -7239,7 +7325,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             stroke_width=2.0,
         ).set_fill(selector_color, opacity=selector_fill_opacity).move_to(
             interpolated_center(test_bins_target, test_tracker.get_value())
-        ).set_z_index(4))
+        ).set_z_index(4.6))
 
         cursor_corner_radius = min(cell_width, cell_height) * 0.08
         matrix_cursor = always_redraw(lambda: RoundedRectangle(
@@ -7250,7 +7336,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             stroke_width=1.5,
         ).set_fill(selector_color, opacity=0.08).move_to(
             matrix_cell_center(train_tracker.get_value(), test_tracker.get_value())
-        ).set_z_index(4))
+        ).set_z_index(4.7))
 
         train_projection = always_redraw(lambda: DashedLine(
             interpolated_center(train_bins_target, train_tracker.get_value()) + UP * (
@@ -7261,7 +7347,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             stroke_width=1.0,
             dash_length=0.045,
             dashed_ratio=0.65,
-        ).set_z_index(3))
+        ).set_z_index(4.45))
 
         test_projection = always_redraw(lambda: DashedLine(
             interpolated_center(test_bins_target, test_tracker.get_value()) + RIGHT * (
@@ -7272,7 +7358,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             stroke_width=1.0,
             dash_length=0.045,
             dashed_ratio=0.65,
-        ).set_z_index(3))
+        ).set_z_index(4.45))
 
         right_plot_frame_target = logic_matrix_frame.copy()
         right_plot_frame_target.set_x(ctx["tempgen_plot_frame"].get_center()[0])
@@ -7306,10 +7392,10 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             timeres_ctx["timeres_frame"],
             right_plot_frame_target,
         )
-        right_plot_y_label = Tex("Accuracy", color=INK, font_size=18)
+        right_plot_y_label = Tex("Accuracy", color=INK, font_size=15)
         right_plot_y_label.rotate(PI / 2)
-        right_plot_y_label.scale_to_fit_height(right_plot_frame.height * 0.24)
-        right_plot_y_label.next_to(right_plot_frame, LEFT, buff=0.16)
+        right_plot_y_label.scale_to_fit_height(right_plot_frame.height * 0.20)
+        right_plot_y_label.next_to(right_plot_frame, LEFT, buff=0.09)
         right_plot_scaffold = VGroup(
             right_plot_frame,
             right_plot_rest,
@@ -7522,10 +7608,9 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             "train_label_target": train_label_target,
             "test_label_target": test_label_target,
             "logic_matrix_frame": logic_matrix_frame,
-            "logic_matrix_overlay": logic_matrix_overlay,
-            "logic_matrix_colorbar": logic_matrix_colorbar,
-            "accuracy_label": accuracy_label,
+            "logic_matrix_underlay": logic_matrix_underlay,
             "matrix_x_ticks": matrix_x_ticks,
+            "matrix_y_ticks": matrix_y_ticks,
             "right_plot_scaffold": right_plot_scaffold,
             "right_plot_ci": right_plot_ci,
             "right_plot_trace": right_plot_trace,
@@ -7577,9 +7662,9 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             timeres_ctx["train_row_label"],
             timeres_ctx["test_row_label"],
             logic_ctx["logic_matrix_frame"],
-            logic_ctx["logic_matrix_overlay"],
-            logic_ctx["logic_matrix_colorbar"],
+            logic_ctx["logic_matrix_underlay"],
             logic_ctx["matrix_x_ticks"],
+            logic_ctx["matrix_y_ticks"],
             logic_ctx["matrix_cursor"],
             logic_ctx["diagonal_trace"],
         )
@@ -7602,9 +7687,9 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         train_label_target = logic_ctx["train_label_target"]
         test_label_target = logic_ctx["test_label_target"]
         logic_matrix_frame = logic_ctx["logic_matrix_frame"]
-        logic_matrix_overlay = logic_ctx["logic_matrix_overlay"]
-        logic_matrix_colorbar = logic_ctx["logic_matrix_colorbar"]
+        logic_matrix_underlay = logic_ctx["logic_matrix_underlay"]
         matrix_x_ticks = logic_ctx["matrix_x_ticks"]
+        matrix_y_ticks = logic_ctx["matrix_y_ticks"]
         matrix_cover_columns = logic_ctx["matrix_cover_columns"]
         matrix_cover_group = logic_ctx["matrix_cover_group"]
         train_tracker = logic_ctx["train_tracker"]
@@ -7619,6 +7704,15 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         demo_column_count = logic_ctx["demo_column_count"]
         demo_fill_durations = logic_ctx["demo_fill_durations"]
         demo_shift_durations = logic_ctx["demo_shift_durations"]
+
+        for mob in [
+            timeres_ctx["experimental_design"],
+            timeres_ctx["train_time_bins"],
+            timeres_ctx["test_time_bins"],
+            timeres_ctx["train_row_label"],
+            timeres_ctx["test_row_label"],
+        ]:
+            mob.set_z_index(4.25)
 
         self.play(
             FadeOut(ctx["glm_plot"], shift=LEFT * 0.45),
@@ -7654,12 +7748,13 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         self.wait(0.15)
         self.play(
             Create(logic_matrix_frame),
-            FadeIn(logic_matrix_colorbar, shift=LEFT * 0.04),
+            FadeIn(logic_matrix_underlay, shift=LEFT * 0.04),
             run_time=0.90,
         )
-        self.add(logic_matrix_overlay, matrix_cover_group)
+        self.add(logic_matrix_underlay, matrix_cover_group)
         self.play(
             FadeIn(matrix_x_ticks, shift=DOWN * 0.02),
+            FadeIn(matrix_y_ticks, shift=LEFT * 0.02),
             run_time=0.35,
         )
 
@@ -7724,6 +7819,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         self.play(
             FadeOut(train_selector),
             FadeOut(test_selector),
+            FadeOut(matrix_cursor),
             run_time=0.35,
         )
         self.wait(2.0)
@@ -7795,17 +7891,20 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         morph_return = morph_trace.copy()
         self.remove(diagonal_trace)
         self.add(morph_trace)
-        self.play(
-            Transform(morph_trace, right_curve_target),
-            run_time=1.15,
-            rate_func=smooth,
-        )
-        self.wait(0.35)
-        self.play(
-            Transform(morph_trace, morph_return),
-            run_time=1.05,
-            rate_func=smooth,
-        )
+        for cycle_idx in range(2):
+            self.play(
+                Transform(morph_trace, right_curve_target),
+                run_time=1.15,
+                rate_func=smooth,
+            )
+            self.wait(0.25)
+            self.play(
+                Transform(morph_trace, morph_return),
+                run_time=1.05,
+                rate_func=smooth,
+            )
+            if cycle_idx == 0:
+                self.wait(0.18)
         self.remove(morph_trace)
         self.add(diagonal_trace)
         self.play(
@@ -8534,15 +8633,27 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         timeres_title.move_to(np.array([timeres_frame_center_x, plot_title_y, 0.0]))
         timeres_text = self._make_ltm_timeres_text_overlay(timeres_svg, timeres_frame)
 
-        plots = Group(
-            beh_title,
-            beh_svg,
-            glm_title,
-            glm_svg,
-            timeres_title,
-            timeres_svg,
-            timeres_text,
-        )
+        beh_column = Group(beh_title, beh_svg)
+        glm_column = Group(glm_title, glm_svg)
+        timeres_plot = VGroup(timeres_svg, timeres_text)
+        timeres_column = Group(timeres_title, timeres_plot)
+
+        anchor_groups = [beh_frame, glm_frame, timeres_frame]
+        column_groups = [beh_column, glm_column, timeres_column]
+        base_gap = (
+            config.frame_width - sum(anchor_group.width for anchor_group in anchor_groups)
+        ) / (len(anchor_groups) + 1)
+        extra_shifts = [0.0, 0.0, base_gap * 0.30]
+        next_left = -config.frame_width / 2 + base_gap
+        for anchor_group, column_group, extra_shift in zip(
+            anchor_groups, column_groups, extra_shifts
+        ):
+            column_group.shift(RIGHT * (next_left - anchor_group.get_left()[0] + extra_shift))
+            next_left += anchor_group.width + base_gap
+        midpoint_x = 0.5 * (beh_frame.get_center()[0] + timeres_frame.get_center()[0])
+        glm_column.shift(RIGHT * (midpoint_x - glm_frame.get_center()[0]))
+
+        plots = Group(*column_groups)
 
         takeaway = self._make_ltm_takeaway()
         takeaway.move_to(np.array([0.0, -3.28, 0.0]))
@@ -9056,70 +9167,6 @@ class Study2SupplementalRoiTimecourses(_Study2NumberedScene, Scene):
         self.camera.background_color = BG
         panel = self._build_panel(self._panel_spec())
         self._play_panel_intro(panel)
-        self.wait(2.0)
-
-
-class Study2WithinSession1TrainTestPanel(_Study2WithinSession1DecodingBase):
-    """
-    Static panel B: train and test within Session 1.
-
-    Render:
-        uv run manim scenes/study2.py Study2WithinSession1TrainTestPanel -ql
-        uv run manim scenes/study2.py Study2WithinSession1TrainTestPanel -qh
-    """
-
-    def _build_panel_group(self) -> Group:
-        ctx = self._build_results_stage()
-        self._align_within_session_act1_to_shared_layout(ctx)
-        timeres_ctx = self._build_within_session_timeres_context(ctx)
-        self._prepare_within_session_resultsb_final_state(timeres_ctx)
-
-        timeres_ctx["timeres_trace"].update()
-        timeres_ctx["timeres_trace"].clear_updaters()
-        timeres_ctx["timeres_title"].become(
-            Tex(
-                r"Train Session 1 $\rightarrow$ Test Session 1",
-                color=INK,
-                font_size=22,
-            ).move_to(timeres_ctx["timeres_title"])
-        )
-
-        panel_group = Group(
-            timeres_ctx["timeres_title"],
-            timeres_ctx["timeres_train_explainer"],
-            timeres_ctx["experimental_design"],
-            timeres_ctx["train_time_bins"],
-            timeres_ctx["test_time_bins"],
-            timeres_ctx["train_row_label"],
-            timeres_ctx["test_row_label"],
-            timeres_ctx["trs_label"],
-            timeres_ctx["event_projection_lines"],
-            timeres_ctx["timeres_plot_scaffold"],
-            timeres_ctx["timeres_trace"],
-            timeres_ctx["timeres_ci"],
-            timeres_ctx["timeres_sig_bands"],
-            timeres_ctx["timeres_hrf_rectangles"],
-            timeres_ctx["timeres_hrf_lines"],
-            timeres_ctx["delay_end_chance_arrow"],
-        )
-
-        panel_group.shift(LEFT * panel_group.get_center()[0])
-        top_target = config.frame_height / 2 - 0.58
-        panel_group.shift(UP * (top_target - panel_group.get_top()[1]))
-
-        bottom_limit = -config.frame_height / 2 + 0.24
-        if panel_group.get_bottom()[1] < bottom_limit:
-            panel_group.shift(UP * (bottom_limit - panel_group.get_bottom()[1]))
-        return panel_group
-
-    def construct(self) -> None:
-        self.camera.background_color = BG
-        rationale = self._build_rationale_end_static()
-        self.slide_title = rationale["question_title"]
-
-        panel_group = self._build_panel_group()
-
-        self.play(FadeIn(panel_group, shift=UP * 0.06), run_time=0.9)
         self.wait(2.0)
 
 

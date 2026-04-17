@@ -1125,7 +1125,7 @@ class Study1Stage2EmbeddingResult(Scene):
 
 ##########################
 
-class Study1Stage3ModelOrderToHeatmap(Scene):
+class Study1Stage2ModelOrderToHeatmap(Scene):
     STIMULI_DIR = Path("/Users/leonardo/similarity-judgment-task-analysis/data/assets/images/stimuli_reordered")
     HEATMAP_PDF = Path("/Users/leonardo/phd-thesis-animations/assets/images/study1_stage2/lpips_vs_embedding_orders_heatmap.pdf")
 

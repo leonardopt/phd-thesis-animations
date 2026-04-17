@@ -147,6 +147,57 @@ def _tempgen_mat_columns(svg: SVGMobject) -> list[VGroup]:
     ]
 
 
+def _tempgen_mat_plot_frame(svg: SVGMobject) -> VGroup:
+    cells = _tempgen_mat_cells(svg)
+    if not cells:
+        return VGroup()
+
+    left = min(cell.get_left()[0] for cell in cells)
+    right = max(cell.get_right()[0] for cell in cells)
+    bottom = min(cell.get_bottom()[1] for cell in cells)
+    top = max(cell.get_top()[1] for cell in cells)
+    tol = np.median([cell.width for cell in cells]) * 0.7
+
+    frame_parts = [
+        submob
+        for submob in svg.submobjects
+        if (
+            len(submob.get_all_points()) == 4
+            and submob.get_stroke_opacity() > 0
+            and _get_hex(submob.get_stroke_color()) == INK
+            and submob.get_fill_opacity() == 0
+            and (
+                abs(submob.get_left()[0] - left) <= tol
+                or abs(submob.get_right()[0] - right) <= tol
+                or abs(submob.get_bottom()[1] - bottom) <= tol
+                or abs(submob.get_top()[1] - top) <= tol
+            )
+        )
+    ]
+    return VGroup(*frame_parts)
+
+
+def _tempgen_mat_cluster_significance(svg: SVGMobject) -> VGroup:
+    plot_frame = _tempgen_mat_plot_frame(svg)
+    if len(plot_frame) == 0:
+        return VGroup()
+
+    candidates = [
+        submob
+        for submob in svg.submobjects
+        if (
+            submob.get_stroke_opacity() > 0
+            and _get_hex(submob.get_stroke_color()) == "#000000"
+            and len(submob.get_all_points()) > 100
+            and submob.width < plot_frame.width * 0.98
+            and submob.height < plot_frame.height * 0.98
+            and plot_frame.get_left()[0] - 0.02 <= submob.get_center()[0] <= plot_frame.get_right()[0] + 0.02
+            and plot_frame.get_bottom()[1] - 0.02 <= submob.get_center()[1] <= plot_frame.get_top()[1] + 0.02
+        )
+    ]
+    return VGroup(*candidates)
+
+
 def _timeres_select_many(svg: SVGMobject, *, stroke_hex: str | None = None, fill_hex: str | None = None, min_points: int = 0):
     stroke_hex = stroke_hex.upper() if stroke_hex else None
     fill_hex = fill_hex.upper() if fill_hex else None
@@ -689,22 +740,49 @@ class Study2TempGenMatTest(Scene):
         svg = _load_svg(STUDY2_TEMP_GEN_MAT_PATH, frame_width_ratio=0.54, frame_height_ratio=0.78)
         _hide_background_rect(svg)
 
-        scaffold = svg.copy()
-        _hide_background_rect(scaffold)
-        for column in _tempgen_mat_columns(scaffold):
-            column.set_opacity(0.0)
+        scaffold_svg = svg.copy()
+        _hide_background_rect(scaffold_svg)
+        scaffold_columns = _tempgen_mat_columns(scaffold_svg)
+        scaffold_cells = VGroup(*[
+            cell
+            for column in scaffold_columns
+            for cell in column
+        ])
+        scaffold_sig = _tempgen_mat_cluster_significance(scaffold_svg)
+        scaffold_frame = _tempgen_mat_plot_frame(scaffold_svg)
+        scaffold_cells.set_opacity(0.0)
+        scaffold_sig.set_opacity(0.0)
+        scaffold_rest = VGroup(*[
+            submob
+            for submob in scaffold_svg.submobjects
+            if (
+                submob not in scaffold_cells.submobjects
+                and submob not in scaffold_sig.submobjects
+                and submob not in scaffold_frame.submobjects
+            )
+        ])
 
         animated_svg = svg.copy()
         _hide_background_rect(animated_svg)
         columns = _tempgen_mat_columns(animated_svg)
+        cluster_sig = _tempgen_mat_cluster_significance(animated_svg)
+        frame = _tempgen_mat_plot_frame(animated_svg)
         animated_cells = VGroup(*[
             cell
             for column in columns
             for cell in column
         ])
         animated_cells.set_z_index(3)
+        cluster_sig.set_z_index(4)
 
-        self.play(FadeIn(scaffold, shift=UP * 0.05), run_time=0.8)
+        self.play(
+            AnimationGroup(
+                Create(frame),
+                FadeIn(scaffold_rest, shift=UP * 0.04),
+                lag_ratio=0.18,
+            ),
+            run_time=0.9,
+        )
         self.play(
             LaggedStart(
                 *[
@@ -721,4 +799,5 @@ class Study2TempGenMatTest(Scene):
             ),
             run_time=2.8,
         )
+        self.play(FadeIn(cluster_sig, shift=UP * 0.03), run_time=0.65)
         self.wait(1)

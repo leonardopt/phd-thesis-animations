@@ -24,10 +24,9 @@ scenes=(
     "12_Study2WithinSession1DecodingResultsC:Study2WithinSession1DecodingResultsC"
     "13_Study2WithinSession1DecodingResultsD:Study2WithinSession1DecodingResultsD"
     "14_Study2LTMResultsExplainer:Study2LTMResultsExplainer"
-    "15_Study2WithinSession1TrainTestPanel:Study2WithinSession1TrainTestPanel"
-    "16_Study2SupplementalRoiTimecoursesA:Study2SupplementalRoiTimecoursesA"
-    "17_Study2SupplementalRoiTimecoursesB:Study2SupplementalRoiTimecoursesB"
-    "18_Study2SupplementalRoiTempGenMats:Study2SupplementalRoiTempGenMats"
+    "15_Study2SupplementalRoiTimecoursesA:Study2SupplementalRoiTimecoursesA"
+    "16_Study2SupplementalRoiTimecoursesB:Study2SupplementalRoiTimecoursesB"
+    "17_Study2SupplementalRoiTempGenMats:Study2SupplementalRoiTempGenMats"
 )
 
 total=${#scenes[@]}
