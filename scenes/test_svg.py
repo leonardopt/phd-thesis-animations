@@ -11,6 +11,8 @@ STUDY2_GLM_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02s
 STUDY2_TEMPGEN_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses01tempgen.svg"
 STUDY2_WITHIN_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses01timeres.svg"
 STUDY2_TEMP_GEN_MAT_PATH = ROOT / "assets" / "images" / "study2" / "temp_gen_mat.svg"
+MEMORY_P2_MANIM_PATH = Path("/Users/leonardo/visual-memory-task-analysis/figures/manim/p2_manim.svg")
+MEMORY_P3_MANIM_PATH = Path("/Users/leonardo/visual-memory-task-analysis/figures/manim/p3_manim.svg")
 
 INK = "#262626"
 PURPLE = "#7B51A0"
@@ -23,6 +25,24 @@ def _get_hex(color) -> str | None:
 
 def _load_svg(path: Path, *, frame_width_ratio: float, frame_height_ratio: float) -> SVGMobject:
     svg = SVGMobject(str(path))
+    frame_width = config.frame_width * frame_width_ratio
+    frame_height = config.frame_height * frame_height_ratio
+    svg.scale(min(frame_width / svg.width, frame_height / svg.height))
+    svg.center()
+    return svg
+
+
+def _remove_background_rect(svg: SVGMobject) -> None:
+    for submob in list(svg.submobjects):
+        if _get_hex(submob.get_stroke_color()) == "#FFFFFF" and _get_hex(submob.get_fill_color()) == "#FFFFFF":
+            if submob.width > 0.9 * svg.width and submob.height > 0.9 * svg.height:
+                svg.remove(submob)
+                return
+
+
+def _load_svg_visible(path: Path, *, frame_width_ratio: float, frame_height_ratio: float) -> SVGMobject:
+    svg = SVGMobject(str(path))
+    _remove_background_rect(svg)
     frame_width = config.frame_width * frame_width_ratio
     frame_height = config.frame_height * frame_height_ratio
     svg.scale(min(frame_width / svg.width, frame_height / svg.height))
@@ -800,4 +820,18 @@ class Study2TempGenMatTest(Scene):
             run_time=2.8,
         )
         self.play(FadeIn(cluster_sig, shift=UP * 0.03), run_time=0.65)
+        self.wait(1)
+
+
+class MemoryP2ManimTest(Scene):
+    def construct(self):
+        svg = _load_svg_visible(MEMORY_P2_MANIM_PATH, frame_width_ratio=0.94, frame_height_ratio=0.9)
+        self.play(FadeIn(svg, shift=UP * 0.04), run_time=0.9)
+        self.wait(1)
+
+
+class MemoryP3ManimTest(Scene):
+    def construct(self):
+        svg = _load_svg_visible(MEMORY_P3_MANIM_PATH, frame_width_ratio=0.94, frame_height_ratio=0.9)
+        self.play(FadeIn(svg, shift=UP * 0.04), run_time=0.9)
         self.wait(1)

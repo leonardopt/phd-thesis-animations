@@ -3,6 +3,7 @@ Study 2.
 
   Study2ExperimentalDesign — two-session paradigm diagram
   Study2DecodingOverview   — Session 2 stimuli -> feature vectors -> sensory matrix
+  Study2DecodingOverviewB  — restore original images and motivate cross-decoding
   Study2WithinSession2Decoding — crossvalidated prediction within Session 2
   Study2CrossSessionDecoding   — train on sensory, test on sensory and memory
   Study2WithinSession1Decoding        — explain the Session 1 within-session rationale
@@ -12,11 +13,13 @@ Study 2.
   Study2SupplementalRoiTimecoursesA   — Train Session 2 -> Test Session 1 ROI time courses
   Study2SupplementalRoiTimecoursesB   — transition from A into the second SVG time-course panel
   Study2SupplementalRoiTempGenMats    — compare temporal-generalisation matrices across all ROIs
-  Study2StatMapMontage                — GLM-based searchlight decoding analyses during stimulation
+  Study2SearchlightStimulation        — GLM-based searchlight decoding during stimulation
+  Study2SearchlightDelay              — GLM-based searchlight decoding during delay
 
 Render:
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
     uv run manim scenes/study2.py Study2DecodingOverview -qh
+    uv run manim scenes/study2.py Study2DecodingOverviewB -qh
     uv run manim scenes/study2.py Study2WithinSession2Decoding -qh
     uv run manim scenes/study2.py Study2CrossSessionDecoding -qh
     uv run manim scenes/study2.py Study2WithinSession1Decoding -qh
@@ -26,9 +29,11 @@ Render:
     uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesA -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesB -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTempGenMats -qh
-    uv run manim scenes/study2.py Study2StatMapMontage -qh
+    uv run manim scenes/study2.py Study2SearchlightStimulation -qh
+    uv run manim scenes/study2.py Study2SearchlightDelay -qh
 """
 from __future__ import annotations
+import base64
 from io import BytesIO
 
 import matplotlib as mpl
@@ -49,6 +54,7 @@ from svgelements import Path as SVGPath
 _STUDY2_SCENE_ORDER: dict[str, str] = {
     "Study2ExperimentalDesign":              "01",
     "Study2DecodingOverview":                "02",
+    "Study2DecodingOverviewB":               "02B",
     "Study2WithinSession2Decoding":          "03",
     "Study2WithinSession2DecodingResults":   "04",
     "Study2CrossSessionDecoding":            "05",
@@ -64,7 +70,8 @@ _STUDY2_SCENE_ORDER: dict[str, str] = {
     "Study2SupplementalRoiTimecoursesA":     "15",
     "Study2SupplementalRoiTimecoursesB":     "16",
     "Study2SupplementalRoiTempGenMats":      "17",
-    "Study2StatMapMontage":                  "18",
+    "Study2SearchlightStimulation":          "18",
+    "Study2SearchlightDelay":                "19",
 }
 
 
@@ -356,6 +363,13 @@ class Study2DecodingOverview(_Study2NumberedScene, Scene):
         (str(_STIM / "ITE-VAS-T00.png"), _D_PURP),
         (str(_STIM / "PLA-BRI-T00.png"), _D_CYAN),
     ]
+    _RESTORE_TARGETS = [
+        (OBS, _D_GREEN),
+        (PINE, _D_AMBER),
+        (LAKE, _D_BLUE),
+    ]
+    _ICON_FRAME_STROKE_WIDTH = 2.4
+    _ICON_FRAME_BUFF = 0.05
 
     def _pattern_for_index(self, idx: int) -> np.ndarray:
         flat = self._GRID_PAT.flatten()
@@ -420,6 +434,235 @@ class Study2DecodingOverview(_Study2NumberedScene, Scene):
             + RIGHT * (0.5 * x_norm * brain.width)
             + UP * (0.5 * y_norm * brain.height)
         )
+
+    def _vector_layout(self, vector_center_x: float, count: int) -> list[np.ndarray]:
+        ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
+        return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
+
+    def _make_stack_target(
+        self,
+        img_path: str,
+        col: str,
+        *,
+        image_height: float = IMG_H * _STACK_SCALE,
+        fixation_height: float = FIX_H * _STACK_SCALE,
+    ) -> tuple[Group, SurroundingRectangle]:
+        img = ImageMobject(img_path).set_height(image_height)
+        fix = ImageMobject(FIX).set_height(fixation_height).move_to(img.get_center())
+        icon = Group(img, fix)
+        frame = SurroundingRectangle(
+            icon,
+            color=col,
+            stroke_width=self._ICON_FRAME_STROKE_WIDTH,
+            buff=self._ICON_FRAME_BUFF,
+            corner_radius=0.10,
+        )
+        return icon, frame
+
+    def _make_delay_card(
+        self,
+        col: str,
+    ) -> tuple[Group, SurroundingRectangle]:
+        card = _box(None)
+        card.scale(self._STACK_SCALE)
+        card[0].set_stroke(color=GREY, width=1.5, opacity=0.85)
+        card[0].set_fill(WHITE, opacity=1.0)
+        frame = SurroundingRectangle(
+            card,
+            color=col,
+            stroke_width=self._ICON_FRAME_STROKE_WIDTH,
+            buff=self._ICON_FRAME_BUFF,
+            corner_radius=0.10,
+        )
+        return card, frame
+
+    def _build_overview_end_state(self) -> dict[str, object]:
+        slide_title = Tex(
+            r"\textbf{Session 2 :} Perceptual task",
+            color=INK,
+            font_size=TTL_SIZE,
+        ).move_to(UP * 3.05)
+
+        visible_icons: list[Group] = []
+        visible_frames: list[VMobject] = []
+        for row_y, (img_path, col) in zip(self._COL_YS, self._ROLLING_TARGETS):
+            icon, frame = self._make_stack_target(img_path, col)
+            pos = np.array([self._COL_X, row_y, 0.0])
+            icon.move_to(pos)
+            frame.move_to(icon.get_center())
+            visible_icons.append(icon)
+            visible_frames.append(frame)
+
+        row_step = self._COL_YS[0] - self._COL_YS[1]
+        ghost_y = self._COL_YS[0] + row_step * 1.02
+        ghost_icon, ghost_frame = self._make_stack_target(*self._RESTORE_TARGETS[0])
+        ghost_icon.move_to(np.array([self._COL_X, ghost_y, 0.0]))
+        ghost_frame.move_to(ghost_icon.get_center())
+        ghost_icon.set_opacity(0.18)
+        ghost_frame.set_stroke(opacity=0.18)
+
+        icon_h = max(icon.height for icon in visible_icons)
+        brain = (
+            ImageMobject(str(_BRAIN_PNG_PATH))
+            .set_height(2.0 * icon_h)
+            .move_to(UP * self._BRAIN_Y)
+        )
+        brain.set_z_index(-20)
+
+        vector_template = self._make_feature_vector(
+            ORIGIN, self._COLS[0], self._pattern_for_index(0)
+        )
+        stack_right = max(frame.get_right()[0] for frame in visible_frames)
+        brain_x = stack_right + self._H_GAP + brain.width / 2
+        vector_left_x = brain_x + brain.width / 2 + self._H_GAP
+        vector_center_x = vector_left_x + vector_template.width / 2
+        brain.move_to(np.array([brain_x, self._BRAIN_Y, 0.0]))
+
+        matrix_center = brain.get_bottom() + DOWN * 0.58
+        matrix_source = self._brain_source_point(brain, x_norm=0.7, y_norm=-0.1)
+        matrix_template = self._make_grid(
+            matrix_center,
+            self._COLS[0],
+            self._pattern_for_index(0),
+        )
+        current_grid = self._make_grid(
+            matrix_center,
+            self._ROLLING_TARGETS[-1][1],
+            self._pattern_for_index(len(self._ROLLING_TARGETS) + 2),
+        )
+        source_frame = self._make_grid_frame(matrix_template, matrix_source).scale(0.56)
+        source_frame.set_z_index(2)
+        source_label = Tex(
+            "V1-V3",
+            color=_D_MGREY,
+            font_size=20,
+        ).next_to(source_frame, RIGHT, buff=0.10)
+        source_label.set_z_index(2)
+
+        vector_centers = self._vector_layout(
+            vector_center_x,
+            len(self._COLS) + len(self._ROLLING_TARGETS),
+        )
+        vector_colors = self._COLS + [col for _, col in self._ROLLING_TARGETS]
+        visible_vectors = [
+            self._make_feature_vector(center, color, self._pattern_for_index(idx))
+            for idx, (center, color) in enumerate(zip(vector_centers, vector_colors))
+        ]
+        vector_label = Tex(
+            "Feature vectors",
+            color=_D_MGREY,
+            font_size=24,
+        ).move_to(np.array([vector_center_x, self._COL_YS[0] + 0.52, 0.0]))
+
+        summary_matrix_x = vector_center_x + 3.85
+        summary_symbol = MathTex(
+            r"\mathbf{X}_{\mathrm{S2}} =",
+            color=INK,
+            font_size=28,
+        )
+        summary_matrix = MathTex(
+            r"\begin{bmatrix}"
+            r"x_{11} & x_{12} & \cdots & x_{1v} \\"
+            r"x_{21} & x_{22} & \cdots & x_{2v} \\"
+            r"\vdots & \vdots & \ddots & \vdots \\"
+            r"x_{n1} & x_{n2} & \cdots & x_{nv}"
+            r"\end{bmatrix}",
+            color=INK,
+            font_size=24,
+        )
+        summary_group = VGroup(summary_symbol, summary_matrix).arrange(RIGHT, buff=0.18)
+        summary_group.move_to(np.array([summary_matrix_x, -0.05, 0.0]))
+        summary_title = Tex(
+            r"Multivoxel activity patterns\\during perception",
+            color=INK,
+            font_size=24,
+            tex_environment="center",
+        ).move_to(
+            np.array([
+                summary_group.get_center()[0] + 0.38,
+                summary_matrix.get_center()[1] + 1.45,
+                0.0,
+            ])
+        )
+        sample_arrow = DoubleArrow(
+            summary_matrix.get_corner(UR) + RIGHT * 0.42 + UP * 0.02,
+            summary_matrix.get_corner(DR) + RIGHT * 0.42 + DOWN * 0.02,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
+        )
+        sample_label = MathTex(
+            r"\text{samples (object-scenes)}",
+            color=INK,
+            font_size=18,
+        ).rotate(-PI / 2).next_to(sample_arrow, RIGHT, buff=0.10)
+        feature_arrow = DoubleArrow(
+            summary_matrix.get_corner(DL) + DOWN * 0.36,
+            summary_matrix.get_corner(DR) + DOWN * 0.36,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
+        )
+        feature_label = MathTex(
+            r"\text{features (voxels)}",
+            color=INK,
+            font_size=20,
+        ).next_to(feature_arrow, DOWN, buff=0.10)
+
+        stack_group = Group(
+            *visible_icons,
+            *visible_frames,
+            ghost_icon,
+            ghost_frame,
+        )
+        vector_group = VGroup(*visible_vectors)
+        support_group = Group(
+            current_grid,
+            source_frame,
+            source_label,
+            vector_label,
+            vector_group,
+            summary_title,
+            summary_group,
+            sample_arrow,
+            sample_label,
+            feature_arrow,
+            feature_label,
+        )
+        frame = Group(
+            slide_title,
+            stack_group,
+            brain,
+            support_group,
+        )
+        return {
+            "frame": frame,
+            "slide_title": slide_title,
+            "stack_group": stack_group,
+            "visible_icons": visible_icons,
+            "visible_frames": visible_frames,
+            "ghost_icon": ghost_icon,
+            "ghost_frame": ghost_frame,
+            "brain": brain,
+            "support_group": support_group,
+            "current_grid": current_grid,
+            "source_frame": source_frame,
+            "source_label": source_label,
+            "vector_group": vector_group,
+            "vector_label": vector_label,
+            "summary_title": summary_title,
+            "summary_group": summary_group,
+            "sample_arrow": sample_arrow,
+            "sample_label": sample_label,
+            "feature_arrow": feature_arrow,
+            "feature_label": feature_label,
+            "icon_center_x": self._COL_X,
+            "row_step": row_step,
+            "ghost_y": ghost_y,
+            "bottom_exit_y": self._COL_YS[-1] - row_step,
+        }
 
     # ── Scene ─────────────────────────────────────────────────────────────────
 
@@ -845,6 +1088,148 @@ class Study2DecodingOverview(_Study2NumberedScene, Scene):
         )
 
         self.wait(2.0)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Study2DecodingOverviewB
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class Study2DecodingOverviewB(Study2DecodingOverview):
+    """
+    Start from the final DecodingOverview frame, restore the original
+    perceptual images, and lay out matched delay cards to motivate the
+    cross-decoding interpretation.
+
+    Render:
+        uv run manim scenes/study2.py Study2DecodingOverviewB -ql
+        uv run manim scenes/study2.py Study2DecodingOverviewB -qh
+    """
+
+    _OVERVIEW_B_TITLE = "Decoding memory representations"
+
+    def _reverse_roll_step(
+        self,
+        visible_icons: list[Group],
+        visible_frames: list[VMobject],
+        incoming_icon: Group,
+        incoming_frame: VMobject,
+        *,
+        icon_center_x: float,
+        ghost_y: float,
+        bottom_exit_y: float,
+        fade_group: Mobject | None = None,
+        title_pair: tuple[Mobject, Mobject] | None = None,
+        exit_ghost_pair: tuple[Mobject, Mobject] | None = None,
+    ) -> tuple[list[Group], list[VMobject], tuple[Mobject, Mobject]]:
+        incoming_icon.move_to(np.array([icon_center_x, ghost_y, 0.0]))
+        incoming_frame.move_to(incoming_icon.get_center())
+        incoming_icon.set_opacity(0.18)
+        incoming_frame.set_stroke(opacity=0.18)
+        self.add(incoming_icon, incoming_frame)
+
+        roll_anims = []
+        if fade_group is not None:
+            roll_anims.append(FadeOut(fade_group))
+        if title_pair is not None:
+            roll_anims.append(Transform(*title_pair))
+        if exit_ghost_pair is not None:
+            roll_anims.extend([FadeOut(exit_ghost_pair[0]), FadeOut(exit_ghost_pair[1])])
+
+        top_pos = np.array([icon_center_x, self._COL_YS[0], 0.0])
+        mid_pos = np.array([icon_center_x, self._COL_YS[1], 0.0])
+        bottom_pos = np.array([icon_center_x, self._COL_YS[2], 0.0])
+        exit_pos = np.array([icon_center_x, bottom_exit_y, 0.0])
+
+        roll_anims.extend([
+            incoming_icon.animate.move_to(top_pos).set_opacity(1.0),
+            incoming_frame.animate.move_to(top_pos).set_stroke(opacity=1.0),
+            visible_icons[0].animate.move_to(mid_pos),
+            visible_frames[0].animate.move_to(mid_pos),
+            visible_icons[1].animate.move_to(bottom_pos),
+            visible_frames[1].animate.move_to(bottom_pos),
+            visible_icons[2].animate.move_to(exit_pos).set_opacity(0.18),
+            visible_frames[2].animate.move_to(exit_pos).set_stroke(opacity=0.18),
+        ])
+
+        self.play(*roll_anims, run_time=0.62)
+
+        new_visible_icons = [incoming_icon, visible_icons[0], visible_icons[1]]
+        new_visible_frames = [incoming_frame, visible_frames[0], visible_frames[1]]
+        new_exit_ghost = (visible_icons[2], visible_frames[2])
+        return new_visible_icons, new_visible_frames, new_exit_ghost
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+        ctx = self._build_overview_end_state()
+        self.add(ctx["frame"])
+        self.bring_to_back(ctx["brain"])
+        self.wait(0.25)
+
+        visible_icons = list(ctx["visible_icons"])
+        visible_frames = list(ctx["visible_frames"])
+        exit_ghost_pair: tuple[Mobject, Mobject] | None = None
+
+        retitle = Tex(
+            self._OVERVIEW_B_TITLE,
+            color=INK,
+            font_size=TTL_SIZE,
+        ).move_to(ctx["slide_title"])
+
+        visible_icons, visible_frames, exit_ghost_pair = self._reverse_roll_step(
+            visible_icons,
+            visible_frames,
+            ctx["ghost_icon"],
+            ctx["ghost_frame"],
+            icon_center_x=ctx["icon_center_x"],
+            ghost_y=ctx["ghost_y"],
+            bottom_exit_y=ctx["bottom_exit_y"],
+            fade_group=ctx["support_group"],
+            title_pair=(ctx["slide_title"], retitle),
+        )
+
+        for img_path, col in self._RESTORE_TARGETS[1:]:
+            incoming_icon, incoming_frame = self._make_stack_target(img_path, col)
+            visible_icons, visible_frames, exit_ghost_pair = self._reverse_roll_step(
+                visible_icons,
+                visible_frames,
+                incoming_icon,
+                incoming_frame,
+                icon_center_x=ctx["icon_center_x"],
+                ghost_y=ctx["ghost_y"],
+                bottom_exit_y=ctx["bottom_exit_y"],
+                exit_ghost_pair=exit_ghost_pair,
+            )
+
+        delay_cards: list[Group] = []
+        delay_frames: list[VMobject] = []
+        image_shift_amount = 0.22
+        delay_column_x = ctx["icon_center_x"] + visible_frames[0].width + 0.44
+        for row_y, col in zip(self._COL_YS, self._COLS):
+            card, frame = self._make_delay_card(col)
+            pos = np.array([delay_column_x, row_y, 0.0])
+            card.move_to(pos)
+            frame.move_to(card.get_center())
+            card.set_opacity(0.0)
+            frame.set_stroke(opacity=0.0)
+            self.add(card, frame)
+            delay_cards.append(card)
+            delay_frames.append(frame)
+
+        move_left = LEFT * image_shift_amount
+        self.play(
+            *[icon.animate.shift(move_left) for icon in visible_icons],
+            *[frame.animate.shift(move_left) for frame in visible_frames],
+            *[FadeIn(card, shift=RIGHT * 0.10) for card in delay_cards],
+            *[
+                frame.animate.set_stroke(opacity=1.0)
+                for frame in delay_frames
+            ],
+            FadeOut(exit_ghost_pair[0]),
+            FadeOut(exit_ghost_pair[1]),
+            run_time=0.78,
+        )
+        self.wait(1.8)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -4669,6 +5054,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
     _RESULTS_GLM_2 = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm_2.svg"
     _RESULTS_TEMPGEN = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01tempgen.svg"
     _TEMPGEN_LOGIC_MATRIX = "/Users/leonardo/phd-thesis-animations/assets/images/study2/temp_gen_mat.svg"
+    _TEMPGEN_SOURCE_PLOT_BOX = (53.5, 0.625, 291.61024, 238.73523)
+    _TEMPGEN_SOURCE_COLORBAR_IMAGE_BOX = (303.60837, 0.5305, 312.9683697, 238.6105)
     _CROSSSESSION_RESULTSB_LAST = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_last_frame.png"
     _CROSSSESSION_RESULTSB_LEFT_PLOT = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_left_plot.png"
     _CROSSSESSION_RESULTSB_RIGHT_PLOT = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_right_plot.png"
@@ -5146,6 +5533,88 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
                     parent.remove(elem)
         tree.write(sanitized_path, encoding="utf-8", xml_declaration=True)
         return sanitized_path
+
+    def _cached_tempgen_colorbar_gradient_png(self) -> Path:
+        svg_path = Path(self._TEMPGEN_LOGIC_MATRIX)
+        cache_dir = Path(tempfile.gettempdir()) / "study2_tempgen_colorbar_cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        png_path = cache_dir / f"{svg_path.stem}_colorbar_gradient_v2.png"
+        if png_path.exists() and png_path.stat().st_mtime >= svg_path.stat().st_mtime:
+            return png_path
+
+        root = ET.parse(svg_path).getroot()
+        image_elem = next((elem for elem in root.iter() if elem.tag.endswith("image")), None)
+        if image_elem is None:
+            raise RuntimeError(f"Could not locate embedded colorbar image in {svg_path}")
+
+        href = (
+            image_elem.get("{http://www.w3.org/1999/xlink}href")
+            or image_elem.get("href")
+        )
+        if href is None or not href.startswith("data:image/png;base64,"):
+            raise RuntimeError(f"Embedded colorbar image in {svg_path} is not a base64 PNG")
+
+        gradient_bytes = base64.b64decode(href.split(",", 1)[1].strip())
+        with Image.open(BytesIO(gradient_bytes)) as image:
+            image = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+            image.save(png_path)
+        return png_path
+
+    def _make_tempgen_colorbar_gradient_overlay(
+        self,
+        plot_frame: Mobject,
+        *,
+        z_index: float,
+    ) -> ImageMobject:
+        plot_x0, plot_y0, plot_x1, plot_y1 = self._TEMPGEN_SOURCE_PLOT_BOX
+        cbar_x0, cbar_y0, cbar_x1, cbar_y1 = self._TEMPGEN_SOURCE_COLORBAR_IMAGE_BOX
+        plot_width = plot_x1 - plot_x0
+        plot_height = plot_y1 - plot_y0
+        gap_ratio = (cbar_x0 - plot_x1) / plot_width
+        height_ratio = (cbar_y1 - cbar_y0) / plot_height
+        center_y_ratio = (
+            ((cbar_y0 + cbar_y1) / 2) - ((plot_y0 + plot_y1) / 2)
+        ) / plot_height
+
+        overlay = ImageMobject(str(self._cached_tempgen_colorbar_gradient_png()))
+        overlay.set_height(plot_frame.height * height_ratio)
+        overlay.move_to(np.array([
+            plot_frame.get_right()[0] + plot_frame.width * gap_ratio + overlay.width / 2,
+            plot_frame.get_center()[1] + plot_frame.height * center_y_ratio,
+            0.0,
+        ]))
+        overlay.set_z_index(z_index)
+        return overlay
+
+    def _make_tempgen_colorbar_mask(
+        self,
+        plot_frame: Mobject,
+        *,
+        z_index: float,
+    ) -> Rectangle:
+        plot_x0, plot_y0, plot_x1, plot_y1 = self._TEMPGEN_SOURCE_PLOT_BOX
+        cbar_x0, cbar_y0, cbar_x1, cbar_y1 = self._TEMPGEN_SOURCE_COLORBAR_IMAGE_BOX
+        plot_width = plot_x1 - plot_x0
+        plot_height = plot_y1 - plot_y0
+        gap_ratio = (cbar_x0 - plot_x1) / plot_width
+        width_ratio = (cbar_x1 - cbar_x0) / plot_width
+        height_ratio = (cbar_y1 - cbar_y0) / plot_height
+        center_y_ratio = (
+            ((cbar_y0 + cbar_y1) / 2) - ((plot_y0 + plot_y1) / 2)
+        ) / plot_height
+
+        mask = Rectangle(
+            width=plot_frame.width * width_ratio,
+            height=plot_frame.height * height_ratio,
+            stroke_width=0.0,
+        ).set_fill(BG, opacity=1.0)
+        mask.move_to(np.array([
+            plot_frame.get_right()[0] + plot_frame.width * gap_ratio + mask.width / 2,
+            plot_frame.get_center()[1] + plot_frame.height * center_y_ratio,
+            0.0,
+        ]))
+        mask.set_z_index(z_index)
+        return mask
 
     def _load_tempgen_svg_with_frame(
         self,
@@ -6069,6 +6538,14 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             tempgen_plot_frame,
             z_index=3.0,
         )
+        tempgen_colorbar_mask = self._make_tempgen_colorbar_mask(
+            tempgen_plot_frame,
+            z_index=2.15,
+        )
+        tempgen_colorbar_gradient = self._make_tempgen_colorbar_gradient_overlay(
+            tempgen_plot_frame,
+            z_index=2.16,
+        )
         tempgen_plot_frame.set_z_index(4)
         tempgen_underlay_final_opacity = 0.86
         tempgen_underlay.set_opacity(tempgen_underlay_final_opacity)
@@ -6077,6 +6554,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         tempgen_plot = Group(
             tempgen_title,
             tempgen_underlay,
+            tempgen_colorbar_mask,
+            tempgen_colorbar_gradient,
             tempgen_plot_frame,
             tempgen_overlay,
         )
@@ -6189,6 +6668,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             "tempgen_underlay_final_opacity": tempgen_underlay_final_opacity,
             "tempgen_plot_frame": tempgen_plot_frame,
             "tempgen_overlay": tempgen_overlay,
+            "tempgen_colorbar_mask": tempgen_colorbar_mask,
+            "tempgen_colorbar_gradient": tempgen_colorbar_gradient,
             "tempgen_plot": tempgen_plot,
             "stim_small": stim_small,
             "delay_small": delay_small,
@@ -7154,6 +7635,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             ctx["glm2_plot_frame"].get_center()
         )
         logic_matrix_frame.set_stroke(color="#2F2F2F", width=2.0, opacity=0.92)
+        logic_matrix_frame.set_z_index(4.05)
 
         design_stacked_target = timeres_ctx["experimental_design"].copy()
         design_stacked_target.set_width(logic_matrix_frame.width)
@@ -7311,6 +7793,14 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             logic_matrix_frame,
         )
         logic_matrix_panel.set_z_index(2.1)
+        logic_matrix_colorbar_mask = self._make_tempgen_colorbar_mask(
+            logic_matrix_frame,
+            z_index=2.12,
+        )
+        logic_matrix_colorbar_gradient = self._make_tempgen_colorbar_gradient_overlay(
+            logic_matrix_frame,
+            z_index=2.13,
+        )
         logic_matrix_label_masks = self._tempgen_plot_clip_masks(
             logic_matrix_panel,
             logic_matrix_frame,
@@ -7404,41 +7894,116 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         right_plot_frame_target.set_x(ctx["tempgen_plot_frame"].get_center()[0])
         right_plot_frame_target.align_to(logic_matrix_frame, DOWN)
         right_plot_frame_target.set_y(logic_matrix_frame.get_center()[1])
+        right_plot_chance_source = max(
+            [
+                submob
+                for submob in timeres_ctx["timeres_plot_rest"].submobjects
+                if timeres_ctx["timeres_frame"].get_left()[0] - 0.02
+                <= submob.get_center()[0]
+                <= timeres_ctx["timeres_frame"].get_right()[0] + 0.02
+                if submob.width >= timeres_ctx["timeres_frame"].width * 0.8
+                if submob.height <= timeres_ctx["timeres_frame"].height * 0.03
+            ],
+            key=lambda mob: mob.width,
+        )
         right_plot_inner_source = [
             submob.copy()
             for submob in timeres_ctx["timeres_plot_rest"].submobjects
             if timeres_ctx["timeres_frame"].get_left()[0] - 0.02
             <= submob.get_center()[0]
             <= timeres_ctx["timeres_frame"].get_right()[0] + 0.02
-        ]
-        right_plot_y_tick_source = [
-            submob.copy()
-            for submob in timeres_ctx["timeres_plot_rest"].submobjects
-            if timeres_ctx["timeres_frame"].get_left()[0] - 0.38
-            <= submob.get_center()[0]
-            < timeres_ctx["timeres_frame"].get_left()[0] - 0.02
-            if timeres_ctx["timeres_frame"].get_bottom()[1] - 0.04
+            if timeres_ctx["timeres_frame"].get_bottom()[1] - 0.02
             <= submob.get_center()[1]
-            <= timeres_ctx["timeres_frame"].get_top()[1] + 0.04
-            if submob.height <= timeres_ctx["timeres_frame"].height * 0.16
+            <= timeres_ctx["timeres_frame"].get_top()[1] + 0.02
+            if submob is not right_plot_chance_source
         ]
-        right_plot_rest_source = VGroup(
-            *right_plot_inner_source,
-            *right_plot_y_tick_source,
-        )
         right_plot_frame = right_plot_frame_target.copy()
         right_plot_rest = self._remap_plot_mobject(
-            right_plot_rest_source,
+            VGroup(*right_plot_inner_source),
             timeres_ctx["timeres_frame"],
             right_plot_frame_target,
         )
-        right_plot_y_label = Tex("Accuracy", color=INK, font_size=15)
+        right_plot_chance_template = self._remap_plot_mobject(
+            right_plot_chance_source.copy(),
+            timeres_ctx["timeres_frame"],
+            right_plot_frame_target,
+        )
+        right_plot_chance_y = right_plot_chance_template.get_center()[1]
+        right_plot_chance_color = right_plot_chance_template.get_stroke_color()
+        right_plot_chance_line = DashedLine(
+            np.array([right_plot_frame.get_left()[0], right_plot_chance_y, 0.0]),
+            np.array([right_plot_frame.get_right()[0], right_plot_chance_y, 0.0]),
+            color=right_plot_chance_color,
+            stroke_width=max(1.8, right_plot_chance_template.get_stroke_width()),
+            dash_length=0.08,
+            dashed_ratio=0.55,
+        )
+        right_plot_chance_label = Tex(
+            "Chance",
+            color=right_plot_chance_color,
+            font_size=14,
+        ).next_to(right_plot_chance_line, DOWN, buff=0.08).align_to(
+            right_plot_chance_line,
+            RIGHT,
+        ).shift(LEFT * 0.02)
+        right_plot_x_ticks = VGroup()
+        for tick_time, tick_label in axis_tick_specs:
+            tick_x = float(interpolate(
+                right_plot_frame.get_left()[0],
+                right_plot_frame.get_right()[0],
+                np.clip(tick_time / matrix_total_time, 0.0, 1.0),
+            ))
+            tick_mark = Line(
+                np.array([tick_x, right_plot_frame.get_bottom()[1], 0.0]),
+                np.array([tick_x, right_plot_frame.get_bottom()[1] - 0.055, 0.0]),
+                color="#5A5A5A",
+                stroke_width=1.2,
+            )
+            tick_text = Tex(tick_label, color=INK, font_size=15).next_to(
+                tick_mark,
+                DOWN,
+                buff=0.05,
+            )
+            right_plot_x_ticks.add(VGroup(tick_mark, tick_text))
+        right_plot_x_ticks.set_z_index(2.2)
+
+        right_plot_y_tick_values = ["0.00", "0.05", "0.10", "0.15", "0.20"]
+        right_plot_y_positions = np.linspace(
+            right_plot_chance_y,
+            right_plot_frame.get_top()[1] - 0.14,
+            len(right_plot_y_tick_values),
+        )
+        right_plot_y_ticks = VGroup()
+        for tick_y, tick_label in zip(right_plot_y_positions, right_plot_y_tick_values):
+            tick_mark = Line(
+                np.array([right_plot_frame.get_left()[0], tick_y, 0.0]),
+                np.array([right_plot_frame.get_left()[0] - 0.055, tick_y, 0.0]),
+                color="#5A5A5A",
+                stroke_width=1.2,
+            )
+            tick_text = Tex(tick_label, color=INK, font_size=15).next_to(
+                tick_mark,
+                LEFT,
+                buff=0.05,
+            )
+            right_plot_y_ticks.add(VGroup(tick_mark, tick_text))
+        right_plot_y_ticks.set_z_index(2.2)
+
+        right_plot_y_label = Tex(
+            "Accuracy",
+            color=INK,
+            font_size=float(train_label_target.font_size),
+        )
         right_plot_y_label.rotate(PI / 2)
-        right_plot_y_label.scale_to_fit_height(right_plot_frame.height * 0.20)
-        right_plot_y_label.next_to(right_plot_frame, LEFT, buff=0.09)
+        right_plot_y_label.scale_to_fit_width(train_label_target.height * 1.25)
+        right_plot_y_label.next_to(right_plot_y_ticks, LEFT, buff=0.14)
         right_plot_scaffold = VGroup(
             right_plot_frame,
             right_plot_rest,
+            right_plot_y_ticks,
+            right_plot_chance_line,
+            right_plot_chance_label,
+            right_plot_x_ticks,
             right_plot_y_label,
         )
         right_plot_ci = self._remap_plot_mobject(
@@ -7505,13 +8070,6 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             stroke_color=_D_RED,
             stroke_width=2.0,
         ).set_fill(opacity=0.0).move_to(peak_curve_point).set_z_index(5.1)
-        def time_to_tracker_value(time_s: float) -> float:
-            return float(np.clip(
-                (cell_count - 1) * (time_s / matrix_total_time),
-                0.0,
-                cell_count - 1,
-            ))
-
         def make_peak_matrix_column(
             height: float,
             center_y: float,
@@ -7552,8 +8110,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             peak_column_height,
             (matrix_bottom + matrix_top) / 2,
         )
-        subselect_low_value = time_to_tracker_value(13.0)
-        subselect_high_value = time_to_tracker_value(15.0)
+        subselect_low_value = 12.0
+        subselect_high_value = 15.0
         subselect_low_y = axis_center(test_center_ys, subselect_low_value)
         subselect_high_y = axis_center(test_center_ys, subselect_high_value)
         peak_matrix_column_focus = make_peak_matrix_column(
@@ -7648,6 +8206,10 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             "train_label_target": train_label_target,
             "test_label_target": test_label_target,
             "logic_matrix_frame": logic_matrix_frame,
+            "logic_matrix_panel": logic_matrix_panel,
+            "logic_matrix_colorbar_mask": logic_matrix_colorbar_mask,
+            "logic_matrix_colorbar_gradient": logic_matrix_colorbar_gradient,
+            "logic_matrix_label_masks": logic_matrix_label_masks,
             "logic_matrix_underlay": logic_matrix_underlay,
             "matrix_x_ticks": matrix_x_ticks,
             "matrix_y_ticks": matrix_y_ticks,
@@ -7692,8 +8254,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         timeres_ctx["test_time_bins"] = logic_ctx["test_bins_target"].copy()
         timeres_ctx["train_row_label"] = logic_ctx["train_label_target"].copy()
         timeres_ctx["test_row_label"] = logic_ctx["test_label_target"].copy()
-        logic_ctx["train_tracker"].set_value(float(logic_ctx["cell_count"] - 1))
-        logic_ctx["test_tracker"].set_value(float(logic_ctx["cell_count"] - 1))
+        logic_ctx["train_tracker"].set_value(0.0)
+        logic_ctx["test_tracker"].set_value(0.0)
 
         self.add(
             timeres_ctx["experimental_design"],
@@ -7703,10 +8265,13 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             timeres_ctx["test_row_label"],
             logic_ctx["logic_matrix_frame"],
             logic_ctx["logic_matrix_underlay"],
+            logic_ctx["logic_matrix_colorbar_mask"],
+            logic_ctx["logic_matrix_colorbar_gradient"],
             logic_ctx["matrix_x_ticks"],
             logic_ctx["matrix_y_ticks"],
+            logic_ctx["train_selector"],
+            logic_ctx["test_selector"],
             logic_ctx["matrix_cursor"],
-            logic_ctx["diagonal_trace"],
         )
         return logic_ctx
 
@@ -7727,6 +8292,10 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         train_label_target = logic_ctx["train_label_target"]
         test_label_target = logic_ctx["test_label_target"]
         logic_matrix_frame = logic_ctx["logic_matrix_frame"]
+        logic_matrix_panel = logic_ctx["logic_matrix_panel"]
+        logic_matrix_colorbar_mask = logic_ctx["logic_matrix_colorbar_mask"]
+        logic_matrix_colorbar_gradient = logic_ctx["logic_matrix_colorbar_gradient"]
+        logic_matrix_label_masks = logic_ctx["logic_matrix_label_masks"]
         logic_matrix_underlay = logic_ctx["logic_matrix_underlay"]
         matrix_x_ticks = logic_ctx["matrix_x_ticks"]
         matrix_y_ticks = logic_ctx["matrix_y_ticks"]
@@ -7744,6 +8313,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         demo_column_count = logic_ctx["demo_column_count"]
         demo_fill_durations = logic_ctx["demo_fill_durations"]
         demo_shift_durations = logic_ctx["demo_shift_durations"]
+        tempgen_c_title = ctx.get("tempgen_c_title")
 
         for mob in [
             timeres_ctx["experimental_design"],
@@ -7767,6 +8337,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             FadeOut(timeres_ctx["event_projection_lines"]),
             FadeOut(timeres_ctx["delay_end_chance_arrow"], shift=UP * 0.05),
             FadeOut(timeres_ctx["trs_label"], shift=RIGHT * 0.04),
+            *(
+                [FadeIn(tempgen_c_title, shift=UP * 0.05)]
+                if tempgen_c_title is not None
+                else []
+            ),
             Transform(timeres_ctx["experimental_design"], design_stacked_target),
             Transform(timeres_ctx["train_time_bins"], train_bins_stacked_target),
             Transform(timeres_ctx["test_time_bins"], test_bins_stacked_target),
@@ -7786,15 +8361,16 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             rate_func=smooth,
         )
         self.wait(0.15)
+        self.add(matrix_cover_group, logic_matrix_label_masks, logic_matrix_colorbar_mask)
         self.play(
             Create(logic_matrix_frame),
             run_time=0.55,
         )
         self.play(
-            FadeIn(logic_matrix_underlay, shift=LEFT * 0.04),
+            FadeIn(logic_matrix_panel, shift=LEFT * 0.04),
+            FadeIn(logic_matrix_colorbar_gradient, shift=LEFT * 0.04),
             run_time=0.45,
         )
-        self.add(logic_matrix_underlay, matrix_cover_group)
         self.play(
             FadeIn(matrix_x_ticks, shift=DOWN * 0.02),
             FadeIn(matrix_y_ticks, shift=LEFT * 0.02),
@@ -7865,19 +8441,6 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             run_time=0.42,
             rate_func=smooth,
         )
-        self.play(
-            train_tracker.animate.set_value(cell_count - 1),
-            test_tracker.animate.set_value(cell_count - 1),
-            Create(diagonal_trace),
-            run_time=1.0,
-            rate_func=linear,
-        )
-        self.play(
-            FadeOut(train_selector),
-            FadeOut(test_selector),
-            FadeOut(matrix_cursor),
-            run_time=0.35,
-        )
         self.wait(2.0)
 
     def _animate_within_session_tempgen_followup(
@@ -7898,12 +8461,22 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         peak_matrix_column = logic_ctx["peak_matrix_column"]
         peak_matrix_column_focus = logic_ctx["peak_matrix_column_focus"]
         peak_column_idx = logic_ctx["peak_column_idx"]
+        cell_count = logic_ctx["cell_count"]
         subselect_low_value = logic_ctx["subselect_low_value"]
         subselect_high_value = logic_ctx["subselect_high_value"]
         final_takeaway = logic_ctx["final_takeaway"]
 
         self.play(
+            train_tracker.animate.set_value(cell_count - 1),
+            test_tracker.animate.set_value(cell_count - 1),
+            Create(diagonal_trace),
+            run_time=1.0,
+            rate_func=linear,
+        )
+        self.play(
             FadeIn(right_plot_scaffold, shift=LEFT * 0.06),
+            FadeOut(train_selector),
+            FadeOut(test_selector),
             FadeOut(matrix_cursor),
             run_time=0.85,
         )
@@ -7947,27 +8520,28 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         morph_return = morph_trace.copy()
         self.remove(diagonal_trace)
         self.add(morph_trace)
-        for cycle_idx in range(2):
-            self.play(
-                Transform(morph_trace, right_curve_target),
-                run_time=1.15,
-                rate_func=smooth,
-            )
-            self.wait(0.25)
-            self.play(
-                Transform(morph_trace, morph_return),
-                run_time=1.05,
-                rate_func=smooth,
-            )
-            if cycle_idx == 0:
-                self.wait(0.18)
-        self.remove(morph_trace)
-        self.add(diagonal_trace)
         self.play(
+            Transform(morph_trace, right_curve_target),
+            run_time=1.15,
+            rate_func=smooth,
+        )
+        self.wait(0.25)
+        self.play(
+            Transform(morph_trace, morph_return),
+            run_time=1.05,
+            rate_func=smooth,
+        )
+        self.wait(0.18)
+        self.play(
+            Transform(morph_trace, right_curve_target),
+            FadeIn(diagonal_trace),
             FadeIn(right_plot_trace),
             FadeIn(right_plot_ci),
-            run_time=0.25,
+            run_time=1.15,
+            rate_func=smooth,
         )
+        self.remove(morph_trace)
+        self.wait(2.0)
         for submob in right_plot_trace.family_members_with_points():
             submob.set_stroke(color=BLACK, opacity=1.0)
             submob.set_fill(opacity=0.0)
@@ -7989,33 +8563,72 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         )
         train_tracker.set_value(float(peak_column_idx))
         test_tracker.set_value(0.0)
+        train_selector.update()
+        test_selector.update()
+        matrix_cursor.update()
+        train_selector_snapshot = train_selector.copy().clear_updaters()
+        test_selector_snapshot = test_selector.copy().clear_updaters()
+        matrix_cursor_snapshot = matrix_cursor.copy().clear_updaters()
         self.play(
-            FadeIn(train_selector),
-            FadeIn(test_selector),
-            FadeIn(matrix_cursor),
+            FadeIn(train_selector_snapshot),
+            FadeIn(test_selector_snapshot),
+            FadeIn(matrix_cursor_snapshot),
             run_time=0.30,
+        )
+        self.add(train_selector, test_selector, matrix_cursor)
+        self.remove(
+            train_selector_snapshot,
+            test_selector_snapshot,
+            matrix_cursor_snapshot,
         )
         self.play(
             test_tracker.animate.set_value(subselect_low_value),
             run_time=0.85,
             rate_func=smooth,
         )
-        self.play(
-            test_tracker.animate.set_value(subselect_high_value),
-            run_time=0.45,
-            rate_func=smooth,
-        )
-        self.play(
-            test_tracker.animate.set_value(subselect_low_value),
-            run_time=0.45,
-            rate_func=smooth,
-        )
+        for target_value in [
+            subselect_high_value,
+            subselect_low_value,
+            subselect_high_value,
+            subselect_low_value,
+        ]:
+            self.play(
+                test_tracker.animate.set_value(target_value),
+                run_time=0.42,
+                rate_func=smooth,
+            )
+        peak_matrix_column_full = peak_matrix_column.copy()
         self.play(
             Transform(peak_matrix_column, peak_matrix_column_focus),
+            FadeOut(matrix_cursor),
             run_time=0.55,
             rate_func=smooth,
         )
-        self.play(FadeIn(final_takeaway, shift=DOWN * 0.06), run_time=0.50)
+        blink_fill_color = "#F4D03F"
+        for blink_idx in range(4):
+            flash_on_anims = [
+                peak_matrix_column[0].animate.set_fill(blink_fill_color, opacity=0.24),
+                peak_matrix_column[1].animate.set_stroke(color=blink_fill_color, width=4.2),
+                peak_matrix_column[2].animate.set_stroke(color=blink_fill_color, width=2.2),
+            ]
+            if blink_idx == 3:
+                flash_on_anims.append(FadeIn(final_takeaway, shift=DOWN * 0.06))
+            self.play(
+                *flash_on_anims,
+                run_time=0.32,
+            )
+            self.play(
+                peak_matrix_column[0].animate.set_fill(WHITE, opacity=0.16),
+                peak_matrix_column[1].animate.set_stroke(color=WHITE, width=4.0),
+                peak_matrix_column[2].animate.set_stroke(color=BLACK, width=1.8),
+                run_time=0.32,
+            )
+        self.play(
+            Transform(peak_matrix_column, peak_matrix_column_full),
+            FadeOut(test_selector),
+            run_time=0.55,
+            rate_func=smooth,
+        )
         self.wait(2.0)
 
     def _animate_tempgen_results(self, ctx: dict[str, Mobject]) -> None:
@@ -8023,6 +8636,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         tempgen_underlay = ctx["tempgen_underlay"]
         tempgen_plot_frame = ctx["tempgen_plot_frame"]
         tempgen_overlay = ctx["tempgen_overlay"]
+        tempgen_colorbar_mask = ctx["tempgen_colorbar_mask"]
+        tempgen_colorbar_gradient = ctx["tempgen_colorbar_gradient"]
         tempgen_underlay.set_opacity(ctx["tempgen_underlay_final_opacity"])
         tempgen_overlay.set_opacity(1.0)
         tempgen_column_covers = self._make_tempgen_column_covers(
@@ -8034,12 +8649,14 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             for column in tempgen_column_covers
             for cover in column
         ])
+        self.add(tempgen_colorbar_mask)
 
         self.play(
             FadeIn(tempgen_title, shift=UP * 0.05),
             AnimationGroup(
                 Create(tempgen_plot_frame),
                 FadeIn(tempgen_underlay, shift=UP * 0.08),
+                FadeIn(tempgen_colorbar_gradient, shift=UP * 0.08),
                 FadeIn(tempgen_overlay, shift=UP * 0.08),
                 FadeIn(tempgen_cover_group),
                 lag_ratio=0.12,
@@ -8298,6 +8915,11 @@ class Study2WithinSession1DecodingResultsC(_Study2WithinSession1DecodingBase):
         ctx = self._build_results_stage()
         self._align_within_session_act1_to_shared_layout(ctx)
         timeres_ctx = self._build_within_session_timeres_context(ctx)
+        ctx["tempgen_c_title"] = Tex(
+            "Temporal generalisation within Session 1 trials",
+            color=INK,
+            font_size=24,
+        ).move_to(self.slide_title.get_center()).set_z_index(4.25)
         self._show_within_session_act1_final_state(ctx)
         self._show_within_session_resultsb_final_state(timeres_ctx)
         self.wait(0.6)
@@ -9772,32 +10394,32 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Study2StatMapMontage
+# Study2Searchlight
 # ══════════════════════════════════════════════════════════════════════════════
 
-_STUDY2_ASSET_DIR = Path(__file__).resolve().parent.parent / "assets" / "images" / "study2"
-_MONTAGE_LILAC = "#A855F7"
-_MONTAGE_TITLE = "GLM-based searchlight decoding analyses during Stimulation"
-_MONTAGE_CUT_COORDS_Z = (-12, 0, 10, 21, 32, 46, 61)
+_SEARCHLIGHT_ASSET_DIR = Path(__file__).resolve().parent.parent / "assets" / "images" / "study2"
+_SEARCHLIGHT_LILAC = "#66023C"
+_SEARCHLIGHT_CUT_COORDS_Z = (-12, 0, 10, 21, 32, 46, 61)
+_SEARCHLIGHT_DELAY_BRAIN_PNG = _SEARCHLIGHT_ASSET_DIR / "searchlight_delay_ses01.png"
 
-_MONTAGE_MINI_S2_VALUES = np.array([0.88, 0.26, 0.74, 0.34, 0.94, 0.42, 0.68, 0.20, 0.82])
-_MONTAGE_MINI_S1_VALUES = np.array([0.84, 0.30, 0.70, 0.38, 0.90, 0.46, 0.64, 0.24, 0.78])
-_MONTAGE_MINI_SEARCHLIGHT_VALUES = np.array([0.30, 0.74, 0.40, 0.58, 0.24, 0.82, 0.46, 0.68, 0.28])
+_SEARCHLIGHT_MINI_S2_VALUES = np.array([0.88, 0.26, 0.74, 0.34, 0.94, 0.42, 0.68, 0.20, 0.82])
+_SEARCHLIGHT_MINI_S1_VALUES = np.array([0.22, 0.84, 0.28, 0.78, 0.18, 0.90, 0.36, 0.72, 0.24])
+_SEARCHLIGHT_MINI_DELAY_VALUES = np.array([0.20, 0.74, 0.34, 0.58, 0.26, 0.80, 0.42, 0.68, 0.24])
 
-_MONTAGE_STAT_MAP_SPECS = [
+_SEARCHLIGHT_STIMULATION_SPECS = [
     {
-        "path": _STUDY2_ASSET_DIR / "spm_fwec_k-09_p-001_session02.nii",
+        "path": _SEARCHLIGHT_ASSET_DIR / "spm_fwec_k-09_p-001_session02.nii",
         "cluster_info": r"FPR $< .001$, clusters $> 9$ voxels",
         "mini_specs": [
             {
-                "values": _MONTAGE_MINI_S2_VALUES,
+                "values": _SEARCHLIGHT_MINI_S2_VALUES,
                 "color": _D_PURP,
                 "label": r"$S_2$",
                 "label_direction": UP,
                 "description": ("Stimulation", "Session 2"),
             },
             {
-                "values": _MONTAGE_MINI_S2_VALUES,
+                "values": _SEARCHLIGHT_MINI_S2_VALUES,
                 "color": _D_PURP,
                 "label": r"$S_2$",
                 "label_direction": DOWN,
@@ -9806,19 +10428,19 @@ _MONTAGE_STAT_MAP_SPECS = [
         ],
     },
     {
-        "path": _STUDY2_ASSET_DIR / "spm_fwec_k-27_p-001_ses02-01_encoding.nii",
+        "path": _SEARCHLIGHT_ASSET_DIR / "spm_fwec_k-27_p-001_ses02-01_encoding.nii",
         "cluster_info": r"FPR $< .001$, clusters $> 27$ voxels",
         "mini_specs": [
             {
-                "values": _MONTAGE_MINI_S2_VALUES,
+                "values": _SEARCHLIGHT_MINI_S2_VALUES,
                 "color": _D_PURP,
                 "label": r"$S_2$",
                 "label_direction": UP,
                 "description": ("Stimulation", "Session 2"),
             },
             {
-                "values": _MONTAGE_MINI_S1_VALUES,
-                "color": _MONTAGE_LILAC,
+                "values": _SEARCHLIGHT_MINI_S1_VALUES,
+                "color": _SEARCHLIGHT_LILAC,
                 "label": r"$S_1$",
                 "label_direction": DOWN,
                 "description": ("Stimulation", "Session 1"),
@@ -9826,22 +10448,45 @@ _MONTAGE_STAT_MAP_SPECS = [
         ],
     },
     {
-        "path": _STUDY2_ASSET_DIR / "searchlight_spm_fwec_k-13_p-001_within-ses01_encoding.nii",
+        "path": _SEARCHLIGHT_ASSET_DIR / "searchlight_spm_fwec_k-13_p-001_within-ses01_encoding.nii",
         "cluster_info": r"FPR $< .001$, clusters $> 13$ voxels",
         "mini_specs": [
             {
-                "values": _MONTAGE_MINI_SEARCHLIGHT_VALUES,
-                "color": _MONTAGE_LILAC,
+                "values": _SEARCHLIGHT_MINI_S1_VALUES,
+                "color": _SEARCHLIGHT_LILAC,
                 "label": r"$S_1$",
                 "label_direction": UP,
                 "description": ("Stimulation", "Session 1"),
             },
             {
-                "values": _MONTAGE_MINI_S1_VALUES,
-                "color": _MONTAGE_LILAC,
+                "values": _SEARCHLIGHT_MINI_S1_VALUES,
+                "color": _SEARCHLIGHT_LILAC,
                 "label": r"$S_1$",
                 "label_direction": DOWN,
                 "description": ("Stimulation", "Session 1"),
+            },
+        ],
+    },
+]
+
+_SEARCHLIGHT_DELAY_SPECS = [
+    {
+        "path": _SEARCHLIGHT_ASSET_DIR / "spm_fwec_k-13_p-001_delay.nii",
+        "cluster_info": r"FPR $< .001$, clusters $> 13$ voxels",
+        "mini_specs": [
+            {
+                "values": _SEARCHLIGHT_MINI_DELAY_VALUES,
+                "color": _D_GREEN,
+                "label": r"$D_1$",
+                "label_direction": UP,
+                "description": ("Delay", "Session 1"),
+            },
+            {
+                "values": _SEARCHLIGHT_MINI_DELAY_VALUES,
+                "color": _D_GREEN,
+                "label": r"$D_1$",
+                "label_direction": DOWN,
+                "description": ("Delay", "Session 1"),
             },
         ],
     },
@@ -9853,7 +10498,7 @@ def _study2_build_plot_stat_map_rgba(
     *,
     figure_size: tuple[float, float] = (11.6, 3.5),
     colorbar: bool = True,
-    cut_coords: tuple[int, ...] = _MONTAGE_CUT_COORDS_Z,
+    cut_coords: tuple[int, ...] = _SEARCHLIGHT_CUT_COORDS_Z,
 ) -> np.ndarray:
     with mpl.rc_context(
         {
@@ -9926,8 +10571,14 @@ def _study2_make_small_results_matrix(
     return VGroup(rows, frame, matrix_label).scale(scale_factor)
 
 
-class Study2StatMapMontage(_Study2NumberedScene, Scene):
-    """GLM-based searchlight decoding montage aligned with the Study 2 numbering."""
+class _Study2SearchlightSceneBase(_Study2NumberedScene, Scene):
+    """Shared layout for the Study 2 searchlight scenes."""
+
+    _TITLE_TEXT = ""
+    _ROW_SPECS: list[dict] = []
+    _SUPPLEMENTAL_IMAGE_PATH: Path | None = None
+    _SUPPLEMENTAL_IMAGE_WIDTH: float = 5.4
+    _SUPPLEMENTAL_IMAGE_BUFF: float = 0.14
 
     def _matrix_stack(self, mini_specs: list[dict]) -> Group:
         matrices = Group()
@@ -9969,19 +10620,34 @@ class Study2StatMapMontage(_Study2NumberedScene, Scene):
                 colorbar=False,
             )
         ).scale_to_fit_width(9.9)
-        cluster_caption = Tex(cluster_info, color=MUTED, font_size=18)
+        cluster_caption = Tex(cluster_info, color=_D_MGREY, font_size=18)
         plot_group = Group(plot_image, cluster_caption).arrange(DOWN, buff=0.05)
         return Group(matrix_stack, plot_group).arrange(RIGHT, buff=1.12, aligned_edge=UP)
 
+    def _content_group(self, rows: Group) -> tuple[Group, ImageMobject | None]:
+        if self._SUPPLEMENTAL_IMAGE_PATH is None:
+            return rows, None
+
+        supplemental = ImageMobject(str(self._SUPPLEMENTAL_IMAGE_PATH))
+        supplemental.scale_to_fit_width(self._SUPPLEMENTAL_IMAGE_WIDTH)
+        supplemental.next_to(rows, DOWN, buff=self._SUPPLEMENTAL_IMAGE_BUFF)
+        if len(rows) == 1:
+            supplemental.set_x(rows[0][1].get_center()[0])
+        return Group(rows, supplemental), supplemental
+
     def construct(self) -> None:
         self.camera.background_color = BG
-        title = Tex(rf"\textbf{{{_MONTAGE_TITLE}}}", color=INK, font_size=28).to_edge(UP, buff=0.28)
+        title = Tex(rf"\textbf{{{self._TITLE_TEXT}}}", color=INK, font_size=28).to_edge(UP, buff=0.28)
 
-        rows = Group(*[self._row_group(**spec) for spec in _MONTAGE_STAT_MAP_SPECS])
+        rows = Group(*[self._row_group(**spec) for spec in self._ROW_SPECS])
         rows.arrange(DOWN, buff=0.28, aligned_edge=LEFT)
-        rows.scale_to_fit_width(config.frame_width - 0.15)
-        rows.scale_to_fit_height(config.frame_height - 0.95)
-        rows.next_to(title, DOWN, buff=0.16)
+        content, supplemental = self._content_group(rows)
+        max_width = config.frame_width - 0.15
+        max_height = config.frame_height - 0.95
+        width_scale = max_width / content.width if content.width > max_width else 1.0
+        height_scale = max_height / content.height if content.height > max_height else 1.0
+        content.scale(min(width_scale, height_scale))
+        content.next_to(title, DOWN, buff=0.16)
 
         self.play(FadeIn(title, shift=UP * 0.08), run_time=0.45)
         self.play(
@@ -9991,4 +10657,21 @@ class Study2StatMapMontage(_Study2NumberedScene, Scene):
             ),
             run_time=1.35,
         )
+        if supplemental is not None:
+            self.play(FadeIn(supplemental, shift=UP * 0.08), run_time=0.45)
         self.wait(1.6)
+
+
+class Study2SearchlightStimulation(_Study2SearchlightSceneBase):
+    """GLM-based searchlight decoding montage during stimulation."""
+
+    _TITLE_TEXT = "GLM-based searchlight decoding during Stimulation"
+    _ROW_SPECS = _SEARCHLIGHT_STIMULATION_SPECS
+
+
+class Study2SearchlightDelay(_Study2SearchlightSceneBase):
+    """GLM-based searchlight decoding montage during delay."""
+
+    _TITLE_TEXT = "GLM-based searchlight decoding during Delay"
+    _ROW_SPECS = _SEARCHLIGHT_DELAY_SPECS
+    _SUPPLEMENTAL_IMAGE_PATH = _SEARCHLIGHT_DELAY_BRAIN_PNG

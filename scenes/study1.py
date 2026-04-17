@@ -5,7 +5,6 @@ Render from this file to keep all Study 1 outputs in the same
 `media/videos/study1/...` folder with `NN_ClassName` filenames.
 
 Main narrative sequence:
-    00 Study1Pipeline
     01 Study1Step1a
     02 Study1Step1b
     03 Study1Step2
@@ -38,11 +37,17 @@ Render examples:
 """
 from __future__ import annotations
 
-import scenes.old.study1_step2_showcase as _study1_step2_showcase
+import sys
+from pathlib import Path
+
+_SCENES_DIR = Path(__file__).resolve().parent
+if str(_SCENES_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCENES_DIR))
+
+import old.study1_step2_showcase as _study1_step2_showcase
 from manim import Scene, config
 
-from scenes.old.study1_pipeline import Study1Pipeline as _Study1Pipeline
-from scenes.old.study1_stage2_psychophysical import (
+from old.study1_stage2_psychophysical import (
     Study1Stage2EmbeddingResult as _Study1Stage2EmbeddingResult,
     Study1Stage2ModelOrderToHeatmap as _Study1Stage2ModelOrderToHeatmap,
     Study1Stage2OrdinalEmbedding as _Study1Stage2OrdinalEmbedding,
@@ -50,33 +55,32 @@ from scenes.old.study1_stage2_psychophysical import (
     Study1Stage2TripletTask as _Study1Stage2TripletTask,
     Study1Stage2TripletTask2 as _Study1Stage2TripletTask2,
 )
-from scenes.old.study1_stage3_memory import (
+from old.study1_stage3_memory import (
     Study1Stage3MemoryExpDesignA as _Study1Stage3MemoryExpDesignA,
     Study1Stage3MemoryExpDesignB as _Study1Stage3MemoryExpDesignB,
     Study1Stage3MemoryExpResults as _Study1Stage3MemoryExpResults,
     Study1Stage3MemoryIntro as _Study1Stage3MemoryIntro,
 )
-from scenes.old.study1_step1 import Study1Step1a as _Study1Step1a
-from scenes.old.study1_step1 import Study1Step1b as _Study1Step1b
-from scenes.old.study1_step2 import Study1Step2 as _Study1Step2
-from scenes.old.study1_step2_showcase import Study1Step2Showcase as _Study1Step2Showcase
-from scenes.old.study1_step3 import Study1Step3 as _Study1Step3
-from scenes.old.study1_step3 import Study1Step3Part1 as _Study1Step3Part1
-from scenes.old.study1_step3 import Study1Step3Part2 as _Study1Step3Part2
-from scenes.old.study1_step4 import Study1Step4 as _Study1Step4
-from scenes.old.study1_step4 import Study1Step4Detailed as _Study1Step4Detailed
-from scenes.old.study1_step4 import Study1Step4Interpolation as _Study1Step4Interpolation
-from scenes.old.study1_step4 import Study1Step4Setup as _Study1Step4Setup
-from scenes.old.study1_step5 import Study1Step5Deck as _Study1Step5Deck
-from scenes.old.study1_step5 import Study1Step5Handoff as _Study1Step5Handoff
-from scenes.old.study1_step5 import Study1Step5LPIPS as _Study1Step5LPIPS
-from scenes.old.study1_stimulus_setshowcase import (
+from old.study1_step1 import Study1Step1a as _Study1Step1a
+from old.study1_step1 import Study1Step1b as _Study1Step1b
+from old.study1_step2 import Study1Step2 as _Study1Step2
+from old.study1_step2_showcase import Study1Step2Showcase as _Study1Step2Showcase
+from old.study1_step3 import Study1Step3 as _Study1Step3
+from old.study1_step3 import Study1Step3Part1 as _Study1Step3Part1
+from old.study1_step3 import Study1Step3Part2 as _Study1Step3Part2
+from old.study1_step4 import Study1Step4 as _Study1Step4
+from old.study1_step4 import Study1Step4Detailed as _Study1Step4Detailed
+from old.study1_step4 import Study1Step4Interpolation as _Study1Step4Interpolation
+from old.study1_step4 import Study1Step4Setup as _Study1Step4Setup
+from old.study1_step5 import Study1Step5Deck as _Study1Step5Deck
+from old.study1_step5 import Study1Step5Handoff as _Study1Step5Handoff
+from old.study1_step5 import Study1Step5LPIPS as _Study1Step5LPIPS
+from old.study1_stimulus_setshowcase import (
     Study1StimulusSetShowcase as _Study1StimulusSetShowcase,
 )
 
 # Narrative order for numbered outputs.
 _STUDY1_SCENE_ORDER: dict[str, str] = {
-    "Study1Pipeline": "00",
     "Study1Step1a": "01",
     "Study1Step1b": "02",
     "Study1Step2": "03",
@@ -132,7 +136,6 @@ def _wrap_scene(scene_cls: type[Scene]) -> type[Scene]:
 
 
 _PUBLIC_SCENES: tuple[type[Scene], ...] = (
-    _Study1Pipeline,
     _Study1Step1a,
     _Study1Step1b,
     _Study1Step2,

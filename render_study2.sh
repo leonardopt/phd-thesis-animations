@@ -8,25 +8,30 @@
 set -euo pipefail
 
 QUALITY="${1:--ql}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-scenes=(
-    "01_Study2ExperimentalDesign:Study2ExperimentalDesign"
-    "02_Study2DecodingOverview:Study2DecodingOverview"
-    "03_Study2WithinSession2Decoding:Study2WithinSession2Decoding"
-    "04_Study2WithinSession2DecodingResults:Study2WithinSession2DecodingResults"
-    "05_Study2CrossSessionDecoding:Study2CrossSessionDecoding"
-    "06_Study2CrossSessionDecodingResultsA:Study2CrossSessionDecodingResultsA"
-    "07_Study2CrossSessionDecodingResultsB:Study2CrossSessionDecodingResultsB"
-    "08_Study2WithinSession1DecodingA:Study2WithinSession1DecodingA"
-    "09_Study2WithinSession1DecodingB:Study2WithinSession1DecodingB"
-    "10_Study2WithinSession1DecodingResultsA:Study2WithinSession1DecodingResultsA"
-    "11_Study2WithinSession1DecodingResultsB:Study2WithinSession1DecodingResultsB"
-    "12_Study2WithinSession1DecodingResultsC:Study2WithinSession1DecodingResultsC"
-    "13_Study2WithinSession1DecodingResultsD:Study2WithinSession1DecodingResultsD"
-    "14_Study2LTMResultsExplainer:Study2LTMResultsExplainer"
-    "15_Study2SupplementalRoiTimecoursesA:Study2SupplementalRoiTimecoursesA"
-    "16_Study2SupplementalRoiTimecoursesB:Study2SupplementalRoiTimecoursesB"
-    "17_Study2SupplementalRoiTempGenMats:Study2SupplementalRoiTempGenMats"
+mapfile -t scenes < <(
+    uv run python -c '
+import ast
+from pathlib import Path
+
+
+def load_scene_order(path_str: str, variable_name: str) -> dict[str, str]:
+    tree = ast.parse(Path(path_str).read_text())
+    for node in tree.body:
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == variable_name:
+            return ast.literal_eval(node.value)
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == variable_name:
+                    return ast.literal_eval(node.value)
+    raise SystemExit(f"Could not find {variable_name} in {path_str}")
+
+
+for class_name, scene_number in load_scene_order("scenes/study2.py", "_STUDY2_SCENE_ORDER").items():
+    print(f"{scene_number}_{class_name}:{class_name}")
+' 
 )
 
 total=${#scenes[@]}
