@@ -12,6 +12,7 @@ Study 2.
   Study2SupplementalRoiTimecoursesA   — Train Session 2 -> Test Session 1 ROI time courses
   Study2SupplementalRoiTimecoursesB   — transition from A into the second SVG time-course panel
   Study2SupplementalRoiTempGenMats    — compare temporal-generalisation matrices across all ROIs
+  Study2StatMapMontage                — GLM-based searchlight decoding analyses during stimulation
 
 Render:
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
@@ -25,14 +26,20 @@ Render:
     uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesA -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesB -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTempGenMats -qh
+    uv run manim scenes/study2.py Study2StatMapMontage -qh
 """
 from __future__ import annotations
+from io import BytesIO
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import re
 import shutil
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
+from nilearn.plotting import plot_stat_map
 from pathlib import Path
 from PIL import Image
 from manim import *
@@ -57,6 +64,7 @@ _STUDY2_SCENE_ORDER: dict[str, str] = {
     "Study2SupplementalRoiTimecoursesA":     "15",
     "Study2SupplementalRoiTimecoursesB":     "16",
     "Study2SupplementalRoiTempGenMats":      "17",
+    "Study2StatMapMontage":                  "18",
 }
 
 
@@ -5164,6 +5172,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         cover_top: bool = True,
         bottom_min_height: float = 0.0,
         right_gutter_width: float = 0.0,
+        top_gutter_height: float = 0.0,
         z_index: float = 2.2,
     ) -> VGroup:
         # Matplotlib clips the heatmap and contours to the square plot box, but
@@ -5231,17 +5240,31 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
 
         if right_gutter_width > 1e-3:
             right_gutter = Rectangle(
-                width=right_gutter_width + bleed,
+                width=right_gutter_width,
                 height=plot_frame.height + 2 * bleed,
                 stroke_width=0.0,
             ).set_fill(fill_color, opacity=1.0)
             right_gutter.move_to(np.array([
-                plot_frame.get_right()[0] + right_gutter_width / 2 - bleed / 2,
+                plot_frame.get_right()[0] + right_gutter_width / 2,
                 plot_frame.get_center()[1],
                 0.0,
             ]))
             right_gutter.set_z_index(z_index)
             masks.add(right_gutter)
+
+        if top_gutter_height > 1e-3:
+            top_gutter = Rectangle(
+                width=plot_frame.width + right_gutter_width,
+                height=top_gutter_height,
+                stroke_width=0.0,
+            ).set_fill(fill_color, opacity=1.0)
+            top_gutter.move_to(np.array([
+                plot_frame.get_center()[0] + right_gutter_width / 2,
+                plot_frame.get_top()[1] + top_gutter_height / 2,
+                0.0,
+            ]))
+            top_gutter.set_z_index(z_index)
+            masks.add(top_gutter)
 
         return masks
 
@@ -7293,6 +7316,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             logic_matrix_frame,
             bottom_min_height=logic_matrix_panel.height * 0.18,
             right_gutter_width=cell_width * 0.55,
+            top_gutter_height=cell_height * 0.55,
             z_index=2.2,
         )
         logic_matrix_underlay = VGroup(logic_matrix_panel, logic_matrix_label_masks)
@@ -7764,8 +7788,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         self.wait(0.15)
         self.play(
             Create(logic_matrix_frame),
+            run_time=0.55,
+        )
+        self.play(
             FadeIn(logic_matrix_underlay, shift=LEFT * 0.04),
-            run_time=0.90,
+            run_time=0.45,
         )
         self.add(logic_matrix_underlay, matrix_cover_group)
         self.play(
@@ -7783,6 +7810,16 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             run_time=0.40,
         )
 
+        def sync_demo_column_to_test_tracker(column_group: VGroup) -> None:
+            def update_column(group: VGroup) -> VGroup:
+                revealed_row_idx = int(np.floor(test_tracker.get_value() + 1e-6))
+                for row_idx, cover in enumerate(group):
+                    cover.set_fill(opacity=0.0 if row_idx <= revealed_row_idx else 1.0)
+                return group
+
+            column_group.add_updater(update_column)
+            update_column(column_group)
+
         for demo_step_idx in range(demo_column_count):
             column_group = matrix_cover_columns[demo_step_idx]
             if demo_step_idx > 0:
@@ -7792,12 +7829,15 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
                     run_time=demo_shift_durations[demo_step_idx - 1],
                     rate_func=smooth,
                 )
+            sync_demo_column_to_test_tracker(column_group)
             self.play(
                 test_tracker.animate.set_value(cell_count - 1),
-                LaggedStart(*[FadeOut(cover) for cover in column_group], lag_ratio=0.05),
                 run_time=demo_fill_durations[demo_step_idx],
                 rate_func=linear,
             )
+            column_group.clear_updaters()
+            for cover in column_group:
+                cover.set_fill(opacity=0.0)
 
         remaining_cover_groups = [
             column_group
@@ -9729,3 +9769,226 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
             run_time=0.35,
         )
         self.wait(2.0)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Study2StatMapMontage
+# ══════════════════════════════════════════════════════════════════════════════
+
+_STUDY2_ASSET_DIR = Path(__file__).resolve().parent.parent / "assets" / "images" / "study2"
+_MONTAGE_LILAC = "#A855F7"
+_MONTAGE_TITLE = "GLM-based searchlight decoding analyses during Stimulation"
+_MONTAGE_CUT_COORDS_Z = (-12, 0, 10, 21, 32, 46, 61)
+
+_MONTAGE_MINI_S2_VALUES = np.array([0.88, 0.26, 0.74, 0.34, 0.94, 0.42, 0.68, 0.20, 0.82])
+_MONTAGE_MINI_S1_VALUES = np.array([0.84, 0.30, 0.70, 0.38, 0.90, 0.46, 0.64, 0.24, 0.78])
+_MONTAGE_MINI_SEARCHLIGHT_VALUES = np.array([0.30, 0.74, 0.40, 0.58, 0.24, 0.82, 0.46, 0.68, 0.28])
+
+_MONTAGE_STAT_MAP_SPECS = [
+    {
+        "path": _STUDY2_ASSET_DIR / "spm_fwec_k-09_p-001_session02.nii",
+        "cluster_info": r"FPR $< .001$, clusters $> 9$ voxels",
+        "mini_specs": [
+            {
+                "values": _MONTAGE_MINI_S2_VALUES,
+                "color": _D_PURP,
+                "label": r"$S_2$",
+                "label_direction": UP,
+                "description": ("Stimulation", "Session 2"),
+            },
+            {
+                "values": _MONTAGE_MINI_S2_VALUES,
+                "color": _D_PURP,
+                "label": r"$S_2$",
+                "label_direction": DOWN,
+                "description": ("Stimulation", "Session 2"),
+            },
+        ],
+    },
+    {
+        "path": _STUDY2_ASSET_DIR / "spm_fwec_k-27_p-001_ses02-01_encoding.nii",
+        "cluster_info": r"FPR $< .001$, clusters $> 27$ voxels",
+        "mini_specs": [
+            {
+                "values": _MONTAGE_MINI_S2_VALUES,
+                "color": _D_PURP,
+                "label": r"$S_2$",
+                "label_direction": UP,
+                "description": ("Stimulation", "Session 2"),
+            },
+            {
+                "values": _MONTAGE_MINI_S1_VALUES,
+                "color": _MONTAGE_LILAC,
+                "label": r"$S_1$",
+                "label_direction": DOWN,
+                "description": ("Stimulation", "Session 1"),
+            },
+        ],
+    },
+    {
+        "path": _STUDY2_ASSET_DIR / "searchlight_spm_fwec_k-13_p-001_within-ses01_encoding.nii",
+        "cluster_info": r"FPR $< .001$, clusters $> 13$ voxels",
+        "mini_specs": [
+            {
+                "values": _MONTAGE_MINI_SEARCHLIGHT_VALUES,
+                "color": _MONTAGE_LILAC,
+                "label": r"$S_1$",
+                "label_direction": UP,
+                "description": ("Stimulation", "Session 1"),
+            },
+            {
+                "values": _MONTAGE_MINI_S1_VALUES,
+                "color": _MONTAGE_LILAC,
+                "label": r"$S_1$",
+                "label_direction": DOWN,
+                "description": ("Stimulation", "Session 1"),
+            },
+        ],
+    },
+]
+
+
+def _study2_build_plot_stat_map_rgba(
+    map_path: str | Path,
+    *,
+    figure_size: tuple[float, float] = (11.6, 3.5),
+    colorbar: bool = True,
+    cut_coords: tuple[int, ...] = _MONTAGE_CUT_COORDS_Z,
+) -> np.ndarray:
+    with mpl.rc_context(
+        {
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.serif": ["Computer Modern Roman", "CMU Serif", "DejaVu Serif"],
+            "mathtext.fontset": "cm",
+        }
+    ):
+        fig = plt.figure(figsize=figure_size, facecolor="white")
+        display = plot_stat_map(
+            stat_map_img=str(map_path),
+            title=None,
+            cmap="magma",
+            display_mode="z",
+            figure=fig,
+            black_bg=False,
+            colorbar=colorbar,
+            cut_coords=cut_coords,
+            draw_cross=False,
+            annotate=True,
+        )
+
+        buffer = BytesIO()
+        fig.savefig(
+            buffer,
+            format="png",
+            dpi=220,
+            bbox_inches="tight",
+            facecolor=fig.get_facecolor(),
+        )
+        buffer.seek(0)
+        rgba = np.asarray(Image.open(buffer).convert("RGBA")).copy()
+        buffer.close()
+        display.close()
+        plt.close(fig)
+    return rgba
+
+
+def _study2_make_small_results_matrix(
+    values: np.ndarray,
+    color: str,
+    label: str,
+    *,
+    label_direction: np.ndarray = UP,
+    scale_factor: float = 1.35,
+) -> VGroup:
+    rows = VGroup(*[
+        _make_feature_row(
+            values[row_idx * 3 : (row_idx + 1) * 3],
+            color=color,
+            cell_w=0.11,
+            cell_h=0.11,
+            gap=0.022,
+        )
+        for row_idx in range(3)
+    ]).arrange(DOWN, buff=0.022)
+    frame = SurroundingRectangle(
+        rows,
+        color=color,
+        stroke_width=1.5,
+        buff=0.042,
+        corner_radius=0.03,
+    )
+    matrix_label = Tex(label, color=color, font_size=13).next_to(
+        frame,
+        label_direction,
+        buff=0.04,
+    )
+    return VGroup(rows, frame, matrix_label).scale(scale_factor)
+
+
+class Study2StatMapMontage(_Study2NumberedScene, Scene):
+    """GLM-based searchlight decoding montage aligned with the Study 2 numbering."""
+
+    def _matrix_stack(self, mini_specs: list[dict]) -> Group:
+        matrices = Group()
+        matrix_objects: list[VGroup] = []
+        for spec in mini_specs:
+            matrix = _study2_make_small_results_matrix(
+                spec["values"],
+                spec["color"],
+                spec["label"],
+                label_direction=spec["label_direction"],
+            )
+            matrix_objects.append(matrix)
+            desc_top, desc_bottom = spec["description"]
+            desc_group = VGroup(
+                Tex(desc_top, color=INK, font_size=15),
+                Tex(desc_bottom, color=INK, font_size=15),
+            ).arrange(DOWN, aligned_edge=RIGHT, buff=0.02)
+            matrices.add(Group(desc_group, matrix).arrange(RIGHT, buff=0.20, aligned_edge=ORIGIN))
+
+        matrices.arrange(DOWN, buff=0.29)
+        if len(mini_specs) > 1:
+            arrow = Arrow(
+                matrix_objects[0][1].get_bottom() + DOWN * 0.10,
+                matrix_objects[-1][1].get_top() + UP * 0.10,
+                color=INK,
+                stroke_width=6.0,
+                buff=0.0,
+                tip_length=0.24,
+            )
+            return Group(matrices, arrow)
+        return Group(matrices)
+
+    def _row_group(self, *, path: Path, cluster_info: str, mini_specs: list[dict]) -> Group:
+        matrix_stack = self._matrix_stack(mini_specs)
+        plot_image = ImageMobject(
+            _study2_build_plot_stat_map_rgba(
+                path,
+                figure_size=(8.6, 1.65),
+                colorbar=False,
+            )
+        ).scale_to_fit_width(9.9)
+        cluster_caption = Tex(cluster_info, color=MUTED, font_size=18)
+        plot_group = Group(plot_image, cluster_caption).arrange(DOWN, buff=0.05)
+        return Group(matrix_stack, plot_group).arrange(RIGHT, buff=1.12, aligned_edge=UP)
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+        title = Tex(rf"\textbf{{{_MONTAGE_TITLE}}}", color=INK, font_size=28).to_edge(UP, buff=0.28)
+
+        rows = Group(*[self._row_group(**spec) for spec in _MONTAGE_STAT_MAP_SPECS])
+        rows.arrange(DOWN, buff=0.28, aligned_edge=LEFT)
+        rows.scale_to_fit_width(config.frame_width - 0.15)
+        rows.scale_to_fit_height(config.frame_height - 0.95)
+        rows.next_to(title, DOWN, buff=0.16)
+
+        self.play(FadeIn(title, shift=UP * 0.08), run_time=0.45)
+        self.play(
+            LaggedStart(
+                *[FadeIn(row, shift=UP * 0.10) for row in rows],
+                lag_ratio=0.18,
+            ),
+            run_time=1.35,
+        )
+        self.wait(1.6)
