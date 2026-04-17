@@ -41,6 +41,39 @@ from PIL import Image
 from manim import *
 from svgelements import Path as SVGPath
 
+# ── Narrative render order ────────────────────────────────────────────────────
+_STUDY2_SCENE_ORDER: dict[str, str] = {
+    "Study2ExperimentalDesign":              "01",
+    "Study2DecodingOverview":                "02",
+    "Study2WithinSession2Decoding":          "03",
+    "Study2WithinSession2DecodingResults":   "04",
+    "Study2CrossSessionDecoding":            "05",
+    "Study2CrossSessionDecodingResultsA":    "06",
+    "Study2CrossSessionDecodingResultsB":    "07",
+    "Study2WithinSession1DecodingA":         "08",
+    "Study2WithinSession1DecodingB":         "09",
+    "Study2WithinSession1DecodingResultsA":  "10",
+    "Study2WithinSession1DecodingResultsB":  "11",
+    "Study2WithinSession1DecodingResultsC":  "12",
+    "Study2WithinSession1DecodingResultsD":  "13",
+    "Study2LTMResultsExplainer":             "14",
+    "Study2WithinSession1TrainTestPanel":    "15",
+    "Study2SupplementalRoiTimecoursesA":     "16",
+    "Study2SupplementalRoiTimecoursesB":     "17",
+    "Study2SupplementalRoiTempGenMats":      "18",
+}
+
+
+class _Study2NumberedScene:
+    """Mixin: auto-prefix the output file with the narrative scene number."""
+
+    def __init__(self, *args, **kwargs):
+        number = _STUDY2_SCENE_ORDER.get(self.__class__.__name__, "")
+        if number:
+            config.output_file = f"{number}_{self.__class__.__name__}"
+        super().__init__(*args, **kwargs)
+
+
 # ── Palette ───────────────────────────────────────────────────────────────────
 BG   = WHITE
 INK  = "#1C1C1E"
@@ -175,7 +208,7 @@ def _labels(
 _JITTER = r"$M = 4\,\mathrm{s}$"
 
 
-class Study2ExperimentalDesign(Scene):
+class Study2ExperimentalDesign(_Study2NumberedScene, Scene):
 
     _S1 = [
         {"img": LAKE,    "time": "2 s",     "lbl": "Target"},
@@ -276,7 +309,7 @@ _BRAIN_PNG_PATH = Path(
 )
 
 
-class Study2DecodingOverview(Scene):
+class Study2DecodingOverview(_Study2NumberedScene, Scene):
     """
     Opens on the full experimental-design layout, isolates the Session 2
     stimuli, and then maps each image to a coloured feature vector via a
@@ -7108,13 +7141,14 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             logic_matrix_frame,
         )
         logic_matrix_overlay.set_z_index(2.1)
+        colorbar_gap = logic_matrix_frame.width * (11.90551 / 238.11023)
         colorbar_fill_width = logic_matrix_frame.width * (9.3599997 / 238.11023)
         colorbar_fill_height = logic_matrix_frame.height * (238.08 / 238.11023)
         logic_matrix_colorbar_fill = ImageMobject(self._TEMPGEN_LOGIC_MATRIX_COLORBAR_FILL)
         logic_matrix_colorbar_fill.set_height(colorbar_fill_height)
         logic_matrix_colorbar_fill.stretch_to_fit_width(colorbar_fill_width)
         logic_matrix_colorbar_fill.move_to(np.array([
-            logic_matrix_frame.get_right()[0] + colorbar_fill_width / 2,
+            logic_matrix_frame.get_right()[0] + colorbar_gap + colorbar_fill_width / 2,
             logic_matrix_frame.get_center()[1],
             0.0,
         ]))
@@ -7429,10 +7463,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             matrix_cover_columns.append(column_covers)
         matrix_cover_group = VGroup(*matrix_cover_columns)
 
-        diagonal_trace = Line(
-            matrix_cell_center(1.35, 1.35),
-            matrix_cell_center(float(cell_count - 1) - 1.35, float(cell_count - 1) - 1.35),
-        )
+        diagonal_trace = VMobject()
+        diagonal_trace.set_points_as_corners([
+            matrix_cell_center(float(diag_idx), float(diag_idx))
+            for diag_idx in range(cell_count)
+        ])
         diagonal_trace.set_stroke(
             color=BLACK,
             width=2.7,
@@ -7440,6 +7475,13 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         )
         diagonal_trace.set_fill(opacity=0.0)
         diagonal_trace.set_z_index(4.8)
+        diagonal_transfer_trace = VMobject()
+        diagonal_transfer_trace.set_points_as_corners([
+            matrix_cell_center(0.0, 0.0),
+            matrix_cell_center(float(cell_count - 1), float(cell_count - 1)),
+        ])
+        diagonal_transfer_trace.match_style(diagonal_trace)
+        diagonal_transfer_trace.set_z_index(4.85)
 
         demo_column_count = min(10, cell_count)
         demo_fill_durations = [
@@ -7503,6 +7545,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
             "train_projection": train_projection,
             "test_projection": test_projection,
             "diagonal_trace": diagonal_trace,
+            "diagonal_transfer_trace": diagonal_transfer_trace,
             "cell_count": cell_count,
             "demo_column_count": demo_column_count,
             "demo_fill_durations": demo_fill_durations,
@@ -7709,33 +7752,67 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
 
         self.play(
             FadeIn(right_plot_scaffold, shift=LEFT * 0.06),
-            FadeIn(right_plot_ci),
-            Create(right_plot_trace),
             FadeOut(matrix_cursor),
             run_time=0.85,
         )
-        n_curves_needed = right_plot_trace.get_num_curves()
-        n_curves_have = diagonal_trace.get_num_curves()
-        if n_curves_needed > n_curves_have:
-            diagonal_trace.insert_n_curves(n_curves_needed - n_curves_have)
-        diagonal_trace_template = diagonal_trace.copy()
-        for cycle_idx in range(2):
-            right_curve_target = right_plot_trace.copy().set_z_index(4.8)
-            for submob in right_curve_target.family_members_with_points():
-                submob.set_stroke(color=BLACK, opacity=1.0)
-                submob.set_fill(opacity=0.0)
-            self.play(
-                Transform(diagonal_trace, right_curve_target),
-                right_plot_trace.animate.set_stroke(color="#C49A00", opacity=1.0),
-                run_time=1.1,
-                rate_func=smooth,
+
+        def sampled_polyline(
+            path: VMobject,
+            *,
+            color: str = BLACK,
+            stroke_width: float | None = None,
+            sample_count: int = 64,
+            z_index: float = 4.85,
+        ) -> VMobject:
+            sampled = VMobject()
+            props = np.linspace(0.0, 1.0, sample_count)
+            sampled.set_points_as_corners([
+                path.point_from_proportion(float(prop))
+                for prop in props
+            ])
+            sampled.set_z_index(z_index)
+            sampled.set_stroke(
+                color=color,
+                width=stroke_width if stroke_width is not None else path.get_stroke_width(),
+                opacity=1.0,
             )
-            self.play(
-                Transform(diagonal_trace, diagonal_trace_template.copy()),
-                right_plot_trace.animate.set_stroke(color=BLACK, opacity=1.0),
-                run_time=1.1,
-                rate_func=smooth,
-            )
+            sampled.set_fill(opacity=0.0)
+            return sampled
+
+        diagonal_home = diagonal_trace.copy()
+        morph_trace = sampled_polyline(
+            diagonal_home,
+            color=BLACK,
+            stroke_width=diagonal_home.get_stroke_width(),
+            z_index=diagonal_home.get_z_index(),
+        )
+        right_curve_target = sampled_polyline(
+            right_plot_trace,
+            color="#C49A00",
+            stroke_width=right_plot_trace.get_stroke_width(),
+            z_index=morph_trace.get_z_index(),
+        )
+        morph_return = morph_trace.copy()
+        self.remove(diagonal_trace)
+        self.add(morph_trace)
+        self.play(
+            Transform(morph_trace, right_curve_target),
+            run_time=1.15,
+            rate_func=smooth,
+        )
+        self.wait(0.35)
+        self.play(
+            Transform(morph_trace, morph_return),
+            run_time=1.05,
+            rate_func=smooth,
+        )
+        self.remove(morph_trace)
+        self.add(diagonal_trace)
+        self.play(
+            FadeIn(right_plot_trace),
+            FadeIn(right_plot_ci),
+            run_time=0.25,
+        )
         for submob in right_plot_trace.family_members_with_points():
             submob.set_stroke(color=BLACK, opacity=1.0)
             submob.set_fill(opacity=0.0)
@@ -8104,6 +8181,10 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         uv run manim scenes/study2.py Study2LTMResultsExplainer -qh
     """
 
+    _LTM_BEH = (
+        "/Users/leonardo/phd-thesis-animations/assets/images/study2/"
+        "study2_behresults.svg"
+    )
     _LTM_GLM = (
         "/Users/leonardo/phd-thesis-animations/assets/images/study2/"
         "figure_LTM_decoding_stimulation-delay_GLM.svg"
@@ -8166,16 +8247,46 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         self._hide_svg_background_rect(svg)
         return svg
 
+    def _swap_svg_hex_colors(
+        self,
+        svg: SVGMobject,
+        color_map: dict[str, str],
+    ) -> None:
+        for submob in svg.family_members_with_points():
+            stroke_hex = self._glm_svg_hex(submob.get_stroke_color())
+            if stroke_hex in color_map:
+                submob.set_stroke(
+                    color=color_map[stroke_hex],
+                    width=submob.get_stroke_width(),
+                    opacity=submob.get_stroke_opacity(),
+                )
+
+            fill_hex = self._glm_svg_hex(submob.get_fill_color())
+            if fill_hex in color_map:
+                submob.set_fill(
+                    color=color_map[fill_hex],
+                    opacity=submob.get_fill_opacity(),
+                )
+
+    def _set_behaviour_svg_text_black(self, svg: SVGMobject) -> None:
+        for submob in svg.family_members_with_points():
+            stroke_hex = self._glm_svg_hex(submob.get_stroke_color())
+            fill_hex = self._glm_svg_hex(submob.get_fill_color())
+            if stroke_hex == "#FFFFFF" and fill_hex in {"#000000", "#4D4D4D"}:
+                submob.set_stroke(opacity=0.0)
+                submob.set_fill(color=BLACK, opacity=submob.get_fill_opacity())
+
     def _make_ltm_takeaway(self) -> VGroup:
         takeaway_line = Tex(
-            r"{{Repetition}} improved behaviour, but did not change {{sensory-trained}} {{delay-period}} decoding.",
+            r"{{Repetition}} improved {{working memory performance}}, but did not make {{memory representations}} more {{sensory-like}}.",
             color=INK,
             font_size=21,
             tex_environment="center",
         )
         takeaway_line.set_color_by_tex("Repetition", _D_AMBER)
-        takeaway_line.set_color_by_tex("sensory-trained", self._GLM_ACCENT)
-        takeaway_line.set_color_by_tex("delay-period", self._DELAY_ACCENT)
+        takeaway_line.set_color_by_tex("working memory performance", self._DELAY_ACCENT)
+        takeaway_line.set_color_by_tex("memory representations", self._DELAY_ACCENT)
+        takeaway_line.set_color_by_tex("sensory-like", self._GLM_ACCENT)
         return self._make_takeaway([takeaway_line])
 
     def _ltm_timeres_frame(self, timeres_svg: SVGMobject) -> VGroup:
@@ -8203,15 +8314,50 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
             max(horizontals, key=lambda mob: mob.get_center()[1]),
         )
 
+    def _ltm_beh_frame(self, beh_svg: SVGMobject) -> Mobject:
+        black_lines = [
+            submob
+            for submob in beh_svg.submobjects
+            if self._glm_svg_hex(submob.get_stroke_color()) == "#000000"
+            and submob.get_stroke_opacity() > 0.0
+        ]
+        verticals = [
+            submob
+            for submob in black_lines
+            if submob.height > submob.width and submob.height > beh_svg.height * 0.45
+        ]
+        horizontals = [
+            submob
+            for submob in black_lines
+            if submob.width >= submob.height and submob.width > beh_svg.width * 0.55
+        ]
+        if not verticals or not horizontals:
+            raise ValueError("Could not identify LTM behavioural plot frame")
+
+        left_axis = max(verticals, key=lambda mob: mob.height)
+        bottom_axis = max(horizontals, key=lambda mob: mob.width)
+        return Rectangle(
+            width=bottom_axis.width,
+            height=left_axis.height,
+            stroke_opacity=0.0,
+            fill_opacity=0.0,
+        ).move_to(
+            np.array([
+                left_axis.get_center()[0] + bottom_axis.width / 2,
+                bottom_axis.get_center()[1] + left_axis.height / 2,
+                0.0,
+            ])
+        )
+
     def _align_ltm_plot_frame(
         self,
         svg: SVGMobject,
-        frame: VGroup,
+        frame: Mobject,
         *,
         target_center_x: float,
         target_top: float,
         target_height: float,
-    ) -> VGroup:
+    ) -> Mobject:
         scale_factor = target_height / frame.height
         svg.scale(scale_factor)
         svg.shift(RIGHT * (target_center_x - frame.get_center()[0]))
@@ -8233,9 +8379,18 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
             candidates = [
                 submob
                 for submob in self._timeres_select_many(timeres_svg, stroke_hex=color_hex, min_points=4)
-                if submob.get_center()[0] > frame.get_right()[0] + 0.05
-                and submob.width < frame.width * 0.25
+                if submob.width < frame.width * 0.20
+                and submob.width >= submob.height
+                and submob.get_center()[0] < frame.get_center()[0]
+                and submob.get_center()[1] > frame.get_top()[1] - frame.height * 0.25
             ]
+            if not candidates:
+                candidates = [
+                    submob
+                    for submob in self._timeres_select_many(timeres_svg, stroke_hex=color_hex, min_points=4)
+                    if submob.get_center()[0] > frame.get_right()[0] + 0.05
+                    and submob.width < frame.width * 0.25
+                ]
             if not candidates:
                 raise ValueError(f"Could not identify LTM legend line for {color_hex}")
             return max(candidates, key=lambda mob: mob.width)
@@ -8265,7 +8420,13 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         ])
         y_label = Tex("Accuracy (minus chance)", color=INK, font_size=20)
         y_label.rotate(PI / 2)
-        y_label.move_to(np.array([frame.get_left()[0] - 0.82, frame.get_center()[1], 0.0]))
+        y_label.move_to(
+            np.array([
+                frame.get_left()[0] - 0.82 + frame.width * 0.05,
+                frame.get_center()[1],
+                0.0,
+            ])
+        )
 
         roi_title = Tex("EVC (V1, V2, V3)", color=INK, font_size=13).move_to(
             np.array([frame.get_center()[0], frame.get_top()[1] + 0.12, 0.0])
@@ -8304,17 +8465,43 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         question.set_color_by_tex("Non-repeated", _D_BLUE)
 
         plot_title_y = question.get_bottom()[1] - 0.88
+        beh_title = Tex("Behavioural results", color=INK, font_size=22).move_to(
+            np.array([-4.45, plot_title_y, 0.0])
+        )
         glm_title = Tex("GLM-based decoding", color=INK, font_size=22).move_to(
-            np.array([-3.05, plot_title_y, 0.0])
+            np.array([0.0, plot_title_y, 0.0])
         )
         timeres_title = Tex("Time-resolved decoding", color=INK, font_size=22).move_to(
-            np.array([3.05, plot_title_y, 0.0])
+            np.array([4.1, plot_title_y, 0.0])
         )
-        glm_frame_center_x = -3.05
-        timeres_frame_center_x = 3.05
-        target_frame_top = glm_title.get_bottom()[1] - 0.84
+        beh_frame_center_x = -4.45
+        glm_frame_center_x = 0.0
+        timeres_frame_center_x = 4.1
+        target_frame_top = beh_title.get_bottom()[1] - 0.84
+        beh_target_frame_height = 2.74
         target_frame_height = 3.34
 
+        beh_svg = self._load_ltm_svg_plot(
+            self._LTM_BEH,
+            center=np.array([beh_frame_center_x, -0.28, 0.0]),
+            height=4.28,
+        )
+        self._swap_svg_hex_colors(
+            beh_svg,
+            {
+                "#4E79A7": "#F28E2B",
+                "#F28E2B": "#4E79A7",
+            },
+        )
+        self._set_behaviour_svg_text_black(beh_svg)
+        beh_frame = self._ltm_beh_frame(beh_svg)
+        self._align_ltm_plot_frame(
+            beh_svg,
+            beh_frame,
+            target_center_x=beh_frame_center_x,
+            target_top=target_frame_top,
+            target_height=beh_target_frame_height,
+        )
         glm_svg = self._load_ltm_svg_plot(
             self._LTM_GLM,
             center=np.array([glm_frame_center_x, -0.28, 0.0]),
@@ -8342,11 +8529,14 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
             target_top=target_frame_top,
             target_height=target_frame_height,
         )
+        beh_title.move_to(np.array([beh_frame_center_x, plot_title_y, 0.0]))
         glm_title.move_to(np.array([glm_frame_center_x, plot_title_y, 0.0]))
         timeres_title.move_to(np.array([timeres_frame_center_x, plot_title_y, 0.0]))
         timeres_text = self._make_ltm_timeres_text_overlay(timeres_svg, timeres_frame)
 
         plots = Group(
+            beh_title,
+            beh_svg,
             glm_title,
             glm_svg,
             timeres_title,
@@ -8360,8 +8550,10 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         self.play(FadeIn(question, shift=UP * 0.06), run_time=0.55)
         self.play(
             LaggedStart(
+                FadeIn(beh_title, shift=UP * 0.05),
                 FadeIn(glm_title, shift=UP * 0.05),
                 FadeIn(timeres_title, shift=UP * 0.05),
+                FadeIn(beh_svg, shift=RIGHT * 0.10),
                 FadeIn(glm_svg, shift=RIGHT * 0.10),
                 FadeIn(timeres_svg, shift=LEFT * 0.10),
                 FadeIn(timeres_text, shift=LEFT * 0.08),
@@ -8373,7 +8565,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         self.wait(2.0)
 
 
-class Study2SupplementalRoiTimecourses(Scene):
+class Study2SupplementalRoiTimecourses(_Study2NumberedScene, Scene):
     """
     Compare the supplemental ROI sensory -> memory temporal time courses.
 
@@ -8410,6 +8602,11 @@ class Study2SupplementalRoiTimecourses(Scene):
     _EVENT_STROKE = "#A9A9A9"
     _CHANCE_STROKE = "#808080"
     _SIG_STROKE = "#C49A00"
+    _ROI_LABEL_RIGHT_SHIFT_RATIO = 0.10
+    _ROW_X_LABEL_FONT_SIZE = 17
+    _ROW_X_LABEL_MAX_WIDTH_RATIO = 0.72
+    _ROW_X_LABEL_SHIFT = ORIGIN
+    _ROW_STACK_BUFF = 0.28
     _SKIP_AXIS_TEXTS = {
         "Test time (s)",
         "Train and test time (s)",
@@ -8709,6 +8906,53 @@ class Study2SupplementalRoiTimecourses(Scene):
         overlay.add(self._make_text_overlay(plot, spec["texts"]))
         return Group(plot, overlay)
 
+    def _match_plot_group_to_reference(self, plot_group: Group, reference_plot_group: Group) -> Group:
+        target_canvas = plot_group[0]
+        reference_canvas = reference_plot_group[0]
+        plot_group.scale(reference_canvas.width / target_canvas.width)
+        plot_group.shift(reference_canvas.get_center() - plot_group[0].get_center())
+        return plot_group
+
+    def _shift_roi_labels_right(self, cards: list[Group]) -> None:
+        for card in cards:
+            card[0].shift(RIGHT * (card[1].width * self._ROI_LABEL_RIGHT_SHIFT_RATIO))
+
+    def _build_matched_target_plots(
+        self,
+        source_cards: list[Group],
+        panel_spec: dict[str, object],
+    ) -> list[Group]:
+        target_plots: list[Group] = []
+        for (_, svg_path), source_card in zip(self._ROI_SVGS, source_cards):
+            target_plot = self._make_plot_group(svg_path, panel_spec)
+            self._match_plot_group_to_reference(target_plot, source_card[1])
+            target_plots.append(target_plot)
+        return target_plots
+
+    def _build_plot_swap_animations(
+        self,
+        source_cards: list[Group],
+        target_plots: list[Group],
+    ) -> list[AnimationGroup]:
+        return [
+            AnimationGroup(
+                FadeOut(source_card[1]),
+                FadeIn(target_plot),
+                lag_ratio=0.0,
+            )
+            for source_card, target_plot in zip(source_cards, target_plots)
+        ]
+
+    def _make_column_groups(
+        self,
+        top_cards: Group,
+        bottom_cards: Group,
+    ) -> list[Group]:
+        return [
+            Group(top_card, bottom_card)
+            for top_card, bottom_card in zip(top_cards, bottom_cards)
+        ]
+
     def _make_roi_card(self, label: str, svg_path: Path, panel_spec: dict[str, object]) -> Group:
         plot_group = self._make_plot_group(svg_path, panel_spec)
         roi_label = Tex(label, color=INK, font_size=23)
@@ -8717,15 +8961,37 @@ class Study2SupplementalRoiTimecourses(Scene):
         card = Group(roi_label, plot_group).arrange(DOWN, buff=0.12)
         return card
 
-    def _make_row_group(self, cards: list[Group], row_x_label: str) -> tuple[Group, Group]:
+    def _make_row_group(
+        self,
+        cards: list[Group],
+        row_x_label: str,
+        *,
+        include_x_label: bool,
+    ) -> tuple[Group, Group, Mobject]:
         row_cards = Group(*cards).arrange(RIGHT, buff=0.34, aligned_edge=UP)
         accuracy_label = Tex("Accuracy", color=INK, font_size=17).rotate(PI / 2)
         accuracy_label.next_to(row_cards, LEFT, buff=0.16)
-        test_time_label = Tex(row_x_label, color=INK, font_size=17)
-        if test_time_label.width > row_cards.width * 0.72:
-            test_time_label.scale_to_fit_width(row_cards.width * 0.72)
-        test_time_label.next_to(row_cards, DOWN, buff=0.10)
-        return Group(row_cards, accuracy_label, test_time_label), row_cards
+        if include_x_label:
+            test_time_label = self._make_row_x_label(row_cards, row_x_label)
+            test_time_label.next_to(row_cards, DOWN, buff=0.10)
+            test_time_label.shift(self._ROW_X_LABEL_SHIFT)
+        else:
+            test_time_label = VGroup()
+        return Group(row_cards, accuracy_label, test_time_label), row_cards, test_time_label
+
+    def _make_row_x_label(self, row_cards: Group, row_x_label: str) -> Mobject:
+        if "\n" in row_x_label:
+            test_time_label = VGroup(
+                *[
+                    Tex(line, color=INK, font_size=self._ROW_X_LABEL_FONT_SIZE)
+                    for line in row_x_label.split("\n")
+                ]
+            ).arrange(DOWN, buff=0.02, center=True)
+        else:
+            test_time_label = Tex(row_x_label, color=INK, font_size=self._ROW_X_LABEL_FONT_SIZE)
+        if test_time_label.width > row_cards.width * self._ROW_X_LABEL_MAX_WIDTH_RATIO:
+            test_time_label.scale_to_fit_width(row_cards.width * self._ROW_X_LABEL_MAX_WIDTH_RATIO)
+        return test_time_label
 
     def _build_panel(self, panel_spec: dict[str, object]) -> dict[str, object]:
         title = Tex(str(panel_spec["title"]), color=INK, font_size=24).to_edge(UP, buff=0.20)
@@ -8733,15 +8999,21 @@ class Study2SupplementalRoiTimecourses(Scene):
             self._make_roi_card(label, svg_path, panel_spec)
             for label, svg_path in self._ROI_SVGS
         ]
-        top_row_group, top_row_cards = self._make_row_group(
+        top_row_group, top_row_cards, top_row_x_label = self._make_row_group(
             cards[:4],
             row_x_label=str(panel_spec["row_x_label"]),
+            include_x_label=False,
         )
-        bottom_row_group, bottom_row_cards = self._make_row_group(
+        bottom_row_group, bottom_row_cards, bottom_row_x_label = self._make_row_group(
             cards[4:],
             row_x_label=str(panel_spec["row_x_label"]),
+            include_x_label=True,
         )
-        grid = Group(top_row_group, bottom_row_group).arrange(DOWN, buff=0.48, center=True)
+        grid = Group(top_row_group, bottom_row_group).arrange(
+            DOWN,
+            buff=self._ROW_STACK_BUFF,
+            center=True,
+        )
         grid.scale_to_fit_width(config.frame_width - 0.9)
 
         title_gap = 0.34
@@ -8750,6 +9022,7 @@ class Study2SupplementalRoiTimecourses(Scene):
         if grid.height > max_grid_height:
             grid.scale_to_fit_height(max_grid_height)
         grid.next_to(title, DOWN, buff=title_gap)
+        self._shift_roi_labels_right(cards)
         return {
             "title": title,
             "grid": grid,
@@ -8758,33 +9031,25 @@ class Study2SupplementalRoiTimecourses(Scene):
             "bottom_row_group": bottom_row_group,
             "top_row_cards": top_row_cards,
             "bottom_row_cards": bottom_row_cards,
+            "top_row_x_label": top_row_x_label,
+            "bottom_row_x_label": bottom_row_x_label,
         }
 
     def _play_panel_intro(self, panel: dict[str, object]) -> None:
+        column_groups = self._make_column_groups(
+            panel["top_row_cards"],
+            panel["bottom_row_cards"],
+        )
         self.play(FadeIn(panel["title"], shift=UP * 0.06), run_time=0.45)
         self.play(
+            FadeIn(panel["top_row_group"][1], shift=RIGHT * 0.04),
+            FadeIn(panel["bottom_row_group"][1], shift=RIGHT * 0.04),
+            FadeIn(panel["bottom_row_group"][2], shift=UP * 0.04),
             LaggedStart(
-                *[FadeIn(card, shift=UP * 0.08) for card in panel["top_row_cards"]],
+                *[FadeIn(column_group, shift=UP * 0.08) for column_group in column_groups],
                 lag_ratio=0.10,
             ),
             run_time=1.05,
-        )
-        self.play(
-            FadeIn(panel["top_row_group"][1], shift=RIGHT * 0.04),
-            FadeIn(panel["top_row_group"][2], shift=UP * 0.04),
-            run_time=0.35,
-        )
-        self.play(
-            LaggedStart(
-                *[FadeIn(card, shift=UP * 0.08) for card in panel["bottom_row_cards"]],
-                lag_ratio=0.12,
-            ),
-            run_time=0.95,
-        )
-        self.play(
-            FadeIn(panel["bottom_row_group"][1], shift=RIGHT * 0.04),
-            FadeIn(panel["bottom_row_group"][2], shift=UP * 0.04),
-            run_time=0.35,
         )
 
     def construct(self) -> None:
@@ -8877,8 +9142,8 @@ class Study2SupplementalRoiTimecoursesB(Study2SupplementalRoiTimecourses):
         uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesB -qh
     """
 
+    _TIMERES_SOURCE_BOX = (430.0, 902.165354, 748.0, 1207.165354)
     _PANEL_TITLE = r"Train Session 1 $\rightarrow$ Test Session 1"
-    _ROW_X_LABEL = "Train and test time (s)"
     _AXES_INDEX = 5
     _POLY_GROUP_ID = "PolyCollection_2"
     _CHANCE_GROUP_ID = "line2d_24"
@@ -8889,26 +9154,40 @@ class Study2SupplementalRoiTimecoursesB(Study2SupplementalRoiTimecourses):
     def construct(self) -> None:
         self.camera.background_color = BG
 
-        panel_a = self._build_panel(Study2SupplementalRoiTimecoursesA._panel_spec())
-        panel_b = self._build_panel(self._panel_spec())
-
-        self._play_panel_intro(panel_a)
+        panel_a_scene = Study2SupplementalRoiTimecoursesA()
+        panel_a = panel_a_scene._build_panel(panel_a_scene._panel_spec())
+        self.add(panel_a["title"], panel_a["grid"])
         self.wait(0.25)
 
-        top_row_transition = AnimationGroup(
-            FadeOut(panel_a["top_row_group"], shift=UP * 0.04),
-            FadeIn(panel_b["top_row_group"], shift=UP * 0.04),
-            lag_ratio=0.20,
+        title_b = Tex(self._PANEL_TITLE, color=INK, font_size=24).move_to(panel_a["title"])
+        target_plots = self._build_matched_target_plots(panel_a["cards"], self._panel_spec())
+        target_cards = [
+            Group(source_card[0].copy(), target_plot)
+            for source_card, target_plot in zip(panel_a["cards"], target_plots)
+        ]
+        target_columns = self._make_column_groups(
+            Group(*target_cards[:4]),
+            Group(*target_cards[4:]),
         )
-        bottom_row_transition = AnimationGroup(
-            FadeOut(panel_a["bottom_row_group"], shift=UP * 0.04),
-            FadeIn(panel_b["bottom_row_group"], shift=UP * 0.04),
-            lag_ratio=0.20,
+        b_shared_labels = Group(
+            panel_a["top_row_group"][1].copy(),
+            panel_a["bottom_row_group"][1].copy(),
+            panel_a["bottom_row_group"][2].copy(),
+        )
+
+        self.play(
+            FadeOut(panel_a["title"]),
+            FadeOut(panel_a["grid"]),
+            run_time=0.20,
         )
         self.play(
-            TransformMatchingTex(panel_a["title"], panel_b["title"]),
-            LaggedStart(top_row_transition, bottom_row_transition, lag_ratio=0.10),
-            run_time=1.45,
+            FadeIn(title_b),
+            FadeIn(b_shared_labels),
+            LaggedStart(
+                *[FadeIn(column_group) for column_group in target_columns],
+                lag_ratio=0.10,
+            ),
+            run_time=0.72,
         )
         self.wait(2.0)
 
@@ -9241,17 +9520,14 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
         colorbar_top_y = float(colorbar_top[1])
 
         tick_font_size = 10
-        axis_font_size = 11
         cbar_font_size = 10
         tick_length = 0.05
         x_tick_y = plot_bottom_y - 0.14
-        x_label_y = plot_bottom_y - 0.34
         y_tick_x = plot_left_x - 0.15
-        y_label_x = plot_left_x - 0.37
         cbar_tick_x0 = colorbar_right_x + 0.01
         cbar_tick_x1 = cbar_tick_x0 + tick_length
         cbar_label_x = cbar_tick_x1 + 0.12
-        cbar_title_x = cbar_label_x + 0.34
+        cbar_title_x = cbar_label_x + 0.22
 
         labels = VGroup()
 
@@ -9285,15 +9561,6 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
             tick_label.move_to(np.array([y_tick_x, y_pos, 0.0]))
             labels.add(tick_label)
 
-        x_label = Tex("Train time (s)", color=INK, font_size=axis_font_size)
-        x_label.move_to(np.array([(plot_left_x + plot_right_x) / 2, x_label_y, 0.0]))
-        labels.add(x_label)
-
-        y_label = Tex("Test time (s)", color=INK, font_size=axis_font_size)
-        y_label.rotate(PI / 2)
-        y_label.move_to(np.array([y_label_x, (plot_top_y + plot_bottom_y) / 2, 0.0]))
-        labels.add(y_label)
-
         for y_pos, tick in zip(cbar_positions, self._TEMPGEN_COLORBAR_TICKS):
             labels.add(
                 Line(
@@ -9305,7 +9572,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
             tick_label.move_to(np.array([cbar_label_x, y_pos, 0.0]))
             labels.add(tick_label)
 
-        cbar_title = Tex("Accuracy (minus chance)", color=INK, font_size=cbar_font_size)
+        cbar_title = Tex("Accuracy", color=INK, font_size=12)
         cbar_title.rotate(PI / 2)
         cbar_title.move_to(
             np.array([cbar_title_x, (colorbar_top_y + colorbar_bottom_y) / 2, 0.0])
@@ -9332,7 +9599,29 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
         roi_label = Tex(label, color=INK, font_size=23)
         if roi_label.width > plot_group.width * 1.08:
             roi_label.scale_to_fit_width(plot_group.width * 1.08)
-        return Group(roi_label, plot_group).arrange(DOWN, buff=0.12)
+        card = Group(roi_label, plot_group).arrange(DOWN, buff=0.12)
+        roi_label.shift(LEFT * (plot_group.width * 0.07))
+        return card
+
+    def _make_tempgen_row_group(self, cards: list[Group]) -> tuple[Group, Group]:
+        row_cards = Group(*cards).arrange(RIGHT, buff=0.34, aligned_edge=UP)
+        row_y_label = Tex("Test time (s)", color=INK, font_size=21)
+        row_y_label.rotate(PI / 2)
+        row_y_label.next_to(row_cards, LEFT, buff=0.18)
+        return Group(row_cards, row_y_label), row_cards
+
+    def _make_tempgen_column_x_labels(
+        self,
+        top_row_cards: Group,
+        bottom_row_cards: Group,
+    ) -> VGroup:
+        labels = VGroup()
+        for top_card, bottom_card in zip(top_row_cards, bottom_row_cards):
+            label = Tex("Train time (s)", color=INK, font_size=20)
+            label.next_to(bottom_card, DOWN, buff=0.14)
+            label.set_x((top_card.get_center()[0] + bottom_card.get_center()[0]) / 2)
+            labels.add(label)
+        return labels
 
     def construct(self) -> None:
         self.camera.background_color = BG
@@ -9344,10 +9633,12 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
         ).to_edge(UP, buff=0.22)
 
         cards = [self._make_tempgen_roi_card(label, svg_path) for label, svg_path in self._ROI_SVGS]
-        top_row = Group(*cards[:4]).arrange(RIGHT, buff=0.34, aligned_edge=UP)
-        bottom_row = Group(*cards[4:]).arrange(RIGHT, buff=0.34, aligned_edge=UP)
-        grid = Group(top_row, bottom_row).arrange(DOWN, buff=0.48, center=True)
-        grid.scale_to_fit_width(config.frame_width - 0.9)
+        top_row_group, top_row = self._make_tempgen_row_group(cards[:4])
+        bottom_row_group, bottom_row = self._make_tempgen_row_group(cards[4:])
+        row_stack = Group(top_row_group, bottom_row_group).arrange(DOWN, buff=0.48, center=True)
+        column_x_labels = self._make_tempgen_column_x_labels(top_row, bottom_row)
+        grid = Group(row_stack, column_x_labels)
+        grid.scale_to_fit_width(config.frame_width - 0.84)
 
         title_gap = 0.34
         bottom_margin = 0.26
@@ -9362,13 +9653,16 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
                 *[FadeIn(card, shift=UP * 0.08) for card in top_row],
                 lag_ratio=0.10,
             ),
-            run_time=1.05,
-        )
-        self.play(
             LaggedStart(
                 *[FadeIn(card, shift=UP * 0.08) for card in bottom_row],
                 lag_ratio=0.10,
             ),
-            run_time=1.00,
+            run_time=1.05,
+        )
+        self.play(
+            FadeIn(top_row_group[1], shift=RIGHT * 0.04),
+            FadeIn(bottom_row_group[1], shift=RIGHT * 0.04),
+            FadeIn(column_x_labels, shift=UP * 0.04),
+            run_time=0.35,
         )
         self.wait(2.0)
