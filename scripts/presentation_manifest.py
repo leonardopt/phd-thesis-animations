@@ -4,6 +4,11 @@
 The primary path uses `tomllib` when available. A narrow fallback parser is kept
 for environments such as older system Python installations; it intentionally
 supports only the TOML subset used by `assets/presentation_deck.toml`.
+
+Optional presenter notes can live in a separate Markdown file referenced from
+the deck config. That file uses one `## media-target` section per media slide,
+where the heading points at a video/image/PDF path and the section body becomes
+the Keynote presenter notes for that slide.
 """
 
 from __future__ import annotations
@@ -278,6 +283,254 @@ def validate_text_slide(slide_type: str, slide: dict) -> dict:
     }
 
 
+def trim_blank_lines(lines: list[str]) -> str:
+    """Remove blank lines from the start/end of a block while preserving content."""
+    start_index = 0
+    end_index = len(lines)
+
+    while start_index < end_index and lines[start_index].strip() == "":
+        start_index += 1
+    while end_index > start_index and lines[end_index - 1].strip() == "":
+        end_index -= 1
+
+    return "\n".join(lines[start_index:end_index])
+
+
+def presenter_notes_path(deck: dict, project_root: Path) -> Path | None:
+    """Resolve the optional deck-level presenter notes file path."""
+    configured_keys = [
+        key for key in ("presenter_notes_path", "notes_path") if deck.get(key)
+    ]
+    if len(configured_keys) > 1:
+        manifest_error("deck may define only one of presenter_notes_path or notes_path")
+    if not configured_keys:
+        return None
+
+    notes_path = resolve_path(deck[configured_keys[0]], project_root)
+    if not notes_path.is_file():
+        manifest_error(f"presenter notes file not found: {notes_path}")
+    return notes_path
+
+
+def parse_presenter_notes_heading(raw_line: str) -> str | None:
+    """Return a media target from one `##` heading, or None for non-entry lines."""
+    match = re.fullmatch(r"\s{0,3}##\s+(.+?)\s*", raw_line)
+    if match is None:
+        return None
+    return normalize_presenter_notes_target(match.group(1))
+
+
+def normalize_presenter_notes_target(raw_target: str) -> str:
+    """Support plain paths, inline-code paths, or Markdown links in note headings."""
+    target = raw_target.strip()
+
+    link_match = re.fullmatch(r"\[[^]]*]\((.+)\)", target)
+    if link_match is not None:
+        target = link_match.group(1).strip()
+
+    if target.startswith("`") and target.endswith("`") and len(target) >= 2:
+        target = target[1:-1].strip()
+
+    if target.startswith("<") and target.endswith(">") and len(target) >= 2:
+        target = target[1:-1].strip()
+
+    if target == "":
+        manifest_error("presenter notes entry is missing its media target")
+
+    return target
+
+
+def media_path_aliases(path: Path, project_root: Path, quality_dir: str) -> set[str]:
+    """Build matching aliases for one concrete media path."""
+    resolved_path = path.resolve()
+    aliases = {str(resolved_path), resolved_path.name, resolved_path.stem}
+
+    try:
+        relative_path = resolved_path.relative_to(project_root)
+    except ValueError:
+        return aliases
+
+    aliases.add(relative_path.as_posix())
+    templated_path = quality_placeholder_path(relative_path, quality_dir)
+    if templated_path is not None:
+        aliases.add(templated_path)
+
+    return aliases
+
+
+def quality_placeholder_path(relative_path: Path, quality_dir: str) -> str | None:
+    """Replace one concrete quality directory with `{{quality_dir}}` when present."""
+    path_parts = list(relative_path.parts)
+    try:
+        quality_index = path_parts.index(quality_dir)
+    except ValueError:
+        return None
+
+    path_parts[quality_index] = "{{quality_dir}}"
+    return Path(*path_parts).as_posix()
+
+
+def presenter_note_aliases(raw_target: str, project_root: Path, quality_dir: str) -> set[str]:
+    """Normalize one presenter-notes target into comparable aliases."""
+    rendered_target = render_template(raw_target, quality_dir)
+    aliases = {raw_target, rendered_target}
+    aliases.update(
+        media_path_aliases(resolve_path(rendered_target, project_root), project_root, quality_dir)
+    )
+    return {alias for alias in aliases if alias}
+
+
+def presenter_note_label_from_path(path_text: str) -> str:
+    """Build a readable fallback note label from a rendered media filename."""
+    stem = Path(path_text).stem
+    numbered_match = re.match(r"\d+[A-Za-z]*_(.*)", stem)
+    if numbered_match is not None:
+        stem = numbered_match.group(1)
+
+    tokens = re.findall(
+        r"[A-Z]+(?=[A-Z][a-z]|\d|$)|[A-Z]?[a-z]+|\d+[a-z]?|[A-Z]",
+        stem,
+    )
+    if not tokens:
+        return stem
+
+    chunks: list[str] = []
+    current_chunk: list[str] = []
+    current_chunk_has_digit = False
+
+    for token in tokens:
+        token_has_digit = any(character.isdigit() for character in token)
+        token_is_suffix = (len(token) == 1 and token.isalpha()) or token_has_digit
+
+        if not current_chunk:
+            current_chunk = [token]
+            current_chunk_has_digit = token_has_digit
+            continue
+
+        if token_is_suffix:
+            current_chunk.append(token)
+            current_chunk_has_digit = current_chunk_has_digit or token_has_digit
+            continue
+
+        if current_chunk_has_digit:
+            chunks.append(" ".join(current_chunk))
+            current_chunk = [token]
+            current_chunk_has_digit = token_has_digit
+            continue
+
+        current_chunk.append(token)
+
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
+
+    return " - ".join(chunks)
+
+
+def load_presenter_notes(notes_path: Path, project_root: Path, quality_dir: str) -> list[dict]:
+    """Parse the optional Markdown presenter-notes file into target/body records."""
+    entries: list[dict] = []
+    current_target: str | None = None
+    current_lines: list[str] = []
+
+    for raw_line in notes_path.read_text(encoding="utf-8").splitlines():
+        heading_target = parse_presenter_notes_heading(raw_line)
+        if heading_target is None:
+            if current_target is not None:
+                current_lines.append(raw_line)
+            continue
+
+        if current_target is not None:
+            entries.append(
+                {
+                    "target": current_target,
+                    "aliases": presenter_note_aliases(current_target, project_root, quality_dir),
+                    "notes": trim_blank_lines(current_lines),
+                }
+            )
+
+        current_target = heading_target
+        current_lines = []
+
+    if current_target is not None:
+        entries.append(
+            {
+                "target": current_target,
+                "aliases": presenter_note_aliases(current_target, project_root, quality_dir),
+                "notes": trim_blank_lines(current_lines),
+            }
+        )
+
+    return entries
+
+
+def display_path(path_text: str, project_root: Path) -> str:
+    """Prefer project-relative paths in manifest error messages when possible."""
+    path = Path(path_text)
+    try:
+        return path.resolve().relative_to(project_root).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def merge_presenter_notes(
+    deck: dict, slides: list[dict], project_root: Path, quality_dir: str
+) -> list[dict]:
+    """Inject deck-level presenter notes onto matching media slides."""
+    notes_path = presenter_notes_path(deck, project_root)
+    if notes_path is None:
+        return slides
+
+    note_entries = load_presenter_notes(notes_path, project_root, quality_dir)
+    if not note_entries:
+        return slides
+
+    eligible_slide_aliases = {
+        slide["path"]: media_path_aliases(Path(slide["path"]), project_root, quality_dir)
+        for slide in slides
+        if slide["path"] and not slide["notes"]
+    }
+
+    notes_by_slide_path: dict[str, str] = {}
+    for entry in note_entries:
+        matched_paths = [
+            slide_path
+            for slide_path, aliases in eligible_slide_aliases.items()
+            if aliases & entry["aliases"]
+        ]
+
+        if len(matched_paths) > 1:
+            matching_slides = ", ".join(
+                display_path(slide_path, project_root) for slide_path in matched_paths
+            )
+            manifest_error(
+                "presenter notes target "
+                f"{entry['target']!r} matched multiple slides: {matching_slides}"
+            )
+
+        if not matched_paths:
+            continue
+
+        matched_path = matched_paths[0]
+        if matched_path in notes_by_slide_path:
+            manifest_error(
+                "multiple presenter notes entries matched slide "
+                f"{display_path(matched_path, project_root)}"
+            )
+        notes_by_slide_path[matched_path] = entry["notes"] or presenter_note_label_from_path(
+            matched_path
+        )
+
+    merged_slides: list[dict] = []
+    for slide in slides:
+        notes_text = notes_by_slide_path.get(slide["path"])
+        if notes_text is not None and not slide["notes"]:
+            merged_slides.append({**slide, "notes": notes_text})
+        else:
+            merged_slides.append(slide)
+
+    return merged_slides
+
+
 def expand_slides(slides: list[dict], project_root: Path, quality_dir: str) -> list[dict]:
     """Expand manifest slide entries into the flat records consumed by AppleScript.
 
@@ -388,6 +641,7 @@ def main() -> int:
         manifest_error("manifest must contain at least one [[slide]] entry")
 
     expanded_slides = expand_slides(slides, project_root, args.quality_dir)
+    expanded_slides = merge_presenter_notes(deck, expanded_slides, project_root, args.quality_dir)
     if not expanded_slides:
         manifest_error("manifest expanded to zero slides")
 

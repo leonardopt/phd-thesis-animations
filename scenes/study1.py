@@ -113,7 +113,7 @@ def _s1_step1__build_stimulus_tree():
 
     def sample_line(text: str) -> Tex:
         """Build one sample-name line for a category node."""
-        return Tex(_s1_step1__wrap_tex_label(text, max_chars=16), color=_s1_step1_GREY, font_size=SAMPLE_FONT)
+        return Tex(_s1_step1__wrap_tex_label(text, max_chars=16), color=_s1_step1_INK, font_size=SAMPLE_FONT)
 
     def make_category_node(display_name: str, sample_names: list[str], side_color: str) -> tuple[VGroup, Tex, VGroup, list[Tex]]:
         """Build one category node with its divider, stem, and sample list."""
@@ -153,7 +153,7 @@ def _s1_step1__build_stimulus_tree():
     object_rect.set_z_index(3)
     object_rect_lbl = Tex('\\textit{Object-scenes}', color=_s1_step1_BLUE, font_size=24).next_to(object_rect, DOWN, buff=0.15)
     object_rect_lbl.set_z_index(4)
-    total_lbl = Tex('$6$ categories $\\times$ $18$ object-scenes $= 108$', color=_s1_step1_GREY, font_size=26).to_edge(DOWN, buff=0.36)
+    total_lbl = Tex('$6$ categories $\\times$ $18$ object-scenes $= 108$', color=_s1_step1_INK, font_size=26).to_edge(DOWN, buff=0.36)
     tree_group = VGroup(root, nat_hdr, art_hdr, branch_nat, branch_art, *nat_connectors, *art_connectors, *nat_nodes, *art_nodes, object_rect, object_rect_lbl, total_lbl)
     return {'root': root, 'nat_hdr': nat_hdr, 'art_hdr': art_hdr, 'branch_nat': branch_nat, 'branch_art': branch_art, 'nat_nodes': nat_nodes, 'art_nodes': art_nodes, 'nat_connectors': nat_connectors, 'art_connectors': art_connectors, 'object_rect': object_rect, 'object_rect_lbl': object_rect_lbl, 'total_lbl': total_lbl, 'tree_group': tree_group, 'animals_label': animals_label, 'fish_word': fish_word}
 
@@ -202,7 +202,7 @@ class Study1Stage1Step1b(Scene):
         total_lbl = tree['total_lbl']
         self.add(tree_group)
         title = Tex('\\textbf{Prompt design}', color=_s1_step1_INK, font_size=30)
-        subtitle = Tex('each object-scene is defined with a single text prompt', color=_s1_step1_GREY, font_size=22)
+        subtitle = Tex('each object-scene is defined with a single text prompt', color=_s1_step1_INK, font_size=22)
         title_block = VGroup(title, subtitle).arrange(DOWN, buff=0.16)
         title_block.to_edge(UP, buff=0.28)
         self.play(FadeIn(title_block, shift=DOWN * 0.04), run_time=0.45)
@@ -247,8 +247,8 @@ class Study1Stage1Step1b(Scene):
         p_r4 = Tex('vibrant underwater scene,', color=_s1_step1_INK, font_size=FS)
         p_r5 = Tex("high detail''", color=_s1_step1_INK, font_size=FS)
         p_lbl_prefix = Tex('Fixed prompt', color=_s1_step1_INK, font_size=FS + 2)
-        p_lbl_func = MathTex('p(\\mathrm{fish})', color=_s1_step1_GREY, font_size=FS + 1)
-        p_lbl_colon = Tex(':', color=_s1_step1_GREY, font_size=FS)
+        p_lbl_func = MathTex('p(\\mathrm{fish})', color=_s1_step1_INK, font_size=FS + 1)
+        p_lbl_colon = Tex(':', color=_s1_step1_INK, font_size=FS)
         p_lbl = VGroup(p_lbl_prefix, p_lbl_func, p_lbl_colon).arrange(RIGHT, buff=0.08, aligned_edge=DOWN)
         p_body = VGroup(p_r0, p_r1, p_r2, p_r3, p_r4, p_r5).arrange(DOWN, aligned_edge=ORIGIN, buff=0.09)
         p_block = VGroup(p_lbl, p_body).arrange(DOWN, aligned_edge=ORIGIN, buff=0.12)
@@ -326,14 +326,14 @@ class Study1Stage1Step2(Scene):
         files = sorted(_s1_step2_IMG_DIR.glob('ANI-FIS-*.png'))
         N, SZ = (len(files), 512)
         pixels = [np.asarray(PILImage.open(fp).convert('RGBA').resize((SZ, SZ), PILImage.LANCZOS)) for fp in files]
-        p_label = Tex('Fixed prompt $p$\\,:', color=_s1_step2_GREY, font_size=26)
+        p_label = Tex('Fixed prompt $p$\\,:', color=_s1_step2_INK, font_size=26)
         p_body = VGroup(*[Tex(ln, color=_s1_step2_INK, font_size=36) for ln in _s1_step2_PROMPT_LINES]).arrange(DOWN, aligned_edge=LEFT, buff=0.14)
         p_block = VGroup(p_label, p_body).arrange(DOWN, aligned_edge=LEFT, buff=0.24)
         p_block.move_to(ORIGIN)
         self.play(FadeIn(p_label, shift=DOWN * 0.06), run_time=0.35)
         self.play(LaggedStart(*[FadeIn(ln, shift=DOWN * 0.06) for ln in p_body], lag_ratio=0.18), run_time=1.2)
         self.wait(0.55)
-        b_label = Tex('Fixed prompt $p$\\,:', color=_s1_step2_GREY, font_size=22)
+        b_label = Tex('Fixed prompt $p$\\,:', color=_s1_step2_INK, font_size=22)
         b_body = VGroup(*[Tex(ln, color=_s1_step2_INK, font_size=25) for ln in _s1_step2_PROMPT_LINES]).arrange(DOWN, aligned_edge=LEFT, buff=0.07)
         p_banner = VGroup(b_label, b_body).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
         p_banner.to_corner(UL, buff=0.32)
@@ -375,9 +375,9 @@ class Study1Stage1Step2(Scene):
         cpos = _s1_step2_cloud_positions(N, cx=CLOUD_CX, cy=CLOUD_CY)
         cloud_imgs = [ImageMobject(pixels[i]).scale_to_fit_height(IMG_CLOUD_H).move_to(RIGHT * px + UP * py) for i, (px, py) in enumerate(cpos[:N])]
         c_title = Tex('\\textbf{60 exemplars} — \\textit{fish}', color=_s1_step2_INK, font_size=24).move_to(RIGHT * CLOUD_CX + UP * 3.2)
-        c_sub = Tex('Same semantic identity $\\cdot$ Perceptually distinct realisations', color=_s1_step2_GREY, font_size=19).to_edge(DOWN, buff=0.3)
+        c_sub = Tex('Same semantic identity $\\cdot$ Perceptually distinct realisations', color=_s1_step2_INK, font_size=19).to_edge(DOWN, buff=0.3)
         LEFT_CX = -3.8
-        fp_label = Tex('Fixed prompt $p$\\,:', color=_s1_step2_GREY, font_size=22)
+        fp_label = Tex('Fixed prompt $p$\\,:', color=_s1_step2_INK, font_size=22)
         fp_body = VGroup(*[Tex(ln, color=_s1_step2_INK, font_size=25) for ln in _s1_step2_PROMPT_LINES]).arrange(DOWN, aligned_edge=LEFT, buff=0.07)
         fp_block = VGroup(fp_label, fp_body).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
         fp_block.move_to(RIGHT * LEFT_CX + UP * 1.7)
@@ -452,7 +452,7 @@ def _s1_step2_showcase_load_pixels(img_dir: Path, glob: str) -> list[np.ndarray]
 
 def _s1_step2_showcase_make_prompt_block(prompt_lines: list[str], label: str) -> VGroup:
     """Prompt block with labelled subscript: Fixed prompt p(label) :"""
-    p_label = Tex(f'Fixed prompt $p(\\text{{{label}}})$\\,:', color=_s1_step2_showcase_GREY, font_size=22)
+    p_label = Tex(f'Fixed prompt $p(\\text{{{label}}})$\\,:', color=_s1_step2_showcase_INK, font_size=22)
     p_body = VGroup(*[Tex(ln, color=_s1_step2_showcase_INK, font_size=25) for ln in prompt_lines]).arrange(DOWN, aligned_edge=LEFT, buff=0.07)
     block = VGroup(p_label, p_body).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
     block.move_to(RIGHT * _s1_step2_showcase_LEFT_CX + UP * 1.7)
@@ -496,7 +496,7 @@ def _s1_step2_showcase_build_static_frame(scene: Scene) -> list:
     sdxl_tex = Tex('\\textbf{Stable Diffusion XL}', color=_s1_step2_showcase_INK, font_size=22)
     sdxl_tex.next_to(sdxl_arrow, UP, buff=0.16)
     sdxl_grp = VGroup(sdxl_arrow, sdxl_tex).move_to(ORIGIN)
-    c_sub = Tex('Same semantic identity $\\cdot$ Perceptually distinct realisations', color=_s1_step2_showcase_GREY, font_size=19).to_edge(DOWN, buff=0.3)
+    c_sub = Tex('Same semantic identity $\\cdot$ Perceptually distinct realisations', color=_s1_step2_showcase_INK, font_size=19).to_edge(DOWN, buff=0.3)
     scene.add(comp_sym, lbrace, dots_tex, rbrace, set_brace, set_brace_lab, dist_note, sdxl_grp, c_sub)
     return thumb_positions
 
@@ -562,6 +562,7 @@ _s1_step3_C_ACCENT = '#D97706'
 _s1_step3_C_MATRIX = '#3F7F7A'
 _s1_step3_C_FLOW = '#C58A2A'
 _s1_step3_IMG_DIR = env_path('EXEMPLAR_FISH_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'exemplar_images' / 'animal' / 'fish')
+_s1_step3_NN_ICON_PATH = REPO_ROOT / 'assets' / 'images' / 'references' / 'neural_network_schematic.svg'
 _s1_step3_ANCHOR_NAME = 'ANI-FIS-3873620486.png'
 _s1_step3_GUIDE_NAME = 'ANI-FIS-4212442282.png'
 _s1_step3_SIMILARITY_CSV_PATH = env_path('SIMILARITY_ANCHORS_FISH_CSV', REPO_ROOT / 'assets' / 'data' / 'study1' / 'lpips-squeeze-mat-animal-fish.csv')
@@ -690,6 +691,14 @@ def _s1_step3_thumb(pixel: np.ndarray, h: float, border_color: str=_s1_step3_LGR
     border = SurroundingRectangle(img, color=border_color, stroke_width=sw, buff=0.03)
     return Group(img, border)
 
+def _s1_step3_nn_icon(height: float=0.76) -> SVGMobject:
+    """Load the neural-network schematic used above the LPIPS matrix."""
+    svg = SVGMobject(str(_s1_step3_NN_ICON_PATH), use_svg_cache=False)
+    svg.set_stroke(_s1_step3_INK, opacity=1.0)
+    svg.set_fill(_s1_step3_INK, opacity=1.0)
+    svg.scale_to_fit_height(height)
+    return svg
+
 class _Study1Step3Base(Scene):
     """Shared LPIPS similarity-matrix scene with optional segment-level cut points."""
     segment = 'full'
@@ -717,7 +726,12 @@ class _Study1Step3Base(Scene):
         demo_pairs = _s1_step3_choose_demo_pairs(cloud_pts, cx=CLOUD_CX, cy=CLOUD_CY, selected_pair=selected_pair, excluded_indices={anchor_idx, guide_idx}, count=8)
         cloud_imgs = [ImageMobject(pixels[i]).scale_to_fit_height(IMG_CLOUD_H).move_to(RIGHT * x + UP * y) for i, (x, y) in enumerate(cloud_pts)]
         cloud_title = Tex('\\textbf{60 exemplars} — \\textit{fish}', color=_s1_step3_INK, font_size=24).move_to(RIGHT * CLOUD_CX + UP * 3.2)
-        matrix_title = VGroup(Tex('Neural network-based perceptual similarity', color=_s1_step3_INK, font_size=20), Tex('\\textbf{LPIPS} (Zhang et al., 2018)', color=_s1_step3_INK, font_size=20)).arrange(DOWN, buff=0.05).move_to(RIGHT * MATRIX_C[0] + UP * 3.15)
+        matrix_title_text = VGroup(
+            Tex('Neural network-based perceptual similarity', color=_s1_step3_INK, font_size=20),
+            Tex('\\textbf{LPIPS} (Zhang et al., 2018)', color=_s1_step3_INK, font_size=20),
+        ).arrange(DOWN, buff=0.05)
+        matrix_icon = _s1_step3_nn_icon()
+        matrix_title = VGroup(matrix_title_text, matrix_icon).arrange(DOWN, buff=0.15).move_to(RIGHT * MATRIX_C[0] + UP * 3.05)
         half = MATRIX_SIDE / 2
         mat_ul = MATRIX_C + np.array([-half, half, 0.0])
         mat_dl = MATRIX_C + np.array([-half, -half, 0.0])
@@ -788,7 +802,7 @@ class _Study1Step3Base(Scene):
         current_cloud_left.set_z_index(4)
         current_cloud_right.set_z_index(4)
         algo_title = Tex('\\textbf{Custom selection algorithm}', color=_s1_step3_INK, font_size=18)
-        algo_body = VGroup(Tex('Batch-representative', color=_s1_step3_GREY, font_size=15), Tex('Similar to each other', color=_s1_step3_GREY, font_size=15), Tex('Returns \\textit{anchor} and \\textit{guide}', color=_s1_step3_GREY, font_size=15)).arrange(DOWN, aligned_edge=LEFT, buff=0.08)
+        algo_body = VGroup(Tex('Batch-representative', color=_s1_step3_INK, font_size=15), Tex('Similar to each other', color=_s1_step3_INK, font_size=15), Tex('Returns \\textit{anchor} and \\textit{guide}', color=_s1_step3_INK, font_size=15)).arrange(DOWN, aligned_edge=LEFT, buff=0.08)
         algo_content = VGroup(algo_title, algo_body).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
         algo_box = RoundedRectangle(width=algo_content.width + 0.42, height=algo_content.height + 0.36, corner_radius=0.12, stroke_color=_s1_step3_LGREY, stroke_width=1.4).set_fill(WHITE, opacity=0.96)
         algo_content.move_to(algo_box.get_center())
@@ -856,7 +870,8 @@ class _Study1Step3Base(Scene):
             self.play(Write(cloud_title), LaggedStart(*[FadeIn(m, shift=UP * 0.03) for m in cloud_imgs], lag_ratio=0.01), run_time=1.45)
             self.wait(0.45)
             self.play(FadeIn(tri_bg), Create(tri_frame), Create(diag_line), run_time=0.65)
-            self.play(Write(matrix_title), run_time=0.55)
+            self.add(matrix_icon)
+            self.play(Write(matrix_title_text), run_time=0.6)
             self.wait(1.15)
             self.play(FadeIn(axis_x, axis_y), run_time=0.4)
             first_left = cloud_imgs[demo_pairs[0][0]]
@@ -1337,7 +1352,7 @@ class _Study1Step5Base(ThreeDScene):
         deck, placeholder_rank = _s1_step5_build_deck(_s1_step5__INTERP_DIR, image_names, N_VISIBLE, selected_indices, thumb_h=THUMB_H, rotation_deg=ROT_DEG, step_x=STEP_X, step_y=STEP_Y, depth_scale=DEPTH_SCALE)
         deck_left = anchor_panel.get_right()[0] + STRIP_ANCHOR_GAP
         deck.move_to([deck_left + deck.width / 2, STRIP_Y, 0.0])
-        deck_label = Tex('200 interpolation steps', color=_s1_step5_MGREY, font_size=16).next_to(deck, UP, buff=0.15)
+        deck_label = Tex('200 interpolation steps', color=_s1_step5_INK, font_size=16).next_to(deck, UP, buff=0.15)
         deck_count_label = Tex('200 interpolated images', color=_s1_step5_INK, font_size=24)
         return {'image_names': image_names, 'lpips_scores': lpips_scores, 'selected_indices': selected_indices, 'pixels': pixels, 'N': N, 'anchor_simple': anchor_simple, 'guide_simple': guide_simple, 'anchor_grp': anchor_grp, 'guide_grp': guide_grp, 'anchor_panel': anchor_panel, 'deck': deck, 'placeholder_rank': placeholder_rank, 'deck_label': deck_label, 'deck_count_label': deck_count_label}
 
@@ -1753,7 +1768,7 @@ class Study1Stage2TripletTask(Scene):
         trial_specs = [{'ref': 0, 'left': 2, 'right': 7, 'selected': 'left'}, {'ref': 4, 'left': 8, 'right': 3, 'selected': 'right'}, {'ref': 6, 'left': 1, 'right': 9, 'selected': 'left'}, {'ref': 8, 'left': 5, 'right': 2, 'selected': 'right'}]
         title = Tex('Psychophysical Validation', color=_s1_stage2_INK, font_size=38).move_to(ORIGIN)
         title_top_target = title.copy().to_edge(UP, buff=0.28)
-        subtitle = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_MGREY, font_size=24).next_to(title_top_target, DOWN, buff=0.1)
+        subtitle = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_INK, font_size=24).next_to(title_top_target, DOWN, buff=0.1)
         question = VGroup(Tex('Does the model-based preselection capture', color=_s1_stage2_INK, font_size=24), Tex('a human-perceived perceptual continuum?', color=_s1_stage2_INK, font_size=24)).arrange(DOWN, buff=0.08).next_to(subtitle, DOWN, buff=0.16)
         math1 = Tex('Given a set of images $\\mathcal{S} = \\{s_1, s_2, \\ldots, s_n\\}$,', color=_s1_stage2_INK, font_size=26)
         math2 = Tex('participants view triplets $(s_i,\\, s_j,\\, s_k)$', color=_s1_stage2_INK, font_size=26)
@@ -1847,7 +1862,7 @@ class Study1Stage2TripletTask2(Study1Stage2TripletTask):
         IMG_H = self._IMG_H
         trial_specs = [{'ref': 0, 'left': 2, 'right': 7, 'selected': 'left'}, {'ref': 4, 'left': 8, 'right': 3, 'selected': 'right'}, {'ref': 6, 'left': 1, 'right': 9, 'selected': 'left'}, {'ref': 8, 'left': 5, 'right': 2, 'selected': 'right'}]
         title = Tex('Psychophysical Validation', color=_s1_stage2_INK, font_size=38).to_edge(UP, buff=0.28)
-        subtitle = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_MGREY, font_size=24).next_to(title, DOWN, buff=0.1)
+        subtitle = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_INK, font_size=24).next_to(title, DOWN, buff=0.1)
         question = VGroup(Tex('Does the model-based preselection capture', color=_s1_stage2_INK, font_size=24), Tex('a human-perceived perceptual continuum?', color=_s1_stage2_INK, font_size=24)).arrange(DOWN, buff=0.08).next_to(subtitle, DOWN, buff=0.16)
         lbl_h = 0.38
         pad = 0.28
@@ -1946,7 +1961,7 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage2_BG
         title_prev = Tex('Psychophysical Validation', color=_s1_stage2_INK, font_size=38).to_edge(UP, buff=0.28)
-        subtitle_prev = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_MGREY, font_size=24).next_to(title_prev, DOWN, buff=0.1)
+        subtitle_prev = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_INK, font_size=24).next_to(title_prev, DOWN, buff=0.1)
         question_prev = VGroup(Tex('Does the model-based preselection capture', color=_s1_stage2_INK, font_size=24), Tex('a human-perceived perceptual continuum?', color=_s1_stage2_INK, font_size=24)).arrange(DOWN, buff=0.08).next_to(subtitle_prev, DOWN, buff=0.16)
         math_prev = VGroup(Tex('Given a set of images $\\mathcal{S} = \\{s_1, s_2, \\ldots, s_n\\}$,', color=_s1_stage2_INK, font_size=26), Tex('participants view triplets $(s_i,\\, s_j,\\, s_k)$', color=_s1_stage2_INK, font_size=26), Tex('and select which probe is more similar', color=_s1_stage2_INK, font_size=26), Tex('to the reference image $s_i$.', color=_s1_stage2_INK, font_size=26)).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
         d = 2.22
@@ -2058,11 +2073,11 @@ class Study1Stage2OrdinalEmbedding(Scene):
         target_xs = [xs[scramble[i]] for i in range(10)]
         axis_y = y - IMG_H / 2 - 0.18
         axis = Line([-5.1, axis_y, 0.0], [5.1, axis_y, 0.0], color=_s1_stage2_LGREY, stroke_width=1.3)
-        tag_before = Tex('Arbitrary order', color=_s1_stage2_MGREY, font_size=19).move_to([0.0, y + IMG_H / 2 + 0.38, 0.0])
+        tag_before = Tex('Arbitrary order', color=_s1_stage2_INK, font_size=19).move_to([0.0, y + IMG_H / 2 + 0.38, 0.0])
         PIPE_Y = -2.8
         pipe_task = Tex('Triplet task', color=_s1_stage2_INK, font_size=18)
         pipe_a1 = Tex('$\\longrightarrow$', color=_s1_stage2_MGREY, font_size=20)
-        pipe_resp = VGroup(Tex('Behavioral responses', color=_s1_stage2_INK, font_size=18), Tex('$(N \\times T$ triplets$)$', color=_s1_stage2_MGREY, font_size=14)).arrange(DOWN, buff=0.05)
+        pipe_resp = VGroup(Tex('Behavioral responses', color=_s1_stage2_INK, font_size=18), Tex('$(N \\times T$ triplets$)$', color=_s1_stage2_INK, font_size=14)).arrange(DOWN, buff=0.05)
         pipe_a2 = Tex('$\\longrightarrow$', color=_s1_stage2_MGREY, font_size=20)
         pipe_algo = Tex('Ordinal Embedding', color=_s1_stage2_BLUE, font_size=18)
         pipe_a3 = Tex('$\\longrightarrow$', color=_s1_stage2_MGREY, font_size=20)
@@ -2111,11 +2126,11 @@ class Study1Stage2EmbeddingResult(Scene):
         title = Tex('From behavioural responses to perceptual embedding', color=_s1_stage2_INK, font_size=34).to_edge(UP, buff=0.28)
         responses_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=28)
         responses_main = MathTex('\\mathit{T}=\\{(i,j,k)\\}', color=_s1_stage2_INK, font_size=36)
-        responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_MGREY, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_MGREY, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_MGREY, font_size=25), MathTex('\\vdots', color=_s1_stage2_MGREY, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
+        responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_INK, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_INK, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_INK, font_size=25), MathTex('\\vdots', color=_s1_stage2_MGREY, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
         responses_block = VGroup(responses_title, responses_main, responses_examples).arrange(DOWN, aligned_edge=LEFT, buff=0.2)
         responses_block.move_to([-5.0, 1.55, 0.0])
         algo_title = Tex('Ordinal embedding algorithm', color=_s1_stage2_BLUE, font_size=27)
-        algo_sub = Tex('Estimate 1D stimulus positions', color=_s1_stage2_MGREY, font_size=20)
+        algo_sub = Tex('Estimate 1D stimulus positions', color=_s1_stage2_INK, font_size=20)
         algo_block = VGroup(algo_title, algo_sub).arrange(DOWN, buff=0.1)
         algo_block.move_to([-5.0, -0.35, 0.0])
         down_arrow = Arrow(start=responses_block.get_bottom() + DOWN * 0.02, end=algo_block.get_top() + UP * 0.02, buff=0.08, color=_s1_stage2_LGREY, stroke_width=1.8, tip_length=0.08, max_stroke_width_to_length_ratio=7).set_z_index(5)
@@ -2227,11 +2242,11 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
         title = Tex('From behavioural responses to perceptual embedding', color=_s1_stage2_INK, font_size=34).to_edge(UP, buff=0.28)
         responses_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=28)
         responses_main = MathTex('\\mathit{T}=\\{(i,j,k)\\}', color=_s1_stage2_INK, font_size=36)
-        responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_MGREY, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_MGREY, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_MGREY, font_size=25), MathTex('\\vdots', color=_s1_stage2_MGREY, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
+        responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_INK, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_INK, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_INK, font_size=25), MathTex('\\vdots', color=_s1_stage2_MGREY, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
         responses_block = VGroup(responses_title, responses_main, responses_examples).arrange(DOWN, aligned_edge=LEFT, buff=0.2)
         responses_block.move_to([-5.0, 1.55, 0.0])
         algo_title = Tex('Ordinal embedding algorithm', color=_s1_stage2_BLUE, font_size=27)
-        algo_sub = Tex('Estimate 1D stimulus positions', color=_s1_stage2_MGREY, font_size=20)
+        algo_sub = Tex('Estimate 1D stimulus positions', color=_s1_stage2_INK, font_size=20)
         algo_block = VGroup(algo_title, algo_sub).arrange(DOWN, buff=0.1)
         algo_block.move_to([-5.0, -0.35, 0.0])
         down_arrow = Arrow(start=responses_block.get_bottom() + DOWN * 0.02, end=algo_block.get_top() + UP * 0.02, buff=0.08, color=_s1_stage2_LGREY, stroke_width=1.8, tip_length=0.08, max_stroke_width_to_length_ratio=7).set_z_index(5)
@@ -2505,7 +2520,7 @@ class Study1Stage3MemoryIntro(Scene):
         target_area.set_stroke(width=0)
         criterion_x = 0.75
         criterion_line = DashedLine(sdt_axes.c2p(criterion_x, 0.0), sdt_axes.c2p(criterion_x, 1.12), dash_length=0.1, dashed_ratio=0.55, color=criterion_color, stroke_width=2.0)
-        criterion_label = Tex('Criterion', color=criterion_color, font_size=22)
+        criterion_label = Tex('Criterion', color=_s1_stage3_INK, font_size=22)
         criterion_label.next_to(criterion_line, UP, buff=0.12)
         foil_curve_label = Tex('Foil signal', color=foil_color, font_size=18)
         foil_curve_label.move_to(sdt_axes.c2p(0.33, 0.88))
@@ -2606,7 +2621,7 @@ class Study1Stage3MemoryIntro(Scene):
         second_target_area.set_stroke(width=0)
         second_criterion_x = 0.5 * (second_foil_mean + second_target_mean)
         second_criterion_line = DashedLine(second_sdt_axes.c2p(second_criterion_x, 0.0), second_sdt_axes.c2p(second_criterion_x, 1.12), dash_length=0.1, dashed_ratio=0.55, color=criterion_color, stroke_width=2.0)
-        second_criterion_label = Tex('Criterion', color=criterion_color, font_size=22)
+        second_criterion_label = Tex('Criterion', color=_s1_stage3_INK, font_size=22)
         second_criterion_label.next_to(second_criterion_line, UP, buff=0.12)
         second_foil_curve_label = Tex('Foil signal', color=foil_color, font_size=18)
         second_foil_curve_label.move_to(second_sdt_axes.c2p(0.33, 0.88))
@@ -2673,7 +2688,7 @@ class Study1Stage3MemoryExpDesignLegacy(Scene):
         foil_label = Tex('Foils', color=_s1_stage3_INK, font_size=24).next_to(foil_rect, UP, buff=0.12)
         arrow_y = min(target_rect.get_bottom()[1], foil_rect.get_bottom()[1]) - 0.34
         dissimilar_arrow = Arrow(start=np.array([target_rect.get_center()[0] - 0.2, arrow_y, 0.0]), end=np.array([foil_rect.get_right()[0] - 0.1, arrow_y, 0.0]), buff=0.0, stroke_width=2.0, color=_s1_stage3_MGREY, tip_length=0.18, max_stroke_width_to_length_ratio=8, max_tip_length_to_length_ratio=0.1)
-        dissimilar_text = Tex('More dissimilar', color=_s1_stage3_MGREY, font_size=22).next_to(dissimilar_arrow, DOWN, buff=0.1)
+        dissimilar_text = Tex('More dissimilar', color=_s1_stage3_INK, font_size=22).next_to(dissimilar_arrow, DOWN, buff=0.1)
         self.add(title, question, *collapsed_cards, *continuation_marks, target_rect, foil_rect, target_label, foil_label, dissimilar_arrow, dissimilar_text)
         frame_side = 1.75
         right_margin_x = config.frame_width / 2 - 0.35
@@ -2845,7 +2860,7 @@ class Study1Stage3MemoryExpDesignB(Scene):
         foil_label = Tex('Foils', color=_s1_stage3_INK, font_size=24).next_to(foil_rect, UP, buff=0.12)
         arrow_y = min(target_rect.get_bottom()[1], foil_rect.get_bottom()[1]) - 0.34
         dissimilar_arrow = Arrow(start=np.array([target_rect.get_center()[0] - 0.2, arrow_y, 0.0]), end=np.array([foil_rect.get_right()[0] - 0.1, arrow_y, 0.0]), buff=0.0, stroke_width=2.0, color=_s1_stage3_MGREY, tip_length=0.18, max_stroke_width_to_length_ratio=8, max_tip_length_to_length_ratio=0.1)
-        dissimilar_text = Tex('More dissimilar', color=_s1_stage3_MGREY, font_size=22).next_to(dissimilar_arrow, DOWN, buff=0.1)
+        dissimilar_text = Tex('More dissimilar', color=_s1_stage3_INK, font_size=22).next_to(dissimilar_arrow, DOWN, buff=0.1)
         frame_side = 1.75
         right_margin_x = config.frame_width / 2 - 0.35
         stage_center_x = 0.5 * (foil_rect.get_right()[0] + right_margin_x)
@@ -2917,7 +2932,7 @@ class Study1Stage3MemoryExpDesignB(Scene):
             self.play(Create(col_rect), FadeIn(lbl, shift=UP * 0.08), run_time=0.55)
             self.wait(0.35)
         self.wait(0.3)
-        stats_block = VGroup(Tex('$N = 240$', color=_s1_stage3_INK, font_size=22), Tex('6 blocks $\\cdot$ half repeated, half new targets per block', color=_s1_stage3_MGREY, font_size=20)).arrange(DOWN, buff=0.12)
+        stats_block = VGroup(Tex('$N = 240$', color=_s1_stage3_INK, font_size=22), Tex('6 blocks $\\cdot$ half repeated, half new targets per block', color=_s1_stage3_INK, font_size=20)).arrange(DOWN, buff=0.12)
         timeline_bottom = min(final_stage_labels.get_bottom()[1], time_label.get_bottom()[1], progress_arrow.get_bottom()[1])
         stats_block.align_to(final_stage_labels, LEFT)
         stats_block.set_y(timeline_bottom - stats_block.get_height() / 2 - 0.32)
@@ -2971,7 +2986,7 @@ class Study1Stage3MemoryExpResults(Scene):
             foil_label = Tex('Foils', color=_s1_stage3_INK, font_size=24).next_to(foil_rect, UP, buff=0.12)
             arrow_y = min(target_rect.get_bottom()[1], foil_rect.get_bottom()[1]) - 0.34
             dissimilar_arrow = Arrow(start=np.array([target_rect.get_center()[0] - 0.2, arrow_y, 0.0]), end=np.array([foil_rect.get_right()[0] - 0.1, arrow_y, 0.0]), buff=0.0, stroke_width=2.0, color=_s1_stage3_MGREY, tip_length=0.18, max_stroke_width_to_length_ratio=8, max_tip_length_to_length_ratio=0.1)
-            dissimilar_text = Tex('More dissimilar', color=_s1_stage3_MGREY, font_size=22).next_to(dissimilar_arrow, DOWN, buff=0.1)
+            dissimilar_text = Tex('More dissimilar', color=_s1_stage3_INK, font_size=22).next_to(dissimilar_arrow, DOWN, buff=0.1)
             frame_side = 1.75
             right_margin_x = config.frame_width / 2 - 0.35
             stage_center_x = 0.5 * (foil_rect.get_right()[0] + right_margin_x)
@@ -3038,7 +3053,7 @@ class Study1Stage3MemoryExpResults(Scene):
                 col_rect = SurroundingRectangle(col_group, color=color, stroke_width=1.8, buff=0.08, corner_radius=0.06)
                 lbl = Tex(diff_label, color=color, font_size=22).next_to(col_group, DOWN, buff=0.18)
                 diff_groups.append(Group(col_rect, lbl))
-            stats_block = VGroup(Tex('$N = 240$', color=_s1_stage3_INK, font_size=22), Tex('6 blocks $\\cdot$ half repeated, half new targets per block', color=_s1_stage3_MGREY, font_size=20)).arrange(DOWN, buff=0.12)
+            stats_block = VGroup(Tex('$N = 240$', color=_s1_stage3_INK, font_size=22), Tex('6 blocks $\\cdot$ half repeated, half new targets per block', color=_s1_stage3_INK, font_size=20)).arrange(DOWN, buff=0.12)
             timeline_bottom = min(final_stage_labels.get_bottom()[1], time_label.get_bottom()[1], progress_arrow.get_bottom()[1])
             stats_block.align_to(final_stage_labels, LEFT)
             stats_block.set_y(timeline_bottom - stats_block.height / 2 - 0.32)
@@ -3418,7 +3433,7 @@ def _build_memory_intro_plot(
         color=_MEMORY_INTRO_CRITERION_COLOR,
         stroke_width=2.0,
     )
-    criterion_label = Tex(r"Criterion", color=_MEMORY_INTRO_CRITERION_COLOR, font_size=22)
+    criterion_label = Tex(r"Criterion", color=INK, font_size=22)
     criterion_label.next_to(criterion_line, UP, buff=criterion_label_buff)
 
     foil_curve_label = Tex(r"Foil\\signal", color=foil_color, font_size=18)
@@ -4009,7 +4024,7 @@ def _build_memory_intro_c_overlay(ctx: dict[str, object]) -> dict[str, object]:
     )
     dissimilar_text = Tex(
         r"More dissimilar",
-        color=MGREY,
+        color=INK,
         font_size=22,
     ).next_to(dissimilar_arrow, DOWN, buff=0.10)
 
@@ -4071,7 +4086,7 @@ def _build_memory_exp_stats_block(
         Tex(r"$N = 240$", color=INK, font_size=22),
         Tex(
             r"6 blocks $\cdot$ half repeated, half new targets per block",
-            color=MGREY,
+            color=INK,
             font_size=20,
         ),
     ).arrange(DOWN, buff=0.12)

@@ -3,10 +3,13 @@ deck_base_name = "phd-defence-presentation"
 output_dir = "media/keynote"
 slide_width = 1920
 slide_height = 1080
+presenter_notes_path = "assets/presenter_notes.md"
 
 # Video sequences use the {{quality_dir}} placeholder.
 # The AppleScript maps standard Manim flags like -ql/-qm/-qh/-qk
 # to folders such as 480p15/720p30/1080p60/2160p60.
+# Presenter notes for media slides can live in assets/presenter_notes.md.
+# Use one `## media/path.mp4` section per slide in that file.
 
 [[slide]]
 type = "title"

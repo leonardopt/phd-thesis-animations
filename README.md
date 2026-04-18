@@ -109,6 +109,13 @@ osascript scripts/create_keynote_presentation.applescript -qh
 osascript scripts/create_keynote_presentation.applescript --quality-folder 1080p60
 ```
 
+Presenter notes for media slides can live in `assets/presenter_notes.md`. The
+builder reads that file through `presenter_notes_path` in the deck manifest and
+matches each `## media-target` section onto the corresponding rendered slide.
+Use a repo-relative templated path such as
+`## media/videos/study1/{{quality_dir}}/01_Study1Scene.mp4` when you want the
+same notes to work across qualities.
+
 ### Optional Backup and Recovery Commands
 
 Use these when you want a static fallback deck, a readiness check, or a portable presentation bundle.
@@ -125,7 +132,7 @@ Rendered videos are written under `media/videos/<study>/<quality>/`. Other gener
 
 The numbered output convention is intentional. `scenes/study1.py` and `scenes/study2.py` define the public narrative order, and the render helpers read those mappings to produce filenames such as `01_ClassName.mp4`. Presentation and backup tooling assumes that convention rather than trying to infer order from ad hoc filenames.
 
-The Keynote builder is manifest-driven. `assets/presentation_deck.toml` defines the slide sequence and can mix text slides, static image/PDF slides, and video sequences sourced from the numbered render outputs.
+The Keynote builder is manifest-driven. `assets/presentation_deck.toml` defines the slide sequence and can mix text slides, static image/PDF slides, and video sequences sourced from the numbered render outputs. Deck-level presenter notes for media slides can be authored separately in `assets/presenter_notes.md` instead of being embedded into the TOML slide definitions.
 
 The detailed current rendered order lives in [media/reports/presentation_video_order.md](media/reports/presentation_video_order.md). It is kept out of the main README on purpose so the landing page stays focused on structure and workflow rather than current build state.
 

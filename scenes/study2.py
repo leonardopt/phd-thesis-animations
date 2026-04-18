@@ -4,6 +4,7 @@ Study 2.
   01 Study2ExperimentalDesign
   02 Study2DecodingOverviewA
   03 Study2DecodingOverviewB
+  03c Study2DecodingOverviewC
   04 Study2WithinSession2DecodingSetup
   05 Study2WithinSession2DecodingResults
   06 Study2CrossSessionDecodingSetup
@@ -21,11 +22,13 @@ Study 2.
   18 Study2SupplementalRoiTempGenMats
   19 Study2SearchlightStimulation
   20 Study2SearchlightDelay
+  21 Study2DecodingSummary
 
 Render:
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
     uv run manim scenes/study2.py Study2DecodingOverviewA -qh
     uv run manim scenes/study2.py Study2DecodingOverviewB -qh
+    uv run manim scenes/study2.py Study2DecodingOverviewC -qh
     uv run manim scenes/study2.py Study2WithinSession2DecodingSetup -qh
     uv run manim scenes/study2.py Study2CrossSessionDecodingSetup -qh
     uv run manim scenes/study2.py Study2WithinSession1DecodingSetupA -qh
@@ -36,6 +39,7 @@ Render:
     uv run manim scenes/study2.py Study2SupplementalRoiTempGenMats -qh
     uv run manim scenes/study2.py Study2SearchlightStimulation -qh
     uv run manim scenes/study2.py Study2SearchlightDelay -qh
+    uv run manim scenes/study2.py Study2DecodingSummary -qh
 """
 from __future__ import annotations
 import base64
@@ -62,9 +66,11 @@ _STUDY2_TRAINING_DIR = _STUDY2_ASSET_DIR / "stimuli_training"
 
 # ── Narrative render order ────────────────────────────────────────────────────
 _STUDY2_SCENE_ORDER: dict[str, str] = {
+    "Study2ResearchQuestions":               "00",
     "Study2ExperimentalDesign":              "01",
     "Study2DecodingOverviewA":               "02",
     "Study2DecodingOverviewB":               "03",
+    "Study2DecodingOverviewC":               "03c",
     "Study2WithinSession2DecodingSetup":     "04",
     "Study2WithinSession2DecodingResults":   "05",
     "Study2CrossSessionDecodingSetup":       "06",
@@ -82,6 +88,7 @@ _STUDY2_SCENE_ORDER: dict[str, str] = {
     "Study2SupplementalRoiTempGenMats":      "18",
     "Study2SearchlightStimulation":          "19",
     "Study2SearchlightDelay":                "20",
+    "Study2DecodingSummary":                 "21",
 }
 
 
@@ -229,6 +236,146 @@ def _labels(
 # ── Shared time string for jittered ITI / ISI ─────────────────────────────────
 _JITTER = r"$M = 4\,\mathrm{s}$"
 
+_RQ_MUTED = "#6B7280"
+_RQ_RULE  = "#D1D5DB"
+
+
+class Study2ResearchQuestions(_Study2NumberedScene, Scene):
+    """
+    Opening slide for Study 2: three research questions addressed by the
+    fMRI experiment, anchored to the early visual cortex.
+
+    Render:
+        uv run manim scenes/study2.py Study2ResearchQuestions -ql
+    """
+
+    def _make_rq_item(
+        self,
+        number: str,
+        title: str,
+        body: str,
+    ) -> VGroup:
+        num_label = Tex(
+            rf"\textbf{{{number}}}",
+            color=_RQ_MUTED,
+            font_size=18,
+        )
+        title_mob = Tex(
+            r"\textbf{" + title + "}",
+            color=INK,
+            font_size=23,
+        )
+        body_mob = Tex(
+            body,
+            color=_RQ_MUTED,
+            font_size=17,
+        )
+        text_block = VGroup(title_mob, body_mob).arrange(
+            DOWN,
+            aligned_edge=LEFT,
+            buff=0.10,
+        )
+
+        return VGroup(num_label, text_block).arrange(
+            RIGHT,
+            aligned_edge=UP,
+            buff=0.38,
+        )
+
+    def _make_evc_brain(self) -> Group:
+        """Return a sagittal brain with a boxed V1-V3 callout."""
+        brain = ImageMobject(str(_BRAIN_PNG_PATH)).scale_to_fit_width(2.42)
+
+        roi_box = RoundedRectangle(
+            width=0.52,
+            height=0.68,
+            corner_radius=0.04,
+            stroke_color="#BFA5AA",
+            stroke_width=1.0,
+        ).set_fill(WHITE, opacity=0.18)
+        roi_box.move_to(brain.get_center() + RIGHT * 0.74 + DOWN * 0.05)
+
+        connector = Line(
+            roi_box.get_right(),
+            roi_box.get_right() + RIGHT * 0.52,
+            stroke_color="#BFA5AA",
+            stroke_width=1.0,
+        )
+        region_label = Tex(
+            "V1-V3",
+            color=INK,
+            font_size=17,
+        ).next_to(connector, RIGHT, buff=0.10)
+
+        return Group(brain, roi_box, connector, region_label)
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        # ── Title ─────────────────────────────────────────────────────────────
+        title = Tex(
+            r"\textbf{Research questions}",
+            color=INK,
+            font_size=33,
+        )
+        title.to_edge(UP, buff=0.46)
+
+        underline = Line(
+            LEFT * 1.25,
+            RIGHT * 1.25,
+            stroke_color=_RQ_RULE,
+            stroke_width=1.0,
+        ).next_to(title, DOWN, buff=0.18)
+
+        # ── Focus block (left column) ──────────────────────────────────────────
+        brain_img = self._make_evc_brain()
+        focus_title = Tex(r"\textbf{Early visual cortex}", color=INK, font_size=20)
+
+        focus_panel = Group(brain_img, focus_title)
+        focus_title.next_to(brain_img[0], DOWN, buff=0.16, aligned_edge=LEFT)
+
+        # ── Research question list (right column) ──────────────────────────────
+        rq_cards = VGroup(
+            self._make_rq_item(
+                "RQ1",
+                "Representational format",
+                "Sensory-like or memory-specific code?",
+            ),
+            self._make_rq_item(
+                "RQ2",
+                "Naturalistic stimuli",
+                "Does sensory recruitment extend beyond simple laboratory stimuli?",
+            ),
+            self._make_rq_item(
+                "RQ3",
+                "Long-term memory",
+                "Does long-term memory reshape working-memory representations?",
+            ),
+        ).arrange(DOWN, aligned_edge=LEFT, buff=0.34)
+
+        content = Group(focus_panel, rq_cards).arrange(
+            RIGHT,
+            aligned_edge=UP,
+            buff=1.55,
+        )
+        content.move_to(DOWN * 0.34)
+
+        # ── Animation ─────────────────────────────────────────────────────────
+        self.play(
+            FadeIn(title, shift=UP * 0.05),
+            run_time=0.70,
+        )
+        self.play(Create(underline), run_time=0.35)
+        self.play(FadeIn(focus_panel, shift=UP * 0.05), run_time=0.80)
+        self.play(
+            LaggedStart(
+                *[FadeIn(card, shift=RIGHT * 0.06) for card in rq_cards],
+                lag_ratio=0.22,
+            ),
+            run_time=1.20,
+        )
+        self.wait(4.00)
+
 
 class Study2ExperimentalDesign(_Study2NumberedScene, Scene):
     """Present the Session 1 memory-task and Session 2 perceptual-task timelines side by side."""
@@ -310,7 +457,7 @@ class Study2ExperimentalDesign(_Study2NumberedScene, Scene):
             .to_edge(DOWN, buff=0.38)
         slide_title = Tex(r"\textbf{Session 2 :} Perceptual task", color=INK, font_size=TTL_SIZE).move_to(UP * 3.05)
         self.play(FadeIn(n_lbl), run_time=0.5)
-        self.wait(2.0)
+        self.wait(6.0)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -328,6 +475,9 @@ _D_MGREY = "#9CA3AF"
 
 # Brain icon used in the decoding overview
 _BRAIN_PNG_PATH = _STUDY2_ASSET_DIR / "brain_icon_sagittal.png"
+_MRI_SCANNER_PNG_PATH = _STUDY2_ASSET_DIR / "MRIscanner.png"
+_V1V2V3_PNG_PATH = REPO_ROOT / "assets" / "images" / "v1v2v3.png"
+_SVM_CLASSIFIER_SVG_PATH = REPO_ROOT / "assets" / "images" / "references" / "svm_classifier_schematic.svg"
 
 
 class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
@@ -351,6 +501,9 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     # Brain / vector layout
     _BRAIN_Y = 0.00
     _H_GAP   = 1.15
+    _TITLE_TOP_BUFF = 0.24
+    _SCANNER_TO_BRAIN_BUFF = 0.18
+    _SCANNER_WIDTH_SCALE = 1.02
 
     # Activity matrix shown below the brain before becoming a feature vector
     _GRID_PAT = np.array([[0.9, 0.2, 0.7],
@@ -380,6 +533,11 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     ]
     _ICON_FRAME_STROKE_WIDTH = 2.4
     _ICON_FRAME_BUFF = 0.05
+    _OVERVIEW_CAMERA_CENTER = np.array([0.0, 0.55, 0.0])
+
+    def _set_overview_camera_frame(self) -> None:
+        """Shift the overview scenes downward as one rigid block."""
+        self.camera.frame_center = self._OVERVIEW_CAMERA_CENTER.copy()
 
     def _pattern_for_index(self, idx: int) -> np.ndarray:
         """Return the permuted activity pattern for one overview stimulus."""
@@ -454,6 +612,40 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
         return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
 
+    def _make_overview_title(self, tex: str) -> Tex:
+        """Build the overview title anchored close to the top edge."""
+        return Tex(tex, color=INK, font_size=TTL_SIZE).to_edge(
+            UP, buff=self._TITLE_TOP_BUFF
+        )
+
+    def _make_brain_and_scanner(
+        self,
+        brain_height: float,
+    ) -> tuple[ImageMobject, ImageMobject]:
+        """Build the paired brain/scanner column for the overview scenes."""
+        brain = (
+            ImageMobject(str(_BRAIN_PNG_PATH))
+            .scale_to_fit_height(brain_height)
+            .move_to(UP * self._BRAIN_Y)
+        )
+        brain.set_z_index(-20)
+
+        scanner = ImageMobject(str(_MRI_SCANNER_PNG_PATH))
+        scanner.scale_to_fit_width(brain.width * self._SCANNER_WIDTH_SCALE)
+        scanner.set_z_index(-21)
+        return brain, scanner
+
+    def _position_brain_and_scanner(
+        self,
+        brain: ImageMobject,
+        scanner: ImageMobject,
+        brain_x: float,
+    ) -> None:
+        """Position the scanner directly above the brain icon."""
+        brain.move_to(np.array([brain_x, self._BRAIN_Y, 0.0]))
+        scanner.next_to(brain, UP, buff=self._SCANNER_TO_BRAIN_BUFF)
+        scanner.move_to(np.array([brain.get_center()[0], scanner.get_center()[1], 0.0]))
+
     def _make_stack_target(
         self,
         img_path: str,
@@ -495,11 +687,9 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
 
     def _build_overview_end_state(self) -> dict[str, object]:
         """Build the overview end state."""
-        slide_title = Tex(
-            r"\textbf{Session 2 :} Perceptual task",
-            color=INK,
-            font_size=TTL_SIZE,
-        ).move_to(UP * 3.05)
+        slide_title = self._make_overview_title(
+            r"\textbf{Session 2 :} Perceptual task"
+        )
 
         visible_icons: list[Group] = []
         visible_frames: list[VMobject] = []
@@ -520,12 +710,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         ghost_frame.set_stroke(opacity=0.18)
 
         icon_h = max(icon.height for icon in visible_icons)
-        brain = (
-            ImageMobject(str(_BRAIN_PNG_PATH))
-            .scale_to_fit_height(2.0 * icon_h)
-            .move_to(UP * self._BRAIN_Y)
-        )
-        brain.set_z_index(-20)
+        brain, scanner = self._make_brain_and_scanner(2.0 * icon_h)
 
         vector_template = self._make_feature_vector(
             ORIGIN, self._COLS[0], self._pattern_for_index(0)
@@ -534,7 +719,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         brain_x = stack_right + self._H_GAP + brain.width / 2
         vector_left_x = brain_x + brain.width / 2 + self._H_GAP
         vector_center_x = vector_left_x + vector_template.width / 2
-        brain.move_to(np.array([brain_x, self._BRAIN_Y, 0.0]))
+        self._position_brain_and_scanner(brain, scanner, brain_x)
 
         matrix_center = brain.get_bottom() + DOWN * 0.58
         matrix_source = self._brain_source_point(brain, x_norm=0.7, y_norm=-0.1)
@@ -552,7 +737,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         source_frame.set_z_index(2)
         source_label = Tex(
             "V1-V3",
-            color=_D_MGREY,
+            color=INK,
             font_size=20,
         ).next_to(source_frame, RIGHT, buff=0.10)
         source_label.set_z_index(2)
@@ -568,7 +753,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         ]
         vector_label = Tex(
             "Feature vectors",
-            color=_D_MGREY,
+            color=INK,
             font_size=24,
         ).move_to(np.array([vector_center_x, self._COL_YS[0] + 0.52, 0.0]))
 
@@ -652,6 +837,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         frame = Group(
             slide_title,
             stack_group,
+            scanner,
             brain,
             support_group,
         )
@@ -663,6 +849,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
             "visible_frames": visible_frames,
             "ghost_icon": ghost_icon,
             "ghost_frame": ghost_frame,
+            "scanner": scanner,
             "brain": brain,
             "support_group": support_group,
             "current_grid": current_grid,
@@ -687,12 +874,13 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = BG
+        self._set_overview_camera_frame()
 
         # ── Phase 0: Start from the full experimental-design end state ─────────
         s1_title = Tex(
             r"\textbf{Session 1 :} Memory task",
             color=INK, font_size=TTL_SIZE,
-        ).move_to(UP * 3.05)
+        ).to_edge(UP, buff=self._TITLE_TOP_BUFF)
 
         boxes1, xs1       = _build_row(Study2ExperimentalDesign._S1, S1_Y)
         dots1, x_end1     = _ellipsis(xs1, S1_Y)
@@ -715,11 +903,9 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
             r"\textbf{Session 2 :} Perceptual task",
             color=INK, font_size=TTL_SIZE,
         ).move_to(UP * (S2_Y + BOX_H / 2 + 0.74))
-        slide_title = Tex(
-            r"\textbf{Session 2 :} Perceptual task",
-            color=INK,
-            font_size=TTL_SIZE,
-        ).move_to(UP * 3.05)
+        slide_title = self._make_overview_title(
+            r"\textbf{Session 2 :} Perceptual task"
+        )
 
         n_lbl = Tex(r"$N = 42$ participants", color=INK, font_size=18) \
             .to_edge(DOWN, buff=0.38)
@@ -810,12 +996,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
 
         # ── Phase 3: Brain icon is twice the stimulus-icon height ──────────────
         icon_h = max(icon.height for icon in stim_icons)
-        brain = (
-            ImageMobject(str(_BRAIN_PNG_PATH))
-            .scale_to_fit_height(2.0 * icon_h)
-            .move_to(UP * self._BRAIN_Y)
-        )
-        brain.set_z_index(-20)
+        brain, scanner = self._make_brain_and_scanner(2.0 * icon_h)
         vector_template = self._make_feature_vector(
             ORIGIN, self._COLS[0], self._pattern_for_index(0)
         )
@@ -823,9 +1004,13 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         brain_x = stack_right + self._H_GAP + brain.width / 2
         vector_left_x = brain_x + brain.width / 2 + self._H_GAP
         vector_center_x = vector_left_x + vector_template.width / 2
-        brain.move_to(np.array([brain_x, self._BRAIN_Y, 0.0]))
-        self.play(FadeIn(brain, shift=RIGHT * 0.15), run_time=0.75)
-        self.bring_to_back(brain)
+        self._position_brain_and_scanner(brain, scanner, brain_x)
+        self.play(
+            FadeIn(brain, shift=RIGHT * 0.15),
+            FadeIn(scanner, shift=RIGHT * 0.15 + UP * 0.08),
+            run_time=0.75,
+        )
+        self.bring_to_back(scanner, brain)
         self.wait(0.25)
 
         # ── Phase 4: Each image maps to a feature vector ───────────────────────
@@ -838,7 +1023,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         matrix_template = self._make_grid(matrix_center, self._COLS[0], self._pattern_for_index(0))
         matrix_frame = self._make_grid_frame(matrix_template, matrix_center)
         source_frame = self._make_grid_frame(matrix_template, matrix_source).scale(0.56)
-        source_label = Tex("V1-V3", color=_D_MGREY, font_size=20).next_to(source_frame, RIGHT, buff=0.10)
+        source_label = Tex("V1-V3", color=INK, font_size=20).next_to(source_frame, RIGHT, buff=0.10)
         projection_lines = VGroup(
             Line(
                 source_frame.get_corner(UL),
@@ -872,7 +1057,6 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         source_frame_base_width = source_frame.get_stroke_width()
         source_frame_pulse_width = source_frame_base_width * 1.8
         current_grid: VGroup | None = None
-
         def synced_source_pulse(t: float) -> float:
             """Return the synchronized source pulse animation."""
             if t <= 0.12:
@@ -884,7 +1068,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
             ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
             return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
 
-        vector_label = Tex("Feature vectors", color=_D_MGREY, font_size=24).move_to(
+        vector_label = Tex("Feature vectors", color=INK, font_size=24).move_to(
             np.array([vector_center_x, self._COL_YS[0] + 0.52, 0.0])
         )
 
@@ -1128,7 +1312,9 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         uv run manim scenes/study2.py Study2DecodingOverviewB -qh
     """
 
-    _OVERVIEW_B_TITLE = "Decoding memory representations"
+    _OVERVIEW_B_TITLE = r"\textbf{Session 1 :} Memory task"
+    _MEMORY_STIM_OPACITY = 0.62
+    _PAIR_GAP = 0.20
 
     def _reverse_roll_step(
         self,
@@ -1182,78 +1368,1245 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         new_exit_ghost = (visible_icons[2], visible_frames[2])
         return new_visible_icons, new_visible_frames, new_exit_ghost
 
+    def _make_memory_pair_target(
+        self, img_path: str, col: str
+    ) -> tuple[Group, Group, SurroundingRectangle, Group, SurroundingRectangle]:
+        """Build one memory-decoding row with grey stimulus frame and colored delay frame."""
+        stim_icon, stim_frame = self._make_stack_target(img_path, col)
+        stim_icon[0].set_opacity(self._MEMORY_STIM_OPACITY)
+        stim_frame.set_stroke(color=GREY, opacity=0.9)
+        delay_card, delay_frame = self._make_delay_card(col)
+        pair = Group(stim_icon, stim_frame, delay_card, delay_frame)
+        stim_icon.move_to(ORIGIN)
+        stim_frame.move_to(stim_icon.get_center())
+        delay_card.move_to(
+            stim_icon.get_center()
+            + RIGHT * (stim_frame.width / 2 + self._PAIR_GAP + delay_frame.width / 2)
+        )
+        delay_frame.move_to(delay_card.get_center())
+        pair.move_to(ORIGIN)
+        return pair, stim_icon, stim_frame, delay_card, delay_frame
+
+    def _memory_pattern_for_index(self, idx: int) -> np.ndarray:
+        """Return a memory-scene voxel pattern with a different composition from Overview A."""
+        base = self._pattern_for_index(idx % len(self._GRID_PERMS))
+        alt = self._pattern_for_index((idx + 2) % len(self._GRID_PERMS))
+        mixed = 0.58 * base + 0.42 * np.rot90(alt, k=(idx % 3) + 1)
+        if idx % 2 == 0:
+            mixed = np.roll(mixed, shift=1, axis=1)
+        else:
+            mixed = np.roll(mixed, shift=1, axis=0)
+        return np.clip(mixed, 0.08, 0.98)
+
+    def _build_overview_b_end_state(self) -> dict[str, Mobject]:
+        """Build the held final state of DecodingOverviewB."""
+        slide_title = self._make_overview_title(self._OVERVIEW_B_TITLE)
+
+        memory_targets = []
+        memory_stim_icons = []
+        for img_path, row_y, col in zip(
+            [spec["img"] for spec in Study2ExperimentalDesign._S2[::2]],
+            self._COL_YS,
+            self._COLS,
+        ):
+            target_pair, stim_icon, _, _, _ = self._make_memory_pair_target(img_path, col)
+            target_pair.move_to(np.array([self._COL_X, row_y, 0.0]))
+            memory_targets.append(target_pair)
+            memory_stim_icons.append(stim_icon)
+
+        icon_h = max(icon.height for icon in memory_stim_icons)
+        brain, scanner = self._make_brain_and_scanner(2.0 * icon_h)
+        stack_right = max(pair.get_right()[0] for pair in memory_targets)
+        brain_x = stack_right + self._H_GAP + brain.width / 2
+        self._position_brain_and_scanner(brain, scanner, brain_x)
+
+        vector_template = self._make_feature_vector(
+            ORIGIN, self._COLS[0], self._memory_pattern_for_index(0)
+        )
+        vector_left_x = brain_x + brain.width / 2 + self._H_GAP
+        vector_center_x = vector_left_x + vector_template.width / 2
+
+        matrix_center = brain.get_bottom() + DOWN * 0.58
+        matrix_source = self._brain_source_point(brain, x_norm=0.7, y_norm=-0.1)
+        matrix_template = self._make_grid(
+            matrix_center,
+            self._COLS[0],
+            self._memory_pattern_for_index(0),
+        )
+        source_frame = self._make_grid_frame(matrix_template, matrix_source).scale(0.56)
+        source_frame.set_z_index(2)
+        source_label = Tex(
+            "V1-V3",
+            color=INK,
+            font_size=20,
+        ).next_to(source_frame, RIGHT, buff=0.10)
+        source_label.set_z_index(2)
+        current_grid = self._make_grid(
+            matrix_center,
+            self._COLS[-1],
+            self._memory_pattern_for_index(len(self._COLS) - 1),
+        )
+
+        vector_centers = [
+            np.array([vector_center_x, row_y, 0.0]) for row_y in self._COL_YS
+        ]
+        visible_vectors = VGroup(*[
+            self._make_feature_vector(center, col, self._memory_pattern_for_index(idx))
+            for idx, (center, col) in enumerate(zip(vector_centers, self._COLS))
+        ])
+        vector_label = Tex("Feature vectors", color=INK, font_size=24).move_to(
+            np.array([vector_center_x, self._COL_YS[0] + 0.52, 0.0])
+        )
+
+        summary_symbol = MathTex(
+            r"\mathbf{X}_{\mathrm{D1}} =",
+            color=INK,
+            font_size=28,
+        )
+        summary_matrix = MathTex(
+            r"\begin{bmatrix}"
+            r"x_{11} & x_{12} & \cdots & x_{1v} \\"
+            r"x_{21} & x_{22} & \cdots & x_{2v} \\"
+            r"\vdots & \vdots & \ddots & \vdots \\"
+            r"x_{n1} & x_{n2} & \cdots & x_{nv}"
+            r"\end{bmatrix}",
+            color=INK,
+            font_size=24,
+        )
+        summary_group = VGroup(summary_symbol, summary_matrix).arrange(RIGHT, buff=0.18)
+        summary_title = Tex(
+            r"Multivoxel activity patterns\\during memory",
+            color=INK,
+            font_size=24,
+            tex_environment="center",
+        ).next_to(summary_group, UP, buff=0.22)
+        sample_arrow = DoubleArrow(
+            summary_matrix.get_corner(UR) + RIGHT * 0.42 + UP * 0.02,
+            summary_matrix.get_corner(DR) + RIGHT * 0.42 + DOWN * 0.02,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
+        )
+        sample_label = MathTex(
+            r"\text{samples (delay periods)}",
+            color=INK,
+            font_size=18,
+        ).rotate(-PI / 2).next_to(sample_arrow, RIGHT, buff=0.10)
+        feature_arrow = DoubleArrow(
+            summary_matrix.get_corner(DL) + DOWN * 0.36,
+            summary_matrix.get_corner(DR) + DOWN * 0.36,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
+        )
+        feature_label = MathTex(
+            r"\text{features (voxels)}",
+            color=INK,
+            font_size=20,
+        ).next_to(feature_arrow, DOWN, buff=0.10)
+        summary_block = VGroup(
+            summary_title,
+            summary_group,
+            sample_arrow,
+            sample_label,
+            feature_arrow,
+            feature_label,
+        )
+        right_vectors_edge = max(vector.get_right()[0] for vector in visible_vectors)
+        block_left = right_vectors_edge + 0.35
+        block_right = config.frame_width / 2 - 0.35
+        available_width = max(1.0, block_right - block_left)
+        if summary_block.width > available_width:
+            summary_block.scale_to_fit_width(available_width)
+        summary_block.move_to(np.array([(block_left + block_right) / 2, -0.02, 0.0]))
+        top_limit = slide_title.get_bottom()[1] - 0.18
+        if summary_block.get_top()[1] > top_limit:
+            summary_block.shift(DOWN * (summary_block.get_top()[1] - top_limit))
+        bottom_limit = -config.frame_height / 2 + 0.32
+        if summary_block.get_bottom()[1] < bottom_limit:
+            summary_block.shift(UP * (bottom_limit - summary_block.get_bottom()[1]))
+
+        frame = Group(
+            slide_title,
+            *memory_targets,
+            brain,
+            scanner,
+            source_frame,
+            source_label,
+            current_grid,
+            visible_vectors,
+            vector_label,
+            summary_block,
+        )
+        return {
+            "frame": frame,
+            "title": slide_title,
+            "memory_targets": Group(*memory_targets),
+            "brain": brain,
+            "scanner": scanner,
+            "source_frame": source_frame,
+            "source_label": source_label,
+            "current_grid": current_grid,
+            "visible_vectors": visible_vectors,
+            "vector_label": vector_label,
+            "summary_block": summary_block,
+        }
+
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = BG
+        self._set_overview_camera_frame()
         ctx = self._build_overview_end_state()
         self.add(ctx["frame"])
-        self.bring_to_back(ctx["brain"])
+        self.bring_to_back(ctx["scanner"], ctx["brain"])
         self.wait(0.25)
 
-        visible_icons = list(ctx["visible_icons"])
-        visible_frames = list(ctx["visible_frames"])
-        exit_ghost_pair: tuple[Mobject, Mobject] | None = None
+        s1_title = self._make_overview_title(r"\textbf{Session 1 :} Memory task")
+        boxes1, xs1 = _build_row(Study2ExperimentalDesign._S1, S1_Y)
+        dots1, x_end1 = _ellipsis(xs1, S1_Y)
+        arrow1, t1 = _timeline(xs1, S1_Y, x_end1)
+        time_lbl1, ph_lb1 = _labels(Study2ExperimentalDesign._S1, xs1, S1_Y)
 
-        retitle = Tex(
-            self._OVERVIEW_B_TITLE,
-            color=INK,
-            font_size=TTL_SIZE,
-        ).move_to(ctx["slide_title"])
+        s2_title = Tex(
+            r"\textbf{Session 2 :} Perceptual task",
+            color=INK, font_size=TTL_SIZE,
+        ).move_to(UP * (S2_Y + BOX_H / 2 + 0.74))
+        boxes2, xs2 = _build_row(Study2ExperimentalDesign._S2, S2_Y)
+        dots2, x_end2 = _ellipsis(xs2, S2_Y)
+        arrow2, t2 = _timeline(xs2, S2_Y, x_end2)
+        time_lbl2, ph_lb2 = _labels(Study2ExperimentalDesign._S2, xs2, S2_Y)
+        n_lbl = Tex(r"$N = 42$ participants", color=INK, font_size=18).to_edge(DOWN, buff=0.38)
 
-        visible_icons, visible_frames, exit_ghost_pair = self._reverse_roll_step(
-            visible_icons,
-            visible_frames,
-            ctx["ghost_icon"],
-            ctx["ghost_frame"],
-            icon_center_x=ctx["icon_center_x"],
-            ghost_y=ctx["ghost_y"],
-            bottom_exit_y=ctx["bottom_exit_y"],
-            fade_group=ctx["support_group"],
-            title_pair=(ctx["slide_title"], retitle),
+        design_group = Group(
+            s1_title, Group(*boxes1), dots1, arrow1, t1, time_lbl1, ph_lb1,
+            s2_title, Group(*boxes2), dots2, arrow2, t2, time_lbl2, ph_lb2,
+            n_lbl,
         )
 
-        for img_path, col in self._RESTORE_TARGETS[1:]:
-            incoming_icon, incoming_frame = self._make_stack_target(img_path, col)
-            visible_icons, visible_frames, exit_ghost_pair = self._reverse_roll_step(
-                visible_icons,
-                visible_frames,
-                incoming_icon,
-                incoming_frame,
-                icon_center_x=ctx["icon_center_x"],
-                ghost_y=ctx["ghost_y"],
-                bottom_exit_y=ctx["bottom_exit_y"],
-                exit_ghost_pair=exit_ghost_pair,
-            )
-
-        delay_cards: list[Group] = []
-        delay_frames: list[VMobject] = []
-        image_shift_amount = 0.22
-        delay_column_x = ctx["icon_center_x"] + visible_frames[0].width + 0.44
-        for row_y, col in zip(self._COL_YS, self._COLS):
-            card, frame = self._make_delay_card(col)
-            pos = np.array([delay_column_x, row_y, 0.0])
-            card.move_to(pos)
-            frame.move_to(card.get_center())
-            card.set_opacity(0.0)
-            frame.set_stroke(opacity=0.0)
-            self.add(card, frame)
-            delay_cards.append(card)
-            delay_frames.append(frame)
-
-        move_left = LEFT * image_shift_amount
         self.play(
-            *[icon.animate.shift(move_left) for icon in visible_icons],
-            *[frame.animate.shift(move_left) for frame in visible_frames],
-            *[FadeIn(card, shift=RIGHT * 0.10) for card in delay_cards],
-            *[
-                frame.animate.set_stroke(opacity=1.0)
-                for frame in delay_frames
-            ],
-            FadeOut(exit_ghost_pair[0]),
-            FadeOut(exit_ghost_pair[1]),
-            run_time=0.78,
+            FadeOut(ctx["frame"]),
+            FadeIn(design_group),
+            run_time=0.7,
         )
-        self.wait(1.8)
+        self.wait(0.2)
+
+        s1_delay_highlight = SurroundingRectangle(
+            boxes1[1], color=_D_RED, stroke_width=3.0, buff=0.06, corner_radius=0.12,
+        )
+        self.play(
+            Create(s1_delay_highlight),
+            run_time=0.35,
+        )
+        self.wait(0.5)
+
+        self.play(
+            FadeOut(Group(
+                *[box for idx, box in enumerate(boxes1) if idx != 1],
+                dots1, arrow1, t1, time_lbl1, ph_lb1,
+            )),
+            FadeOut(s2_title),
+            FadeOut(Group(*boxes2)),
+            FadeOut(dots2), FadeOut(arrow2), FadeOut(t2),
+            FadeOut(time_lbl2), FadeOut(ph_lb2),
+            FadeOut(n_lbl),
+            run_time=0.55,
+        )
+
+        stim_boxes = [boxes2[0], boxes2[2], boxes2[4]]
+        slide_title = self._make_overview_title(self._OVERVIEW_B_TITLE)
+
+        memory_targets = []
+        memory_stim_icons = []
+        memory_stim_frames = []
+        memory_delay_cards = []
+        memory_delay_frames = []
+        for img_path, row_y, col in zip(
+            [spec["img"] for spec in Study2ExperimentalDesign._S2[::2]],
+            self._COL_YS,
+            self._COLS,
+        ):
+            target_pair, stim_icon, stim_frame, delay_card, delay_frame = self._make_memory_pair_target(img_path, col)
+            target_pair.move_to(np.array([self._COL_X, row_y, 0.0]))
+            memory_targets.append(target_pair)
+            memory_stim_icons.append(stim_icon)
+            memory_stim_frames.append(stim_frame)
+            memory_delay_cards.append(delay_card)
+            memory_delay_frames.append(delay_frame)
+
+        delay_source_box = boxes1[1]
+
+        self.play(
+            *[FadeIn(stim_icon, shift=LEFT * 0.08) for stim_icon in memory_stim_icons],
+            *[FadeIn(stim_frame, shift=LEFT * 0.08) for stim_frame in memory_stim_frames],
+            *[
+                TransformFromCopy(delay_source_box, delay_card)
+                for delay_card in memory_delay_cards
+            ],
+            *[
+                TransformFromCopy(s1_delay_highlight, delay_frame)
+                for delay_frame in memory_delay_frames
+            ],
+            FadeOut(delay_source_box),
+            FadeOut(s1_delay_highlight),
+            Transform(s1_title, slide_title),
+            run_time=0.95,
+        )
+        self.add(*memory_targets)
+        self.wait(0.25)
+
+        icon_h = max(icon.height for icon in memory_stim_icons)
+        brain, scanner = self._make_brain_and_scanner(2.0 * icon_h)
+        stack_right = max(pair.get_right()[0] for pair in memory_targets)
+        brain_x = stack_right + self._H_GAP + brain.width / 2
+        self._position_brain_and_scanner(brain, scanner, brain_x)
+        self.play(
+            FadeIn(brain, shift=RIGHT * 0.15),
+            FadeIn(scanner, shift=RIGHT * 0.15 + UP * 0.08),
+            run_time=0.75,
+        )
+        self.bring_to_back(scanner, brain)
+        self.wait(0.25)
+
+        vector_template = self._make_feature_vector(
+            ORIGIN, self._COLS[0], self._memory_pattern_for_index(0)
+        )
+        vector_left_x = brain_x + brain.width / 2 + self._H_GAP
+        vector_center_x = vector_left_x + vector_template.width / 2
+        matrix_center = brain.get_bottom() + DOWN * 0.58
+        matrix_source = self._brain_source_point(brain, x_norm=0.7, y_norm=-0.1)
+        matrix_template = self._make_grid(
+            matrix_center,
+            self._COLS[0],
+            self._memory_pattern_for_index(0),
+        )
+        matrix_frame = self._make_grid_frame(matrix_template, matrix_center)
+        source_frame = self._make_grid_frame(matrix_template, matrix_source).scale(0.56)
+        source_frame.set_z_index(2)
+        source_label = Tex(
+            "V1-V3",
+            color=INK,
+            font_size=20,
+        ).next_to(source_frame, RIGHT, buff=0.10)
+        source_label.set_z_index(2)
+        projection_lines = VGroup(
+            Line(
+                source_frame.get_corner(UL),
+                matrix_frame.get_corner(UL),
+                color=_D_MGREY,
+                stroke_width=1.1,
+            ),
+            Line(
+                source_frame.get_corner(UR),
+                matrix_frame.get_corner(UR),
+                color=_D_MGREY,
+                stroke_width=1.1,
+            ),
+            Line(
+                source_frame.get_corner(DL),
+                matrix_frame.get_corner(DL),
+                color=_D_MGREY,
+                stroke_width=1.1,
+            ),
+            Line(
+                source_frame.get_corner(DR),
+                matrix_frame.get_corner(DR),
+                color=_D_MGREY,
+                stroke_width=1.1,
+            ),
+        )
+        projection_lines.set_z_index(-10)
+        matrix_frame.set_z_index(1)
+        source_frame_base_width = source_frame.get_stroke_width()
+        source_frame_pulse_width = source_frame_base_width * 1.8
+        current_grid: VGroup | None = None
+
+        def synced_source_pulse(t: float) -> float:
+            """Return the synchronized source pulse animation."""
+            if t <= 0.12:
+                return 0.0
+            return there_and_back((t - 0.12) / 0.88)
+
+        def vector_layout(count: int) -> list[np.ndarray]:
+            """Return the vector-layout centres for the current scene."""
+            ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
+            return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
+
+        vector_centers = vector_layout(len(memory_targets))
+        visible_vectors: list[VGroup] = []
+        vector_label = Tex(
+            "Feature vectors",
+            color=INK,
+            font_size=24,
+        ).move_to(np.array([vector_center_x, self._COL_YS[0] + 0.52, 0.0]))
+
+        for idx, (pair, col, vec_center) in enumerate(zip(memory_targets, self._COLS, vector_centers)):
+            pattern = self._memory_pattern_for_index(idx)
+            arr_to_brain = Arrow(
+                pair.get_right() + RIGHT * 0.12,
+                brain.get_left() + LEFT * 0.10,
+                color=_D_MGREY,
+                stroke_width=2.0,
+                buff=0.02,
+                tip_length=0.16,
+            )
+            self.play(GrowArrow(arr_to_brain), run_time=0.45)
+
+            new_grid = self._make_grid(matrix_center, col, pattern)
+            if current_grid is None:
+                self.add(projection_lines)
+                self.bring_to_back(projection_lines)
+                projection_lines.set_stroke(opacity=0.0)
+                self.play(FadeIn(source_frame, scale=0.94), run_time=0.22)
+                self.play(
+                    FadeIn(source_label),
+                    FadeIn(matrix_frame),
+                    projection_lines.animate.set_stroke(opacity=1.0),
+                    run_time=0.36,
+                )
+                self.wait(0.12)
+                self.play(FadeIn(new_grid), FadeOut(matrix_frame), run_time=0.40)
+                self.play(FadeOut(projection_lines), run_time=0.18)
+                current_grid = new_grid
+            else:
+                self.play(
+                    source_frame.animate(rate_func=synced_source_pulse).set_stroke(
+                        width=source_frame_pulse_width
+                    ),
+                    ReplacementTransform(current_grid, new_grid),
+                    run_time=0.32,
+                )
+                source_frame.set_stroke(width=source_frame_base_width)
+                current_grid = new_grid
+
+            arr_to_vec = Arrow(
+                current_grid.get_right() + RIGHT * 0.04,
+                vec_center + LEFT * (vector_template.width / 2 + 0.18),
+                color=_D_MGREY,
+                stroke_width=2.0,
+                buff=0.03,
+                tip_length=0.16,
+            )
+            self.play(GrowArrow(arr_to_vec), run_time=0.40)
+
+            vector = self._make_feature_vector(vec_center, col, pattern)
+            grid_copy = current_grid.copy()
+            self.add(grid_copy)
+            if idx == 0:
+                self.play(
+                    FadeIn(vector_label),
+                    ReplacementTransform(grid_copy, vector),
+                    run_time=0.70,
+                )
+            else:
+                self.play(ReplacementTransform(grid_copy, vector), run_time=0.70)
+            self.play(FadeOut(arr_to_brain), FadeOut(arr_to_vec), run_time=0.20)
+            visible_vectors.append(vector)
+
+        summary_symbol = MathTex(
+            r"\mathbf{X}_{\mathrm{D1}} =",
+            color=INK,
+            font_size=28,
+        )
+        summary_matrix = MathTex(
+            r"\begin{bmatrix}"
+            r"x_{11} & x_{12} & \cdots & x_{1v} \\"
+            r"x_{21} & x_{22} & \cdots & x_{2v} \\"
+            r"\vdots & \vdots & \ddots & \vdots \\"
+            r"x_{n1} & x_{n2} & \cdots & x_{nv}"
+            r"\end{bmatrix}",
+            color=INK,
+            font_size=24,
+        )
+        summary_group = VGroup(summary_symbol, summary_matrix).arrange(RIGHT, buff=0.18)
+        summary_title = Tex(
+            r"Multivoxel activity patterns\\during memory",
+            color=INK,
+            font_size=24,
+            tex_environment="center",
+        ).next_to(summary_group, UP, buff=0.22)
+        sample_arrow = DoubleArrow(
+            summary_matrix.get_corner(UR) + RIGHT * 0.42 + UP * 0.02,
+            summary_matrix.get_corner(DR) + RIGHT * 0.42 + DOWN * 0.02,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
+        )
+        sample_label = MathTex(
+            r"\text{samples (delay periods)}",
+            color=INK,
+            font_size=18,
+        ).rotate(-PI / 2).next_to(sample_arrow, RIGHT, buff=0.10)
+        feature_arrow = DoubleArrow(
+            summary_matrix.get_corner(DL) + DOWN * 0.36,
+            summary_matrix.get_corner(DR) + DOWN * 0.36,
+            color=INK,
+            stroke_width=1.8,
+            buff=0.0,
+            tip_length=0.12,
+        )
+        feature_label = MathTex(
+            r"\text{features (voxels)}",
+            color=INK,
+            font_size=20,
+        ).next_to(feature_arrow, DOWN, buff=0.10)
+        summary_block = VGroup(
+            summary_title,
+            summary_group,
+            sample_arrow,
+            sample_label,
+            feature_arrow,
+            feature_label,
+        )
+        right_vectors_edge = max(vector.get_right()[0] for vector in visible_vectors)
+        block_left = right_vectors_edge + 0.35
+        block_right = config.frame_width / 2 - 0.35
+        available_width = max(1.0, block_right - block_left)
+        if summary_block.width > available_width:
+            summary_block.scale_to_fit_width(available_width)
+        summary_block.move_to(np.array([(block_left + block_right) / 2, -0.02, 0.0]))
+        top_limit = slide_title.get_bottom()[1] - 0.18
+        if summary_block.get_top()[1] > top_limit:
+            summary_block.shift(DOWN * (summary_block.get_top()[1] - top_limit))
+        bottom_limit = -config.frame_height / 2 + 0.32
+        if summary_block.get_bottom()[1] < bottom_limit:
+            summary_block.shift(UP * (bottom_limit - summary_block.get_bottom()[1]))
+
+        self.play(
+            FadeIn(summary_title),
+            FadeIn(summary_symbol),
+            Write(summary_matrix),
+            FadeIn(sample_arrow),
+            FadeIn(sample_label),
+            FadeIn(feature_arrow),
+            FadeIn(feature_label),
+            Indicate(VGroup(*visible_vectors), color=_D_MGREY, scale_factor=1.02),
+            run_time=0.65,
+        )
+
+        self.wait(1.0)
+
+
+class Study2DecodingOverviewC(Study2DecodingOverviewB):
+    """
+    Open on the final held frame of DecodingOverviewB, then introduce the
+    decoding-schema rationale for shared representational format.
+
+    Render:
+        uv run manim scenes/study2.py Study2DecodingOverviewC -ql
+        uv run manim scenes/study2.py Study2DecodingOverviewC -qh
+    """
+
+    _OVERVIEW_B_TITLE = r"\textbf{Cross-decoding of sensory and mnemonic representations}"
+    _SCHEMA_OVERVIEW_CASES = [
+        ("train", "sensory", "none"),
+        ("predict", "memory", "question"),
+    ]
+    _SCHEMA_SUMMARY_CASES = [
+        ("train", "sensory", "none"),
+        ("predict", "sensory", "cat"),
+        ("predict", "memory", "question"),
+    ]
+    _INTUITION_LEFT_COLOR = "#7F8898"
+    _INTUITION_RIGHT_COLOR = "#9C7A2B"
+    _SCHEMA_TRAIN_COLOR = "#8B95A5"
+    _SCHEMA_TEST_COLOR = "#9C7A2B"
+    _SCHEMA_ITEM_HEIGHT = IMG_H * Study2DecodingOverviewA._STACK_SCALE * 1.10
+    _SCHEMA_ARROW_LABEL_BUFF = 0.18
+    _SCHEMA_PROJECTION_COLOR = "#B4BAC4"
+    _SCHEMA_MEMORY_GHOST_OFFSET = 0.42
+    _SCHEMA_MEMORY_GHOST_IMAGE_OPACITY = 0.28
+    _SCHEMA_MEMORY_GHOST_CARD_OPACITY = 0.44
+    _SCHEMA_HORIZONTAL_GAP = 0.14
+    _SCHEMA_PROJECTION_OPENING_DEG = 60
+    _SCHEMA_PROJECTION_END_INSET = 0.05
+    _SCHEMA_PATTERN_BOX_TO_DECODER_RATIO = 0.86
+    _SCHEMA_DECODER_HEIGHT_RATIO = 0.98
+    _SCHEMA_PATTERN_REFERENCE_HEIGHT_RATIO = 1.16
+    _SCHEMA_LINK_ARROW_LENGTH = 0.74
+    _SCHEMA_LINK_SPAN = 2 * _SCHEMA_HORIZONTAL_GAP + _SCHEMA_LINK_ARROW_LENGTH
+    _SCHEMA_COLUMN_GAP = 1.5
+    _SCHEMA_ROW_SCALE = 1.14
+    _SCHEMA_TRAIN_TO_PREDICT_GAP = 0.78
+    _SCHEMA_PREDICT_TO_PREDICT_GAP = 0.48
+    _SCHEMA_ROW_REVEAL_TIME = 0.95
+    _SCHEMA_CLASSIFIER_TRANSFER_TIME = 1.05
+    _SCHEMA_OUTPUT_REVEAL_TIME = 0.55
+    _SCHEMA_FORK_REVEAL_TIME = 0.95
+    _SCHEMA_CLASSIFIER_PATH_ARC = -PI / 3
+    _SCHEMA_INTRO_PANEL_PAUSE = 5.0
+    _SCHEMA_TRAIN_EXPLAIN_PAUSE = 3.0
+    _SCHEMA_INPUT_EXPLAIN_PAUSE = 1.4
+    _SCHEMA_CLASSIFIER_EXPLAIN_PAUSE = 1.7
+    _SCHEMA_OUTPUT_EXPLAIN_PAUSE = 1.6
+    _SCHEMA_FORK_EXPLAIN_PAUSE = 2.6
+    _SCHEMA_FORK_HORIZONTAL_GAP = 0.86
+    _SCHEMA_FORK_VERTICAL_GAP = 0.34
+    _SCHEMA_FORK_ARROW_GAP = 0.10
+
+    def _make_schema_decoder(self, center: np.ndarray, height: float) -> SVGMobject:
+        """Build the classifier schematic used in the schema rows."""
+        return (
+            SVGMobject(str(_SVM_CLASSIFIER_SVG_PATH))
+            .scale_to_fit_height(height)
+            .move_to(center)
+        )
+
+    def _schema_pattern(self, variant: str) -> np.ndarray:
+        """Return the sensory or memory voxel grid used by the schema."""
+        if variant == "sensory":
+            return self._pattern_for_index(3)
+        return self._memory_pattern_for_index(3)
+
+    def _schema_color(self, variant: str) -> str:
+        """Return the condition color used by the schema."""
+        return _D_PURP if variant == "sensory" else _D_GREEN
+
+    def _make_schema_card(self, variant: str) -> Group:
+        """Build one schema trial card with optional in-card memory label."""
+        if variant == "sensory":
+            card = _box(CAT)
+            card.scale_to_fit_height(self._SCHEMA_ITEM_HEIGHT)
+            card[-1].set_opacity(0.0)
+            card[0].set_stroke(color=GREY, width=1.5, opacity=0.85)
+            card[0].set_fill(WHITE, opacity=1.0)
+            card.projection_source = card[0]
+            card.layout_anchor = card[0]
+            return card
+
+        ghost_card = _box(CAT)
+        ghost_card.scale_to_fit_height(self._SCHEMA_ITEM_HEIGHT)
+        ghost_card[-1].set_opacity(0.0)
+        ghost_card[0].set_stroke(color=GREY, width=1.3, opacity=self._SCHEMA_MEMORY_GHOST_CARD_OPACITY)
+        ghost_card[0].set_fill(WHITE, opacity=0.70)
+        ghost_card[1].set_opacity(self._SCHEMA_MEMORY_GHOST_IMAGE_OPACITY)
+        ghost_card.set_z_index(-1)
+        ghost_card.shift(
+            LEFT * self._SCHEMA_MEMORY_GHOST_OFFSET
+            + UP * self._SCHEMA_MEMORY_GHOST_OFFSET
+        )
+
+        card = _box(None)
+        card.scale_to_fit_height(self._SCHEMA_ITEM_HEIGHT)
+        card[-1].set_opacity(0.0)
+        card[0].set_stroke(color=GREY, width=1.5, opacity=0.85)
+        card[0].set_fill(WHITE, opacity=1.0)
+        memory_text = Tex(
+            "Memory",
+            color=INK,
+            font_size=18,
+        ).move_to(card[0].get_center())
+
+        memory_group = Group(ghost_card, card, memory_text)
+        memory_group.projection_source = card[0]
+        memory_group.layout_anchor = card[0]
+        return memory_group
+
+    def _make_schema_cat_label(self, font_size: int) -> Tex:
+        """Build the quoted class label used in the train/test schema."""
+        return Tex(
+            r"\textbf{``Cat''}",
+            color=INK,
+            font_size=font_size,
+        )
+
+    def _make_schema_question_label(self, font_size: int) -> Tex:
+        """Build the unresolved class label used before the conceptual fork."""
+        return Tex(
+            r"\textbf{?}",
+            color=INK,
+            font_size=font_size + 2,
+        )
+
+    def _make_schema_train_block(self, variant: str) -> Group:
+        """Build the framed train block with label, stimulus, and grey voxel pattern."""
+        card = self._make_schema_card(variant)
+        object_label = self._make_schema_cat_label(font_size=19)
+        pattern = self._make_grid(
+            ORIGIN,
+            self._SCHEMA_TRAIN_COLOR,
+            self._schema_pattern(variant),
+        )
+        pattern.scale_to_fit_height(card.height * 0.90)
+        content = Group(object_label, card, pattern).arrange(DOWN, buff=0.10)
+        frame = RoundedRectangle(
+            width=content.width + 0.28,
+            height=content.height + 0.26,
+            corner_radius=0.12,
+            stroke_color=_D_MGREY,
+            stroke_width=1.7,
+        ).move_to(content)
+        train_label = Tex(
+            "Train",
+            color=_D_MGREY,
+            font_size=15,
+        ).next_to(frame, UP, buff=0.05).align_to(frame, LEFT)
+        return Group(train_label, frame, object_label, card, pattern)
+
+    def _make_schema_grid(
+        self,
+        variant: str,
+        col: str,
+        reference_card: Mobject,
+    ) -> VGroup:
+        """Build one square voxel grid matched to the trial-card size."""
+        grid = self._make_grid(ORIGIN, col, self._schema_pattern(variant))
+        grid.scale_to_fit_height(self._SCHEMA_ITEM_HEIGHT)
+        return grid
+
+    def _make_intuition_row(
+        self,
+        left_pattern: np.ndarray,
+        right_pattern: np.ndarray,
+    ) -> Group:
+        """Build one central matrix-only intuition row."""
+        left_x = -1.22
+        right_x = 1.22
+        left_grid = self._make_grid(
+            ORIGIN,
+            self._INTUITION_LEFT_COLOR,
+            left_pattern,
+        ).scale(1.20)
+        right_grid = self._make_grid(
+            ORIGIN,
+            self._INTUITION_RIGHT_COLOR,
+            right_pattern,
+        ).scale(1.20)
+        left_grid.move_to(np.array([left_x, 0.0, 0.0]))
+        right_grid.move_to(np.array([right_x, 0.0, 0.0]))
+
+        bidirectional_arrow = DoubleArrow(
+            left_grid.get_right(),
+            right_grid.get_left(),
+            color=_D_MGREY,
+            stroke_width=1.6,
+            buff=0.10,
+            tip_length=0.07,
+        )
+        return Group(left_grid, bidirectional_arrow, right_grid)
+
+    def _make_overlap_ghost(self, source_grid: VGroup) -> VGroup:
+        """Build a translucent copy of a voxel pattern for overlap animation."""
+        ghost = source_grid.copy()
+        for cell in ghost:
+            cell.set_stroke(width=0.5, opacity=0.18)
+            cell.set_fill(opacity=0.34)
+        return ghost
+
+    def _make_schema_projection_lines(
+        self,
+        source_card: Mobject,
+        brain: Mobject,
+    ) -> VGroup:
+        """Build converging card-to-brain guide lines that stop short of the brain."""
+        start_x = source_card.get_right()[0] + self._SCHEMA_HORIZONTAL_GAP
+        focus_x = (
+            brain.get_left()[0]
+            - self._SCHEMA_HORIZONTAL_GAP
+            - self._SCHEMA_PROJECTION_END_INSET
+        )
+        source_y = source_card.get_center()[1]
+        half_angle = 0.5 * DEGREES * self._SCHEMA_PROJECTION_OPENING_DEG
+        dx = max(0.01, focus_x - start_x)
+        dy = np.tan(half_angle) * dx
+
+        lines = VGroup(
+            Line(
+                np.array([start_x, source_y + dy, 0.0]),
+                np.array([focus_x, source_y, 0.0]),
+                color=self._SCHEMA_PROJECTION_COLOR,
+                stroke_width=0.9,
+            ).set_stroke(opacity=0.85),
+            Line(
+                np.array([start_x, source_y - dy, 0.0]),
+                np.array([focus_x, source_y, 0.0]),
+                color=self._SCHEMA_PROJECTION_COLOR,
+                stroke_width=0.9,
+            ).set_stroke(opacity=0.85),
+        )
+        lines.set_z_index(-1)
+        return lines
+
+    def _make_schema_pattern_box(
+        self,
+        variant: str,
+        col: str,
+        decoder_height: float,
+        *,
+        label_style: str,
+    ) -> Group:
+        """Build the multivoxel-pattern group for train or predict rows."""
+        pattern = self._make_grid(
+            ORIGIN,
+            col,
+            self._schema_pattern(variant),
+        )
+        reference_pattern = pattern.copy()
+        reference_label = self._make_schema_cat_label(font_size=20)
+        reference_group = Group(reference_pattern, reference_label).arrange(
+            DOWN,
+            buff=0.16,
+        )
+        reference_group.scale_to_fit_height(
+            decoder_height * self._SCHEMA_PATTERN_BOX_TO_DECODER_RATIO
+        )
+        pattern_target_height = reference_pattern.height
+
+        if label_style == "cat":
+            pattern_label = self._make_schema_cat_label(font_size=20)
+            pattern.scale_to_fit_height(pattern_target_height)
+            pattern_group = Group(pattern, pattern_label).arrange(DOWN, buff=0.16)
+            pattern_group.scale_to_fit_height(
+                decoder_height * self._SCHEMA_PATTERN_BOX_TO_DECODER_RATIO
+            )
+            pattern_group.matrix = pattern
+        elif label_style == "none":
+            pattern.scale_to_fit_height(pattern_target_height)
+            pattern_group = Group(pattern)
+            pattern_group.matrix = pattern
+        else:
+            raise ValueError(f"Unknown schema label style: {label_style}")
+        return pattern_group
+
+    def _make_schema_link_arrow(self, source_right_x: float, y: float) -> Arrow:
+        """Build one detached horizontal connector with standardized span."""
+        return Arrow(
+            np.array([
+                source_right_x + self._SCHEMA_HORIZONTAL_GAP,
+                y,
+                0.0,
+            ]),
+            np.array([
+                source_right_x + self._SCHEMA_HORIZONTAL_GAP + self._SCHEMA_LINK_ARROW_LENGTH,
+                y,
+                0.0,
+            ]),
+            color=_D_MGREY,
+            stroke_width=1.6,
+            buff=0.0,
+            tip_length=0.08,
+        )
+
+    def _make_schema_action_label(self, text: str, arrow: Arrow) -> Tex:
+        """Build the action label centered above a schema connector."""
+        label = Tex(
+            text,
+            color=INK,
+            font_size=17,
+        )
+        label.move_to(
+            arrow.get_center() + UP * self._SCHEMA_ARROW_LABEL_BUFF
+        )
+        label.add_background_rectangle(color=BG, opacity=1.0, buff=0.05)
+        return label
+
+    def _make_schema_output_label(
+        self,
+        kind: str,
+        *,
+        font_size: int,
+    ) -> Mobject:
+        """Build the terminal label for a predict row."""
+        if kind == "cat":
+            return self._make_schema_cat_label(font_size=font_size)
+        if kind == "question":
+            return self._make_schema_question_label(font_size=font_size)
+        raise ValueError(f"Unknown schema output label kind: {kind}")
+
+    def _make_schema_outcome_group(
+        self,
+        headline: Mobject,
+        subtitle_tex: str,
+    ) -> VGroup:
+        """Build one conceptual outcome shown after the memory-test question."""
+        subtitle = Tex(
+            subtitle_tex,
+            color=INK,
+            font_size=16,
+            tex_environment="center",
+        )
+        return VGroup(headline, subtitle).arrange(DOWN, buff=0.08)
+
+    def _make_schema_memory_fork(self, question_label: Mobject) -> Group:
+        """Build the conceptual fork that follows the unresolved memory prediction."""
+        shared_outcome = self._make_schema_outcome_group(
+            self._make_schema_cat_label(font_size=20),
+            r"shared format",
+        )
+        discontinuity_outcome = self._make_schema_outcome_group(
+            Tex(r"\textbf{Chance}", color=INK, font_size=20),
+            r"different format",
+        )
+        outcomes = VGroup(shared_outcome, discontinuity_outcome).arrange(
+            DOWN,
+            buff=self._SCHEMA_FORK_VERTICAL_GAP,
+        )
+        outcomes.move_to(
+            np.array([
+                question_label.get_right()[0]
+                + self._SCHEMA_FORK_HORIZONTAL_GAP
+                + outcomes.width / 2,
+                question_label.get_center()[1],
+                0.0,
+            ])
+        )
+
+        start_x = question_label.get_right()[0] + self._SCHEMA_FORK_ARROW_GAP
+        shared_arrow = Arrow(
+            np.array([start_x, question_label.get_center()[1], 0.0]),
+            np.array([
+                shared_outcome.get_left()[0] - self._SCHEMA_FORK_ARROW_GAP,
+                shared_outcome.get_center()[1],
+                0.0,
+            ]),
+            color=_D_MGREY,
+            stroke_width=1.5,
+            buff=0.0,
+            tip_length=0.08,
+        )
+        discontinuity_arrow = Arrow(
+            np.array([start_x, question_label.get_center()[1], 0.0]),
+            np.array([
+                discontinuity_outcome.get_left()[0] - self._SCHEMA_FORK_ARROW_GAP,
+                discontinuity_outcome.get_center()[1],
+                0.0,
+            ]),
+            color=_D_MGREY,
+            stroke_width=1.5,
+            buff=0.0,
+            tip_length=0.08,
+        )
+
+        fork = Group(shared_arrow, discontinuity_arrow, shared_outcome, discontinuity_outcome)
+        fork.arrows = VGroup(shared_arrow, discontinuity_arrow)
+        fork.outcomes = VGroup(shared_outcome, discontinuity_outcome)
+        return fork
+
+    def _make_schema_row(
+        self,
+        *,
+        mode: str,
+        variant: str,
+        output_kind: str,
+    ) -> Group:
+        """Build one centered train-input schema row."""
+        shared_item_height = self._SCHEMA_ITEM_HEIGHT
+        card = self._make_schema_card(variant)
+        brain = ImageMobject(str(_V1V2V3_PNG_PATH)).scale_to_fit_height(shared_item_height)
+        decoder = self._make_schema_decoder(
+            ORIGIN,
+            shared_item_height * self._SCHEMA_DECODER_HEIGHT_RATIO,
+        )
+        pattern_box = self._make_schema_pattern_box(
+            variant,
+            self._SCHEMA_TRAIN_COLOR if mode == "train" else self._SCHEMA_TEST_COLOR,
+            shared_item_height * self._SCHEMA_PATTERN_REFERENCE_HEIGHT_RATIO,
+            label_style="cat" if mode == "train" else "none",
+        )
+
+        card.shift(ORIGIN - card.layout_anchor.get_center())
+        brain.next_to(card.layout_anchor, RIGHT, buff=0.92)
+        projection_lines = self._make_schema_projection_lines(card.projection_source, brain)
+        pattern_box.next_to(brain, RIGHT, buff=self._SCHEMA_LINK_SPAN)
+        arrow_y = pattern_box.matrix.get_center()[1]
+        brain_to_pattern_arrow = self._make_schema_link_arrow(brain.get_right()[0], arrow_y)
+
+        decoder.next_to(pattern_box, RIGHT, buff=self._SCHEMA_LINK_SPAN)
+        decoder.move_to(
+            np.array([decoder.get_center()[0], arrow_y, 0.0])
+        )
+        decode_arrow = self._make_schema_link_arrow(pattern_box.get_right()[0], arrow_y)
+        action_label = self._make_schema_action_label(
+            "Train" if mode == "train" else "Predict",
+            decode_arrow,
+        )
+
+        row_items: list[Mobject] = [
+            card,
+            projection_lines,
+            brain,
+            brain_to_pattern_arrow,
+            pattern_box,
+            decode_arrow,
+            action_label,
+            decoder,
+        ]
+        output_items: list[Mobject] = []
+        if mode == "predict" and output_kind != "none":
+            output_arrow = self._make_schema_link_arrow(decoder.get_right()[0], arrow_y)
+            output_label = self._make_schema_output_label(
+                output_kind,
+                font_size=20,
+            ).next_to(
+                decoder,
+                RIGHT,
+                buff=self._SCHEMA_LINK_SPAN,
+            )
+            output_items = [output_arrow, output_label]
+            row_items.extend(output_items)
+
+        row = Group(*row_items)
+        row.decoder = decoder
+        row.mode = mode
+        row.input_group = Group(
+            card,
+            projection_lines,
+            brain,
+            brain_to_pattern_arrow,
+            pattern_box,
+        )
+        row.decode_support = Group(decode_arrow, action_label)
+        row.output_group = Group(*output_items)
+        row.output_target = output_items[-1] if output_items else None
+        row.layout_anchor = card.layout_anchor
+        row.layout_group = Group(
+            card.layout_anchor,
+            projection_lines,
+            brain,
+            brain_to_pattern_arrow,
+            pattern_box,
+            decode_arrow,
+            action_label,
+            decoder,
+            *output_items,
+        )
+        row.shift(ORIGIN - row.layout_group.get_center())
+        return row
+
+    def _build_schema_block(
+        self,
+        *,
+        cases: list[tuple[str, str, str]],
+        top_limit: float,
+        bottom_limit: float,
+        first_gap: float | None = None,
+        vertical_align: str = "center",
+        top_margin: float = 0.0,
+    ) -> dict[str, object]:
+        """Build and position a reusable schema block for one or more rows."""
+        rows = [
+            self._make_schema_row(
+                mode=mode,
+                variant=variant,
+                output_kind=output_kind,
+            )
+            for mode, variant, output_kind in cases
+        ]
+        for row in rows:
+            row.scale(self._SCHEMA_ROW_SCALE)
+
+        rows[0].shift(ORIGIN - rows[0].layout_group.get_center())
+        for idx in range(1, len(rows)):
+            vertical_gap = (
+                (
+                    first_gap
+                    if first_gap is not None
+                    else self._SCHEMA_TRAIN_TO_PREDICT_GAP
+                )
+                if idx == 1
+                else self._SCHEMA_PREDICT_TO_PREDICT_GAP
+            )
+            dx = (
+                rows[idx - 1].layout_anchor.get_left()[0]
+                - rows[idx].layout_anchor.get_left()[0]
+            )
+            dy = (
+                rows[idx - 1].layout_group.get_bottom()[1]
+                - vertical_gap
+                - rows[idx].layout_group.get_top()[1]
+            )
+            rows[idx].shift(np.array([dx, dy, 0.0]))
+
+        memory_fork = None
+        last_output_kind = cases[-1][2]
+        if last_output_kind == "question" and rows[-1].output_target is not None:
+            memory_fork = self._make_schema_memory_fork(rows[-1].output_target)
+
+        schema_members: list[Mobject] = [*rows]
+        if memory_fork is not None:
+            schema_members.append(memory_fork)
+        schema_block = Group(*schema_members)
+        layout_members: list[Mobject] = [*(row.layout_group for row in rows)]
+        if memory_fork is not None:
+            layout_members.append(memory_fork)
+        schema_layout_group = Group(*layout_members)
+        available_height = top_limit - bottom_limit - (
+            top_margin if vertical_align == "top" else 0.0
+        )
+        if schema_layout_group.height > available_height:
+            schema_block.scale(available_height / schema_layout_group.height)
+        schema_available_width = config.frame_width - 0.80
+        if schema_layout_group.width > schema_available_width:
+            schema_block.scale(schema_available_width / schema_layout_group.width)
+        if vertical_align == "top":
+            schema_block.shift(
+                np.array([
+                    -schema_layout_group.get_center()[0],
+                    top_limit - top_margin - schema_layout_group.get_top()[1],
+                    0.0,
+                ])
+            )
+        elif vertical_align == "center":
+            schema_block.shift(
+                np.array([0.0, 0.5 * (top_limit + bottom_limit), 0.0])
+                - schema_layout_group.get_center()
+            )
+        else:
+            raise ValueError(f"Unknown schema vertical alignment: {vertical_align}")
+        return {
+            "rows": rows,
+            "memory_fork": memory_fork,
+            "schema_block": schema_block,
+        }
+
+    def construct(self) -> None:
+        """Run the animation sequence for this scene."""
+        self.camera.background_color = BG
+        self._set_overview_camera_frame()
+        ctx = self._build_overview_b_end_state()
+        self.add(ctx["frame"])
+        self.bring_to_back(ctx["scanner"], ctx["brain"])
+        self.wait(0.70)
+
+        similar_pattern = self._pattern_for_index(3)
+        different_pattern = np.array([
+            [0.18, 0.86, 0.24],
+            [0.78, 0.14, 0.70],
+            [0.34, 0.76, 0.20],
+        ])
+        similar_label = Tex(
+            r"\textbf{Similar} multivoxel \textbf{patterns}\\"
+            r"suggest a \textbf{similar} neural \textbf{representation}",
+            color=INK,
+            font_size=21,
+            tex_environment="center",
+        )
+        different_label = Tex(
+            r"\textbf{Dissimilar} multivoxel \textbf{patterns}\\"
+            r"suggest a \textbf{different} neural \textbf{representation}",
+            color=INK,
+            font_size=21,
+            tex_environment="center",
+        )
+        similar_case = Group(
+            similar_label,
+            self._make_intuition_row(similar_pattern, similar_pattern.copy()),
+        ).arrange(DOWN, buff=0.28)
+        different_case = Group(
+            different_label,
+            self._make_intuition_row(similar_pattern, different_pattern),
+        ).arrange(DOWN, buff=0.28)
+        intuition_rows = Group(
+            similar_case,
+            different_case,
+        ).arrange(DOWN, buff=1.10)
+        content_top_limit = ctx["title"].get_bottom()[1] - 0.18
+        content_bottom_limit = -config.frame_height / 2 + 0.36
+        intro_top_limit = content_top_limit
+        intro_bottom_limit = content_bottom_limit
+        intro_available_height = intro_top_limit - intro_bottom_limit
+        if intuition_rows.height > intro_available_height:
+            intuition_rows.scale_to_fit_height(intro_available_height)
+        intro_center_y = 0.5 * (intro_top_limit + intro_bottom_limit) + 0.08
+        intuition_rows.move_to(
+            np.array([0.0, intro_center_y, 0.0])
+        )
+        if intuition_rows.get_top()[1] > intro_top_limit:
+            intuition_rows.shift(DOWN * (intuition_rows.get_top()[1] - intro_top_limit))
+        if intuition_rows.get_bottom()[1] < intro_bottom_limit:
+            intuition_rows.shift(UP * (intro_bottom_limit - intuition_rows.get_bottom()[1]))
+
+        schema_ctx = self._build_schema_block(
+            cases=self._SCHEMA_OVERVIEW_CASES,
+            top_limit=content_top_limit,
+            bottom_limit=content_bottom_limit,
+            first_gap=1.12,
+            vertical_align="top",
+            top_margin=0.28,
+        )
+        rows = schema_ctx["rows"]
+        memory_fork = schema_ctx["memory_fork"]
+        overview_body = Group(*(mob for mob in ctx["frame"] if mob is not ctx["title"]))
+
+        self.play(
+            FadeOut(overview_body),
+            FadeIn(intuition_rows, shift=UP * 0.08),
+            run_time=1.05,
+        )
+        self.wait(self._SCHEMA_INTRO_PANEL_PAUSE)
+
+        self.play(
+            FadeOut(intuition_rows, shift=LEFT * 0.10),
+            FadeIn(rows[0], shift=UP * 0.08),
+            run_time=self._SCHEMA_ROW_REVEAL_TIME,
+        )
+        self.wait(self._SCHEMA_TRAIN_EXPLAIN_PAUSE)
+        self.play(
+            FadeIn(rows[1].input_group, shift=UP * 0.08),
+            run_time=self._SCHEMA_ROW_REVEAL_TIME,
+        )
+        self.wait(self._SCHEMA_INPUT_EXPLAIN_PAUSE)
+        self.play(
+            FadeIn(rows[1].decode_support, shift=RIGHT * 0.06),
+            TransformFromCopy(
+                rows[0].decoder,
+                rows[1].decoder,
+                path_arc=self._SCHEMA_CLASSIFIER_PATH_ARC,
+            ),
+            run_time=self._SCHEMA_CLASSIFIER_TRANSFER_TIME,
+        )
+        self.wait(self._SCHEMA_CLASSIFIER_EXPLAIN_PAUSE)
+        self.play(
+            FadeIn(rows[1].output_group, shift=RIGHT * 0.06),
+            run_time=self._SCHEMA_OUTPUT_REVEAL_TIME,
+        )
+        self.wait(self._SCHEMA_OUTPUT_EXPLAIN_PAUSE)
+        if memory_fork is not None:
+            self.play(
+                LaggedStart(
+                    GrowArrow(memory_fork.arrows[0]),
+                    FadeIn(memory_fork.outcomes[0], shift=RIGHT * 0.06),
+                    GrowArrow(memory_fork.arrows[1]),
+                    FadeIn(memory_fork.outcomes[1], shift=RIGHT * 0.06),
+                    lag_ratio=0.15,
+                ),
+                run_time=self._SCHEMA_FORK_REVEAL_TIME,
+            )
+            self.wait(self._SCHEMA_FORK_EXPLAIN_PAUSE)
+
+
+class Study2DecodingSummary(Study2DecodingOverviewC):
+    """
+    End-of-study summary placeholder for the decoding-combinations overview.
+
+    Render:
+        uv run manim scenes/study2.py Study2DecodingSummary -ql
+        uv run manim scenes/study2.py Study2DecodingSummary -qh
+    """
+
+    _SUMMARY_TITLE = r"\textbf{Decoding Summary}"
+
+    def construct(self) -> None:
+        """Show a static copy of the current three-row decoding schema."""
+        self.camera.background_color = BG
+        title = Tex(
+            self._SUMMARY_TITLE,
+            color=INK,
+            font_size=28,
+        ).to_edge(UP, buff=0.28)
+
+        schema_ctx = self._build_schema_block(
+            cases=self._SCHEMA_SUMMARY_CASES,
+            top_limit=title.get_bottom()[1] - 0.22,
+            bottom_limit=-config.frame_height / 2 + 0.24,
+        )
+        schema_block = schema_ctx["schema_block"]
+
+        self.play(FadeIn(title, shift=UP * 0.06), run_time=0.45)
+        self.play(FadeIn(schema_block, shift=UP * 0.08), run_time=0.9)
+        self.wait(2.0)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1434,7 +2787,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
         matrix_template = self._make_grid(matrix_center, self._COLS[0], self._pattern_for_index(0))
         source_frame = self._make_grid_frame(matrix_template, matrix_source).scale(0.56)
         source_frame.set_z_index(2)
-        source_label = Tex("V1-V3", color=_D_MGREY, font_size=20).next_to(source_frame, RIGHT, buff=0.10)
+        source_label = Tex("V1-V3", color=INK, font_size=20).next_to(source_frame, RIGHT, buff=0.10)
         source_label.set_z_index(2)
         current_grid = self._make_grid(matrix_center, _D_CYAN, self._pattern_for_index(5))
 
@@ -1446,7 +2799,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
             self._make_feature_vector(center, col, self._pattern_for_index(idx))
             for idx, (center, col) in enumerate(zip(vector_centers, vector_cols))
         ])
-        vector_label = Tex("Feature vectors", color=_D_MGREY, font_size=24).move_to(
+        vector_label = Tex("Feature vectors", color=INK, font_size=24).move_to(
             np.array([vector_center_x, self._COL_YS[0] + 0.52, 0.0])
         )
 
@@ -2779,11 +4132,20 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 dash_length=0.10,
                 dashed_ratio=0.58,
             )
-            chance_label = Tex(
-                "Chance",
-                color="#8A8A8A",
-                font_size=14,
-            ).next_to(chance_line, DOWN, buff=0.08).align_to(chance_line, RIGHT).shift(LEFT * 0.03)
+            chance_label_fs = 16
+            chance_label = VGroup(
+                Tex(
+                    "Chance",
+                    color=BLACK,
+                    font_size=chance_label_fs,
+                ),
+                MathTex(
+                    r"1.6\%",
+                    color=BLACK,
+                    font_size=chance_label_fs,
+                ),
+            ).arrange(RIGHT, buff=0.10, aligned_edge=DOWN)
+            chance_label.next_to(chance_line, UP, buff=0.10).align_to(chance_line, RIGHT).shift(LEFT * 0.24 + UP * 0.01)
             x_label = MathTex(r"S_2 \rightarrow S_2", color=BLACK)
             x_label.scale_to_fit_width(x_label_template.width * 0.92)
             x_label.move_to(x_label_template.get_center() + DOWN * 0.01)
@@ -6738,7 +8100,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
         cross_phase_label = Tex(
             "Cross-phase test",
-            color=_D_MGREY,
+            color=INK,
             font_size=17,
         ).next_to(cross_phase_arrow, UP, buff=0.08)
 
@@ -10857,7 +12219,7 @@ class _Study2SearchlightSceneBase(_Study2NumberedScene, Scene):
                 colorbar=False,
             )
         ).scale_to_fit_width(9.9)
-        cluster_caption = Tex(cluster_info, color=_D_MGREY, font_size=18)
+        cluster_caption = Tex(cluster_info, color=INK, font_size=18)
         plot_group = Group(plot_image, cluster_caption).arrange(DOWN, buff=0.05)
         return Group(matrix_stack, plot_group).arrange(RIGHT, buff=1.12, aligned_edge=UP)
 
