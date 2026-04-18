@@ -17,7 +17,7 @@ import ast
 from pathlib import Path
 
 
-def load_scene_order(path_str: str, variable_name: str) -> dict[str, str]:
+def load_mapping(path_str: str, variable_name: str):
     tree = ast.parse(Path(path_str).read_text())
     for node in tree.body:
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == variable_name:
@@ -29,8 +29,12 @@ def load_scene_order(path_str: str, variable_name: str) -> dict[str, str]:
     raise SystemExit(f"Could not find {variable_name} in {path_str}")
 
 
-for class_name, scene_number in load_scene_order("scenes/study1.py", "_STUDY1_SCENE_ORDER").items():
-    print(f"{scene_number}_{class_name}:{class_name}")
+scene_order = load_mapping("scenes/study1.py", "_STUDY1_SCENE_ORDER")
+output_name_overrides = load_mapping("scenes/study1.py", "_STUDY1_OUTPUT_NAME_OVERRIDES")
+
+for class_name, scene_number in scene_order.items():
+    output_name = output_name_overrides.get(class_name, f"{scene_number}_{class_name}")
+    print(f"{output_name}:{class_name}")
 ' 
 )
 

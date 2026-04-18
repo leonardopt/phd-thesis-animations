@@ -1,9 +1,9 @@
 
+# Cogntive example
+- real life situation, activity while representing reality 
+
 # Transition slides 
 - Research questions in the fMRI experiment 
-
-# Memory validation
-- explain a bit better how similarity and memory performance are related. Threshold level example, easier example. 
 
 # Interpolations
 - potentially more videos of 200 interpolations
