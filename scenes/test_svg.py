@@ -5,14 +5,14 @@ from manim import *
 config.background_color = WHITE
 
 ROOT = Path(__file__).resolve().parents[1]
-SIMPLE_FIGURE_PATH = ROOT / "assets" / "images" / "study1_stage3" / "behaviour_agg.svg"
+SIMPLE_FIGURE_PATH = ROOT / "assets" / "images" / "study1_stage3" / "behavior_agg_manim.svg"
 STUDY2_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01timeres.svg"
 STUDY2_GLM_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01glm.svg"
-STUDY2_TEMPGEN_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses01tempgen.svg"
+STUDY2_TEMPGEN_PATH = ROOT / "assets" / "images" / "study2" / "temp_gen_mat.svg"
 STUDY2_WITHIN_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses01timeres.svg"
 STUDY2_TEMP_GEN_MAT_PATH = ROOT / "assets" / "images" / "study2" / "temp_gen_mat.svg"
-MEMORY_P2_MANIM_PATH = Path("/Users/leonardo/visual-memory-task-analysis/figures/manim/p2_manim.svg")
-MEMORY_P3_MANIM_PATH = Path("/Users/leonardo/visual-memory-task-analysis/figures/manim/p3_manim.svg")
+MEMORY_P2_MANIM_PATH = ROOT / "assets" / "images" / "references" / "p2_manim.svg"
+MEMORY_P3_MANIM_PATH = ROOT / "assets" / "images" / "references" / "p3_manim.svg"
 
 INK = "#262626"
 PURPLE = "#7B51A0"
@@ -703,12 +703,15 @@ class Study2TempGenMatrixTest(Scene):
         plot_height = config.frame_height * 0.74
 
         title = Tex("Temporal generalisation", color=BLACK, font_size=28).to_edge(UP, buff=0.35)
-        underlay = (
-            ImageMobject(str(STUDY2_TEMPGEN_PATH.with_suffix(".png")))
-            .set_height(plot_height)
-            .move_to(center)
-        )
-        underlay.set_opacity(0.86)
+        underlay = None
+        tempgen_png = STUDY2_TEMPGEN_PATH.with_suffix(".png")
+        if tempgen_png.exists():
+            underlay = (
+                ImageMobject(str(tempgen_png))
+                .set_height(plot_height)
+                .move_to(center)
+            )
+            underlay.set_opacity(0.86)
 
         overlay = (
             SVGMobject(str(STUDY2_TEMPGEN_PATH))
@@ -720,20 +723,19 @@ class Study2TempGenMatrixTest(Scene):
         plot_frame = overlay_frame.copy()
         overlay_frame.set_opacity(0)
         plot_frame.set_z_index(4)
-        underlay.set_z_index(1)
+        if underlay is not None:
+            underlay.set_z_index(1)
         overlay.set_z_index(3)
         column_covers = _tempgen_column_covers(plot_frame)
         cover_group = VGroup(*[cover for column in column_covers for cover in column])
 
+        intro_anims = [Create(plot_frame), FadeIn(overlay, shift=UP * 0.08), FadeIn(cover_group)]
+        if underlay is not None:
+            intro_anims.insert(1, FadeIn(underlay, shift=UP * 0.08))
+
         self.play(
             FadeIn(title, shift=UP * 0.05),
-            AnimationGroup(
-                Create(plot_frame),
-                FadeIn(underlay, shift=UP * 0.08),
-                FadeIn(overlay, shift=UP * 0.08),
-                FadeIn(cover_group),
-                lag_ratio=0.12,
-            ),
+            AnimationGroup(*intro_anims, lag_ratio=0.12),
             run_time=0.95,
         )
         self.play(

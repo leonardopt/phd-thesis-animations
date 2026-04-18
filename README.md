@@ -1,63 +1,82 @@
 # Thesis Defence Animations
 
-This repository contains the Manim scenes used for the presentation of my thesis defence.
+Manim scenes and supporting assets for the thesis defence talk.
 
-The animations cover the main visual components of the talk, including:
+## What Is In Here
 
-- stimulus-set design for Study 1
-- prompt-based exemplar generation
-- LPIPS-based anchor and guide selection
-- 3D SLERP interpolation in latent space
-- supporting SDXL process diagrams, title slides, and hook animations
+- `scenes/study1.py`: consolidated Study 1 entrypoint
+- `scenes/study2.py`: consolidated Study 2 entrypoint
+- `scenes/intro.py`: consolidated introduction entrypoint
+- `scenes/old/`: legacy source modules still imported by the consolidated entrypoints
+- `assets/`: tracked figures plus repo-local sync targets for external source assets
+- `render_study1.sh`, `render_study2.sh`, `render_all.sh`: narrative-order render helpers
 
-## Tech Stack
+Generated Manim output stays under `media/` and is ignored from git.
+
+## Requirements
 
 - Python 3.12+
-- [Manim Community](https://www.manim.community/)
-- `uv` for dependency and environment management
-- a working LaTeX installation for text rendering
-
-## Project Structure
-
-- `scenes/`: main Manim scene files
-- `assets/`: local image assets used by the scenes
-- `.env.example`: template for required local dataset paths
-- `media/`: generated Manim outputs and caches, ignored from git
+- `uv`
+- a working LaTeX installation for Manim text rendering
 
 ## Setup
 
-Install dependencies:
+Install the environment:
 
 ```bash
 uv sync
 ```
 
-Create a local environment file:
+Sync the small repo-local asset copies used by the portable defaults:
 
 ```bash
-cp .env.example .env
+uv run python scripts/sync_external_assets.py --groups small
 ```
 
-Then edit `.env` so the path variables point to your local dataset and asset folders.
-
-## Rendering Scenes
-
-General form:
+For full Study 1 reproducibility from sibling local repos, sync the heavier asset groups as well:
 
 ```bash
-uv run manim scenes/<scene_file>.py <SceneClass> -ql
+uv run python scripts/sync_external_assets.py --all
 ```
 
-Examples:
+If you want to override any asset locations, copy `.env.example` to `.env` and edit the paths there. The defaults in `.env.example` assume repo-local copies under `assets/`.
+
+## Rendering
+
+Render all Study 1 scenes in narrative order:
 
 ```bash
-uv run manim scenes/study1_step1.py Study1Step1a -ql
-uv run manim scenes/study1_step3.py Study1Step3Part1 -qh
-uv run manim scenes/study1_step4.py Study1Step4 -qh
+./render_study1.sh -qh
 ```
 
-## Notes
+Render all Study 2 scenes in narrative order:
 
-- local machine-specific configuration lives in `.env`, which is ignored from version control
-- generated outputs under `media/` are ignored
-- archival material under `scenes/old/` is not part of the active scene set
+```bash
+./render_study2.sh -qh
+```
+
+Render every top-level render script with one quality setting:
+
+```bash
+./render_all.sh -qh
+```
+
+Render a single scene directly:
+
+```bash
+uv run manim scenes/study1.py Study1Step1a -qh
+uv run manim scenes/study2.py Study2ExperimentalDesign -qh
+uv run manim scenes/intro.py -a -qh
+```
+
+## Asset Notes
+
+- Small cross-repo reference files are copied into tracked repo-local locations by `scripts/sync_external_assets.py --groups small`.
+- Large Study 1 source assets such as `assets/images/stimuli_reordered`, `assets/images/study1/exemplar_images`, and `assets/images/study1/fish_interpolations` are treated as sync targets rather than committed defaults.
+- Historical Stage 2 and Stage 3 figure assets live under `assets/images/study1_stage2` and `assets/images/study1_stage3`.
+
+## Repository Hygiene
+
+- `media/` is generated output and cache material.
+- `scenes/old/__pycache__/` is ignored, but the Python source files in `scenes/old/` are part of the project.
+- `.env` is optional and ignored.

@@ -50,6 +50,11 @@ from PIL import Image
 from manim import *
 from svgelements import Path as SVGPath
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+_STUDY2_ASSET_DIR = REPO_ROOT / "assets" / "images" / "study2"
+_STUDY2_STIM_DIR = _STUDY2_ASSET_DIR / "stimuli_task"
+_STUDY2_TRAINING_DIR = _STUDY2_ASSET_DIR / "stimuli_training"
+
 # ── Narrative render order ────────────────────────────────────────────────────
 _STUDY2_SCENE_ORDER: dict[str, str] = {
     "Study2ExperimentalDesign":              "01",
@@ -91,15 +96,15 @@ INK  = "#1C1C1E"
 GREY = "#D1D5DB"   # box border only
 
 # ── Image paths ───────────────────────────────────────────────────────────────
-_STIM   = Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_task")
-LAKE    = str(_STIM / "LAN-LAK-T00.png")
+_STIM = _STUDY2_STIM_DIR
+LAKE = str(_STIM / "LAN-LAK-T00.png")
 LAKE_D1 = str(_STIM / "LAN-LAK-D01.png")
 LAKE_D2 = str(_STIM / "LAN-LAK-D02.png")
-PINE    = str(_STIM / "PLA-PIN-T00.png")
-OBS     = str(_STIM / "BUI-OBS-T00.png")
-CAT     = str(_STIM / "ANI-CAT-T00.png")
-SOFA    = str(Path("/Users/leonardo/sd-wltm-fmri-experiment/images/stimuli_training/ITE-SOF-T00.png"))
-FIX     = str(Path("/Users/leonardo/phd-thesis-animations/assets/images/fixation_target.png"))
+PINE = str(_STIM / "PLA-PIN-T00.png")
+OBS = str(_STIM / "BUI-OBS-T00.png")
+CAT = str(_STIM / "ANI-CAT-T00.png")
+SOFA = str(_STUDY2_TRAINING_DIR / "ITE-SOF-T00.png")
+FIX = str(REPO_ROOT / "assets" / "images" / "fixation_target.png")
 
 # ── Layout constants ──────────────────────────────────────────────────────────
 BOX_W    = 1.18    # box width
@@ -315,9 +320,7 @@ _D_LGREY = "#D1D5DB"
 _D_MGREY = "#9CA3AF"
 
 # Brain icon used in the decoding overview
-_BRAIN_PNG_PATH = Path(
-    "/Users/leonardo/phd-thesis-animations/assets/images/study2/brain_icon_sagittal.png"
-)
+_BRAIN_PNG_PATH = _STUDY2_ASSET_DIR / "brain_icon_sagittal.png"
 
 
 class Study2DecodingOverview(_Study2NumberedScene, Scene):
@@ -2602,7 +2605,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2Decoding):
 
         def make_results_plot() -> Group:
             svg = (
-                SVGMobject("/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results.svg")
+                SVGMobject(str(_STUDY2_ASSET_DIR / "study2_results.svg"))
                 .set_height(3.64)
                 .move_to(np.array([2.90, 0.02, 0.0]))
             )
@@ -3250,8 +3253,8 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         uv run manim scenes/study2.py Study2CrossSessionDecodingResults -qh
     """
 
-    _RESULTS_GLM = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses02ses01glm.png"
-    _RESULTS_TIMERES = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses02ses01timeres.png"
+    _RESULTS_GLM = str(_STUDY2_ASSET_DIR / "study2_results_ses02ses01glm.png")
+    _RESULTS_TIMERES = str(_STUDY2_ASSET_DIR / "study2_results_ses02ses01timeres.png")
     _MINI_TRAIN_VALUES = np.array([0.88, 0.26, 0.74, 0.34, 0.94, 0.42, 0.68, 0.20, 0.82])
     _MINI_STIM_VALUES = np.array([0.84, 0.30, 0.70, 0.38, 0.90, 0.46, 0.64, 0.24, 0.78])
     _MINI_DELAY_VALUES = np.array([0.20, 0.74, 0.34, 0.58, 0.26, 0.80, 0.42, 0.68, 0.24])
@@ -5049,16 +5052,15 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
     Shared helpers for the Session 1 within-session decoding rationale and results scenes.
     """
 
-    _RESULTS_GLM = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm.svg"
-    _RESULTS_TIMERES = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01timeres.svg"
-    _RESULTS_GLM_2 = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01glm_2.svg"
-    _RESULTS_TEMPGEN = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_results_ses01tempgen.svg"
-    _TEMPGEN_LOGIC_MATRIX = "/Users/leonardo/phd-thesis-animations/assets/images/study2/temp_gen_mat.svg"
+    _RESULTS_GLM = str(_STUDY2_ASSET_DIR / "study2_results_ses01glm.svg")
+    _RESULTS_TIMERES = str(_STUDY2_ASSET_DIR / "study2_results_ses01timeres.svg")
+    _RESULTS_GLM_2 = str(_STUDY2_ASSET_DIR / "study2_results_ses01glm_2.svg")
+    _TEMPGEN_LOGIC_MATRIX = str(_STUDY2_ASSET_DIR / "temp_gen_mat.svg")
     _TEMPGEN_SOURCE_PLOT_BOX = (53.5, 0.625, 291.61024, 238.73523)
     _TEMPGEN_SOURCE_COLORBAR_IMAGE_BOX = (303.60837, 0.5305, 312.9683697, 238.6105)
-    _CROSSSESSION_RESULTSB_LAST = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_last_frame.png"
-    _CROSSSESSION_RESULTSB_LEFT_PLOT = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_left_plot.png"
-    _CROSSSESSION_RESULTSB_RIGHT_PLOT = "/Users/leonardo/phd-thesis-animations/assets/images/study2/study2_crosssession_resultsb_right_plot.png"
+    _CROSSSESSION_RESULTSB_LAST = str(_STUDY2_ASSET_DIR / "study2_crosssession_resultsb_last_frame.png")
+    _CROSSSESSION_RESULTSB_LEFT_PLOT = str(_STUDY2_ASSET_DIR / "study2_crosssession_resultsb_left_plot.png")
+    _CROSSSESSION_RESULTSB_RIGHT_PLOT = str(_STUDY2_ASSET_DIR / "study2_crosssession_resultsb_right_plot.png")
     _CROSSSESSION_RESULTSB_SNAPSHOT_SIZE = (854, 480)
     _CROSSSESSION_RESULTSB_LEFT_BOX = (82, 124, 390, 442)
     _CROSSSESSION_RESULTSB_RIGHT_BOX = (460, 52, 802, 442)
@@ -8958,18 +8960,9 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         uv run manim scenes/study2.py Study2LTMResultsExplainer -qh
     """
 
-    _LTM_BEH = (
-        "/Users/leonardo/phd-thesis-animations/assets/images/study2/"
-        "study2_behresults.svg"
-    )
-    _LTM_GLM = (
-        "/Users/leonardo/phd-thesis-animations/assets/images/study2/"
-        "figure_LTM_decoding_stimulation-delay_GLM.svg"
-    )
-    _LTM_TIMERES = (
-        "/Users/leonardo/phd-thesis-animations/assets/images/study2/"
-        "figure_LTM_decoding_timeresolved.svg"
-    )
+    _LTM_BEH = str(_STUDY2_ASSET_DIR / "study2_behresults.svg")
+    _LTM_GLM = str(_STUDY2_ASSET_DIR / "figure_LTM_decoding_stimulation-delay_GLM.svg")
+    _LTM_TIMERES = str(_STUDY2_ASSET_DIR / "figure_LTM_decoding_timeresolved.svg")
 
     def _ltm_question_text(self) -> str:
         return (
@@ -9363,9 +9356,7 @@ class Study2SupplementalRoiTimecourses(_Study2NumberedScene, Scene):
         uv run manim scenes/study2.py Study2SupplementalRoiTimecourses -qh
     """
 
-    _SUPPL_ROI_DIR = Path(
-        "/Users/leonardo/phd-thesis-animations/assets/images/study2/suppl_rois"
-    )
+    _SUPPL_ROI_DIR = _STUDY2_ASSET_DIR / "suppl_rois"
     _ROI_SVGS = [
         ("EVC (V1-V3)", _SUPPL_ROI_DIR / "decoding_suppl_roi-v1v2v3.svg"),
         ("V1", _SUPPL_ROI_DIR / "decoding_suppl_roi-V1.svg"),

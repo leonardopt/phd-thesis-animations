@@ -21,6 +21,10 @@ media/
 # Local preview/debug captures
 *_check*.png
 slerp_follow_prompt_check*.png
-scenes/old
+scenes/old/__pycache__/
 media/videos/old
-assets/images/stimuli_reordered
+
+# Large synced external assets (recreated via scripts/sync_external_assets.py)
+assets/images/stimuli_reordered/
+assets/images/study1/exemplar_images/
+assets/images/study1/fish_interpolations/
