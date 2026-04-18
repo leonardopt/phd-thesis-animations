@@ -53,6 +53,7 @@ from manim import (
     Axes,
     Create,
     DashedLine,
+    DashedVMobject,
     DOWN,
     FadeIn,
     FadeOut,
@@ -71,7 +72,9 @@ from manim import (
     SurroundingRectangle,
     Tex,
     TransformFromCopy,
+    TransformMatchingTex,
     UP,
+    VMobject,
     ValueTracker,
     VGroup,
     Write,
@@ -195,19 +198,32 @@ _MEMORY_INTRO_SET_SPECS: tuple[tuple[str, str], ...] = (
 _MEMORY_INTRO_TOP_FOIL_MEAN = 0.56
 _MEMORY_INTRO_TOP_TARGET_MEAN = 0.88
 _MEMORY_INTRO_TOP_CRITERION_START_X = 0.75
-_MEMORY_INTRO_A_TOP_TARGET_MEAN = _MEMORY_INTRO_TOP_FOIL_MEAN + 0.70 * (
-    _MEMORY_INTRO_TOP_TARGET_MEAN - _MEMORY_INTRO_TOP_FOIL_MEAN
-)
-_MEMORY_INTRO_A_TOP_TARGET_LABEL_X = 1.16
+_MEMORY_INTRO_TOP_CRITERION_LABEL_BUFF = 0.34
+_MEMORY_INTRO_A_TOP_TARGET_MEAN = 0.634
+_MEMORY_INTRO_A_TOP_TARGET_REPEATED_MEAN = 0.80
+_MEMORY_INTRO_A_TOP_TARGET_LABEL_X = 1.10
+_MEMORY_INTRO_SECOND_TARGET_MEAN = 1.114
+_MEMORY_INTRO_SECOND_TARGET_REPEATED_MEAN = 1.25
+_MEMORY_INTRO_SECOND_TARGET_LABEL_X = 1.39
 _MEMORY_INTRO_B_CLAIM = r"Perceptual dissimilarity enhances discriminability"
-_MEMORY_INTRO_C_CLAIM = r"Repetition enhances memory discriminability"
+_MEMORY_INTRO_C_CLAIM = r"Repeated exposure enhances memory discriminability"
 _MEMORY_INTRO_TARGET_COLOR = "#5B7493"
 _MEMORY_INTRO_FOIL_COLOR = "#B67A5D"
 _MEMORY_INTRO_AXIS_COLOR = "#C7CDD4"
 _MEMORY_INTRO_CRITERION_COLOR = "#6B7280"
+_MEMORY_INTRO_REPETITION_COLOR = "#000000"
 _MEMORY_INTRO_SIGNAL_SIGMA = 0.16
 _MEMORY_INTRO_SIGNAL_PEAK = 0.92
-_MEMORY_INTRO_SIGNAL_NARROW_SIGMA = 0.12
+_MEMORY_INTRO_SIGNAL_NARROW_SIGMA = 0.113
+_MEMORY_INTRO_SIGNAL_FOIL_NARROW_SIGMA = 0.13
+_MEMORY_INTRO_REPEATED_EXPOSURE_STEPS = (1.0 / 3.0, 2.0 / 3.0, 1.0)
+_MEMORY_INTRO_REPETITION_LABEL_BUFF = 0.31
+_MEMORY_INTRO_REPETITION_LABEL_RIGHT_SHIFT_FACTOR = 0.20
+_MEMORY_INTRO_REPETITION_LABEL_PULSE_SCALE = 1.45
+_MEMORY_INTRO_REPETITION_LABEL_TRANSITION_TIME = 0.30
+_MEMORY_INTRO_REPETITION_FRAME_PULSE_WIDTH = 3.2
+_MEMORY_INTRO_REPETITION_STEP_RUN_TIME = 2.40
+_MEMORY_INTRO_REPETITION_STEP_PAUSE = 0.20
 _MEMORY_INTRO_SIGNAL_X_RANGE = [0.0, 1.63]
 _MEMORY_INTRO_CONTINUUM_CARD_HEIGHT = 0.56 * 1.45
 
@@ -229,7 +245,7 @@ def _normal_curve_intersection_x(
     c = (
         (right_mean**2 / (2.0 * right_sigma**2))
         - (left_mean**2 / (2.0 * left_sigma**2))
-        + np.log(right_peak / left_peak)
+        - np.log(right_peak / left_peak)
     )
 
     roots = np.roots([a, b, c])
@@ -240,7 +256,20 @@ def _normal_curve_intersection_x(
     ]
     if not real_roots:
         return 0.5 * (left_mean + right_mean)
-    return real_roots[0]
+    midpoint = 0.5 * (left_mean + right_mean)
+    return min(real_roots, key=lambda root: abs(root - midpoint))
+
+
+def _validate_memory_intro_distribution_order(
+    *,
+    foil_mean: float,
+    target_mean: float,
+) -> None:
+    if target_mean <= foil_mean:
+        raise ValueError(
+            f"Target mean must be to the right of foil mean, got target_mean={target_mean:.3f}, "
+            f"foil_mean={foil_mean:.3f}"
+        )
 
 
 def _build_memory_intro_plot(
@@ -248,11 +277,20 @@ def _build_memory_intro_plot(
     center: np.ndarray,
     foil_mean: float,
     target_mean: float,
+    repeated_target_mean: float,
+    foil_color: str,
+    target_color: str,
     target_label_x: float,
     criterion_x: float,
+    criterion_label_buff: float = 0.22,
     curve_stroke_width: float,
     area_opacity: float,
 ) -> dict[str, object]:
+    _validate_memory_intro_distribution_order(
+        foil_mean=foil_mean,
+        target_mean=target_mean,
+    )
+
     axes = Axes(
         x_range=[0.0, 1.85, 0.37],
         y_range=[0.0, 1.25, 0.5],
@@ -273,31 +311,30 @@ def _build_memory_intro_plot(
         lambda x: _MEMORY_INTRO_SIGNAL_PEAK
         * np.exp(-0.5 * ((x - foil_mean) / _MEMORY_INTRO_SIGNAL_SIGMA) ** 2),
         x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
-        color=_MEMORY_INTRO_FOIL_COLOR,
+        color=foil_color,
         stroke_width=curve_stroke_width,
     )
     target_curve = axes.plot(
         lambda x: _MEMORY_INTRO_SIGNAL_PEAK
         * np.exp(-0.5 * ((x - target_mean) / _MEMORY_INTRO_SIGNAL_SIGMA) ** 2),
         x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
-        color=_MEMORY_INTRO_TARGET_COLOR,
+        color=target_color,
         stroke_width=curve_stroke_width,
     )
-
     foil_area = axes.get_area(
         foil_curve,
-        x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
-        color=_MEMORY_INTRO_FOIL_COLOR,
+        x_range=[_MEMORY_INTRO_SIGNAL_X_RANGE[0], _MEMORY_INTRO_SIGNAL_X_RANGE[1]],
+        color=foil_color,
         opacity=area_opacity,
     )
-    foil_area.set_stroke(width=0)
+    foil_area.set_stroke(width=0.0, opacity=0.0)
     target_area = axes.get_area(
         target_curve,
-        x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
-        color=_MEMORY_INTRO_TARGET_COLOR,
+        x_range=[_MEMORY_INTRO_SIGNAL_X_RANGE[0], _MEMORY_INTRO_SIGNAL_X_RANGE[1]],
+        color=target_color,
         opacity=area_opacity,
     )
-    target_area.set_stroke(width=0)
+    target_area.set_stroke(width=0.0, opacity=0.0)
 
     criterion_line = DashedLine(
         axes.c2p(criterion_x, 0.0),
@@ -308,12 +345,12 @@ def _build_memory_intro_plot(
         stroke_width=2.0,
     )
     criterion_label = Tex(r"Criterion", color=_MEMORY_INTRO_CRITERION_COLOR, font_size=22)
-    criterion_label.next_to(criterion_line, UP, buff=0.12)
+    criterion_label.next_to(criterion_line, UP, buff=criterion_label_buff)
 
-    foil_curve_label = Tex(r"Foil signal", color=_MEMORY_INTRO_FOIL_COLOR, font_size=18)
-    foil_curve_label.move_to(axes.c2p(0.33, 0.88))
-    target_curve_label = Tex(r"Target signal", color=_MEMORY_INTRO_TARGET_COLOR, font_size=18)
-    target_curve_label.move_to(axes.c2p(target_label_x, 0.88))
+    foil_curve_label = Tex(r"Foil\\signal", color=foil_color, font_size=18)
+    foil_curve_label.move_to(axes.c2p(0.16, 0.84))
+    target_curve_label = Tex(r"Target signal", color=target_color, font_size=18)
+    target_curve_label.move_to(axes.c2p(min(target_label_x + 0.18, 1.58), 0.84))
     memory_strength_label = Tex(r"Memory strength", color=_study1_stage3_memory.INK, font_size=22)
     memory_strength_label.next_to(axes.x_axis, DOWN, buff=0.20)
     probability_density_label = Tex(r"Probability density", color=_study1_stage3_memory.INK, font_size=18)
@@ -328,10 +365,15 @@ def _build_memory_intro_plot(
         "target_area": target_area,
         "foil_mean": foil_mean,
         "target_mean": target_mean,
+        "repeated_target_mean": repeated_target_mean,
+        "foil_color": foil_color,
+        "target_color": target_color,
         "curve_stroke_width": curve_stroke_width,
         "area_opacity": area_opacity,
+        "criterion_top_y": 1.12,
         "criterion_line": criterion_line,
         "criterion_label": criterion_label,
+        "criterion_label_buff": criterion_label_buff,
         "foil_curve_label": foil_curve_label,
         "target_curve_label": target_curve_label,
         "memory_strength_label": memory_strength_label,
@@ -362,9 +404,58 @@ def _build_memory_intro_claim_title(
         color=_study1_stage3_memory.INK,
         font_size=40,
     )
-    claim.scale_to_fit_width(config.frame_width - 1.2)
+    max_width = config.frame_width - 1.2
+    if claim.width > max_width:
+        claim.scale_to_fit_width(max_width)
     claim.move_to(anchor)
     return claim
+
+
+def _build_memory_intro_repeated_frame(
+    *,
+    target_examples: tuple[ImageMobject, ...],
+) -> DashedVMobject:
+    repeated_rect = SurroundingRectangle(
+        Group(*target_examples),
+        color=_study1_stage3_memory.MGREY,
+        stroke_width=1.8,
+        buff=0.12,
+        corner_radius=0.08,
+    )
+    repeated_rect.set_fill(opacity=0.0)
+    dashed_frame = DashedVMobject(
+        repeated_rect,
+        num_dashes=54,
+        dashed_ratio=0.58,
+    )
+    dashed_frame.set_stroke(
+        color=_study1_stage3_memory.MGREY,
+        width=1.8,
+        opacity=1.0,
+    )
+    dashed_frame.set_fill(opacity=0.0)
+    dashed_frame.set_z_index(7)
+    return dashed_frame
+
+
+def _build_memory_intro_repetition_label(
+    iteration: int,
+    *,
+    anchor_group: Group,
+) -> Tex:
+    label = Tex(
+        rf"Repetition {iteration}",
+        color=_MEMORY_INTRO_REPETITION_COLOR,
+        font_size=22,
+    )
+    label.next_to(anchor_group, UP, buff=_MEMORY_INTRO_REPETITION_LABEL_BUFF)
+    label.shift(
+        RIGHT
+        * anchor_group.width
+        * _MEMORY_INTRO_REPETITION_LABEL_RIGHT_SHIFT_FACTOR
+    )
+    label.set_z_index(7)
+    return label
 
 
 def _memory_intro_signal_peak_for_sigma(sigma: float) -> float:
@@ -374,72 +465,130 @@ def _memory_intro_signal_peak_for_sigma(sigma: float) -> float:
 def _build_memory_intro_dynamic_plot(
     plot: dict[str, object],
     *,
-    sigma_tracker: ValueTracker,
+    repetition_tracker: ValueTracker,
 ) -> dict[str, object]:
     axes = plot["axes"]
+    foil_color = plot["foil_color"]
+    target_color = plot["target_color"]
+    curve_stroke_width = max(
+        mob.get_stroke_width()
+        for mob in plot["target_curve"].family_members_with_points()
+        + plot["foil_curve"].family_members_with_points()
+    )
+    area_opacity = max(
+        mob.get_fill_opacity()
+        for mob in plot["target_area"].family_members_with_points()
+        + plot["foil_area"].family_members_with_points()
+    )
 
-    def make_curve(mean: float, color: str, stroke_width: float):
-        sigma = sigma_tracker.get_value()
+    def current_foil_sigma() -> float:
+        progress = repetition_tracker.get_value()
+        return _MEMORY_INTRO_SIGNAL_SIGMA + (
+            _MEMORY_INTRO_SIGNAL_FOIL_NARROW_SIGMA - _MEMORY_INTRO_SIGNAL_SIGMA
+        ) * progress
+
+    def current_target_sigma() -> float:
+        progress = repetition_tracker.get_value()
+        return _MEMORY_INTRO_SIGNAL_SIGMA + (
+            _MEMORY_INTRO_SIGNAL_NARROW_SIGMA - _MEMORY_INTRO_SIGNAL_SIGMA
+        ) * progress
+
+    def current_foil_mean() -> float:
+        return plot["foil_mean"]
+
+    def current_target_mean() -> float:
+        return plot["target_mean"] + _MEMORY_INTRO_SIGNAL_TARGET_SHIFT * repetition_tracker.get_value()
+
+    def current_criterion_x() -> float:
+        foil_sigma = current_foil_sigma()
+        target_sigma = current_target_sigma()
+        foil_mean = current_foil_mean()
+        target_mean = current_target_mean()
+        _validate_memory_intro_distribution_order(
+            foil_mean=foil_mean,
+            target_mean=target_mean,
+        )
+        return _normal_curve_intersection_x(
+            left_mean=foil_mean,
+            right_mean=target_mean,
+            left_sigma=foil_sigma,
+            right_sigma=target_sigma,
+            left_peak=_memory_intro_signal_peak_for_sigma(foil_sigma),
+            right_peak=_memory_intro_signal_peak_for_sigma(target_sigma),
+        )
+
+    def build_curve(mean: float, sigma: float, color: str) -> VMobject:
         peak = _memory_intro_signal_peak_for_sigma(sigma)
         return axes.plot(
             lambda x: peak * np.exp(-0.5 * ((x - mean) / sigma) ** 2),
             x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
             color=color,
-            stroke_width=stroke_width,
+            stroke_width=curve_stroke_width,
         )
 
-    foil_curve = always_redraw(
-        lambda: make_curve(
-            plot["foil_mean"],
-            _MEMORY_INTRO_FOIL_COLOR,
-            plot["curve_stroke_width"],
+    def build_area(curve: VMobject, color: str) -> VMobject:
+        area = axes.get_area(
+            curve,
+            x_range=[_MEMORY_INTRO_SIGNAL_X_RANGE[0], _MEMORY_INTRO_SIGNAL_X_RANGE[1]],
+            color=color,
+            opacity=area_opacity,
         )
+        area.set_stroke(width=0.0, opacity=0.0)
+        return area
+
+    foil_curve = always_redraw(
+        lambda: build_curve(current_foil_mean(), current_foil_sigma(), foil_color)
     )
     target_curve = always_redraw(
-        lambda: make_curve(
-            plot["target_mean"],
-            _MEMORY_INTRO_TARGET_COLOR,
-            plot["curve_stroke_width"],
-        )
+        lambda: build_curve(current_target_mean(), current_target_sigma(), target_color)
     )
     foil_area = always_redraw(
-        lambda: axes.get_area(
-            make_curve(
-                plot["foil_mean"],
-                _MEMORY_INTRO_FOIL_COLOR,
-                plot["curve_stroke_width"],
-            ),
-            x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
-            color=_MEMORY_INTRO_FOIL_COLOR,
-            opacity=plot["area_opacity"],
-        ).set_stroke(width=0)
+        lambda: build_area(build_curve(current_foil_mean(), current_foil_sigma(), foil_color), foil_color)
     )
     target_area = always_redraw(
-        lambda: axes.get_area(
-            make_curve(
-                plot["target_mean"],
-                _MEMORY_INTRO_TARGET_COLOR,
-                plot["curve_stroke_width"],
-            ),
-            x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
-            color=_MEMORY_INTRO_TARGET_COLOR,
-            opacity=plot["area_opacity"],
-        ).set_stroke(width=0)
+        lambda: build_area(build_curve(current_target_mean(), current_target_sigma(), target_color), target_color)
     )
+    criterion_line = DashedLine(
+        axes.c2p(current_criterion_x(), 0.0),
+        axes.c2p(current_criterion_x(), plot["criterion_top_y"]),
+        dash_length=0.10,
+        dashed_ratio=0.55,
+        color=_MEMORY_INTRO_CRITERION_COLOR,
+        stroke_width=2.0,
+    )
+    criterion_line.add_updater(
+        lambda mob: mob.put_start_and_end_on(
+            axes.c2p(current_criterion_x(), 0.0),
+            axes.c2p(current_criterion_x(), plot["criterion_top_y"]),
+        )
+    )
+
+    criterion_label = plot["criterion_label"].copy()
+    criterion_label.add_updater(
+        lambda mob: mob.next_to(
+            criterion_line,
+            UP,
+            buff=plot["criterion_label_buff"] + 0.10 * repetition_tracker.get_value(),
+        )
+    )
+    criterion_line.update()
+    criterion_label.update()
 
     return {
         "foil_curve": foil_curve,
         "target_curve": target_curve,
         "foil_area": foil_area,
         "target_area": target_area,
+        "criterion_line": criterion_line,
+        "criterion_label": criterion_label,
         "group": VGroup(
             axes,
             foil_area,
             target_area,
             foil_curve,
             target_curve,
-            plot["criterion_line"],
-            plot["criterion_label"],
+            criterion_line,
+            criterion_label,
             plot["foil_curve_label"],
             plot["target_curve_label"],
             plot["memory_strength_label"],
@@ -518,13 +667,15 @@ def _build_memory_intro_core(
         example_foil_left_pos + UP * (example_image_height / 2 + 0.28)
     )
     example_foil_label.set_z_index(6)
-
     plot = _build_memory_intro_plot(
         center=np.array([3.48, row_block_center_y - 0.05, 0.0]),
         foil_mean=_MEMORY_INTRO_TOP_FOIL_MEAN,
         target_mean=top_target_mean,
+        foil_color=_MEMORY_INTRO_FOIL_COLOR,
+        target_color=_MEMORY_INTRO_TARGET_COLOR,
         target_label_x=top_target_label_x,
         criterion_x=top_criterion_x,
+        criterion_label_buff=_MEMORY_INTRO_TOP_CRITERION_LABEL_BUFF,
         curve_stroke_width=4.0,
         area_opacity=0.20,
     )
@@ -642,10 +793,14 @@ def _build_memory_intro_b_followup(ctx: dict[str, object]) -> dict[str, object]:
 
     second_plot = _build_memory_intro_plot(
         center=second_plot_center,
-        foil_mean=0.56,
-        target_mean=1.18,
-        target_label_x=1.45,
-        criterion_x=0.5 * (0.56 + 1.18),
+        foil_mean=_MEMORY_INTRO_TOP_FOIL_MEAN,
+        target_mean=_MEMORY_INTRO_SECOND_TARGET_MEAN,
+        foil_color=_MEMORY_INTRO_FOIL_COLOR,
+        target_color=_MEMORY_INTRO_TARGET_COLOR,
+        target_label_x=_MEMORY_INTRO_SECOND_TARGET_LABEL_X,
+        criterion_x=0.5 * (
+            _MEMORY_INTRO_TOP_FOIL_MEAN + _MEMORY_INTRO_SECOND_TARGET_MEAN
+        ),
         curve_stroke_width=2.2,
         area_opacity=0.16,
     )
@@ -853,12 +1008,6 @@ class Study1Stage3MemoryIntroA(Scene):
             FadeIn(plot["criterion_label"], shift=UP * 0.08),
             run_time=0.55,
         )
-        criterion_sweep = plot["axes"].c2p(criterion_intersection_x + 0.09, 0.0) - plot["axes"].c2p(
-            criterion_intersection_x,
-            0.0,
-        )
-        plot["criterion_line"].save_state()
-        plot["criterion_label"].save_state()
         self.play(
             ctx["example_target_label"].animate.scale(1.18),
             plot["target_curve"].animate.set_stroke(width=4.8, opacity=1.0),
@@ -901,28 +1050,6 @@ class Study1Stage3MemoryIntroA(Scene):
             plot["target_curve_label"].animate.set_opacity(1.0),
             plot["foil_curve_label"].animate.set_opacity(1.0),
             run_time=0.85,
-        )
-        self.play(
-            Succession(
-                AnimationGroup(
-                    plot["criterion_line"].animate.shift(criterion_sweep),
-                    plot["criterion_label"].animate.shift(criterion_sweep),
-                    run_time=1.60,
-                    rate_func=smooth,
-                ),
-                AnimationGroup(
-                    plot["criterion_line"].animate.shift(-2.0 * criterion_sweep),
-                    plot["criterion_label"].animate.shift(-2.0 * criterion_sweep),
-                    run_time=2.40,
-                    rate_func=smooth,
-                ),
-                AnimationGroup(
-                    Restore(plot["criterion_line"]),
-                    Restore(plot["criterion_label"]),
-                    run_time=1.80,
-                    rate_func=smooth,
-                ),
-            ),
         )
         self.wait(1.00)
 
@@ -1012,14 +1139,14 @@ class Study1Stage3MemoryIntroC(Scene):
         end_state = _build_memory_intro_c_end_state()
         ctx = end_state["ctx"]
         followup = end_state["followup"]
-        sigma_tracker = ValueTracker(_MEMORY_INTRO_SIGNAL_SIGMA)
+        repetition_tracker = ValueTracker(0.0)
         top_plot = _build_memory_intro_dynamic_plot(
             ctx["plot"],
-            sigma_tracker=sigma_tracker,
+            repetition_tracker=repetition_tracker,
         )
         second_plot = _build_memory_intro_dynamic_plot(
             followup["second_plot"],
-            sigma_tracker=sigma_tracker,
+            repetition_tracker=repetition_tracker,
         )
         dissimilarity_claim = _build_memory_intro_claim_title(
             _MEMORY_INTRO_B_CLAIM,
@@ -1028,6 +1155,25 @@ class Study1Stage3MemoryIntroC(Scene):
         repetition_claim = _build_memory_intro_claim_title(
             _MEMORY_INTRO_C_CLAIM,
             anchor=ctx["title_top_target"].get_center(),
+        )
+        repeated_frame = _build_memory_intro_repeated_frame(
+            target_examples=(ctx["example_target"], followup["second_example_target"]),
+        )
+        repetition_label_anchor = Group(ctx["plot"]["axes"], followup["second_plot"]["axes"])
+        repetition_index_tracker = ValueTracker(1.0)
+        repetition_label_pulse_tracker = ValueTracker(0.0)
+        repetition_label_opacity_tracker = ValueTracker(0.0)
+        repetition_label = always_redraw(
+            lambda: _build_memory_intro_repetition_label(
+                max(1, int(round(repetition_index_tracker.get_value()))),
+                anchor_group=repetition_label_anchor,
+            )
+            .scale(
+                1.0
+                + (_MEMORY_INTRO_REPETITION_LABEL_PULSE_SCALE - 1.0)
+                * repetition_label_pulse_tracker.get_value()
+            )
+            .set_opacity(repetition_label_opacity_tracker.get_value())
         )
 
         self.add(
@@ -1040,6 +1186,7 @@ class Study1Stage3MemoryIntroC(Scene):
             followup["second_example_target"],
             followup["second_example_foil"],
             second_plot["group"],
+            repetition_label,
         )
         self.wait(0.40)
         self.play(
@@ -1047,16 +1194,33 @@ class Study1Stage3MemoryIntroC(Scene):
             FadeIn(repetition_claim, shift=UP * 0.06),
             run_time=0.60,
         )
+        self.wait(2.00)
+        self.play(
+            Create(repeated_frame),
+            run_time=0.60,
+        )
         self.wait(0.20)
-        for pulse_idx in range(4):
-            self.play(
-                sigma_tracker.animate.set_value(_MEMORY_INTRO_SIGNAL_NARROW_SIGMA),
-                rate_func=there_and_back,
-                run_time=1.00,
+        for pulse_idx, next_stage in enumerate(_MEMORY_INTRO_REPEATED_EXPOSURE_STEPS):
+            repetition_index_tracker.set_value(float(pulse_idx + 1))
+            step_animations = [repetition_tracker.animate.set_value(next_stage)]
+            step_animations.append(
+                repeated_frame.animate(rate_func=there_and_back).set_stroke(
+                    width=_MEMORY_INTRO_REPETITION_FRAME_PULSE_WIDTH
+                )
             )
-            if pulse_idx < 3:
-                self.wait(0.08)
-        self.wait(0.30)
+            step_animations.append(
+                repetition_label_pulse_tracker.animate(rate_func=there_and_back).set_value(1.0)
+            )
+            if pulse_idx == 0:
+                step_animations.append(repetition_label_opacity_tracker.animate.set_value(1.0))
+            self.play(
+                *step_animations,
+                run_time=_MEMORY_INTRO_REPETITION_STEP_RUN_TIME,
+            )
+            repetition_label_pulse_tracker.set_value(0.0)
+            if pulse_idx < len(_MEMORY_INTRO_REPEATED_EXPOSURE_STEPS) - 1:
+                self.wait(_MEMORY_INTRO_REPETITION_STEP_PAUSE)
+        self.wait(0.40)
 
 
 class Study1Stage3MemoryIntroD(Scene):
@@ -1068,9 +1232,26 @@ class Study1Stage3MemoryIntroD(Scene):
         ctx = end_state["ctx"]
         followup = end_state["followup"]
         overlay = end_state["overlay"]
+        repetition_tracker = ValueTracker(1.0)
+        top_plot = _build_memory_intro_dynamic_plot(
+            ctx["plot"],
+            repetition_tracker=repetition_tracker,
+        )
+        second_plot = _build_memory_intro_dynamic_plot(
+            followup["second_plot"],
+            repetition_tracker=repetition_tracker,
+        )
         repetition_claim = _build_memory_intro_claim_title(
             _MEMORY_INTRO_C_CLAIM,
             anchor=ctx["title_top_target"].get_center(),
+        )
+        repeated_frame = _build_memory_intro_repeated_frame(
+            target_examples=(ctx["example_target"], followup["second_example_target"]),
+        )
+        repetition_label_anchor = Group(ctx["plot"]["axes"], followup["second_plot"]["axes"])
+        repetition_label = _build_memory_intro_repetition_label(
+            len(_MEMORY_INTRO_REPEATED_EXPOSURE_STEPS),
+            anchor_group=repetition_label_anchor,
         )
 
         self.add(
@@ -1079,15 +1260,19 @@ class Study1Stage3MemoryIntroD(Scene):
             ctx["example_foil"],
             ctx["example_target_label"],
             ctx["example_foil_label"],
-            ctx["plot"]["group"],
+            top_plot["group"],
             followup["second_example_target"],
             followup["second_example_foil"],
-            followup["second_plot"]["group"],
+            second_plot["group"],
+            repeated_frame,
+            repetition_label,
         )
 
         self.wait(0.25)
         self.play(
             FadeOut(repetition_claim, shift=UP * 0.06),
+            FadeOut(repeated_frame, shift=LEFT * 0.04),
+            FadeOut(repetition_label, shift=UP * 0.04),
             FadeIn(ctx["title"], shift=UP * 0.06),
             FadeIn(ctx["question"], shift=UP * 0.06),
             run_time=0.65,
@@ -1102,10 +1287,10 @@ class Study1Stage3MemoryIntroD(Scene):
             FadeOut(ctx["example_foil"], shift=UP * 0.04),
             FadeOut(ctx["example_target_label"], shift=UP * 0.04),
             FadeOut(ctx["example_foil_label"], shift=UP * 0.04),
-            FadeOut(ctx["plot"]["group"], shift=UP * 0.04),
+            FadeOut(top_plot["group"], shift=UP * 0.04),
             FadeOut(followup["second_example_target"], shift=DOWN * 0.04),
             FadeOut(followup["second_example_foil"], shift=DOWN * 0.04),
-            FadeOut(followup["second_plot"]["group"], shift=DOWN * 0.04),
+            FadeOut(second_plot["group"], shift=DOWN * 0.04),
             run_time=1.10,
         )
         self.wait(0.20)

@@ -1,0 +1,24 @@
+# Optional per-video overrides for scripts/build_static_rescue_deck.py
+#
+# Leave this file empty if the default "last stable hold" heuristic looks good.
+# Add a table named after the video stem when one slide needs a different pick.
+#
+# Supported modes:
+# - timestamp: exact seconds into the video
+# - percent: 0.0 to 1.0 through the video duration
+# - candidate_index: 1-based index into the screener candidates for that video
+# - last_frame: ignore stable holds and use the very last decoded frame
+#
+# Examples:
+#
+# ["08_Study1Step4Interpolation"]
+# mode = "timestamp"
+# value = 3.5
+#
+# ["14_Study2LTMResultsExplainer"]
+# mode = "candidate_index"
+# value = 2
+
+["04_Study1Step2Showcase"]
+mode = "candidate_index"
+value = 3
