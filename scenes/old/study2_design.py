@@ -62,12 +62,12 @@ def _box(img_path: str | None, resp: bool = False) -> Group:
     parts: list = [rect]
 
     if img_path is not None:
-        img = ImageMobject(img_path).set_height(IMG_H)
+        img = ImageMobject(img_path).scale_to_fit_height(IMG_H)
         img.move_to(rect.get_center())
         parts.append(img)
 
     # Fixation dot on every box
-    fix = ImageMobject(FIX).set_height(FIX_H)
+    fix = ImageMobject(FIX).scale_to_fit_height(FIX_H)
     fix.move_to(rect.get_center())
     parts.append(fix)
 
@@ -486,7 +486,7 @@ class Study2DecodingOverview(Scene):
         icon_h = max(icon.height for icon in stim_icons)
         brain = (
             ImageMobject(str(_BRAIN_PNG_PATH))
-            .set_height(2.0 * icon_h)
+            .scale_to_fit_height(2.0 * icon_h)
             .move_to(UP * self._BRAIN_Y)
         )
         brain.set_z_index(-20)
@@ -626,8 +626,8 @@ class Study2DecodingOverview(Scene):
         icon_fix_h = stim_icons[0][1].height
 
         def make_stack_target(img_path: str, col: str) -> tuple[Group, SurroundingRectangle]:
-            img = ImageMobject(img_path).set_height(icon_img_h)
-            fix = ImageMobject(FIX).set_height(icon_fix_h).move_to(img.get_center())
+            img = ImageMobject(img_path).scale_to_fit_height(icon_img_h)
+            fix = ImageMobject(FIX).scale_to_fit_height(icon_fix_h).move_to(img.get_center())
             icon = Group(img, fix)
             frame = SurroundingRectangle(
                 icon, color=col, stroke_width=2.4, buff=0.05, corner_radius=0.10,

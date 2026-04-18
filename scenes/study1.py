@@ -79,6 +79,7 @@ from manim import (
     config,
     linear,
     smooth,
+    there_and_back,
 )
 
 from old.study1_stage2_psychophysical import (
@@ -135,6 +136,7 @@ _STUDY1_SCENE_ORDER: dict[str, str] = {
     "Study1Stage3MemoryIntroA": "18",
     "Study1Stage3MemoryIntroB": "18",
     "Study1Stage3MemoryIntroC": "18",
+    "Study1Stage3MemoryIntroD": "18",
     "Study1Stage3MemoryExpDesignA": "19",
     "Study1Stage3MemoryExpDesignB": "20",
     "Study1Stage3MemoryExpResults": "21",
@@ -153,6 +155,7 @@ _STUDY1_OUTPUT_NAME_OVERRIDES: dict[str, str] = {
     "Study1Stage3MemoryIntroA": "18_Study1Stage3MemoryIntroA",
     "Study1Stage3MemoryIntroB": "18_Study1Stage3MemoryIntroB",
     "Study1Stage3MemoryIntroC": "18_Study1Stage3MemoryIntroC",
+    "Study1Stage3MemoryIntroD": "18_Study1Stage3MemoryIntroD",
 }
 
 
@@ -196,8 +199,16 @@ _MEMORY_INTRO_A_TOP_TARGET_MEAN = _MEMORY_INTRO_TOP_FOIL_MEAN + 0.70 * (
     _MEMORY_INTRO_TOP_TARGET_MEAN - _MEMORY_INTRO_TOP_FOIL_MEAN
 )
 _MEMORY_INTRO_A_TOP_TARGET_LABEL_X = 1.16
+_MEMORY_INTRO_B_CLAIM = r"Perceptual dissimilarity enhances discriminability"
+_MEMORY_INTRO_C_CLAIM = r"Repetition enhances memory discriminability"
+_MEMORY_INTRO_TARGET_COLOR = "#5B7493"
+_MEMORY_INTRO_FOIL_COLOR = "#B67A5D"
+_MEMORY_INTRO_AXIS_COLOR = "#C7CDD4"
+_MEMORY_INTRO_CRITERION_COLOR = "#6B7280"
 _MEMORY_INTRO_SIGNAL_SIGMA = 0.16
 _MEMORY_INTRO_SIGNAL_PEAK = 0.92
+_MEMORY_INTRO_SIGNAL_NARROW_SIGMA = 0.12
+_MEMORY_INTRO_SIGNAL_X_RANGE = [0.0, 1.63]
 _MEMORY_INTRO_CONTINUUM_CARD_HEIGHT = 0.56 * 1.45
 
 
@@ -242,17 +253,13 @@ def _build_memory_intro_plot(
     curve_stroke_width: float,
     area_opacity: float,
 ) -> dict[str, object]:
-    target_color = "#5B7493"
-    foil_color = "#B67A5D"
-    axis_color = "#C7CDD4"
-    criterion_color = "#6B7280"
     axes = Axes(
         x_range=[0.0, 1.85, 0.37],
         y_range=[0.0, 1.25, 0.5],
         x_length=5.10,
         y_length=2.25,
         axis_config={
-            "color": axis_color,
+            "color": _MEMORY_INTRO_AXIS_COLOR,
             "stroke_width": 1.5,
             "include_ticks": False,
             "include_tip": True,
@@ -265,29 +272,29 @@ def _build_memory_intro_plot(
     foil_curve = axes.plot(
         lambda x: _MEMORY_INTRO_SIGNAL_PEAK
         * np.exp(-0.5 * ((x - foil_mean) / _MEMORY_INTRO_SIGNAL_SIGMA) ** 2),
-        x_range=[0.0, 1.63],
-        color=foil_color,
+        x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
+        color=_MEMORY_INTRO_FOIL_COLOR,
         stroke_width=curve_stroke_width,
     )
     target_curve = axes.plot(
         lambda x: _MEMORY_INTRO_SIGNAL_PEAK
         * np.exp(-0.5 * ((x - target_mean) / _MEMORY_INTRO_SIGNAL_SIGMA) ** 2),
-        x_range=[0.0, 1.63],
-        color=target_color,
+        x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
+        color=_MEMORY_INTRO_TARGET_COLOR,
         stroke_width=curve_stroke_width,
     )
 
     foil_area = axes.get_area(
         foil_curve,
-        x_range=[0.0, 1.63],
-        color=foil_color,
+        x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
+        color=_MEMORY_INTRO_FOIL_COLOR,
         opacity=area_opacity,
     )
     foil_area.set_stroke(width=0)
     target_area = axes.get_area(
         target_curve,
-        x_range=[0.0, 1.63],
-        color=target_color,
+        x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
+        color=_MEMORY_INTRO_TARGET_COLOR,
         opacity=area_opacity,
     )
     target_area.set_stroke(width=0)
@@ -297,15 +304,15 @@ def _build_memory_intro_plot(
         axes.c2p(criterion_x, 1.12),
         dash_length=0.10,
         dashed_ratio=0.55,
-        color=criterion_color,
+        color=_MEMORY_INTRO_CRITERION_COLOR,
         stroke_width=2.0,
     )
-    criterion_label = Tex(r"Criterion", color=criterion_color, font_size=22)
+    criterion_label = Tex(r"Criterion", color=_MEMORY_INTRO_CRITERION_COLOR, font_size=22)
     criterion_label.next_to(criterion_line, UP, buff=0.12)
 
-    foil_curve_label = Tex(r"Foil signal", color=foil_color, font_size=18)
+    foil_curve_label = Tex(r"Foil signal", color=_MEMORY_INTRO_FOIL_COLOR, font_size=18)
     foil_curve_label.move_to(axes.c2p(0.33, 0.88))
-    target_curve_label = Tex(r"Target signal", color=target_color, font_size=18)
+    target_curve_label = Tex(r"Target signal", color=_MEMORY_INTRO_TARGET_COLOR, font_size=18)
     target_curve_label.move_to(axes.c2p(target_label_x, 0.88))
     memory_strength_label = Tex(r"Memory strength", color=_study1_stage3_memory.INK, font_size=22)
     memory_strength_label.next_to(axes.x_axis, DOWN, buff=0.20)
@@ -319,6 +326,10 @@ def _build_memory_intro_plot(
         "target_curve": target_curve,
         "foil_area": foil_area,
         "target_area": target_area,
+        "foil_mean": foil_mean,
+        "target_mean": target_mean,
+        "curve_stroke_width": curve_stroke_width,
+        "area_opacity": area_opacity,
         "criterion_line": criterion_line,
         "criterion_label": criterion_label,
         "foil_curve_label": foil_curve_label,
@@ -337,6 +348,102 @@ def _build_memory_intro_plot(
             target_curve_label,
             memory_strength_label,
             probability_density_label,
+        ),
+    }
+
+
+def _build_memory_intro_claim_title(
+    text: str,
+    *,
+    anchor: np.ndarray,
+) -> Tex:
+    claim = Tex(
+        text,
+        color=_study1_stage3_memory.INK,
+        font_size=40,
+    )
+    claim.scale_to_fit_width(config.frame_width - 1.2)
+    claim.move_to(anchor)
+    return claim
+
+
+def _memory_intro_signal_peak_for_sigma(sigma: float) -> float:
+    return _MEMORY_INTRO_SIGNAL_PEAK * (_MEMORY_INTRO_SIGNAL_SIGMA / sigma)
+
+
+def _build_memory_intro_dynamic_plot(
+    plot: dict[str, object],
+    *,
+    sigma_tracker: ValueTracker,
+) -> dict[str, object]:
+    axes = plot["axes"]
+
+    def make_curve(mean: float, color: str, stroke_width: float):
+        sigma = sigma_tracker.get_value()
+        peak = _memory_intro_signal_peak_for_sigma(sigma)
+        return axes.plot(
+            lambda x: peak * np.exp(-0.5 * ((x - mean) / sigma) ** 2),
+            x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
+            color=color,
+            stroke_width=stroke_width,
+        )
+
+    foil_curve = always_redraw(
+        lambda: make_curve(
+            plot["foil_mean"],
+            _MEMORY_INTRO_FOIL_COLOR,
+            plot["curve_stroke_width"],
+        )
+    )
+    target_curve = always_redraw(
+        lambda: make_curve(
+            plot["target_mean"],
+            _MEMORY_INTRO_TARGET_COLOR,
+            plot["curve_stroke_width"],
+        )
+    )
+    foil_area = always_redraw(
+        lambda: axes.get_area(
+            make_curve(
+                plot["foil_mean"],
+                _MEMORY_INTRO_FOIL_COLOR,
+                plot["curve_stroke_width"],
+            ),
+            x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
+            color=_MEMORY_INTRO_FOIL_COLOR,
+            opacity=plot["area_opacity"],
+        ).set_stroke(width=0)
+    )
+    target_area = always_redraw(
+        lambda: axes.get_area(
+            make_curve(
+                plot["target_mean"],
+                _MEMORY_INTRO_TARGET_COLOR,
+                plot["curve_stroke_width"],
+            ),
+            x_range=_MEMORY_INTRO_SIGNAL_X_RANGE,
+            color=_MEMORY_INTRO_TARGET_COLOR,
+            opacity=plot["area_opacity"],
+        ).set_stroke(width=0)
+    )
+
+    return {
+        "foil_curve": foil_curve,
+        "target_curve": target_curve,
+        "foil_area": foil_area,
+        "target_area": target_area,
+        "group": VGroup(
+            axes,
+            foil_area,
+            target_area,
+            foil_curve,
+            target_curve,
+            plot["criterion_line"],
+            plot["criterion_label"],
+            plot["foil_curve_label"],
+            plot["target_curve_label"],
+            plot["memory_strength_label"],
+            plot["probability_density_label"],
         ),
     }
 
@@ -388,12 +495,12 @@ def _build_memory_intro_core(
     example_image_height = 1.95 * 1.30
     example_center = np.array([0.0, row_block_center_y, 0.0])
     example_target = ImageMobject(_study1_stage3_memory.memory_task_stimulus_path("LAN-MOU-T00.png"))
-    example_target.set_height(example_image_height)
+    example_target.scale_to_fit_height(example_image_height)
     example_target.move_to(example_center + LEFT * example_side_offset)
     example_target.set_z_index(5)
 
     example_foil = ImageMobject(_study1_stage3_memory.memory_task_stimulus_path("LAN-MOU-D01.png"))
-    example_foil.set_height(example_image_height)
+    example_foil.scale_to_fit_height(example_image_height)
     example_foil.move_to(example_center + RIGHT * example_side_offset)
     example_foil.set_z_index(4)
 
@@ -401,14 +508,12 @@ def _build_memory_intro_core(
     example_target_left_pos = example_left_row_center + LEFT * example_side_offset
     example_foil_left_pos = example_left_row_center + RIGHT * example_side_offset
 
-    target_color = "#5B7493"
-    foil_color = "#B67A5D"
-    example_target_label = Tex(r"Target", color=target_color, font_size=26)
+    example_target_label = Tex(r"Target", color=_MEMORY_INTRO_TARGET_COLOR, font_size=26)
     example_target_label.move_to(
         example_target_left_pos + UP * (example_image_height / 2 + 0.28)
     )
     example_target_label.set_z_index(6)
-    example_foil_label = Tex(r"Foil", color=foil_color, font_size=26)
+    example_foil_label = Tex(r"Foil", color=_MEMORY_INTRO_FOIL_COLOR, font_size=26)
     example_foil_label.move_to(
         example_foil_left_pos + UP * (example_image_height / 2 + 0.28)
     )
@@ -526,12 +631,12 @@ def _build_memory_intro_b_followup(ctx: dict[str, object]) -> dict[str, object]:
     second_plot_center = np.array([3.48, second_row_center_y - 0.05, 0.0])
 
     second_example_target = ImageMobject(_study1_stage3_memory.memory_task_stimulus_path("LAN-MOU-T00.png"))
-    second_example_target.set_height(ctx["example_image_height"])
+    second_example_target.scale_to_fit_height(ctx["example_image_height"])
     second_example_target.move_to(second_example_target_pos)
     second_example_target.set_z_index(5)
 
     second_example_foil = ImageMobject(_study1_stage3_memory.memory_task_stimulus_path("LAN-MOU-D03.png"))
-    second_example_foil.set_height(ctx["example_image_height"])
+    second_example_foil.scale_to_fit_height(ctx["example_image_height"])
     second_example_foil.move_to(second_example_foil_pos)
     second_example_foil.set_z_index(4)
 
@@ -849,9 +954,19 @@ class Study1Stage3MemoryIntroB(Scene):
             ctx["plot"]["group"],
         )
 
+        claim_title = _build_memory_intro_claim_title(
+            _MEMORY_INTRO_B_CLAIM,
+            anchor=ctx["title_top_target"].get_center(),
+        )
+
         self.wait(0.40)
         self.play(
-            ctx["question"].animate.shift(followup["subtitle_shift"]),
+            FadeOut(ctx["title"], shift=UP * 0.06),
+            FadeOut(ctx["question"], shift=UP * 0.06),
+            FadeIn(claim_title, shift=UP * 0.06),
+            run_time=0.65,
+        )
+        self.play(
             ctx["example_target"].animate.move_to(followup["upper_example_target_pos"]),
             ctx["example_foil"].animate.move_to(followup["upper_example_foil_pos"]),
             ctx["example_target_label"].animate.move_to(followup["upper_target_label_pos"]),
@@ -890,6 +1005,61 @@ class Study1Stage3MemoryIntroB(Scene):
 
 
 class Study1Stage3MemoryIntroC(Scene):
+    """Hold on the two-example SDT layout from the end of intro B."""
+
+    def construct(self) -> None:
+        self.camera.background_color = _study1_stage3_memory.BG
+        end_state = _build_memory_intro_c_end_state()
+        ctx = end_state["ctx"]
+        followup = end_state["followup"]
+        sigma_tracker = ValueTracker(_MEMORY_INTRO_SIGNAL_SIGMA)
+        top_plot = _build_memory_intro_dynamic_plot(
+            ctx["plot"],
+            sigma_tracker=sigma_tracker,
+        )
+        second_plot = _build_memory_intro_dynamic_plot(
+            followup["second_plot"],
+            sigma_tracker=sigma_tracker,
+        )
+        dissimilarity_claim = _build_memory_intro_claim_title(
+            _MEMORY_INTRO_B_CLAIM,
+            anchor=ctx["title_top_target"].get_center(),
+        )
+        repetition_claim = _build_memory_intro_claim_title(
+            _MEMORY_INTRO_C_CLAIM,
+            anchor=ctx["title_top_target"].get_center(),
+        )
+
+        self.add(
+            dissimilarity_claim,
+            ctx["example_target"],
+            ctx["example_foil"],
+            ctx["example_target_label"],
+            ctx["example_foil_label"],
+            top_plot["group"],
+            followup["second_example_target"],
+            followup["second_example_foil"],
+            second_plot["group"],
+        )
+        self.wait(0.40)
+        self.play(
+            FadeOut(dissimilarity_claim, shift=UP * 0.06),
+            FadeIn(repetition_claim, shift=UP * 0.06),
+            run_time=0.60,
+        )
+        self.wait(0.20)
+        for pulse_idx in range(4):
+            self.play(
+                sigma_tracker.animate.set_value(_MEMORY_INTRO_SIGNAL_NARROW_SIGMA),
+                rate_func=there_and_back,
+                run_time=1.00,
+            )
+            if pulse_idx < 3:
+                self.wait(0.08)
+        self.wait(0.30)
+
+
+class Study1Stage3MemoryIntroD(Scene):
     """Overlay the full continua and collapse them to targets versus foils."""
 
     def construct(self) -> None:
@@ -898,10 +1068,13 @@ class Study1Stage3MemoryIntroC(Scene):
         ctx = end_state["ctx"]
         followup = end_state["followup"]
         overlay = end_state["overlay"]
+        repetition_claim = _build_memory_intro_claim_title(
+            _MEMORY_INTRO_C_CLAIM,
+            anchor=ctx["title_top_target"].get_center(),
+        )
 
         self.add(
-            ctx["title"],
-            ctx["question"],
+            repetition_claim,
             ctx["example_target"],
             ctx["example_foil"],
             ctx["example_target_label"],
@@ -912,7 +1085,14 @@ class Study1Stage3MemoryIntroC(Scene):
             followup["second_plot"]["group"],
         )
 
-        self.wait(0.40)
+        self.wait(0.25)
+        self.play(
+            FadeOut(repetition_claim, shift=UP * 0.06),
+            FadeIn(ctx["title"], shift=UP * 0.06),
+            FadeIn(ctx["question"], shift=UP * 0.06),
+            run_time=0.65,
+        )
+        self.wait(0.20)
         self.play(
             LaggedStart(
                 *[FadeIn(panel["row_group"], shift=UP * 0.08) for panel in ctx["panels"]],
@@ -957,7 +1137,7 @@ class Study1Stage3MemoryIntroC(Scene):
 
 
 class Study1Stage3MemoryExpDesignA(Scene):
-    """Show the delayed match-to-sample design, continuing directly from IntroC."""
+    """Show the delayed match-to-sample design, continuing directly from IntroD."""
 
     def construct(self) -> None:
         self.camera.background_color = _study1_stage3_memory.BG
@@ -1172,7 +1352,7 @@ class Study1Stage3MemoryExpDesignA(Scene):
         target_copy.move_to(lake_target_card.get_center())
         target_copy.set_z_index(8)
         target_copy.generate_target()
-        target_copy.target.set_height(0.95)
+        target_copy.target.scale_to_fit_height(0.95)
         target_copy.target.move_to(right_center)
         target_fixation = _study1_stage3_memory.fixation_on(right_center, height=0.18)
         active_content = Group(target_copy, target_fixation)
@@ -1227,7 +1407,7 @@ class Study1Stage3MemoryExpDesignA(Scene):
                 probe_copy.move_to(source_card.get_center())
                 probe_copy.set_z_index(8)
                 probe_copy.generate_target()
-                probe_copy.target.set_height(0.95)
+                probe_copy.target.scale_to_fit_height(0.95)
                 probe_copy.target.move_to(right_center)
                 probe_fix = _study1_stage3_memory.fixation_on(right_center, height=0.18)
                 next_content = Group(probe_copy, probe_fix)
@@ -1296,6 +1476,306 @@ class Study1Stage3MemoryExpDesignA(Scene):
         self.wait(1.00)
 
 
+def _build_memory_exp_design_a_end_state() -> dict[str, object]:
+    end_state = _build_memory_intro_c_end_state()
+    ctx = end_state["ctx"]
+    overlay = end_state["overlay"]
+
+    left_column_center_x = ctx["left_column_center_x"]
+    selected_spacing = ctx["selected_xs"][1] - ctx["selected_xs"][0]
+    left_selected_xs = [
+        left_column_center_x + selected_spacing * offset
+        for offset in (-1.5, -0.5, 0.5, 1.5)
+    ]
+
+    for idx, collapsed_card in enumerate(overlay["collapsed_cards"]):
+        row_idx, col_idx = divmod(idx, 4)
+        collapsed_card.move_to(np.array([left_selected_xs[col_idx], ctx["row_y_positions"][row_idx], 0.0]))
+
+    for row_idx, dot in enumerate(overlay["continuation_marks"]):
+        target_card = overlay["collapsed_cards"][12 + row_idx]
+        dot.next_to(target_card, DOWN, buff=0.19)
+
+    target_cards = Group(*[overlay["collapsed_cards"][idx] for idx in range(0, 16, 4)])
+    foil_cards = Group(
+        *[
+            overlay["collapsed_cards"][idx]
+            for idx in range(16)
+            if idx % 4 != 0
+        ]
+    )
+    continuation_marks = overlay["continuation_marks"]
+    target_rect = SurroundingRectangle(
+        Group(target_cards, continuation_marks[0]),
+        color=_study1_stage3_memory.MGREY,
+        stroke_width=1.5,
+        buff=0.10,
+        corner_radius=0.06,
+    )
+    foil_rect = SurroundingRectangle(
+        Group(foil_cards, *continuation_marks[1:]),
+        color=_study1_stage3_memory.MGREY,
+        stroke_width=1.5,
+        buff=0.10,
+        corner_radius=0.06,
+    )
+    target_label = Tex(r"Targets", color=_study1_stage3_memory.INK, font_size=24).next_to(
+        target_rect, UP, buff=0.12
+    )
+    foil_label = Tex(r"Foils", color=_study1_stage3_memory.INK, font_size=24).next_to(
+        foil_rect, UP, buff=0.12
+    )
+    arrow_y = min(target_rect.get_bottom()[1], foil_rect.get_bottom()[1]) - 0.34
+    dissimilar_arrow = Arrow(
+        start=np.array([target_rect.get_center()[0] - 0.20, arrow_y, 0.0]),
+        end=np.array([foil_rect.get_right()[0] - 0.10, arrow_y, 0.0]),
+        buff=0.0,
+        stroke_width=2.0,
+        color=_study1_stage3_memory.MGREY,
+        tip_length=0.18,
+        max_stroke_width_to_length_ratio=8,
+        max_tip_length_to_length_ratio=0.10,
+    )
+    dissimilar_text = Tex(
+        r"More dissimilar",
+        color=_study1_stage3_memory.MGREY,
+        font_size=22,
+    ).next_to(dissimilar_arrow, DOWN, buff=0.10)
+
+    frame_side = 1.75
+    right_margin_x = config.frame_width / 2 - 0.35
+    stage_center_x = 0.5 * (foil_rect.get_right()[0] + right_margin_x)
+    stage_center_y = 0.5 * (ctx["row_y_positions"][1] + ctx["row_y_positions"][2])
+    right_center = np.array([stage_center_x, stage_center_y, 0.0])
+
+    lake_prefix = "landscape_element_lake_island"
+    lake_row = ctx["lookup"][("landscape_element", "lake_island")]
+    target_idx = int(lake_row["target_position"])
+    probe1_idx = int(lake_row["distractor_3_position"])
+    probe2_idx = target_idx
+
+    def stage_content(kind: str, center: np.ndarray, large: bool) -> Group:
+        image_height = 0.95 if large else 0.44
+        fixation_height = 0.18 if large else 0.06
+        if kind == "target":
+            img = _study1_stage3_memory.stimulus_image(lake_prefix, target_idx, image_height, center)
+            img.set_z_index(8 if large else 6)
+            return Group(img, _study1_stage3_memory.fixation_on(img, height=fixation_height))
+        if kind == "probe1":
+            img = _study1_stage3_memory.stimulus_image(lake_prefix, probe1_idx, image_height, center)
+            img.set_z_index(8 if large else 6)
+            return Group(img, _study1_stage3_memory.fixation_on(img, height=fixation_height))
+        if kind == "probe2":
+            img = _study1_stage3_memory.stimulus_image(lake_prefix, probe2_idx, image_height, center)
+            img.set_z_index(8 if large else 6)
+            return Group(img, _study1_stage3_memory.fixation_on(img, height=fixation_height))
+        if kind in {"delay", "buffer", "iti"}:
+            return Group(_study1_stage3_memory.fixation_on(center, height=fixation_height))
+        response_size = 18 if large else 8
+        response_buff = 0.14 if large else 0.04
+        fix = _study1_stage3_memory.fixation_on(center, height=fixation_height)
+        left_text = Tex(r"TWO", color=_study1_stage3_memory.INK, font_size=response_size).next_to(
+            fix, LEFT, buff=response_buff
+        )
+        right_text = Tex(r"ONE", color=_study1_stage3_memory.INK, font_size=response_size).next_to(
+            fix, RIGHT, buff=response_buff
+        )
+        arrow_len = 0.40 if large else 0.20
+        arr = Arrow(
+            start=left_text.get_center() + RIGHT * (arrow_len / 2),
+            end=left_text.get_center() + LEFT * (arrow_len / 2),
+            color=_study1_stage3_memory.INK,
+            stroke_width=10 if large else 4,
+            buff=0,
+            tip_length=0.3 if large else 0.10,
+        )
+        arr.next_to(left_text, DOWN, buff=0.06 if large else 0.035)
+        for mob in (fix, left_text, right_text, arr):
+            mob.set_z_index(8 if large else 6)
+        return Group(left_text, fix, right_text, arr)
+
+    stage_specs = [
+        ("2s", "Target", "target"),
+        ("8s", "Delay", "delay"),
+        ("1s", "Probe 1", "probe1"),
+        ("0.5s", "Buffer", "buffer"),
+        ("1s", "Probe 2", "probe2"),
+        ("2s", "Response", "response"),
+        ("(M=4s)", "ITI", "iti"),
+    ]
+
+    strip_side = 0.82
+    strip_gap = 0.10
+    strip_total_width = len(stage_specs) * strip_side + (len(stage_specs) - 1) * strip_gap
+    strip_vertical_offset = 0.16
+    strip_final_y = right_center[1] - 0.12 - strip_vertical_offset
+    strip_final_centers = [
+        np.array(
+            [
+                right_center[0] - strip_total_width / 2 + strip_side / 2 + i * (strip_side + strip_gap),
+                strip_final_y,
+                0.0,
+            ]
+        )
+        for i in range(len(stage_specs))
+    ]
+
+    parked_cards = []
+    for (_, _, kind), center in zip(stage_specs, strip_final_centers):
+        parked_frame = RoundedRectangle(
+            corner_radius=0.08,
+            width=strip_side,
+            height=strip_side,
+            stroke_color=_study1_stage3_memory.MGREY,
+            stroke_width=1.2,
+        ).move_to(center)
+        parked_frame.set_fill(_study1_stage3_memory.BG, opacity=1.0)
+        parked_content = stage_content(kind, center, large=False)
+        parked_group = Group(parked_frame, parked_content)
+        parked_group.set_z_index(6)
+        parked_cards.append(parked_group)
+
+    final_duration_labels = VGroup(
+        *[
+            Tex(dur, color=_study1_stage3_memory.INK, font_size=16).next_to(card, UP, buff=0.10)
+            for (dur, _, _), card in zip(stage_specs, parked_cards)
+        ]
+    )
+    final_stage_labels = VGroup(
+        *[
+            Tex(lbl, color=_study1_stage3_memory.INK, font_size=16).next_to(card, DOWN, buff=0.10)
+            for (_, lbl, _), card in zip(stage_specs, parked_cards)
+        ]
+    )
+    final_arrow_y = min(strip_final_y - (strip_side * 1.12) / 2 - 0.20, right_center[1] - 1.15)
+    strip_arrow_start_x = right_center[0] - strip_total_width / 2
+    progress_arrow = Arrow(
+        start=np.array([strip_arrow_start_x, final_arrow_y, 0.0]),
+        end=np.array([right_center[0] + strip_total_width / 2, final_arrow_y, 0.0]),
+        color=_study1_stage3_memory.LGREY,
+        stroke_width=1.3,
+        buff=0.0,
+        tip_length=0.14,
+    )
+    time_label = MathTex("t", color=_study1_stage3_memory.INK, font_size=24).next_to(
+        progress_arrow, RIGHT, buff=0.10
+    )
+
+    left_panel = Group(
+        *overlay["collapsed_cards"],
+        continuation_marks,
+        target_rect,
+        foil_rect,
+        target_label,
+        foil_label,
+        dissimilar_arrow,
+        dissimilar_text,
+    )
+    left_panel.scale(0.80)
+
+    return {
+        "title": ctx["title"],
+        "question": ctx["question"],
+        "collapsed_cards": overlay["collapsed_cards"],
+        "continuation_marks": continuation_marks,
+        "target_rect": target_rect,
+        "foil_rect": foil_rect,
+        "target_label": target_label,
+        "foil_label": foil_label,
+        "dissimilar_arrow": dissimilar_arrow,
+        "dissimilar_text": dissimilar_text,
+        "parked_cards": parked_cards,
+        "final_duration_labels": final_duration_labels,
+        "final_stage_labels": final_stage_labels,
+        "progress_arrow": progress_arrow,
+        "time_label": time_label,
+    }
+
+
+class Study1Stage3MemoryExpDesignB(Scene):
+    """Difficulty labels, N=240, and block structure — sequel to ExpDesignA."""
+
+    def construct(self) -> None:
+        self.camera.background_color = _study1_stage3_memory.BG
+        state = _build_memory_exp_design_a_end_state()
+
+        self.add(
+            state["title"],
+            state["question"],
+            *state["collapsed_cards"],
+            *state["continuation_marks"],
+            state["target_rect"],
+            state["foil_rect"],
+            state["target_label"],
+            state["foil_label"],
+            state["dissimilar_arrow"],
+            state["dissimilar_text"],
+            *state["parked_cards"],
+            state["final_duration_labels"],
+            state["final_stage_labels"],
+            state["progress_arrow"],
+            state["time_label"],
+        )
+
+        self.play(
+            state["dissimilar_arrow"].animate.shift(DOWN * 0.38),
+            state["dissimilar_text"].animate.shift(DOWN * 0.38),
+            FadeOut(state["foil_rect"]),
+            run_time=0.65,
+        )
+
+        foil_cols = [
+            Group(
+                *[state["collapsed_cards"][4 * row_idx + col_idx] for row_idx in range(4)],
+                state["continuation_marks"][col_idx],
+            )
+            for col_idx in (1, 2, 3)
+        ]
+        for diff_label, color, col_group in [
+            ("Hard", "#C94040", foil_cols[0]),
+            ("Medium", "#C87137", foil_cols[1]),
+            ("Easy", "#3A7EC8", foil_cols[2]),
+        ]:
+            col_rect = SurroundingRectangle(
+                col_group,
+                color=color,
+                stroke_width=1.8,
+                buff=0.08,
+                corner_radius=0.06,
+            )
+            lbl = Tex(diff_label, color=color, font_size=22).next_to(col_group, DOWN, buff=0.18)
+            self.play(Create(col_rect), FadeIn(lbl, shift=UP * 0.08), run_time=0.55)
+            self.wait(0.35)
+
+        self.wait(0.30)
+
+        stats_block = VGroup(
+            Tex(r"$N = 240$", color=_study1_stage3_memory.INK, font_size=22),
+            Tex(
+                r"6 blocks $\cdot$ half repeated, half new targets per block",
+                color=_study1_stage3_memory.MGREY,
+                font_size=20,
+            ),
+        ).arrange(DOWN, buff=0.12)
+        timeline_bottom = min(
+            state["final_stage_labels"].get_bottom()[1],
+            state["time_label"].get_bottom()[1],
+            state["progress_arrow"].get_bottom()[1],
+        )
+        stats_block.align_to(state["final_stage_labels"], LEFT)
+        stats_block.set_y(timeline_bottom - stats_block.get_height() / 2 - 0.32)
+
+        self.play(
+            LaggedStart(
+                FadeIn(stats_block[0], shift=UP * 0.08),
+                FadeIn(stats_block[1], shift=UP * 0.08),
+                lag_ratio=0.35,
+            ),
+            run_time=0.80,
+        )
+        self.wait(1.00)
+
+
 _PUBLIC_SCENES: tuple[type[Scene], ...] = (
     _Study1Step1a,
     _Study1Step1b,
@@ -1318,8 +1798,9 @@ _PUBLIC_SCENES: tuple[type[Scene], ...] = (
     Study1Stage3MemoryIntroA,
     Study1Stage3MemoryIntroB,
     Study1Stage3MemoryIntroC,
+    Study1Stage3MemoryIntroD,
     Study1Stage3MemoryExpDesignA,
-    _Study1Stage3MemoryExpDesignB,
+    Study1Stage3MemoryExpDesignB,
     _Study1Stage3MemoryExpResults,
     _Study1Step3,
     _Study1Step4Detailed,

@@ -155,7 +155,7 @@ def make_cloud(pixels: list[np.ndarray]) -> Group:
     N = len(pixels)
     cpos = cloud_positions(N, cx=CLOUD_CX, cy=CLOUD_CY)
     return Group(*[
-        ImageMobject(pixels[i]).set_height(IMG_CLOUD_H).move_to(RIGHT * px + UP * py)
+        ImageMobject(pixels[i]).scale_to_fit_height(IMG_CLOUD_H).move_to(RIGHT * px + UP * py)
         for i, (px, py) in enumerate(cpos[:N])
     ])
 
@@ -171,7 +171,7 @@ def make_thumbs(entry_idx: int, positions: list) -> list:
     """Three noise ImageMobjects at pre-computed fixed positions."""
     base = entry_idx * 97 + 3
     return [
-        ImageMobject(noise_magma(seed=base + k * 41)).set_height(THUMB_H).move_to(pos)
+        ImageMobject(noise_magma(seed=base + k * 41)).scale_to_fit_height(THUMB_H).move_to(pos)
         for k, pos in enumerate(positions)
     ]
 
@@ -186,7 +186,7 @@ def build_static_frame(scene: Scene) -> list:
     comp_sym.move_to(RIGHT * LEFT_CX)
 
     # Dummy thumbs just to fix geometry / slot positions
-    _dummy = [ImageMobject(noise_magma(seed=0)).set_height(THUMB_H) for _ in range(3)]
+    _dummy = [ImageMobject(noise_magma(seed=0)).scale_to_fit_height(THUMB_H) for _ in range(3)]
     dots_tex  = MathTex(r"\ldots", color=GREY, font_size=36)
     thumb_row = Group(*_dummy, dots_tex).arrange(RIGHT, buff=0.18)
     lbrace    = MathTex(r"\bigl\{", color=INK, font_size=52)

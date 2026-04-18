@@ -136,12 +136,12 @@ def _box(img_path: str | None, resp: bool = False) -> Group:
     parts: list = [rect]
 
     if img_path is not None:
-        img = ImageMobject(img_path).set_height(IMG_H)
+        img = ImageMobject(img_path).scale_to_fit_height(IMG_H)
         img.move_to(rect.get_center())
         parts.append(img)
 
     # Fixation dot on every box
-    fix = ImageMobject(FIX).set_height(FIX_H)
+    fix = ImageMobject(FIX).scale_to_fit_height(FIX_H)
     fix.move_to(rect.get_center())
     parts.append(fix)
 
@@ -450,8 +450,8 @@ class Study2DecodingOverview(_Study2NumberedScene, Scene):
         image_height: float = IMG_H * _STACK_SCALE,
         fixation_height: float = FIX_H * _STACK_SCALE,
     ) -> tuple[Group, SurroundingRectangle]:
-        img = ImageMobject(img_path).set_height(image_height)
-        fix = ImageMobject(FIX).set_height(fixation_height).move_to(img.get_center())
+        img = ImageMobject(img_path).scale_to_fit_height(image_height)
+        fix = ImageMobject(FIX).scale_to_fit_height(fixation_height).move_to(img.get_center())
         icon = Group(img, fix)
         frame = SurroundingRectangle(
             icon,
@@ -507,7 +507,7 @@ class Study2DecodingOverview(_Study2NumberedScene, Scene):
         icon_h = max(icon.height for icon in visible_icons)
         brain = (
             ImageMobject(str(_BRAIN_PNG_PATH))
-            .set_height(2.0 * icon_h)
+            .scale_to_fit_height(2.0 * icon_h)
             .move_to(UP * self._BRAIN_Y)
         )
         brain.set_z_index(-20)
@@ -796,7 +796,7 @@ class Study2DecodingOverview(_Study2NumberedScene, Scene):
         icon_h = max(icon.height for icon in stim_icons)
         brain = (
             ImageMobject(str(_BRAIN_PNG_PATH))
-            .set_height(2.0 * icon_h)
+            .scale_to_fit_height(2.0 * icon_h)
             .move_to(UP * self._BRAIN_Y)
         )
         brain.set_z_index(-20)
@@ -936,8 +936,8 @@ class Study2DecodingOverview(_Study2NumberedScene, Scene):
         icon_fix_h = stim_icons[0][1].height
 
         def make_stack_target(img_path: str, col: str) -> tuple[Group, SurroundingRectangle]:
-            img = ImageMobject(img_path).set_height(icon_img_h)
-            fix = ImageMobject(FIX).set_height(icon_fix_h).move_to(img.get_center())
+            img = ImageMobject(img_path).scale_to_fit_height(icon_img_h)
+            fix = ImageMobject(FIX).scale_to_fit_height(icon_fix_h).move_to(img.get_center())
             icon = Group(img, fix)
             frame = SurroundingRectangle(
                 icon, color=col, stroke_width=2.4, buff=0.05, corner_radius=0.10,
@@ -1366,8 +1366,8 @@ class Study2WithinSession2Decoding(Study2DecodingOverview):
         ghost_y = self._COL_YS[0] + row_step * 1.02
 
         def make_stack_icon(img_path: str) -> Group:
-            img = ImageMobject(img_path).set_height(stack_img_h)
-            fix = ImageMobject(FIX).set_height(stack_fix_h).move_to(img.get_center())
+            img = ImageMobject(img_path).scale_to_fit_height(stack_img_h)
+            fix = ImageMobject(FIX).scale_to_fit_height(stack_fix_h).move_to(img.get_center())
             return Group(img, fix)
 
         final_icon_paths = [path for path, _ in self._ROLLING_TARGETS]
@@ -1392,7 +1392,7 @@ class Study2WithinSession2Decoding(Study2DecodingOverview):
         icon_h = max(icon.height for icon in visible_icons)
         brain = (
             ImageMobject(str(_BRAIN_PNG_PATH))
-            .set_height(2.0 * icon_h)
+            .scale_to_fit_height(2.0 * icon_h)
             .move_to(UP * self._BRAIN_Y)
         )
         brain.set_z_index(-20)
@@ -1644,7 +1644,7 @@ class Study2WithinSession2Decoding(Study2DecodingOverview):
         class_cols = [class_one_col, _D_GREEN, _D_AMBER]
         class_examples = Group(*[
             Group(
-                ImageMobject(path).set_height(0.42),
+                ImageMobject(path).scale_to_fit_height(0.42),
             )
             for path in class_example_paths
         ])
@@ -2274,7 +2274,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2Decoding):
         )
 
         class_examples = Group(*[
-            Group(ImageMobject(path).set_height(0.42))
+            Group(ImageMobject(path).scale_to_fit_height(0.42))
             for path in [CAT, PINE, SOFA]
         ])
         for icon, col in zip(class_examples, [class_one_col, _D_GREEN, _D_AMBER]):
@@ -2586,7 +2586,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2Decoding):
 
     def _build_results_end_static(self) -> dict[str, Mobject]:
         def make_small_icon(img_path: str, frame_col: str) -> Group:
-            img = ImageMobject(img_path).set_height(0.52)
+            img = ImageMobject(img_path).scale_to_fit_height(0.52)
             frame = SurroundingRectangle(
                 img,
                 color=frame_col,
@@ -2606,7 +2606,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2Decoding):
         def make_results_plot() -> Group:
             svg = (
                 SVGMobject(str(_STUDY2_ASSET_DIR / "study2_results.svg"))
-                .set_height(3.64)
+                .scale_to_fit_height(3.64)
                 .move_to(np.array([2.90, 0.02, 0.0]))
             )
 
@@ -3525,7 +3525,7 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         suptitle_y = 3.70
         glm_svg = (
             SVGMobject(str(Path(self._RESULTS_GLM).with_suffix(".svg")))
-            .set_height(plot_height)
+            .scale_to_fit_height(plot_height)
             .move_to(glm_plot_center)
         )
         glm_plot_base = glm_svg.copy()
@@ -3713,7 +3713,7 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         right_panel_center[0] -= right_panel_shift_x
         timeres_svg = (
             SVGMobject(str(Path(self._RESULTS_TIMERES).with_suffix(".svg")))
-            .set_height(plot_height)
+            .scale_to_fit_height(plot_height)
             .move_to(right_panel_center)
         )
         timeres_source_frame = VGroup(*[timeres_svg[idx].copy() for idx in [61, 62, 63, 64]])
@@ -5220,12 +5220,12 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         )
 
         left_plot_compact = left_plot_full.copy()
-        left_plot_compact.set_width(4.05)
+        left_plot_compact.scale_to_fit_width(4.05)
         left_plot_compact.move_to(np.array([-2.28, 0.10, 0.0]))
         left_plot_compact.set_opacity(0.94)
 
         right_plot_compact = right_plot_full.copy()
-        right_plot_compact.set_width(4.05)
+        right_plot_compact.scale_to_fit_width(4.05)
         right_plot_compact.move_to(np.array([2.28, 0.10, 0.0]))
         right_plot_compact.set_opacity(0.94)
 
@@ -5253,7 +5253,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         crop_center_y = (y0 + y1) / 2
 
         overlay = ImageMobject(image_path)
-        overlay.set_width(full_snapshot.width * ((x1 - x0) / source_w))
+        overlay.scale_to_fit_width(full_snapshot.width * ((x1 - x0) / source_w))
         overlay.move_to(
             full_snapshot.get_center()
             + np.array([
@@ -5271,12 +5271,12 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         )
         left_plot = (
             ImageMobject(self._CROSSSESSION_RESULTSB_LEFT_PLOT)
-            .set_height(2.55)
+            .scale_to_fit_height(2.55)
             .move_to(np.array([-2.15, -0.02, 0.0]))
         )
         right_plot = (
             ImageMobject(self._CROSSSESSION_RESULTSB_RIGHT_PLOT)
-            .set_height(2.55)
+            .scale_to_fit_height(2.55)
             .move_to(np.array([2.15, -0.02, 0.0]))
         )
         question = self._make_results_heading(
@@ -5508,7 +5508,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         center: np.ndarray,
         height: float,
     ) -> SVGMobject:
-        return SVGMobject(path).set_height(height).move_to(center)
+        return SVGMobject(path).scale_to_fit_height(height).move_to(center)
 
     def _tempgen_svg_plot_frame(self, svg: SVGMobject) -> VGroup:
         return self._svg_plot_frame_from_long_lines(
@@ -5579,7 +5579,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         ) / plot_height
 
         overlay = ImageMobject(str(self._cached_tempgen_colorbar_gradient_png()))
-        overlay.set_height(plot_frame.height * height_ratio)
+        overlay.scale_to_fit_height(plot_frame.height * height_ratio)
         overlay.move_to(np.array([
             plot_frame.get_right()[0] + plot_frame.width * gap_ratio + overlay.width / 2,
             plot_frame.get_center()[1] + plot_frame.height * center_y_ratio,
@@ -7640,11 +7640,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         logic_matrix_frame.set_z_index(4.05)
 
         design_stacked_target = timeres_ctx["experimental_design"].copy()
-        design_stacked_target.set_width(logic_matrix_frame.width)
+        design_stacked_target.scale_to_fit_width(logic_matrix_frame.width)
         train_bins_stacked_target = timeres_ctx["train_time_bins"].copy()
-        train_bins_stacked_target.set_width(logic_matrix_frame.width)
+        train_bins_stacked_target.scale_to_fit_width(logic_matrix_frame.width)
         test_bins_stacked_target = timeres_ctx["test_time_bins"].copy()
-        test_bins_stacked_target.set_width(logic_matrix_frame.width)
+        test_bins_stacked_target.scale_to_fit_width(logic_matrix_frame.width)
 
         stacked_center_x = ctx["glm2_plot_frame"].get_center()[0]
         stacked_train_y = ctx["glm2_plot_frame"].get_center()[1] - 0.10
@@ -7663,16 +7663,16 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         logic_axis_seconds_gap = 0.42
 
         design_target = timeres_ctx["experimental_design"].copy()
-        design_target.set_width(logic_matrix_frame.width)
+        design_target.scale_to_fit_width(logic_matrix_frame.width)
         design_target.next_to(logic_matrix_frame, UP, buff=0.38)
 
         train_bins_target = timeres_ctx["train_time_bins"].copy()
-        train_bins_target.set_width(logic_matrix_frame.width)
+        train_bins_target.scale_to_fit_width(logic_matrix_frame.width)
         train_bins_target.next_to(logic_matrix_frame, DOWN, buff=logic_axis_seconds_gap)
 
         test_bins_target = timeres_ctx["test_time_bins"].copy()
         test_bins_target.rotate(PI / 2)
-        test_bins_target.set_height(logic_matrix_frame.height)
+        test_bins_target.scale_to_fit_height(logic_matrix_frame.height)
         test_bins_target.next_to(logic_matrix_frame, LEFT, buff=logic_axis_seconds_gap)
 
         train_label_target = Tex(
@@ -8720,7 +8720,7 @@ class Study2WithinSession1DecodingA(_Study2WithinSession1DecodingBase):
         summary_card = self._build_within_session_summary_card()
         full_snapshot = (
             ImageMobject(self._CROSSSESSION_RESULTSB_LAST)
-            .set_width(config.frame_width)
+            .scale_to_fit_width(config.frame_width)
             .move_to(ORIGIN)
         )
         left_plot_overlay = self._make_snapshot_plot_overlay(
@@ -9012,7 +9012,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         remove_text: bool = False,
     ) -> SVGMobject:
         svg = SVGMobject(str(self._clean_ltm_svg_path(svg_path, remove_text=remove_text)))
-        svg.set_height(height)
+        svg.scale_to_fit_height(height)
         svg.move_to(center)
         self._hide_svg_background_rect(svg)
         return svg
@@ -10301,7 +10301,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
     def _make_tempgen_plot_group(self, svg_path: Path) -> Group:
         panel_array = self._supplemental_tempgen_panel(svg_path)
         plot = ImageMobject(panel_array)
-        plot.set_height(self._TEMPGEN_PLOT_HEIGHT)
+        plot.scale_to_fit_height(self._TEMPGEN_PLOT_HEIGHT)
         overlay = self._make_tempgen_overlay(
             plot,
             source_box=self._TEMPGEN_SOURCE_CROP_BOX,

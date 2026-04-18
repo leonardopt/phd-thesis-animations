@@ -11,7 +11,14 @@ QUALITY="${1:--ql}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-mapfile -t scenes < <(
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$SCRIPT_DIR/.uv-cache}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-$SCRIPT_DIR/.mplconfig}"
+mkdir -p "$UV_CACHE_DIR" "$MPLCONFIGDIR"
+
+scenes=()
+while IFS= read -r line; do
+    scenes+=("$line")
+done < <(
     uv run python -c '
 import ast
 from pathlib import Path

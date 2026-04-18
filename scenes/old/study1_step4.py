@@ -190,10 +190,10 @@ class Study1Step4Detailed(ThreeDScene):
         z1_thumb_offset = np.array([THUMB_H / 2, THUMB_H / 2, 0.0]) + Z1_THUMB_OFFSET_EXTRA
         z1_label_offset = np.array([0.0, 0.0, THUMB_H / 2]) + Z1_LABEL_OFFSET_XYZ
 
-        thumb0  = ImageMobject(pixels[0]).set_height(THUMB_H).move_to(tip0 + z0_dir * Z0_THUMB_DIST)
+        thumb0  = ImageMobject(pixels[0]).scale_to_fit_height(THUMB_H).move_to(tip0 + z0_dir * Z0_THUMB_DIST)
         border0 = SurroundingRectangle(thumb0, color=C_Z0, stroke_width=2.5, buff=0.03)
         # Place the z1 image so the vector tip lands on its lower-left corner.
-        thumb1  = ImageMobject(pixels[-1]).set_height(THUMB_H).move_to(tip1 + z1_thumb_offset)
+        thumb1  = ImageMobject(pixels[-1]).scale_to_fit_height(THUMB_H).move_to(tip1 + z1_thumb_offset)
         border1 = SurroundingRectangle(thumb1, color=C_Z1, stroke_width=2.5, buff=0.03)
 
         lab_z0_3d = MathTex(
@@ -227,13 +227,13 @@ class Study1Step4Detailed(ThreeDScene):
         )
         # ── 9. 2-D fixed-in-frame overlay (right panel) ───────────────────────
         IMG_H   = 3.0
-        img_display = ImageMobject(pixels[0]).set_height(IMG_H).move_to(RIGHT_BLOCK_CENTER)
+        img_display = ImageMobject(pixels[0]).scale_to_fit_height(IMG_H).move_to(RIGHT_BLOCK_CENTER)
 
         def upd_img(mob):
             idx = int(round(alpha.get_value() * (N - 1)))
             mob.become(
                 ImageMobject(pixels[np.clip(idx, 0, N - 1)])
-                .set_height(IMG_H).move_to(RIGHT_BLOCK_CENTER)
+                .scale_to_fit_height(IMG_H).move_to(RIGHT_BLOCK_CENTER)
             )
 
         img_display.add_updater(upd_img)
@@ -368,10 +368,10 @@ class _Study1Step4CompactBase(ThreeDScene):
         )
 
         thumb_h = 0.95
-        thumb0 = ImageMobject(pixels[0]).set_height(thumb_h).move_to(tip0 + z0_dir * 0.92)
+        thumb0 = ImageMobject(pixels[0]).scale_to_fit_height(thumb_h).move_to(tip0 + z0_dir * 0.92)
         border0 = SurroundingRectangle(thumb0, color=C_Z0, stroke_width=2.5, buff=0.03)
         thumb1_offset = np.array([thumb_h / 2 + 0.05, thumb_h / 2, 0.16])
-        thumb1 = ImageMobject(pixels[-1]).set_height(thumb_h).move_to(tip1 + thumb1_offset)
+        thumb1 = ImageMobject(pixels[-1]).scale_to_fit_height(thumb_h).move_to(tip1 + thumb1_offset)
         border1 = SurroundingRectangle(thumb1, color=C_Z1, stroke_width=2.5, buff=0.03)
 
         lab_z0 = Tex(r"\text{anchor}", color=C_Z0, font_size=30)
@@ -400,10 +400,10 @@ class _Study1Step4CompactBase(ThreeDScene):
             offset = (1 - t) * follow_start_offset + t * follow_end_offset
             return tip + offset
 
-        img_follow = ImageMobject(pixels[0]).set_height(thumb_h)
+        img_follow = ImageMobject(pixels[0]).scale_to_fit_height(thumb_h)
         img_follow.add_updater(lambda mob: mob.become(
             ImageMobject(pixels[np.clip(int(round(alpha.get_value() * (N - 1))), 0, N - 1)])
-            .set_height(thumb_h)
+            .scale_to_fit_height(thumb_h)
             .move_to(follow_center(alpha.get_value()))
         ))
         img_follow.move_to(follow_center(0.0))

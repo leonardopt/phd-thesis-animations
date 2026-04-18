@@ -227,7 +227,7 @@ def score_heatmap_rgba(
 
 
 def thumb(pixel: np.ndarray, h: float, border_color: str = LGREY, sw: float = 1.8) -> Group:
-    img = ImageMobject(pixel).set_height(h)
+    img = ImageMobject(pixel).scale_to_fit_height(h)
     border = SurroundingRectangle(img, color=border_color, stroke_width=sw, buff=0.03)
     return Group(img, border)
 
@@ -267,7 +267,7 @@ class _Study1Step3Base(Scene):
             count=8,
         )
         cloud_imgs = [
-            ImageMobject(pixels[i]).set_height(IMG_CLOUD_H).move_to(RIGHT * x + UP * y)
+            ImageMobject(pixels[i]).scale_to_fit_height(IMG_CLOUD_H).move_to(RIGHT * x + UP * y)
             for i, (x, y) in enumerate(cloud_pts)
         ]
 
@@ -301,7 +301,7 @@ class _Study1Step3Base(Scene):
         band_edges = np.linspace(0, n, 7, dtype=int)
         band_imgs = []
         for start, end in zip(band_edges[:-1], band_edges[1:]):
-            band = ImageMobject(score_heatmap_rgba(scores, start, end)).set_height(MATRIX_SIDE).move_to(MATRIX_C)
+            band = ImageMobject(score_heatmap_rgba(scores, start, end)).scale_to_fit_height(MATRIX_SIDE).move_to(MATRIX_C)
             band.set_resampling_algorithm(RESAMPLING_ALGORITHMS["nearest"])
             band.set_z_index(1)
             band_imgs.append(band)

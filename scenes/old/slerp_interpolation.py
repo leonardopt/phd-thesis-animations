@@ -128,7 +128,7 @@ class SlerpInterpolation(Scene):
 
         # — Image panel —
         img_mob = ImageMobject(pixels[0])
-        img_mob.set_height(IMG_H).move_to(IC)
+        img_mob.scale_to_fit_height(IMG_H).move_to(IC)
         img_border = SurroundingRectangle(
             img_mob, color=LGREY, stroke_width=1.5, buff=0.03
         )

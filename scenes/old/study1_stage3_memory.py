@@ -65,7 +65,7 @@ def stimulus_image(
     pos: tuple[float, float, float] | np.ndarray,
 ) -> ImageMobject:
     img = ImageMobject(stimulus_path(prefix, idx))
-    img.set_height(height)
+    img.scale_to_fit_height(height)
     img.move_to(pos)
     return img
 
@@ -75,7 +75,7 @@ def fixation_on(
     height: float = 0.18,
 ) -> ImageMobject:
     fixation = ImageMobject(FIXATION_PATH)
-    fixation.set_height(height)
+    fixation.scale_to_fit_height(height)
     fixation.set_z_index(10)
     if isinstance(mob, np.ndarray):
         fixation.move_to(mob)
@@ -367,7 +367,7 @@ def load_visible_svg(path: str | Path, *, height: float) -> SVGMobject:
             svg.remove(submob)
             break
     svg.center()
-    svg.set_height(height)
+    svg.scale_to_fit_height(height)
     recolor_svg(
         svg,
         {
@@ -414,7 +414,7 @@ class Study1Stage3MemoryIntro(Scene):
             pos: tuple[float, float, float],
         ) -> ImageMobject:
             img = ImageMobject(stimulus_path(prefix, idx))
-            img.set_height(height)
+            img.scale_to_fit_height(height)
             img.move_to(pos)
             return img
 
@@ -455,12 +455,12 @@ class Study1Stage3MemoryIntro(Scene):
         ]
 
         example_target = ImageMobject(memory_task_stimulus_path("LAN-MOU-T00.png"))
-        example_target.set_height(example_image_height)
+        example_target.scale_to_fit_height(example_image_height)
         example_target.move_to(example_center + LEFT * example_side_offset)
         example_target.set_z_index(5)
 
         example_foil = ImageMobject(memory_task_stimulus_path("LAN-MOU-D01.png"))
-        example_foil.set_height(example_image_height)
+        example_foil.scale_to_fit_height(example_image_height)
         example_foil.move_to(example_center + RIGHT * example_side_offset)
         example_foil.set_z_index(4)
         example_left_row_center = np.array([left_column_center_x, row_block_center_y, 0.0])
@@ -771,12 +771,12 @@ class Study1Stage3MemoryIntro(Scene):
         second_plot_center = np.array([3.48, second_row_center_y - 0.05, 0.0])
 
         second_example_target = ImageMobject(memory_task_stimulus_path("LAN-MOU-T00.png"))
-        second_example_target.set_height(example_image_height)
+        second_example_target.scale_to_fit_height(example_image_height)
         second_example_target.move_to(second_example_target_pos)
         second_example_target.set_z_index(5)
 
         second_example_foil = ImageMobject(memory_task_stimulus_path("LAN-MOU-D03.png"))
-        second_example_foil.set_height(example_image_height)
+        second_example_foil.scale_to_fit_height(example_image_height)
         second_example_foil.move_to(second_example_foil_pos)
         second_example_foil.set_z_index(4)
 
@@ -1181,7 +1181,7 @@ class Study1Stage3MemoryExpDesignA(Scene):
         target_copy.move_to(lake_target_card.get_center())
         target_copy.set_z_index(8)
         target_copy.generate_target()
-        target_copy.target.set_height(0.95)
+        target_copy.target.scale_to_fit_height(0.95)
         target_copy.target.move_to(right_center)
         target_fixation = fixation_on(right_center, height=0.18)
         active_content = Group(target_copy, target_fixation)
@@ -1236,7 +1236,7 @@ class Study1Stage3MemoryExpDesignA(Scene):
                 probe_copy.move_to(source_card.get_center())
                 probe_copy.set_z_index(8)
                 probe_copy.generate_target()
-                probe_copy.target.set_height(0.95)
+                probe_copy.target.scale_to_fit_height(0.95)
                 probe_copy.target.move_to(right_center)
                 probe_fix = fixation_on(right_center, height=0.18)
                 next_content = Group(probe_copy, probe_fix)

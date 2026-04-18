@@ -231,10 +231,10 @@ class _Study1Step5Base(ThreeDScene):
         ).to_edge(UP, buff=0.36)
 
         # ── 3. Anchor / guide — borderless, used by Scenes 1 & 2 ─────────────
-        anchor_simple = ImageMobject(pixels[0]).set_height(P1_IMG_H).move_to(
+        anchor_simple = ImageMobject(pixels[0]).scale_to_fit_height(P1_IMG_H).move_to(
             [P1_ANCHOR_X, P1_IMG_Y, 0.0]
         )
-        guide_simple = ImageMobject(pixels[-1]).set_height(P1_IMG_H).move_to(
+        guide_simple = ImageMobject(pixels[-1]).scale_to_fit_height(P1_IMG_H).move_to(
             [P1_INTERP_X, P1_IMG_Y, 0.0]
         )
         anchor_grp = Group(anchor_simple)
@@ -341,7 +341,7 @@ class _Study1Step5Base(ThreeDScene):
     def _apply_deck_card_layout(self, deck: Group, layout: dict) -> None:
         center = (len(deck) - 1) / 2
         for idx, card in enumerate(deck):
-            card.set_height(layout["target_h"])
+            card.scale_to_fit_height(layout["target_h"])
             card.move_to(layout["final_centers"][idx])
             card.scale(layout["final_scales"][idx])
             card.set_opacity(layout["final_opacities"][idx])
@@ -366,7 +366,7 @@ class _Study1Step5Base(ThreeDScene):
         placeholder = None
         if placeholder_rank is not None:
             placeholder = build_placeholder_card(layout["target_h"])
-            placeholder.set_height(layout["target_h"])
+            placeholder.scale_to_fit_height(layout["target_h"])
             placeholder.move_to(layout["placeholder_center"])
             placeholder.scale(layout["placeholder_scale"])
             placeholder.set_opacity(1.0)
@@ -435,12 +435,12 @@ class _Study1Step5Base(ThreeDScene):
 
         # ── Thumbnails ────────────────────────────────────────────────────────
         THUMB_H = 0.95
-        thumb0  = ImageMobject(pixels[0]).set_height(THUMB_H)
+        thumb0  = ImageMobject(pixels[0]).scale_to_fit_height(THUMB_H)
         thumb0.move_to(tip0 + z0_dir * 0.92)
         border0 = SurroundingRectangle(thumb0, color=BLUE, stroke_width=2.5, buff=0.03)
 
         t1_offset = np.array([THUMB_H / 2 + 0.05, THUMB_H / 2, 0.16])
-        thumb1  = ImageMobject(pixels[-1]).set_height(THUMB_H)
+        thumb1  = ImageMobject(pixels[-1]).scale_to_fit_height(THUMB_H)
         thumb1.move_to(tip1 + t1_offset)
         border1 = SurroundingRectangle(thumb1, color=_C_Z1, stroke_width=2.5, buff=0.03)
 
@@ -449,7 +449,7 @@ class _Study1Step5Base(ThreeDScene):
         lab_z1 = Tex(r"\text{guide}", color=_C_Z1, font_size=30).set_z_index(10)
         lab_z1.move_to(thumb1.get_center() + np.array([0.0, 0.0, -(THUMB_H / 2 + 0.28)]))
 
-        img_follow        = ImageMobject(pixels[-1]).set_height(THUMB_H).move_to(
+        img_follow        = ImageMobject(pixels[-1]).scale_to_fit_height(THUMB_H).move_to(
             thumb1.get_center()
         )
         img_follow_border = SurroundingRectangle(
@@ -525,8 +525,8 @@ class _Study1Step5Base(ThreeDScene):
             theta=-90 * DEGREES,
             frame_center=ORIGIN,
             added_anims=[
-                thumb0.animate.set_height(P1_IMG_H).move_to([P1_ANCHOR_X, P1_IMG_Y, 0.0]),
-                thumb1.animate.set_height(P1_IMG_H).move_to([P1_INTERP_X, P1_IMG_Y, 0.0]),
+                thumb0.animate.scale_to_fit_height(P1_IMG_H).move_to([P1_ANCHOR_X, P1_IMG_Y, 0.0]),
+                thumb1.animate.scale_to_fit_height(P1_IMG_H).move_to([P1_INTERP_X, P1_IMG_Y, 0.0]),
             ],
             run_time=1.2,
         )
@@ -551,7 +551,7 @@ class _Study1Step5Base(ThreeDScene):
 
         collapse_center = np.array([0.0, 0.95, 0.0])
         for card in deck:
-            card.set_height(layout["target_h"])
+            card.scale_to_fit_height(layout["target_h"])
             card.move_to(collapse_center)
             card.set_opacity(0)
         center = (len(deck) - 1) / 2
@@ -576,7 +576,7 @@ class _Study1Step5Base(ThreeDScene):
         deck_count_label.to_edge(UP, buff=0.2)
         self.add_fixed_in_frame_mobjects(deck_count_label)
         if placeholder is not None and placeholder_rank is not None:
-            placeholder.set_height(layout["target_h"])
+            placeholder.scale_to_fit_height(layout["target_h"])
             placeholder.move_to(layout["placeholder_center"])
             placeholder.scale(layout["placeholder_scale"])
             placeholder.set_opacity(1.0)
@@ -681,7 +681,7 @@ class _Study1Step5Base(ThreeDScene):
         # Keep the row ordered left-to-right as anchor, selected interpolations,
         # guide, with all elements moving into their new positions together.
         row_anims = [
-            mob.animate.set_height(final_h).move_to(p)
+            mob.animate.scale_to_fit_height(final_h).move_to(p)
             for mob, p in zip(row, pos)
         ]
 

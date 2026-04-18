@@ -144,7 +144,7 @@ class Study1Step2(Scene):
         sdxl_tex.next_to(arrow_mob, UP, buff=0.16)
         sdxl_grp = VGroup(arrow_mob, sdxl_tex).move_to(UP * CY)
 
-        noise_mob = ImageMobject(noise_magma(seed=3)).set_height(IMG_H)
+        noise_mob = ImageMobject(noise_magma(seed=3)).scale_to_fit_height(IMG_H)
         noise_mob.move_to(RIGHT * NX + UP * CY)
 
         # seed label + static N(0,I) distribution label
@@ -154,7 +154,7 @@ class Study1Step2(Scene):
         dist_lab.next_to(seed_lab, DOWN, buff=0.06)
 
         seq_idx  = [int(round(i * (N - 1) / N_SWAPS)) for i in range(N_SWAPS + 1)]
-        fish_mob = ImageMobject(pixels[seq_idx[0]]).set_height(IMG_H)
+        fish_mob = ImageMobject(pixels[seq_idx[0]]).scale_to_fit_height(IMG_H)
         fish_mob.move_to(RIGHT * FX + UP * CY)
 
         self.play(
@@ -176,9 +176,9 @@ class Study1Step2(Scene):
         swap_times = list(SWAP_TOTAL_DUR * weights / weights.sum())
 
         for i, (rt, idx) in enumerate(zip(swap_times, seq_idx[1:])):
-            new_noise = ImageMobject(noise_magma(seed=(i + 1) * 41 + 7)).set_height(IMG_H)
+            new_noise = ImageMobject(noise_magma(seed=(i + 1) * 41 + 7)).scale_to_fit_height(IMG_H)
             new_noise.move_to(RIGHT * NX + UP * CY)
-            new_fish  = ImageMobject(pixels[idx]).set_height(IMG_H)
+            new_fish  = ImageMobject(pixels[idx]).scale_to_fit_height(IMG_H)
             new_fish.move_to(RIGHT * FX + UP * CY)
             new_seed  = MathTex(rf"\mathbf{{z}}_{{{i + 2}}}", color=GREY, font_size=28)
             new_seed.next_to(new_noise, DOWN, buff=0.12)
@@ -203,7 +203,7 @@ class Study1Step2(Scene):
         cpos = cloud_positions(N, cx=CLOUD_CX, cy=CLOUD_CY)
 
         cloud_imgs = [
-            ImageMobject(pixels[i]).set_height(IMG_CLOUD_H).move_to(RIGHT * px + UP * py)
+            ImageMobject(pixels[i]).scale_to_fit_height(IMG_CLOUD_H).move_to(RIGHT * px + UP * py)
             for i, (px, py) in enumerate(cpos[:N])
         ]
 
@@ -237,7 +237,7 @@ class Study1Step2(Scene):
         THUMB_H = 0.75
         thumb_seeds = [3, 44, 85]
         thumbs = [
-            ImageMobject(noise_magma(seed=s)).set_height(THUMB_H)
+            ImageMobject(noise_magma(seed=s)).scale_to_fit_height(THUMB_H)
             for s in thumb_seeds
         ]
         dots_tex = MathTex(r"\ldots", color=GREY, font_size=36)

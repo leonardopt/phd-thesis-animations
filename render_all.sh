@@ -22,6 +22,10 @@ SCRIPT_NAME="$(basename "$0")"
 
 cd "$SCRIPT_DIR"
 
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$SCRIPT_DIR/.uv-cache}"
+export MPLCONFIGDIR="${MPLCONFIGDIR:-$SCRIPT_DIR/.mplconfig}"
+mkdir -p "$UV_CACHE_DIR" "$MPLCONFIGDIR"
+
 all_scripts=(render_*.sh)
 scripts=()
 

@@ -408,7 +408,7 @@ class Study1Step1b(Scene):
         # ── Step C: prompt appears centre-left; fish image appears to its right
         IMG_H    = 3.20
         fish_img = (ImageMobject(fish_pix)
-                    .set_height(IMG_H)
+                    .scale_to_fit_height(IMG_H)
                     .move_to(np.array([RIGHT_COL_X, COL_CENTER_Y, 0.0])))
 
         FS = 21

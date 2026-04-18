@@ -75,7 +75,7 @@ class Study1Stage2TripletTask(Scene):
         return si, sj, sk
 
     def _make_probe(self, idx: int, pos: np.ndarray) -> tuple[ImageMobject, SurroundingRectangle]:
-        img = ImageMobject(fish_path(idx)).set_height(self._IMG_H).move_to(pos)
+        img = ImageMobject(fish_path(idx)).scale_to_fit_height(self._IMG_H).move_to(pos)
         bdr = SurroundingRectangle(img, color=LGREY, stroke_width=1.5, buff=0.05)
         return img, bdr
 
@@ -173,12 +173,12 @@ class Study1Stage2TripletTask(Scene):
         math_block.align_to(trial_frame, UP).shift(DOWN * 0.82)
         computer_icon = (
             ImageMobject(str(STAGE2_ASSET_DIR / "computer.png"))
-            .set_width(0.56)
+            .scale_to_fit_width(0.56)
             .move_to(trial_center + UP * (trial_frame_side / 2 + 0.42))
         )
 
         # ── Images ────────────────────────────────────────────────────────────
-        si_img = ImageMobject(fish_path(trial_specs[0]["ref"])).set_height(IMG_H).move_to(si_pos)
+        si_img = ImageMobject(fish_path(trial_specs[0]["ref"])).scale_to_fit_height(IMG_H).move_to(si_pos)
         si_bdr = SurroundingRectangle(si_img, color=LGREY, stroke_width=1.5, buff=0.05)
         sj_img, sj_bdr = self._make_probe(trial_specs[0]["left"], sj_pos)
         sk_img, sk_bdr = self._make_probe(trial_specs[0]["right"], sk_pos)
@@ -366,7 +366,7 @@ class Study1Stage2TripletTask2(Study1Stage2TripletTask):
         ).set_fill("#F9FAFB", opacity=0.45).move_to(trial_center)
         computer_icon = (
             ImageMobject(str(STAGE2_ASSET_DIR / "computer.png"))
-            .set_width(0.56)
+            .scale_to_fit_width(0.56)
             .move_to(trial_center + UP * (trial_frame_side / 2 + 0.42))
         )
         math1 = Tex(
@@ -394,7 +394,7 @@ class Study1Stage2TripletTask2(Study1Stage2TripletTask):
         math_block.next_to(trial_frame, LEFT, buff=0.55)
         math_block.align_to(trial_frame, UP).shift(DOWN * 0.82)
 
-        si_img = ImageMobject(fish_path(trial_specs[0]["ref"])).set_height(IMG_H).move_to(si_pos)
+        si_img = ImageMobject(fish_path(trial_specs[0]["ref"])).scale_to_fit_height(IMG_H).move_to(si_pos)
         si_bdr = SurroundingRectangle(si_img, color=LGREY, stroke_width=1.5, buff=0.05)
         sj_img, sj_bdr = self._make_probe(trial_specs[0]["left"], sj_pos)
         sk_img, sk_bdr = self._make_probe(trial_specs[0]["right"], sk_pos)
@@ -519,7 +519,7 @@ class Study1Stage2TripletTask2(Study1Stage2TripletTask):
         self.wait(0.45)
 
         for row_idx, spec in enumerate(trial_specs[1:], start=1):
-            next_si_img = ImageMobject(fish_path(spec["ref"])).set_height(IMG_H).move_to(si_pos)
+            next_si_img = ImageMobject(fish_path(spec["ref"])).scale_to_fit_height(IMG_H).move_to(si_pos)
             next_sj_img, next_sj_bdr = self._make_probe(spec["left"], sj_pos)
             next_sk_img, next_sk_bdr = self._make_probe(spec["right"], sk_pos)
             next_si_lbl = self._index_tex(spec["ref"], INK).next_to(next_si_img, DOWN, buff=0.10)
@@ -605,13 +605,13 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
         math_prev.align_to(trial_frame, UP).shift(DOWN * 0.82)
         computer_icon = (
             ImageMobject(str(STAGE2_ASSET_DIR / "computer.png"))
-            .set_width(0.56)
+            .scale_to_fit_width(0.56)
             .move_to(trial_center + UP * (trial_frame_side / 2 + 0.42))
         )
 
-        si_img = ImageMobject(fish_path(8)).set_height(img_h).move_to(si_pos)
-        sj_img = ImageMobject(fish_path(5)).set_height(img_h).move_to(sj_pos)
-        sk_img = ImageMobject(fish_path(2)).set_height(img_h).move_to(sk_pos)
+        si_img = ImageMobject(fish_path(8)).scale_to_fit_height(img_h).move_to(si_pos)
+        sj_img = ImageMobject(fish_path(5)).scale_to_fit_height(img_h).move_to(sj_pos)
+        sk_img = ImageMobject(fish_path(2)).scale_to_fit_height(img_h).move_to(sk_pos)
         si_bdr = SurroundingRectangle(si_img, color=LGREY, stroke_width=1.5, buff=0.05)
         sj_bdr = SurroundingRectangle(sj_img, color=LGREY, stroke_width=1.5, buff=0.05)
         sk_bdr = SurroundingRectangle(sk_img, color=AMBER, stroke_width=4.2, buff=0.07)
@@ -661,9 +661,9 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
             bottom_y = center[1] - 0.42
             left = np.array([center[0] - 0.48, bottom_y, 0.0])
             right = np.array([center[0] + 0.48, bottom_y, 0.0])
-            img_ref = ImageMobject(stimulus_path(prefix, ref_i)).set_height(0.56).move_to(top)
-            img_l = ImageMobject(stimulus_path(prefix, left_i)).set_height(0.56).move_to(left)
-            img_r = ImageMobject(stimulus_path(prefix, right_i)).set_height(0.56).move_to(right)
+            img_ref = ImageMobject(stimulus_path(prefix, ref_i)).scale_to_fit_height(0.56).move_to(top)
+            img_l = ImageMobject(stimulus_path(prefix, left_i)).scale_to_fit_height(0.56).move_to(left)
+            img_r = ImageMobject(stimulus_path(prefix, right_i)).scale_to_fit_height(0.56).move_to(right)
             bdr_ref = SurroundingRectangle(img_ref, color=LGREY, stroke_width=1.2, buff=0.03)
             bdr_l = SurroundingRectangle(img_l, color=LGREY, stroke_width=1.2, buff=0.03)
             bdr_r = SurroundingRectangle(img_r, color=LGREY, stroke_width=1.2, buff=0.03)
@@ -738,7 +738,7 @@ class Study1Stage2OrdinalEmbedding(Scene):
     @staticmethod
     def _card(fish_idx: int, img_h: float, border_color=None) -> Group:
         border_color = border_color or LGREY
-        img = ImageMobject(fish_path(fish_idx)).set_height(img_h)
+        img = ImageMobject(fish_path(fish_idx)).scale_to_fit_height(img_h)
         bdr = SurroundingRectangle(img, color=border_color, stroke_width=1.3, buff=0.04)
         return Group(img, bdr)
 
@@ -1039,7 +1039,7 @@ class Study1Stage2EmbeddingResult(Scene):
 
         fish_imgs = Group(*[
             ImageMobject(fish_path(i))
-            .set_height(img_h)
+            .scale_to_fit_height(img_h)
             .move_to([strip_xs[i], strip_y, 0.0])
             for i in range(10)
         ])
@@ -1357,7 +1357,7 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
 
         fish_imgs = Group(*[
             ImageMobject(fish_path(i))
-            .set_height(img_h)
+            .scale_to_fit_height(img_h)
             .move_to([strip_xs[i], strip_y, 0.0])
             for i in range(10)
         ])
@@ -1411,7 +1411,7 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
 
     def _category_row(self, image_paths: list[Path], image_height: float = 0.44) -> Group:
         images = Group(*[
-            ImageMobject(str(path)).set_height(image_height)
+            ImageMobject(str(path)).scale_to_fit_height(image_height)
             for path in image_paths
         ])
         images.arrange(RIGHT, buff=0.055)
@@ -1466,7 +1466,7 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
         left_target_rows.to_edge(LEFT, buff=0.28)
         left_target_rows.shift(DOWN * 0.18)
 
-        heatmap = ImageMobject(heatmap_png).set_height(5.45)
+        heatmap = ImageMobject(heatmap_png).scale_to_fit_height(5.45)
         heatmap.to_edge(RIGHT, buff=0.35).shift(DOWN * 0.06)
 
         heatmap_title = Tex(

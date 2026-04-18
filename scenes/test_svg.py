@@ -708,14 +708,14 @@ class Study2TempGenMatrixTest(Scene):
         if tempgen_png.exists():
             underlay = (
                 ImageMobject(str(tempgen_png))
-                .set_height(plot_height)
+                .scale_to_fit_height(plot_height)
                 .move_to(center)
             )
             underlay.set_opacity(0.86)
 
         overlay = (
             SVGMobject(str(STUDY2_TEMPGEN_PATH))
-            .set_height(plot_height)
+            .scale_to_fit_height(plot_height)
             .move_to(center)
         )
         _hide_white_regions(overlay)

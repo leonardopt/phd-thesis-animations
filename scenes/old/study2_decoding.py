@@ -214,7 +214,7 @@ class Study2Scene3A(Scene):
         xs     = [-5.4, -1.8, 1.8, 5.4]
 
         for key, img_name, col, x in zip(keys, self._IMGS, colors, xs):
-            img = ImageMobject(fmri_stim(img_name)).set_height(1.4) \
+            img = ImageMobject(fmri_stim(img_name)).scale_to_fit_height(1.4) \
                 .move_to(RIGHT * x + UP * 1.1)
             bdr = SurroundingRectangle(img, color=LGREY, stroke_width=1.5, buff=0.04)
             lbl = Tex(f"Image {key}", color=col, font_size=20) \
