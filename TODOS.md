@@ -1,4 +1,3 @@
-
 # Cogntive example
 - real life situation, activity while representing reality 
 

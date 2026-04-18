@@ -29,9 +29,6 @@ Main narrative sequence:
     22 Study1Stage3MemoryExpDesign
     23 Study1Stage3MemoryExpResults
 
-Supplemental / alternate scenes are also re-exported and numbered after the
-main sequence.
-
 Render examples:
     uv run manim scenes/study1.py Study1Stage1Step1a -qh
     uv run manim scenes/study1.py Study1Stage1Step5LPIPS -qh
@@ -3031,15 +3028,6 @@ _STUDY1_SCENE_ORDER: dict[str, str] = {
     "Study1Stage3MemoryIntroD": "21",
     "Study1Stage3MemoryExpDesign": "22",
     "Study1Stage3MemoryExpResults": "23",
-    "Study1Stage1Step3": "24",
-    "Study1Stage1Step4Detailed": "25",
-    "Study1Stage1Step4": "26",
-    "Study1Stage2OrdinalEmbedding": "27",
-    "Showcase_sequoia": "28",
-    "Showcase_lake_island": "29",
-    "Showcase_observatory": "30",
-    "Showcase_campervan": "31",
-    "Showcase_sofa": "32",
 }
 
 _STUDY1_OUTPUT_NAME_OVERRIDES: dict[str, str] = {}
@@ -4830,20 +4818,9 @@ _PUBLIC_SCENES: tuple[type[Scene], ...] = (
     Study1Stage3MemoryIntroD,
     _Study1Stage3MemoryExpDesign,
     _Study1Stage3MemoryExpResults,
-    _Study1Stage1Step3,
-    _Study1Stage1Step4Detailed,
-    _Study1Stage1Step4,
-    _Study1Stage2OrdinalEmbedding,
 )
 
 for _scene_cls in _PUBLIC_SCENES:
     globals()[_scene_cls.__name__] = _wrap_scene(_scene_cls)
-
-for _name, _scene_cls in list(globals().items()):
-    if not _name.startswith("Showcase_"):
-        continue
-    if isinstance(_scene_cls, type) and issubclass(_scene_cls, Scene):
-        globals()[_name] = _wrap_scene(_scene_cls)
-
 
 __all__ = list(_STUDY1_SCENE_ORDER)

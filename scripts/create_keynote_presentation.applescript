@@ -241,7 +241,11 @@ end addImageToSlide
 
 -- Populate one slide from a normalized manifest tuple.
 -- slideSpec order is {slideType, mediaPath, titleText, subtitleText, bodyText, notesText}.
--- Media slides use blank layouts, while text-bearing slides choose a title or bullets layout.
+-- Text-oriented records leave mediaPath empty; media-oriented records may leave
+-- the text fields blank and still pass presenter notes through unchanged.
+-- Each branch picks the narrowest Keynote layout contract that matches the
+-- manifest semantics so the AppleScript, rather than the manifest, owns the
+-- presentation-specific layout policy.
 on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, titleOnlyLayout, textBulletsLayout, slideWidth, slideHeight)
 	set slideType to item 1 of slideSpec
 	set mediaPath to item 2 of slideSpec
@@ -264,13 +268,15 @@ on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, tit
 		return
 	end if
 	if slideType is "title" then
-		-- Title slides keep both title and body visible so subtitle/body text can coexist.
+		-- Title slides keep both placeholders visible because subtitle and body
+		-- content are merged into the single Keynote body field.
 		my prepareSlide(aSlide, titleLayout, true, true)
 		my setSlideText(aSlide, titleText, my combinedBodyText(subtitleText, bodyText), notesText)
 		return
 	end if
 	if slideType is "section" then
-		-- Section slides follow the same text contract but prefer the section layout when available.
+		-- Section slides reuse the same merged-text contract but prefer the deck's
+		-- section layout when that template is available.
 		my prepareSlide(aSlide, sectionLayout, true, true)
 		my setSlideText(aSlide, titleText, my combinedBodyText(subtitleText, bodyText), notesText)
 		return
@@ -286,7 +292,8 @@ on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, tit
 		my setSlideText(aSlide, titleText, effectiveBodyText, notesText)
 		return
 	end if
-	
+	-- Reject unknown slide types here so the manifest schema and AppleScript
+	-- dispatch table stay in sync instead of silently choosing a bad layout.
 	error "Unsupported slide type: " & slideType
 end populateSlide
 
