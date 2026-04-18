@@ -30,7 +30,8 @@ all_scripts=(render_*.sh)
 scripts=()
 
 for script in "${all_scripts[@]}"; do
-    if [[ "$(basename "$script")" != "$SCRIPT_NAME" ]]; then
+    script_basename="$(basename "$script")"
+    if [[ "$script_basename" != "$SCRIPT_NAME" && "$script_basename" != "render_single_video.sh" ]]; then
         scripts+=("$script")
     fi
 done

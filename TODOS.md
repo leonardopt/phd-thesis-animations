@@ -12,7 +12,8 @@
 
 - Potentially add explainer of why cross decoding is interpreted as same format 
 
-# Scripting 
+# Embellishments 
+- add fMRI scanner icon underneath the brain icon. potentially also some real examples from NIfTIs
+- add neural network icon under LPIPS when you first introduce it
 
-- Create single bash caller file to render everything in qk resolution at the end
-- Create file to generate a PDF presentation out of the videos as backup
+# Scripting 

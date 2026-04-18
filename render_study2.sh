@@ -7,6 +7,14 @@
 
 set -euo pipefail
 
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    echo "Usage: ./render_study2.sh [QUALITY]"
+    echo
+    echo "Render all Study 2 scenes in numbered narrative order."
+    echo "Defaults to -ql when no quality is provided."
+    exit 0
+fi
+
 QUALITY="${1:--ql}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -36,7 +44,7 @@ def load_scene_order(path_str: str, variable_name: str) -> dict[str, str]:
     raise SystemExit(f"Could not find {variable_name} in {path_str}")
 
 
-for class_name, scene_number in load_scene_order("scenes/study2.py", "_STUDY2_SCENE_ORDER").items():
+for class_name, scene_number in sorted(load_scene_order("scenes/study2.py", "_STUDY2_SCENE_ORDER").items(), key=lambda item: int(item[1])):
     print(f"{scene_number}_{class_name}:{class_name}")
 ' 
 )

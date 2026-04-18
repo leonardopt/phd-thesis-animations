@@ -4,13 +4,13 @@ Study 2.
   01 Study2ExperimentalDesign
   02 Study2DecodingOverviewA
   03 Study2DecodingOverviewB
-  04 Study2WithinSession2Decoding
+  04 Study2WithinSession2DecodingSetup
   05 Study2WithinSession2DecodingResults
-  06 Study2CrossSessionDecoding
+  06 Study2CrossSessionDecodingSetup
   07 Study2CrossSessionDecodingResultsA
   08 Study2CrossSessionDecodingResultsB
-  09 Study2WithinSession1DecodingA
-  10 Study2WithinSession1DecodingB
+  09 Study2WithinSession1DecodingSetupA
+  10 Study2WithinSession1DecodingSetupB
   11 Study2WithinSession1DecodingResultsA
   12 Study2WithinSession1DecodingResultsB
   13 Study2WithinSession1DecodingResultsC
@@ -26,9 +26,9 @@ Render:
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
     uv run manim scenes/study2.py Study2DecodingOverviewA -qh
     uv run manim scenes/study2.py Study2DecodingOverviewB -qh
-    uv run manim scenes/study2.py Study2WithinSession2Decoding -qh
-    uv run manim scenes/study2.py Study2CrossSessionDecoding -qh
-    uv run manim scenes/study2.py Study2WithinSession1DecodingA -qh
+    uv run manim scenes/study2.py Study2WithinSession2DecodingSetup -qh
+    uv run manim scenes/study2.py Study2CrossSessionDecodingSetup -qh
+    uv run manim scenes/study2.py Study2WithinSession1DecodingSetupA -qh
     uv run manim scenes/study2.py Study2WithinSession1DecodingResultsA -qh
     uv run manim scenes/study2.py Study2LTMResultsExplainer -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesA -qh
@@ -65,13 +65,13 @@ _STUDY2_SCENE_ORDER: dict[str, str] = {
     "Study2ExperimentalDesign":              "01",
     "Study2DecodingOverviewA":               "02",
     "Study2DecodingOverviewB":               "03",
-    "Study2WithinSession2Decoding":          "04",
+    "Study2WithinSession2DecodingSetup":     "04",
     "Study2WithinSession2DecodingResults":   "05",
-    "Study2CrossSessionDecoding":            "06",
+    "Study2CrossSessionDecodingSetup":       "06",
     "Study2CrossSessionDecodingResultsA":    "07",
     "Study2CrossSessionDecodingResultsB":    "08",
-    "Study2WithinSession1DecodingA":         "09",
-    "Study2WithinSession1DecodingB":         "10",
+    "Study2WithinSession1DecodingSetupA":    "09",
+    "Study2WithinSession1DecodingSetupB":    "10",
     "Study2WithinSession1DecodingResultsA":  "11",
     "Study2WithinSession1DecodingResultsB":  "12",
     "Study2WithinSession1DecodingResultsC":  "13",
@@ -1241,7 +1241,7 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Study2WithinSession2Decoding
+# Study2WithinSession2DecodingSetup
 # ══════════════════════════════════════════════════════════════════════════════
 
 
@@ -1276,13 +1276,13 @@ def _make_feature_row(
     return group
 
 
-class Study2WithinSession2Decoding(Study2DecodingOverviewA):
+class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
     """
     Starts from the previous end state, merges feature vectors into a
     samples x features matrix, and illustrates leave-one-run-out decoding.
 
     Render:
-        uv run manim scenes/study2.py Study2WithinSession2Decoding -qh
+        uv run manim scenes/study2.py Study2WithinSession2DecodingSetup -qh
     """
 
     _ROW_COLS = [_D_BLUE, _D_AMBER, _D_GREEN, _D_RED, _D_PURP, _D_CYAN]
@@ -2159,7 +2159,7 @@ class Study2WithinSession2Decoding(Study2DecodingOverviewA):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-class Study2WithinSession2DecodingResults(Study2WithinSession2Decoding):
+class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
     """
     Start from the final frame of within-session decoding, then transition to
     the results figure.
@@ -2814,19 +2814,19 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2Decoding):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Study2CrossSessionDecoding
+# Study2CrossSessionDecodingSetup
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
+class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
     """
     Build a conceptual cross-session decoding setup that shows Session 2
     stimulation providing the training patterns, then tests the fixed decoder
     on Session 1 stimulation and delay-period patterns.
 
     Render:
-        uv run manim scenes/study2.py Study2CrossSessionDecoding -ql
-        uv run manim scenes/study2.py Study2CrossSessionDecoding -qh
+        uv run manim scenes/study2.py Study2CrossSessionDecodingSetup -ql
+        uv run manim scenes/study2.py Study2CrossSessionDecodingSetup -qh
     """
 
     _S2_ROW_SCALE = 0.58
@@ -3249,7 +3249,7 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
         self.wait(1.2)
 
 
-class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecoding):
+class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup):
     """
     Start from the last frame of cross-session decoding.
 
@@ -5048,7 +5048,7 @@ class Study2CrossSessionDecodingResultsB(Study2CrossSessionDecodingResultsCombin
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Study2WithinSession1Decoding
+# Study2WithinSession1DecodingSetup
 # ══════════════════════════════════════════════════════════════════════════════
 
 
@@ -8688,13 +8688,13 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
 
 
-class Study2WithinSession1DecodingCombined(_Study2WithinSession1DecodingBase):
+class Study2WithinSession1DecodingSetupCombined(_Study2WithinSession1DecodingBase):
     """
     Combined intro + rationale for within-session decoding in Session 1.
 
     Render:
-        uv run manim scenes/study2.py Study2WithinSession1DecodingCombined -ql
-        uv run manim scenes/study2.py Study2WithinSession1DecodingCombined -qh
+        uv run manim scenes/study2.py Study2WithinSession1DecodingSetupCombined -ql
+        uv run manim scenes/study2.py Study2WithinSession1DecodingSetupCombined -qh
     """
 
     def construct(self) -> None:
@@ -8709,14 +8709,14 @@ class Study2WithinSession1DecodingCombined(_Study2WithinSession1DecodingBase):
         self._animate_within_session_scheme_from_question(ctx)
 
 
-class Study2WithinSession1DecodingA(_Study2WithinSession1DecodingBase):
+class Study2WithinSession1DecodingSetupA(_Study2WithinSession1DecodingBase):
     """
     Part A: start from the final cross-session results frame and compress it into
     a takeaway card with compact plots underneath.
 
     Render:
-        uv run manim scenes/study2.py Study2WithinSession1DecodingA -ql
-        uv run manim scenes/study2.py Study2WithinSession1DecodingA -qh
+        uv run manim scenes/study2.py Study2WithinSession1DecodingSetupA -ql
+        uv run manim scenes/study2.py Study2WithinSession1DecodingSetupA -qh
     """
 
     def construct(self) -> None:
@@ -8757,13 +8757,13 @@ class Study2WithinSession1DecodingA(_Study2WithinSession1DecodingBase):
         self.wait(2.0)
 
 
-class Study2WithinSession1DecodingB(_Study2WithinSession1DecodingBase):
+class Study2WithinSession1DecodingSetupB(_Study2WithinSession1DecodingBase):
     """
     Part B: start from the summary card and lift the question into the rationale.
 
     Render:
-        uv run manim scenes/study2.py Study2WithinSession1DecodingB -ql
-        uv run manim scenes/study2.py Study2WithinSession1DecodingB -qh
+        uv run manim scenes/study2.py Study2WithinSession1DecodingSetupB -ql
+        uv run manim scenes/study2.py Study2WithinSession1DecodingSetupB -qh
     """
 
     def construct(self) -> None:
@@ -10674,7 +10674,12 @@ class Study2SearchlightDelay(_Study2SearchlightSceneBase):
 
 
 Study2DecodingOverview = Study2DecodingOverviewA
+Study2WithinSession2Decoding = Study2WithinSession2DecodingSetup
+Study2CrossSessionDecoding = Study2CrossSessionDecodingSetup
 Study2CrossSessionDecodingResults = Study2CrossSessionDecodingResultsCombined
-Study2WithinSession1Decoding = Study2WithinSession1DecodingCombined
+Study2WithinSession1DecodingCombined = Study2WithinSession1DecodingSetupCombined
+Study2WithinSession1Decoding = Study2WithinSession1DecodingSetupCombined
+Study2WithinSession1DecodingA = Study2WithinSession1DecodingSetupA
+Study2WithinSession1DecodingB = Study2WithinSession1DecodingSetupB
 Study2WithinSession1DecodingResults = Study2WithinSession1DecodingResultsCombined
 Study2SupplementalRoiTimecourses = Study2SupplementalRoiTimecoursesCombined
