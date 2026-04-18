@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Flatten the presentation TOML manifest into simple records for AppleScript."""
+"""Flatten the repo's presentation manifest into simple records for AppleScript.
+
+The primary path uses `tomllib` when available. A narrow fallback parser is kept
+for environments such as older system Python installations; it intentionally
+supports only the TOML subset used by `assets/presentation_deck.toml`.
+"""
 
 from __future__ import annotations
 
@@ -20,6 +25,7 @@ FIELD_SEPARATOR = "\x1f"
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI flags for manifest expansion and quality placeholder rendering."""
     parser = argparse.ArgumentParser(
         description="Expand the presentation deck manifest into flat slide records."
     )
@@ -34,10 +40,12 @@ def parse_args() -> argparse.Namespace:
 
 
 def manifest_error(message: str) -> "NoReturn":
+    """Exit immediately with a manifest-specific error message."""
     raise SystemExit(f"Manifest error: {message}")
 
 
 def resolve_path(raw_path: str, project_root: Path) -> Path:
+    """Resolve a manifest path relative to the project root when needed."""
     path = Path(raw_path)
     if not path.is_absolute():
         path = project_root / path
@@ -45,10 +53,12 @@ def resolve_path(raw_path: str, project_root: Path) -> Path:
 
 
 def render_template(value: str, quality_dir: str) -> str:
+    """Substitute `{{quality_dir}}` placeholders in manifest path templates."""
     return value.replace("{{quality_dir}}", quality_dir)
 
 
 def ordered_media_paths(patterns: list[str], project_root: Path, quality_dir: str) -> list[Path]:
+    """Expand media globs, de-duplicate matches, and return them in slide order."""
     matches: list[Path] = []
     for pattern in patterns:
         absolute_pattern = str(resolve_path(render_template(pattern, quality_dir), project_root))
@@ -59,6 +69,7 @@ def ordered_media_paths(patterns: list[str], project_root: Path, quality_dir: st
 
 
 def slide_sort_key(path: Path) -> tuple:
+    """Return a natural sort key that keeps numbered slide exports in narrative order."""
     name = path.name
     match = re.match(r"(\d+)([A-Za-z]*)_(.*)", name)
     if match:
@@ -68,6 +79,7 @@ def slide_sort_key(path: Path) -> tuple:
 
 
 def natural_key(text: str) -> tuple:
+    """Split a string into alternating text and integer chunks for natural sorting."""
     parts = re.split(r"(\d+)", text)
     key: list[object] = []
     for part in parts:
@@ -79,6 +91,7 @@ def natural_key(text: str) -> tuple:
 
 
 def load_manifest(manifest_path: Path) -> dict:
+    """Load the manifest with `tomllib` or the repo-specific fallback parser."""
     try:
         if tomllib is not None:
             with manifest_path.open("rb") as handle:
@@ -92,6 +105,18 @@ def load_manifest(manifest_path: Path) -> dict:
 
 
 def parse_basic_toml(source_text: str) -> dict:
+    """Parse the limited TOML subset used by this repository's deck manifest.
+
+    Supported constructs are:
+    - `[deck]` and `[[slide]]` tables
+    - quoted strings and triple-quoted multiline strings
+    - booleans and integers
+    - flat lists containing those supported scalar values
+
+    The fallback parser is intentionally not a full TOML implementation. It does
+    not aim to support nested tables, floats, dates, inline tables, or arbitrary
+    TOML edge cases beyond what the presentation manifest currently needs.
+    """
     manifest: dict = {}
     current_target: dict | None = None
     lines = source_text.splitlines()
@@ -144,11 +169,14 @@ def parse_basic_toml(source_text: str) -> dict:
 
 
 def strip_comments(line: str) -> str:
+    """Remove TOML comments from one line while preserving `#` inside strings."""
     result: list[str] = []
     in_string = False
     escaped = False
 
     for character in line:
+        # Track quote state so we only treat `#` as a comment delimiter when the
+        # character appears outside the string literal we are currently reading.
         if character == '"' and not escaped:
             in_string = not in_string
         if character == "#" and not in_string:
@@ -162,6 +190,7 @@ def strip_comments(line: str) -> str:
 
 
 def parse_basic_toml_value(raw_value: str):
+    """Parse one supported scalar or flat-list value from the fallback subset."""
     if raw_value.startswith('"') and raw_value.endswith('"'):
         return ast.literal_eval(raw_value)
 
@@ -185,12 +214,15 @@ def parse_basic_toml_value(raw_value: str):
 
 
 def split_basic_toml_list(raw_list: str) -> list[str]:
+    """Split a flat TOML list on top-level commas while honoring quoted strings."""
     parts: list[str] = []
     current: list[str] = []
     in_string = False
     escaped = False
 
     for character in raw_list:
+        # The fallback parser only needs top-level list splitting, so it tracks
+        # whether the current comma is inside a quoted string before splitting.
         if character == '"' and not escaped:
             in_string = not in_string
         if character == "," and not in_string:
@@ -212,6 +244,7 @@ def split_basic_toml_list(raw_list: str) -> list[str]:
 def validate_media_slide(
     slide_type: str, slide: dict, project_root: Path, quality_dir: str
 ) -> dict:
+    """Validate and normalize one media slide entry from the manifest."""
     raw_path = slide.get("path")
     if not raw_path:
         manifest_error(f"{slide_type!r} slide requires a path")
@@ -231,6 +264,7 @@ def validate_media_slide(
 
 
 def validate_text_slide(slide_type: str, slide: dict) -> dict:
+    """Validate and normalize one text-based slide entry from the manifest."""
     if not slide.get("title"):
         manifest_error(f"{slide_type!r} slide requires a title")
 
@@ -245,6 +279,12 @@ def validate_text_slide(slide_type: str, slide: dict) -> dict:
 
 
 def expand_slides(slides: list[dict], project_root: Path, quality_dir: str) -> list[dict]:
+    """Expand manifest slide entries into the flat records consumed by AppleScript.
+
+    `video_sequence` entries are expanded into one normalized `video` record per
+    matched media file so downstream consumers do not need to understand the
+    higher-level sequencing directive.
+    """
     expanded: list[dict] = []
 
     for slide in slides:
@@ -299,6 +339,7 @@ def expand_slides(slides: list[dict], project_root: Path, quality_dir: str) -> l
 
 
 def serialize(deck: dict, slides: list[dict], project_root: Path) -> str:
+    """Serialize deck metadata and normalized slides into record-separated text."""
     output_dir = resolve_path(deck.get("output_dir", "media/keynote"), project_root)
     slide_width = str(deck.get("slide_width", 1920))
     slide_height = str(deck.get("slide_height", 1080))
@@ -335,6 +376,7 @@ def serialize(deck: dict, slides: list[dict], project_root: Path) -> str:
 
 
 def main() -> int:
+    """Load, validate, expand, and serialize the presentation manifest."""
     args = parse_args()
     project_root = Path(args.project_root).resolve()
     manifest_path = resolve_path(args.manifest, project_root)

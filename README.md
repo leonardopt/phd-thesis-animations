@@ -106,6 +106,26 @@ osascript /Users/leonardo/phd-thesis-animations/scripts/create_keynote_presentat
 
 `-ql`, `-qm`, `-qh`, and `-qk` map to the standard Manim output folders. The deck build will fail cleanly if the corresponding video folder does not exist yet.
 
+## Renumbering
+
+Use a script, not ad-hoc find/replace and not an AI-only instruction note. The numbered source of truth lives in `scenes/study1.py` and `scenes/study2.py`, while `media/` outputs and reports are derived artifacts.
+
+Dry-run a renumber after removing one scene from the numbered sequence:
+
+```bash
+python3 scripts/renumber_scene_order.py study1 --remove-class Study1Stage3MemoryExpDesignA
+```
+
+Write the renumbered mapping back to the scene file:
+
+```bash
+python3 scripts/renumber_scene_order.py study1 --remove-class Study1Stage3MemoryExpDesignA --apply
+```
+
+Then rerender the affected study and rebuild any backup PDFs or bundles that depend on the old filenames.
+
+`assets/presentation_frame_overrides.toml` supports scene-class keys such as `["Study1Step2Showcase"]`, which survive renumbering better than numbered video stems.
+
 ## Asset Notes
 
 - Small cross-repo reference files are copied into tracked repo-local locations by `scripts/sync_external_assets.py --groups small`.

@@ -43,17 +43,22 @@ DEFAULT_FULL_PAGE_OUTPUT = REPO_ROOT / "media" / "pdfs" / "study_frame_screener_
 
 @dataclass(frozen=True)
 class CandidateFrame:
+    """One candidate still frame plus the sampled timestamp it represents."""
+
     image_path: Path
     timestamp_seconds: float
 
 
 @dataclass(frozen=True)
 class VideoScreen:
+    """Stable-frame candidates collected for one rendered video."""
+
     entry: VideoEntry
     candidates: tuple[CandidateFrame, ...]
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI flags for stable-frame discovery and PDF layout generation."""
     parser = argparse.ArgumentParser(
         description=(
             "Build a screener PDF with candidate still frames from Study 1/2 "
@@ -138,6 +143,7 @@ def sample_video_frames(
     sample_fps: float,
     analysis_width: int,
 ) -> list[Path]:
+    """Sample a video into uniformly spaced PNG frames for motion analysis."""
     output_dir.mkdir(parents=True, exist_ok=True)
     output_pattern = output_dir / "frame_%05d.png"
     vf = f"fps={sample_fps:g},scale={analysis_width}:-1:flags=lanczos"
@@ -161,6 +167,7 @@ def sample_video_frames(
 
 
 def load_grayscale_frames(frame_paths: list[Path]) -> list[np.ndarray]:
+    """Load sampled frames as grayscale arrays suitable for motion comparison."""
     arrays: list[np.ndarray] = []
     for frame_path in frame_paths:
         image = mpimg.imread(frame_path).astype(np.float32)
@@ -171,6 +178,13 @@ def load_grayscale_frames(frame_paths: list[Path]) -> list[np.ndarray]:
 
 
 def infer_motion_threshold(adjacent_diffs: np.ndarray) -> float:
+    """Infer a per-video motion threshold from sampled frame-to-frame differences.
+
+    The heuristic anchors itself to the lower-motion portion of the adjacent
+    difference distribution, then expands that baseline slightly so quiet holds
+    survive while ongoing animation stays above threshold. The result is clipped
+    into a conservative range to avoid extreme thresholds on unusual videos.
+    """
     if adjacent_diffs.size == 0:
         return 0.003
     base = float(np.quantile(adjacent_diffs, 0.35))
@@ -183,6 +197,15 @@ def select_stable_frame_indices(
     min_still_seconds: float,
     motion_threshold: float | None,
 ) -> list[int]:
+    """Pick representative frame indices from stable visual holds.
+
+    The algorithm measures adjacent frame motion, marks a frame as stable when
+    both of its neighboring differences stay under threshold, groups contiguous
+    stable frames into runs, and keeps the midpoint of each run that lasts at
+    least `min_still_seconds`. When no run qualifies, it falls back to the
+    calmest observed transition region so each video still yields one reviewable
+    candidate.
+    """
     if not arrays:
         return []
     if len(arrays) == 1:
@@ -224,6 +247,8 @@ def select_stable_frame_indices(
         return selected_indices
 
     calmest_index = int(np.argmin(adjacent_diffs))
+    # Use the later frame from the calmest pair so the fallback lands on the
+    # frame that best represents the end of that low-motion transition.
     fallback_index = min(calmest_index + 1, len(arrays) - 1)
     return [fallback_index]
 
@@ -237,6 +262,7 @@ def build_video_screen(
     min_still_seconds: float,
     motion_threshold: float | None,
 ) -> VideoScreen:
+    """Sample one video and package its stable-frame candidates for downstream PDFs."""
     video_dir = temp_dir / entry.stem
     frame_paths = sample_video_frames(
         ffmpeg_path=ffmpeg_path,
@@ -263,6 +289,7 @@ def build_video_screen(
 
 
 def chunked_candidates(candidates: tuple[CandidateFrame, ...], chunk_size: int) -> list[tuple[CandidateFrame, ...]]:
+    """Split a candidate tuple into fixed-size page chunks."""
     return [
         candidates[start : start + chunk_size]
         for start in range(0, len(candidates), chunk_size)
@@ -278,6 +305,7 @@ def add_screener_page(
     local_page_number: int,
     local_page_count: int,
 ) -> None:
+    """Render one grid page of candidate stills for a single video."""
     fig = plt.figure(figsize=(13.333, 7.5), facecolor="white")
     fig.text(
         0.03,
@@ -354,6 +382,7 @@ def add_full_page_frame(
     page_number: int,
     page_count: int,
 ) -> None:
+    """Render one full-slide candidate preview page for a single sampled frame."""
     fig = plt.figure(figsize=(13.333, 7.5), facecolor="white")
     ax = fig.add_axes([0.02, 0.06, 0.96, 0.86])
     ax.imshow(mpimg.imread(candidate.image_path))
@@ -392,6 +421,7 @@ def add_full_page_frame(
 
 
 def main() -> int:
+    """Generate both the multi-candidate screener PDF and the full-page export."""
     args = parse_args()
     if not 1 <= args.frames_per_page <= 6:
         raise SystemExit("--frames-per-page must be between 1 and 6 for the current screener layout.")

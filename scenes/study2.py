@@ -1,31 +1,36 @@
 """
 Study 2.
 
-  Study2ExperimentalDesign — two-session paradigm diagram
-  Study2DecodingOverview   — Session 2 stimuli -> feature vectors -> sensory matrix
-  Study2DecodingOverviewB  — restore original images and motivate cross-decoding
-  Study2WithinSession2Decoding — crossvalidated prediction within Session 2
-  Study2CrossSessionDecoding   — train on sensory, test on sensory and memory
-  Study2WithinSession1Decoding        — explain the Session 1 within-session rationale
-  Study2WithinSession1DecodingResults — reveal Session 1 within-session decoding results
-  Study2LTMResultsExplainer           — one-slide summary of repetition/LTM results
-  Study2SupplementalRoiTimecourses    — compare sensory -> memory time courses across other ROIs
-  Study2SupplementalRoiTimecoursesA   — Train Session 2 -> Test Session 1 ROI time courses
-  Study2SupplementalRoiTimecoursesB   — transition from A into the second SVG time-course panel
-  Study2SupplementalRoiTempGenMats    — compare temporal-generalisation matrices across all ROIs
-  Study2SearchlightStimulation        — GLM-based searchlight decoding during stimulation
-  Study2SearchlightDelay              — GLM-based searchlight decoding during delay
+  01 Study2ExperimentalDesign
+  02 Study2DecodingOverviewA
+  03 Study2DecodingOverviewB
+  04 Study2WithinSession2Decoding
+  05 Study2WithinSession2DecodingResults
+  06 Study2CrossSessionDecoding
+  07 Study2CrossSessionDecodingResultsA
+  08 Study2CrossSessionDecodingResultsB
+  09 Study2WithinSession1DecodingA
+  10 Study2WithinSession1DecodingB
+  11 Study2WithinSession1DecodingResultsA
+  12 Study2WithinSession1DecodingResultsB
+  13 Study2WithinSession1DecodingResultsC
+  14 Study2WithinSession1DecodingResultsD
+  15 Study2LTMResultsExplainer
+  16 Study2SupplementalRoiTimecoursesA
+  17 Study2SupplementalRoiTimecoursesB
+  18 Study2SupplementalRoiTempGenMats
+  19 Study2SearchlightStimulation
+  20 Study2SearchlightDelay
 
 Render:
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
-    uv run manim scenes/study2.py Study2DecodingOverview -qh
+    uv run manim scenes/study2.py Study2DecodingOverviewA -qh
     uv run manim scenes/study2.py Study2DecodingOverviewB -qh
     uv run manim scenes/study2.py Study2WithinSession2Decoding -qh
     uv run manim scenes/study2.py Study2CrossSessionDecoding -qh
-    uv run manim scenes/study2.py Study2WithinSession1Decoding -qh
-    uv run manim scenes/study2.py Study2WithinSession1DecodingResults -qh
+    uv run manim scenes/study2.py Study2WithinSession1DecodingA -qh
+    uv run manim scenes/study2.py Study2WithinSession1DecodingResultsA -qh
     uv run manim scenes/study2.py Study2LTMResultsExplainer -qh
-    uv run manim scenes/study2.py Study2SupplementalRoiTimecourses -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesA -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesB -qh
     uv run manim scenes/study2.py Study2SupplementalRoiTempGenMats -qh
@@ -58,25 +63,25 @@ _STUDY2_TRAINING_DIR = _STUDY2_ASSET_DIR / "stimuli_training"
 # ── Narrative render order ────────────────────────────────────────────────────
 _STUDY2_SCENE_ORDER: dict[str, str] = {
     "Study2ExperimentalDesign":              "01",
-    "Study2DecodingOverview":                "02",
-    "Study2DecodingOverviewB":               "02B",
-    "Study2WithinSession2Decoding":          "03",
-    "Study2WithinSession2DecodingResults":   "04",
-    "Study2CrossSessionDecoding":            "05",
-    "Study2CrossSessionDecodingResultsA":    "06",
-    "Study2CrossSessionDecodingResultsB":    "07",
-    "Study2WithinSession1DecodingA":         "08",
-    "Study2WithinSession1DecodingB":         "09",
-    "Study2WithinSession1DecodingResultsA":  "10",
-    "Study2WithinSession1DecodingResultsB":  "11",
-    "Study2WithinSession1DecodingResultsC":  "12",
-    "Study2WithinSession1DecodingResultsD":  "13",
-    "Study2LTMResultsExplainer":             "14",
-    "Study2SupplementalRoiTimecoursesA":     "15",
-    "Study2SupplementalRoiTimecoursesB":     "16",
-    "Study2SupplementalRoiTempGenMats":      "17",
-    "Study2SearchlightStimulation":          "18",
-    "Study2SearchlightDelay":                "19",
+    "Study2DecodingOverviewA":               "02",
+    "Study2DecodingOverviewB":               "03",
+    "Study2WithinSession2Decoding":          "04",
+    "Study2WithinSession2DecodingResults":   "05",
+    "Study2CrossSessionDecoding":            "06",
+    "Study2CrossSessionDecodingResultsA":    "07",
+    "Study2CrossSessionDecodingResultsB":    "08",
+    "Study2WithinSession1DecodingA":         "09",
+    "Study2WithinSession1DecodingB":         "10",
+    "Study2WithinSession1DecodingResultsA":  "11",
+    "Study2WithinSession1DecodingResultsB":  "12",
+    "Study2WithinSession1DecodingResultsC":  "13",
+    "Study2WithinSession1DecodingResultsD":  "14",
+    "Study2LTMResultsExplainer":             "15",
+    "Study2SupplementalRoiTimecoursesA":     "16",
+    "Study2SupplementalRoiTimecoursesB":     "17",
+    "Study2SupplementalRoiTempGenMats":      "18",
+    "Study2SearchlightStimulation":          "19",
+    "Study2SearchlightDelay":                "20",
 }
 
 
@@ -323,14 +328,14 @@ _D_MGREY = "#9CA3AF"
 _BRAIN_PNG_PATH = _STUDY2_ASSET_DIR / "brain_icon_sagittal.png"
 
 
-class Study2DecodingOverview(_Study2NumberedScene, Scene):
+class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     """
     Opens on the full experimental-design layout, isolates the Session 2
     stimuli, and then maps each image to a coloured feature vector via a
     brain icon and activity-pattern matrix.
 
     Render:
-        uv run manim scenes/study2.py Study2DecodingOverview -qh
+        uv run manim scenes/study2.py Study2DecodingOverviewA -qh
     """
 
     # Three S2 stimulus colours (matching Stimulus 1/2/3 order)
@@ -1098,7 +1103,7 @@ class Study2DecodingOverview(_Study2NumberedScene, Scene):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-class Study2DecodingOverviewB(Study2DecodingOverview):
+class Study2DecodingOverviewB(Study2DecodingOverviewA):
     """
     Start from the final DecodingOverview frame, restore the original
     perceptual images, and lay out matched delay cards to motivate the
@@ -1271,7 +1276,7 @@ def _make_feature_row(
     return group
 
 
-class Study2WithinSession2Decoding(Study2DecodingOverview):
+class Study2WithinSession2Decoding(Study2DecodingOverviewA):
     """
     Starts from the previous end state, merges feature vectors into a
     samples x features matrix, and illustrates leave-one-run-out decoding.
@@ -3244,13 +3249,13 @@ class Study2CrossSessionDecoding(Study2WithinSession2Decoding):
         self.wait(1.2)
 
 
-class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
+class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecoding):
     """
     Start from the last frame of cross-session decoding.
 
     Render:
-        uv run manim scenes/study2.py Study2CrossSessionDecodingResults -ql
-        uv run manim scenes/study2.py Study2CrossSessionDecodingResults -qh
+        uv run manim scenes/study2.py Study2CrossSessionDecodingResultsCombined -ql
+        uv run manim scenes/study2.py Study2CrossSessionDecodingResultsCombined -qh
     """
 
     _RESULTS_GLM = str(_STUDY2_ASSET_DIR / "study2_results_ses02ses01glm.png")
@@ -5010,7 +5015,7 @@ class Study2CrossSessionDecodingResults(Study2CrossSessionDecoding):
         self._animate_right_results(ctx)
 
 
-class Study2CrossSessionDecodingResultsA(Study2CrossSessionDecodingResults):
+class Study2CrossSessionDecodingResultsA(Study2CrossSessionDecodingResultsCombined):
     """
     Part A: stop on the GLM plot summary.
 
@@ -5026,7 +5031,7 @@ class Study2CrossSessionDecodingResultsA(Study2CrossSessionDecodingResults):
         self.wait(2.0)
 
 
-class Study2CrossSessionDecodingResultsB(Study2CrossSessionDecodingResults):
+class Study2CrossSessionDecodingResultsB(Study2CrossSessionDecodingResultsCombined):
     """
     Part B: start from the final GLM summary frame and continue to time-resolved decoding.
 
@@ -5047,7 +5052,7 @@ class Study2CrossSessionDecodingResultsB(Study2CrossSessionDecodingResults):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
+class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombined):
     """
     Shared helpers for the Session 1 within-session decoding rationale and results scenes.
     """
@@ -8683,13 +8688,13 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResults):
         )
 
 
-class Study2WithinSession1Decoding(_Study2WithinSession1DecodingBase):
+class Study2WithinSession1DecodingCombined(_Study2WithinSession1DecodingBase):
     """
     Combined intro + rationale for within-session decoding in Session 1.
 
     Render:
-        uv run manim scenes/study2.py Study2WithinSession1Decoding -ql
-        uv run manim scenes/study2.py Study2WithinSession1Decoding -qh
+        uv run manim scenes/study2.py Study2WithinSession1DecodingCombined -ql
+        uv run manim scenes/study2.py Study2WithinSession1DecodingCombined -qh
     """
 
     def construct(self) -> None:
@@ -8787,13 +8792,13 @@ class Study2WithinSession1DecodingB(_Study2WithinSession1DecodingBase):
         )
 
 
-class Study2WithinSession1DecodingResults(_Study2WithinSession1DecodingBase):
+class Study2WithinSession1DecodingResultsCombined(_Study2WithinSession1DecodingBase):
     """
     Start from the end of the Session 1 within-session rationale and reveal results.
 
     Render:
-        uv run manim scenes/study2.py Study2WithinSession1DecodingResults -ql
-        uv run manim scenes/study2.py Study2WithinSession1DecodingResults -qh
+        uv run manim scenes/study2.py Study2WithinSession1DecodingResultsCombined -ql
+        uv run manim scenes/study2.py Study2WithinSession1DecodingResultsCombined -qh
     """
 
     def construct(self) -> None:
@@ -9347,13 +9352,13 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         self.wait(2.0)
 
 
-class Study2SupplementalRoiTimecourses(_Study2NumberedScene, Scene):
+class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
     """
     Compare the supplemental ROI sensory -> memory temporal time courses.
 
     Render:
-        uv run manim scenes/study2.py Study2SupplementalRoiTimecourses -ql
-        uv run manim scenes/study2.py Study2SupplementalRoiTimecourses -qh
+        uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesCombined -ql
+        uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesCombined -qh
     """
 
     _SUPPL_ROI_DIR = _STUDY2_ASSET_DIR / "suppl_rois"
@@ -9839,7 +9844,7 @@ class Study2SupplementalRoiTimecourses(_Study2NumberedScene, Scene):
         self.wait(2.0)
 
 
-class Study2SupplementalRoiTimecoursesA(Study2SupplementalRoiTimecourses):
+class Study2SupplementalRoiTimecoursesA(Study2SupplementalRoiTimecoursesCombined):
     """
     Alias for panel A.
 
@@ -9849,7 +9854,7 @@ class Study2SupplementalRoiTimecoursesA(Study2SupplementalRoiTimecourses):
     """
 
 
-class Study2SupplementalRoiTimecoursesB(Study2SupplementalRoiTimecourses):
+class Study2SupplementalRoiTimecoursesB(Study2SupplementalRoiTimecoursesCombined):
     """
     Alias for panel B.
 
@@ -9908,7 +9913,7 @@ class Study2SupplementalRoiTimecoursesB(Study2SupplementalRoiTimecourses):
         self.wait(2.0)
 
 
-class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
+class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined):
     """
     Compare temporal-generalisation matrices across ROI definitions.
 
@@ -9918,14 +9923,14 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecourses):
     """
 
     _ROI_SVGS = [
-        (r"V1--V3", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-v1v2v3.svg"),
-        ("V1", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-V1.svg"),
-        ("V2", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-V2.svg"),
-        ("V3", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-V3.svg"),
-        ("LO1", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-LO1.svg"),
-        ("LO2", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-LO2.svg"),
-        ("IPS0 / IPS1", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-IPS0IPS1.svg"),
-        ("IPS2 / IPS3", Study2SupplementalRoiTimecourses._SUPPL_ROI_DIR / "temp_gen_mat_roi-IPS2IPS3.svg"),
+        (r"V1--V3", Study2SupplementalRoiTimecoursesCombined._SUPPL_ROI_DIR / "temp_gen_mat_roi-v1v2v3.svg"),
+        ("V1", Study2SupplementalRoiTimecoursesCombined._SUPPL_ROI_DIR / "temp_gen_mat_roi-V1.svg"),
+        ("V2", Study2SupplementalRoiTimecoursesCombined._SUPPL_ROI_DIR / "temp_gen_mat_roi-V2.svg"),
+        ("V3", Study2SupplementalRoiTimecoursesCombined._SUPPL_ROI_DIR / "temp_gen_mat_roi-V3.svg"),
+        ("LO1", Study2SupplementalRoiTimecoursesCombined._SUPPL_ROI_DIR / "temp_gen_mat_roi-LO1.svg"),
+        ("LO2", Study2SupplementalRoiTimecoursesCombined._SUPPL_ROI_DIR / "temp_gen_mat_roi-LO2.svg"),
+        ("IPS0 / IPS1", Study2SupplementalRoiTimecoursesCombined._SUPPL_ROI_DIR / "temp_gen_mat_roi-IPS0IPS1.svg"),
+        ("IPS2 / IPS3", Study2SupplementalRoiTimecoursesCombined._SUPPL_ROI_DIR / "temp_gen_mat_roi-IPS2IPS3.svg"),
     ]
     _TEMPGEN_PLOT_HEIGHT = 2.02
     _TEMPGEN_SOURCE_PLOT_BOX = (
@@ -10666,3 +10671,10 @@ class Study2SearchlightDelay(_Study2SearchlightSceneBase):
     _TITLE_TEXT = "GLM-based searchlight decoding during Delay"
     _ROW_SPECS = _SEARCHLIGHT_DELAY_SPECS
     _SUPPLEMENTAL_IMAGE_PATH = _SEARCHLIGHT_DELAY_BRAIN_PNG
+
+
+Study2DecodingOverview = Study2DecodingOverviewA
+Study2CrossSessionDecodingResults = Study2CrossSessionDecodingResultsCombined
+Study2WithinSession1Decoding = Study2WithinSession1DecodingCombined
+Study2WithinSession1DecodingResults = Study2WithinSession1DecodingResultsCombined
+Study2SupplementalRoiTimecourses = Study2SupplementalRoiTimecoursesCombined

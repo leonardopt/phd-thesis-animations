@@ -10,6 +10,8 @@ use scripting additions
 property projectRoot : "/Users/leonardo/phd-thesis-animations"
 property manifestPath : "/Users/leonardo/phd-thesis-animations/assets/presentation_deck.toml"
 
+-- Ensure a destination directory exists before Keynote or export helpers write into it.
+-- posixPath: absolute POSIX path string.
 on ensureDirectoryExists(posixPath)
 	set fileManager to current application's NSFileManager's defaultManager()
 	set directoryURL to current application's NSURL's fileURLWithPath:posixPath
@@ -17,17 +19,22 @@ on ensureDirectoryExists(posixPath)
 	if (created as boolean) is false then error ((createError's localizedDescription()) as text)
 end ensureDirectoryExists
 
+-- Fail early when a manifest or media path that the deck depends on is missing.
+-- Returns no value; raises an AppleScript error with the provided label.
 on existingFileOrFail(posixPath, labelText)
 	set fileManager to current application's NSFileManager's defaultManager()
 	if (fileManager's fileExistsAtPath:posixPath) as boolean is false then error labelText & " not found: " & posixPath
 end existingFileOrFail
 
+-- Return a filesystem-safe timestamp for output deck naming.
 on timestampString()
 	set formatter to current application's NSDateFormatter's alloc()'s init()
 	formatter's setDateFormat:"yyyyMMdd_HHmmss"
 	return (formatter's stringFromDate:(current application's NSDate's |date|())) as text
 end timestampString
 
+-- Poll for a file to appear after Keynote export completes.
+-- Returns true when the file exists within timeoutSeconds, else false.
 on waitForFile(posixPath, timeoutSeconds)
 	set fileManager to current application's NSFileManager's defaultManager()
 	repeat (timeoutSeconds * 10) times
@@ -37,6 +44,8 @@ on waitForFile(posixPath, timeoutSeconds)
 	return false
 end waitForFile
 
+-- Run a subprocess inside the repository and return stdout as text.
+-- executablePath: tool to launch. argumentList: argv list. workingDirectory: cwd.
 on runCommandInDirectory(executablePath, argumentList, workingDirectory)
 	set task to current application's NSTask's alloc()'s init()
 	set stdoutPipe to current application's NSPipe's pipe()
@@ -62,10 +71,11 @@ on runCommandInDirectory(executablePath, argumentList, workingDirectory)
 		if stderrText is "" then set stderrText to "Command failed with exit status " & ((task's terminationStatus()) as text)
 		error stderrText
 	end if
-	
-	return stdoutText
+		return stdoutText
 end runCommandInDirectory
 
+-- Resolve the requested Manim quality folder from CLI arguments.
+-- Accepts either the short quality flag or an explicit --quality-folder value.
 on qualityFolderFromArgs(argv)
 	if (count of argv) is 0 then return "480p15"
 	
@@ -80,6 +90,7 @@ on qualityFolderFromArgs(argv)
 	end if
 end qualityFolderFromArgs
 
+-- Normalize supported quality aliases onto the folder names used in media/videos.
 on normalizeQualityValue(rawValue)
 	set trimmedValue to rawValue as text
 	if trimmedValue is "" then return "480p15"
@@ -92,6 +103,8 @@ on normalizeQualityValue(rawValue)
 	error "Unsupported quality argument: " & trimmedValue & ". Use -ql, -qm, -qh, -qk, or a folder like 480p15."
 end normalizeQualityValue
 
+-- Load the serialized deck spec produced by the Python manifest flattener.
+-- Returns {outputDir, deckBaseName, slideWidth, slideHeight, slideSpecs}.
 on loadDeckSpec(projectRoot, manifestPath, qualityFolder)
 	my existingFileOrFail(manifestPath, "Presentation manifest")
 	try
@@ -102,6 +115,8 @@ on loadDeckSpec(projectRoot, manifestPath, qualityFolder)
 	return my parseDeckSpec(rawSpec)
 end loadDeckSpec
 
+-- Decode the manifest transport format emitted by presentation_manifest.py.
+-- rawSpec uses record separator 30 and field separator 31.
 on parseDeckSpec(rawSpec)
 	set recSep to character id 30
 	set fldSep to character id 31
@@ -136,6 +151,7 @@ on parseDeckSpec(rawSpec)
 	return {outputDir, deckBaseName, slideWidth, slideHeight, slideSpecs}
 end parseDeckSpec
 
+-- Pick the first matching Keynote slide layout name, or fall back if none exist.
 on slideLayoutNamed(docRef, preferredNames, fallbackLayout)
 	tell application "Keynote"
 		repeat with preferredName in preferredNames
@@ -147,6 +163,7 @@ on slideLayoutNamed(docRef, preferredNames, fallbackLayout)
 	return fallbackLayout
 end slideLayoutNamed
 
+-- Apply the requested layout and title/body visibility to one slide shell.
 on prepareSlide(aSlide, targetLayout, showTitle, showBody)
 	tell application "Keynote"
 		tell aSlide
@@ -157,6 +174,7 @@ on prepareSlide(aSlide, targetLayout, showTitle, showBody)
 	end tell
 end prepareSlide
 
+-- Merge subtitle and body text into the single Keynote body field when needed.
 on combinedBodyText(subtitleText, bodyText)
 	if subtitleText is not "" and bodyText is not "" then
 		return subtitleText & return & return & bodyText
@@ -167,6 +185,7 @@ on combinedBodyText(subtitleText, bodyText)
 	end if
 end combinedBodyText
 
+-- Populate a slide's text placeholders and presenter notes when present.
 on setSlideText(aSlide, titleText, bodyText, notesText)
 	tell application "Keynote"
 		tell aSlide
@@ -189,10 +208,11 @@ on setSlideText(aSlide, titleText, bodyText, notesText)
 			end try
 			
 			if notesText is not "" then set presenter notes to notesText
+			end tell
 		end tell
-	end tell
 end setSlideText
 
+-- Add one full-slide movie asset to a blank-layout slide.
 on addMovieToSlide(aSlide, videoPath, slideWidth, slideHeight)
 	set movieFileAlias to (POSIX file videoPath) as alias
 	tell application "Keynote"
@@ -206,6 +226,7 @@ on addMovieToSlide(aSlide, videoPath, slideWidth, slideHeight)
 	end tell
 end addMovieToSlide
 
+-- Add one full-slide image or PDF preview asset to a blank-layout slide.
 on addImageToSlide(aSlide, imagePath, slideWidth, slideHeight)
 	set imageFileAlias to (POSIX file imagePath) as alias
 	tell application "Keynote"
@@ -218,6 +239,9 @@ on addImageToSlide(aSlide, imagePath, slideWidth, slideHeight)
 	end tell
 end addImageToSlide
 
+-- Populate one slide from a normalized manifest tuple.
+-- slideSpec order is {slideType, mediaPath, titleText, subtitleText, bodyText, notesText}.
+-- Media slides use blank layouts, while text-bearing slides choose a title or bullets layout.
 on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, titleOnlyLayout, textBulletsLayout, slideWidth, slideHeight)
 	set slideType to item 1 of slideSpec
 	set mediaPath to item 2 of slideSpec
@@ -225,34 +249,34 @@ on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, tit
 	set subtitleText to item 4 of slideSpec
 	set bodyText to item 5 of slideSpec
 	set notesText to item 6 of slideSpec
-	
 	if slideType is "video" then
+		-- Media slides occupy the entire slide canvas and do not use text placeholders.
 		my prepareSlide(aSlide, blankLayout, false, false)
 		my addMovieToSlide(aSlide, mediaPath, slideWidth, slideHeight)
 		if notesText is not "" then tell application "Keynote" to set presenter notes of aSlide to notesText
 		return
 	end if
-	
 	if slideType is "image" or slideType is "pdf" then
+		-- Image and PDF slides share the same blank full-slide treatment as videos.
 		my prepareSlide(aSlide, blankLayout, false, false)
 		my addImageToSlide(aSlide, mediaPath, slideWidth, slideHeight)
 		if notesText is not "" then tell application "Keynote" to set presenter notes of aSlide to notesText
 		return
 	end if
-	
 	if slideType is "title" then
+		-- Title slides keep both title and body visible so subtitle/body text can coexist.
 		my prepareSlide(aSlide, titleLayout, true, true)
 		my setSlideText(aSlide, titleText, my combinedBodyText(subtitleText, bodyText), notesText)
 		return
 	end if
-	
 	if slideType is "section" then
+		-- Section slides follow the same text contract but prefer the section layout when available.
 		my prepareSlide(aSlide, sectionLayout, true, true)
 		my setSlideText(aSlide, titleText, my combinedBodyText(subtitleText, bodyText), notesText)
 		return
 	end if
-	
 	if slideType is "text" then
+		-- Text slides switch between a title-only and bullets layout depending on whether body content exists.
 		set effectiveBodyText to my combinedBodyText(subtitleText, bodyText)
 		if effectiveBodyText is "" then
 			my prepareSlide(aSlide, titleOnlyLayout, true, false)
@@ -266,6 +290,8 @@ on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, tit
 	error "Unsupported slide type: " & slideType
 end populateSlide
 
+-- Build a new Keynote document from the normalized manifest and export it.
+-- argv accepts the same quality selection forms as the render shell scripts.
 on run argv
 	set qualityFolder to my qualityFolderFromArgs(argv)
 	set {outputDir, deckBaseName, slideWidth, slideHeight, slideSpecs} to my loadDeckSpec(projectRoot, manifestPath, qualityFolder)

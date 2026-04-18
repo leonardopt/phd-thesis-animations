@@ -124,6 +124,24 @@ def load_overrides(path: Path) -> dict[str, dict[str, object]]:
     return {str(key): value for key, value in data.items() if isinstance(value, dict)}
 
 
+def class_name_from_stem(stem: str) -> str:
+    parts = stem.split("_", 1)
+    if len(parts) == 2 and parts[0]:
+        prefix = parts[0]
+        if prefix[:-1].isdigit() and prefix[-1:].isalpha():
+            return parts[1]
+        if prefix.isdigit():
+            return parts[1]
+    return stem
+
+
+def override_for_entry(
+    overrides: dict[str, dict[str, object]],
+    stem: str,
+) -> dict[str, object] | None:
+    return overrides.get(stem) or overrides.get(class_name_from_stem(stem))
+
+
 def probe_duration_seconds(ffprobe_path: str, video_path: Path) -> float:
     command = [
         ffprobe_path,
@@ -273,7 +291,7 @@ def main() -> int:
                     entry=screen.entry,
                     screen_timestamps=candidate_timestamps,
                     default_mode=args.default_mode,
-                    override=overrides.get(screen.entry.stem),
+                    override=override_for_entry(overrides, screen.entry.stem),
                     ffprobe_path=ffprobe_path,
                 )
                 output_frame = temp_dir / f"{page_number:03d}_{screen.entry.stem}.png"
