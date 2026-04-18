@@ -202,7 +202,7 @@ _MEMORY_INTRO_TOP_CRITERION_LABEL_BUFF = 0.34
 _MEMORY_INTRO_A_TOP_TARGET_MEAN = 0.634
 _MEMORY_INTRO_A_TOP_TARGET_REPEATED_MEAN = 0.80
 _MEMORY_INTRO_A_TOP_TARGET_LABEL_X = 1.10
-_MEMORY_INTRO_SECOND_TARGET_MEAN = 1.114
+_MEMORY_INTRO_SECOND_TARGET_MEAN = 0.80
 _MEMORY_INTRO_SECOND_TARGET_REPEATED_MEAN = 1.25
 _MEMORY_INTRO_SECOND_TARGET_LABEL_X = 1.39
 _MEMORY_INTRO_B_CLAIM = r"Perceptual dissimilarity enhances discriminability"
@@ -497,7 +497,9 @@ def _build_memory_intro_dynamic_plot(
         return plot["foil_mean"]
 
     def current_target_mean() -> float:
-        return plot["target_mean"] + _MEMORY_INTRO_SIGNAL_TARGET_SHIFT * repetition_tracker.get_value()
+        return plot["target_mean"] + (
+            plot["repeated_target_mean"] - plot["target_mean"]
+        ) * repetition_tracker.get_value()
 
     def current_criterion_x() -> float:
         foil_sigma = current_foil_sigma()
@@ -671,6 +673,7 @@ def _build_memory_intro_core(
         center=np.array([3.48, row_block_center_y - 0.05, 0.0]),
         foil_mean=_MEMORY_INTRO_TOP_FOIL_MEAN,
         target_mean=top_target_mean,
+        repeated_target_mean=_MEMORY_INTRO_A_TOP_TARGET_REPEATED_MEAN,
         foil_color=_MEMORY_INTRO_FOIL_COLOR,
         target_color=_MEMORY_INTRO_TARGET_COLOR,
         target_label_x=top_target_label_x,
@@ -795,6 +798,7 @@ def _build_memory_intro_b_followup(ctx: dict[str, object]) -> dict[str, object]:
         center=second_plot_center,
         foil_mean=_MEMORY_INTRO_TOP_FOIL_MEAN,
         target_mean=_MEMORY_INTRO_SECOND_TARGET_MEAN,
+        repeated_target_mean=_MEMORY_INTRO_SECOND_TARGET_REPEATED_MEAN,
         foil_color=_MEMORY_INTRO_FOIL_COLOR,
         target_color=_MEMORY_INTRO_TARGET_COLOR,
         target_label_x=_MEMORY_INTRO_SECOND_TARGET_LABEL_X,

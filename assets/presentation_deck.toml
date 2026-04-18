@@ -1,0 +1,57 @@
+[deck]
+deck_base_name = "phd-defence-presentation"
+output_dir = "media/keynote"
+slide_width = 1920
+slide_height = 1080
+
+# Video sequences use the {{quality_dir}} placeholder.
+# The AppleScript maps standard Manim flags like -ql/-qm/-qh/-qk
+# to folders such as 480p15/720p30/1080p60/2160p60.
+
+[[slide]]
+type = "title"
+title = "PhD Defence"
+subtitle = "Edit this title slide in assets/presentation_deck.toml"
+
+[[slide]]
+type = "section"
+title = "Study 1"
+subtitle = "Core animation sequence"
+
+[[slide]]
+type = "video_sequence"
+glob = "media/videos/study1/{{quality_dir}}/*.mp4"
+
+[[slide]]
+type = "section"
+title = "Study 2"
+subtitle = "Core animation sequence"
+
+[[slide]]
+type = "video_sequence"
+glob = "media/videos/study2/{{quality_dir}}/*.mp4"
+
+[[slide]]
+type = "section"
+title = "Appendix"
+subtitle = "Add static slides or backup animations below"
+
+# Drop exported PNG/JPEG/PDF slides into assets/slides/ and add them inline:
+#
+# [[slide]]
+# type = "image"
+# path = "assets/slides/methods_overview.png"
+# notes = "Optional presenter notes"
+#
+# [[slide]]
+# type = "text"
+# title = "Key Takeaways"
+# body = """
+# First point
+# Second point
+# Third point
+# """
+#
+# [[slide]]
+# type = "video"
+# path = "media/videos/study2/{{quality_dir}}/14_Study2LTMResultsExplainer.mp4"
