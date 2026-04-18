@@ -74,9 +74,11 @@ _s1_step1_BOX_H = 1.6
 _s1_step1_SZ = 512
 
 def _s1_step1_load_pix(path: Path) -> np.ndarray:
+    """Load and resize one anchor image into the shared RGBA tensor size."""
     return np.asarray(PILImage.open(path).convert('RGBA').resize((_s1_step1_SZ, _s1_step1_SZ), PILImage.LANCZOS))
 
 def _s1_step1__wrap_tex_label(text: str, max_chars: int) -> str:
+    """Insert a balanced line break into a long TeX label when needed."""
     words = text.split()
     if len(text) <= max_chars or len(words) < 2:
         return text
@@ -94,6 +96,7 @@ def _s1_step1__wrap_tex_label(text: str, max_chars: int) -> str:
     return best_split[0] + '\\\\' + best_split[1]
 
 def _s1_step1__build_stimulus_tree():
+    """Build the category tree, connectors, and summary annotations for Step 1."""
     root = Tex('\\textbf{Categories}', color=_s1_step1_INK, font_size=30)
     root.move_to(UP * 2.15)
     nat_hdr = Tex('\\textit{Natural}', color=_s1_step1_NAT_C, font_size=27)
@@ -109,9 +112,11 @@ def _s1_step1__build_stimulus_tree():
     SAMPLE_FONT = 20
 
     def sample_line(text: str) -> Tex:
+        """Build one sample-name line for a category node."""
         return Tex(_s1_step1__wrap_tex_label(text, max_chars=16), color=_s1_step1_GREY, font_size=SAMPLE_FONT)
 
     def make_category_node(display_name: str, sample_names: list[str], side_color: str) -> tuple[VGroup, Tex, VGroup, list[Tex]]:
+        """Build one category node with its divider, stem, and sample list."""
         cat_label = Tex(_s1_step1__wrap_tex_label(display_name, max_chars=15), color=side_color, font_size=CAT_FONT)
         label_top_y = 0.56
         cat_label.shift(UP * (label_top_y - cat_label.get_top()[1]))
@@ -153,8 +158,9 @@ def _s1_step1__build_stimulus_tree():
     return {'root': root, 'nat_hdr': nat_hdr, 'art_hdr': art_hdr, 'branch_nat': branch_nat, 'branch_art': branch_art, 'nat_nodes': nat_nodes, 'art_nodes': art_nodes, 'nat_connectors': nat_connectors, 'art_connectors': art_connectors, 'object_rect': object_rect, 'object_rect_lbl': object_rect_lbl, 'total_lbl': total_lbl, 'tree_group': tree_group, 'animals_label': animals_label, 'fish_word': fish_word}
 
 class Study1Stage1Step1a(Scene):
-
+    """Introduce the stimulus-set taxonomy and overall object-scene count."""
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step1_BG
         title = Tex('\\textbf{Stimulus set design}', color=_s1_step1_INK, font_size=40)
         title.to_edge(UP, buff=0.36)
@@ -181,8 +187,9 @@ class Study1Stage1Step1a(Scene):
         self.wait(1.8)
 
 class Study1Stage1Step1b(Scene):
-
+    """Trace one category path into a fixed prompt and highlighted exemplar image."""
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step1_BG
         fish_pix = _s1_step1_load_pix(_s1_step1_ANCHOR_DIR / 'anchor-animal-fish.png')
         tree = _s1_step1__build_stimulus_tree()
@@ -231,6 +238,7 @@ class Study1Stage1Step1b(Scene):
         FS = 21
 
         def prow(*parts):
+            """Build one prompt row with per-span color control."""
             return VGroup(*[Tex(t, color=c, font_size=FS) for t, c in parts]).arrange(RIGHT, buff=0.04)
         p_r0 = Tex('``award-winning marine photo', color=_s1_step1_INK, font_size=FS)
         p_r1 = prow(('of a ', _s1_step1_INK), ('colorful fish', _s1_step1_INK))
@@ -280,6 +288,7 @@ _s1_step2_SWAP_TOTAL_DUR = 10
 _s1_step2_PROMPT_LINES = ['``award-winning marine photo', 'of a colorful fish in a coral reef,', 'centered in the scene, vibrant', "underwater scene, high detail''"]
 
 def _s1_step2_noise_magma(seed: int, sz: int=128) -> np.ndarray:
+    """Generate a deterministic magma-coloured noise image for one seed."""
     rng = np.random.default_rng(seed)
     gray = rng.random((sz, sz)).astype(np.float32)
     return (_mcm.magma(gray) * 255).astype(np.uint8)
@@ -310,8 +319,9 @@ def _s1_step2_cloud_positions(n: int, cx: float, cy: float):
     return out
 
 class Study1Stage1Step2(Scene):
-
+    """Show how one fixed prompt and varying noise seeds produce a cloud of exemplars."""
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step2_BG
         files = sorted(_s1_step2_IMG_DIR.glob('ANI-FIS-*.png'))
         N, SZ = (len(files), 512)
@@ -416,11 +426,13 @@ _s1_step2_showcase_THUMB_H = 0.75
 _s1_step2_showcase_HOLD_TIME = 1.6
 
 def _s1_step2_showcase_noise_magma(seed: int, sz: int=128) -> np.ndarray:
+    """Generate a deterministic showcase noise image for one seed."""
     rng = np.random.default_rng(seed)
     gray = rng.random((sz, sz)).astype(np.float32)
     return (_mcm.magma(gray) * 255).astype(np.uint8)
 
 def _s1_step2_showcase_cloud_positions(n: int, cx: float, cy: float):
+    """Return the fixed concentric layout used for showcase exemplar clouds."""
     rings = [(0.0, 1, 0.0), (0.65, 6, 0.0), (1.3, 12, 0.26), (1.95, 18, 0.0), (2.6, 23, 0.14)]
     out, total = ([], 0)
     for r, n_def, off in rings:
@@ -435,6 +447,7 @@ def _s1_step2_showcase_cloud_positions(n: int, cx: float, cy: float):
 _s1_step2_showcase_SZ = 512
 
 def _s1_step2_showcase_load_pixels(img_dir: Path, glob: str) -> list[np.ndarray]:
+    """Load and resize all exemplar images for one showcase entry."""
     return [np.asarray(PILImage.open(fp).convert('RGBA').resize((_s1_step2_showcase_SZ, _s1_step2_showcase_SZ), PILImage.LANCZOS)) for fp in sorted(img_dir.glob(glob))]
 
 def _s1_step2_showcase_make_prompt_block(prompt_lines: list[str], label: str) -> VGroup:
@@ -446,11 +459,13 @@ def _s1_step2_showcase_make_prompt_block(prompt_lines: list[str], label: str) ->
     return block
 
 def _s1_step2_showcase_make_cloud(pixels: list[np.ndarray]) -> Group:
+    """Build the exemplar cloud for one showcase entry."""
     N = len(pixels)
     cpos = _s1_step2_showcase_cloud_positions(N, cx=_s1_step2_showcase_CLOUD_CX, cy=_s1_step2_showcase_CLOUD_CY)
     return Group(*[ImageMobject(pixels[i]).scale_to_fit_height(_s1_step2_showcase_IMG_CLOUD_H).move_to(RIGHT * px + UP * py) for i, (px, py) in enumerate(cpos[:N])])
 
 def _s1_step2_showcase_make_title(label: str) -> Tex:
+    """Build the exemplar-cloud title for one showcase entry."""
     return Tex(f'\\textbf{{60 exemplars}} — \\textit{{{label}}}', color=_s1_step2_showcase_INK, font_size=24).move_to(RIGHT * _s1_step2_showcase_CLOUD_CX + UP * 3.2)
 
 def _s1_step2_showcase_make_thumbs(entry_idx: int, positions: list) -> list:
@@ -505,11 +520,13 @@ def _s1_step2_showcase_animate_entry(scene: Scene, entry: dict, pixels: list, th
     return dict(fp_block=fp_block, thumbs=thumbs, cloud_grp=cloud_grp, c_title=c_title)
 
 def _s1_step2_showcase__make_single_scene(idx: int) -> type:
+    """Create a one-off scene class for a single showcase entry."""
     entry = _s1_step2_showcase_SHOWCASE[idx]
 
     class _S(Scene):
-
+        """Single-entry showcase scene generated for one exemplar family."""
         def construct(self_):
+            """Run the animation sequence for this scene."""
             self_.camera.background_color = _s1_step2_showcase_BG
             pixels = _s1_step2_showcase_load_pixels(_s1_step2_showcase_BASE / entry['category'] / entry['folder'], entry['glob'])
             thumb_pos = _s1_step2_showcase_build_static_frame(self_)
@@ -522,8 +539,9 @@ for _i, _e in enumerate(_s1_step2_showcase_SHOWCASE):
     globals()[f"Showcase_{_e['folder']}"] = _s1_step2_showcase__make_single_scene(_i)
 
 class Study1Stage1Step2Showcase(Scene):
-
+    """Cycle through several object-scene prompts and exemplar clouds in a shared frame."""
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step2_showcase_BG
         all_pixels = [_s1_step2_showcase_load_pixels(_s1_step2_showcase_BASE / e['category'] / e['folder'], e['glob']) for e in _s1_step2_showcase_SHOWCASE]
         thumb_pos = _s1_step2_showcase_build_static_frame(self)
@@ -624,14 +642,17 @@ def _s1_step3_choose_demo_pairs(cloud_pts: list[tuple[float, float]], cx: float,
     return chosen
 
 def _s1_step3_load_pixels(sz: int=320) -> tuple[list[np.ndarray], list[Path]]:
+    """Load and resize the fish exemplar set for the LPIPS scene."""
     files = sorted(_s1_step3_IMG_DIR.glob('ANI-FIS-*.png'))
     pixels = [np.asarray(PILImage.open(fp).convert('RGBA').resize((sz, sz), PILImage.LANCZOS)) for fp in files]
     return (pixels, files)
 
 def _s1_step3_load_pixel(path: Path, sz: int=320) -> np.ndarray:
+    """Load and resize one fish exemplar image."""
     return np.asarray(PILImage.open(path).convert('RGBA').resize((sz, sz), PILImage.LANCZOS))
 
 def _s1_step3_load_similarity_matrix() -> tuple[np.ndarray, list[str]]:
+    """Load the LPIPS similarity matrix and validate its row and column order."""
     with _s1_step3_SIMILARITY_CSV_PATH.open(newline='') as f:
         rows = list(csv.reader(f))
     ordered_names = rows[0][1:]
@@ -642,6 +663,7 @@ def _s1_step3_load_similarity_matrix() -> tuple[np.ndarray, list[str]]:
     return (scores, ordered_names)
 
 def _s1_step3_score_heatmap_rgba(scores: np.ndarray, row_start: int=0, row_end: int | None=None) -> np.ndarray:
+    """Convert lower-triangular similarity scores into an RGBA heatmap image."""
     n = scores.shape[0]
     if row_end is None:
         row_end = n
@@ -663,14 +685,17 @@ def _s1_step3_score_heatmap_rgba(scores: np.ndarray, row_start: int=0, row_end: 
     return rgba
 
 def _s1_step3_thumb(pixel: np.ndarray, h: float, border_color: str=_s1_step3_LGREY, sw: float=1.8) -> Group:
+    """Build a thumbnail card for one exemplar image."""
     img = ImageMobject(pixel).scale_to_fit_height(h)
     border = SurroundingRectangle(img, color=border_color, stroke_width=sw, buff=0.03)
     return Group(img, border)
 
 class _Study1Step3Base(Scene):
+    """Shared LPIPS similarity-matrix scene with optional segment-level cut points."""
     segment = 'full'
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step3_BG
         pixels, files = _s1_step3_load_pixels()
         scores_csv, ordered_names = _s1_step3_load_similarity_matrix()
@@ -719,17 +744,20 @@ class _Study1Step3Base(Scene):
         cell = MATRIX_SIDE / n
 
         def cell_center(i: int, j: int) -> np.ndarray:
+            """Return the scene position of one lower-triangular matrix cell."""
             i, j = (max(i, j), min(i, j))
             left = MATRIX_C[0] - MATRIX_SIDE / 2
             top = MATRIX_C[1] + MATRIX_SIDE / 2
             return np.array([left + (j + 0.5) * cell, top - (i + 0.5) * cell, 0.0])
 
         def pair_cell(i: int, j: int, color: str=_s1_step3_C_ACCENT) -> Square:
+            """Build a highlighted square around one similarity-matrix cell."""
             box = Square(side_length=max(cell * 2.2, 0.07), stroke_color=color, stroke_width=2.2).set_fill(color, opacity=0.14)
             box.move_to(cell_center(i, j))
             return box
 
         def score_label(i: int, j: int) -> Tex:
+            """Build the LPIPS score label for one exemplar pair."""
             score = float(scores[i, j])
             return Tex(f'\\textit{{score}} = {score:.3f}', color=_s1_step3_C_MATRIX, font_size=18)
         pair_title = Tex('\\textbf{Example pairwise similarity}', color=_s1_step3_INK, font_size=20)
@@ -753,6 +781,7 @@ class _Study1Step3Base(Scene):
         current_cell.set_z_index(4)
 
         def cloud_pair_box(idx: int) -> SurroundingRectangle:
+            """Build a highlight box around one exemplar in the cloud layout."""
             return SurroundingRectangle(cloud_imgs[idx], color=_s1_step3_C_FLOW, stroke_width=2.4, buff=0.04).set_fill(_s1_step3_C_FLOW, opacity=0.06)
         current_cloud_left = cloud_pair_box(demo_pairs[0][0])
         current_cloud_right = cloud_pair_box(demo_pairs[0][1])
@@ -785,6 +814,7 @@ class _Study1Step3Base(Scene):
         col_color = _s1_step3_C_ANCHOR if selected_col == anchor_idx else _s1_step3_C_GUIDE
 
         def row_band(row_idx: int, color: str) -> Rectangle:
+            """Build a translucent band for one matrix row."""
             width = (row_idx + 1) * cell
             left = MATRIX_C[0] - MATRIX_SIDE / 2
             top = MATRIX_C[1] + MATRIX_SIDE / 2
@@ -793,6 +823,7 @@ class _Study1Step3Base(Scene):
             return band
 
         def col_band(col_idx: int, color: str) -> Rectangle:
+            """Build a translucent band for one matrix column."""
             height = (n - col_idx) * cell
             left = MATRIX_C[0] - MATRIX_SIDE / 2
             top = MATRIX_C[1] + MATRIX_SIDE / 2
@@ -813,12 +844,14 @@ class _Study1Step3Base(Scene):
         selected_col_band.set_z_index(3)
 
         def make_algo_scan_arrow() -> CurvedArrow:
+            """Build the scan arrow used during the anchor-guide search."""
             arrow = CurvedArrow(algo_panel.get_left() + LEFT * 0.08 + DOWN * 0.04, search_cell.get_center() + RIGHT * (cell * 0.95), angle=32 * DEGREES, color=_s1_step3_C_FLOW, stroke_width=2.4, tip_length=0.18)
             arrow.set_z_index(4)
             return arrow
         algo_scan_arrow = always_redraw(make_algo_scan_arrow)
 
         def play_intro_and_matrix(keep_example_visible: bool=False) -> None:
+            """Animate the LPIPS matrix construction sequence."""
             nonlocal pair_score
             self.play(Write(cloud_title), LaggedStart(*[FadeIn(m, shift=UP * 0.03) for m in cloud_imgs], lag_ratio=0.01), run_time=1.45)
             self.wait(0.45)
@@ -855,6 +888,7 @@ class _Study1Step3Base(Scene):
                 self.wait(0.25)
 
         def play_selection_sequence() -> None:
+            """Animate the anchor-guide selection sequence."""
             self.play(FadeIn(algo_panel, shift=UP * 0.04), run_time=0.95)
             self.wait(0.45)
             self.play(FadeIn(search_cell), FadeIn(algo_scan_arrow), run_time=0.45)
@@ -869,6 +903,7 @@ class _Study1Step3Base(Scene):
             self.wait(1.45)
 
         def build_part1_final_frame() -> dict[str, Mobject]:
+            """Build the held end state for the matrix-only segment."""
             final_pair = demo_pairs[-1]
             pair_title_final = pair_title.copy().set_z_index(6)
             pair_formula_final = pair_formula.copy().set_z_index(6)
@@ -905,12 +940,15 @@ class _Study1Step3Base(Scene):
         play_selection_sequence()
 
 class Study1Stage1Step3(_Study1Step3Base):
+    """Run the full LPIPS matrix construction and anchor-guide selection sequence."""
     segment = 'full'
 
 class Study1Stage1Step3Part1(_Study1Step3Base):
+    """Render the matrix-building half of the LPIPS selection story."""
     segment = 'matrix'
 
 class Study1Stage1Step3Part2(_Study1Step3Base):
+    """Render the anchor-guide selection half of the LPIPS selection story."""
     segment = 'selection'
 
 
@@ -930,6 +968,7 @@ _s1_step4_PROMPT_BOX_LINES = ('"award-winning marine photo', 'of a colorful fish
 _s1_step4_COMPACT_PROMPT_LINES = ('``award-winning marine photo', 'of a colorful fish in a coral reef,', 'centered in the scene,', 'vibrant underwater scene,', "high detail''")
 
 def _s1_step4_slerp(u: np.ndarray, v: np.ndarray, t: float) -> np.ndarray:
+    """Interpolate between two latent directions on the unit sphere."""
     cos_t = float(np.clip(np.dot(u, v), -1.0, 1.0))
     theta = np.arccos(cos_t)
     if abs(np.sin(theta)) < 1e-08:
@@ -941,6 +980,7 @@ def _s1_step4_vec3(start, end, color, sw=3.5, tl=0.18) -> Arrow:
     return Arrow(np.asarray(start, dtype=float), np.asarray(end, dtype=float), color=color, stroke_width=sw, tip_length=tl, buff=0, max_stroke_width_to_length_ratio=100)
 
 def _s1_step4_load_interpolation_pixels() -> tuple[np.ndarray, int]:
+    """Load and resize the fish interpolation frames for Step 4."""
     files = sorted(_s1_step4_IMG_DIR.glob('ANI-FIS-interpol-*.png'))
     if not files:
         raise FileNotFoundError(f"No interpolation frames found for Study 1 Step 4. Looked in {_s1_step4_IMG_DIR} for files matching 'ANI-FIS-interpol-*.png'. Set FISH_INTERPOLATIONS_DIR in .env to the directory containing the fish interpolation frames.")
@@ -951,8 +991,9 @@ def _s1_step4_load_interpolation_pixels() -> tuple[np.ndarray, int]:
     return (pixels, N)
 
 class Study1Stage1Step4Detailed(ThreeDScene):
-
+    """Show the full 3-D SLERP interpolation story alongside the generated image preview."""
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step4_BG
         LEFT_BLOCK_CENTER = np.array([2.3, 0.0, 0.0])
         MID_BLOCK_SHIFT = UP * 0.55
@@ -1008,6 +1049,7 @@ class Study1Stage1Step4Detailed(ThreeDScene):
         img_display = ImageMobject(pixels[0]).scale_to_fit_height(IMG_H).move_to(RIGHT_BLOCK_CENTER)
 
         def upd_img(mob):
+            """Update the generated image to match the current interpolation value."""
             idx = int(round(alpha.get_value() * (N - 1)))
             mob.become(ImageMobject(pixels[np.clip(idx, 0, N - 1)]).scale_to_fit_height(IMG_H).move_to(RIGHT_BLOCK_CENTER))
         img_display.add_updater(upd_img)
@@ -1038,8 +1080,9 @@ class Study1Stage1Step4Detailed(ThreeDScene):
         self.wait(0.8)
 
 class _Study1Step4CompactBase(ThreeDScene):
-
+    """Shared compact latent-space interpolation state and split-scene helpers."""
     def build_common_state(self) -> dict[str, object]:
+        """Build the shared compact latent-space scene state."""
         self.camera.background_color = _s1_step4_BG
         pixels, N = _s1_step4_load_interpolation_pixels()
         self.set_camera_orientation(phi=62 * DEGREES, theta=-42 * DEGREES, frame_center=np.array([0.35, 0.2, 0.0]))
@@ -1082,6 +1125,7 @@ class _Study1Step4CompactBase(ThreeDScene):
         follow_end_offset = thumb1.get_center() - tip1
 
         def follow_center(t: float) -> np.ndarray:
+            """Return the moving image centre for the current interpolation value."""
             tip = R * _s1_step4_slerp(z0_dir, z1_dir, t)
             offset = (1 - t) * follow_start_offset + t * follow_end_offset
             return tip + offset
@@ -1097,6 +1141,7 @@ class _Study1Step4CompactBase(ThreeDScene):
         return {'alpha': alpha, 'grid_lines': grid_lines, 'ax_x': ax_x, 'ax_y': ax_y, 'ax_z': ax_z, 'lab_x': lab_x, 'lab_y': lab_y, 'lab_z': lab_z, 'vec_z0': vec_z0, 'vec_z1': vec_z1, 'thumb0': thumb0, 'border0': border0, 'lab_z0': lab_z0, 'thumb1': thumb1, 'border1': border1, 'lab_z1': lab_z1, 'scene_title': scene_title, 'prompt_bg': prompt_bg, 'p_title': p_title, 'p_lines': p_lines, 'arc_3d': arc_3d, 'vec_za': vec_za, 'lab_za': lab_za, 'img_follow': img_follow, 'img_follow_border': img_follow_border}
 
     def play_setup_intro(self, state: dict[str, object]) -> None:
+        """Animate the compact latent-space setup sequence."""
         self.play(Create(state['grid_lines']), run_time=0.8)
         self.add_fixed_orientation_mobjects(state['lab_x'], state['lab_y'], state['lab_z'])
         self.add_fixed_in_frame_mobjects(state['scene_title'], state['prompt_bg'], state['p_title'], state['p_lines'])
@@ -1105,12 +1150,14 @@ class _Study1Step4CompactBase(ThreeDScene):
         self.play(Create(state['vec_z0']), FadeIn(state['thumb0']), FadeIn(state['border0']), Write(state['lab_z0']), Create(state['vec_z1']), FadeIn(state['thumb1']), FadeIn(state['border1']), Write(state['lab_z1']), run_time=1.2)
 
     def add_setup_static(self, state: dict[str, object]) -> None:
+        """Add the compact latent-space setup without animation."""
         self.add(state['grid_lines'], state['ax_x'], state['ax_y'], state['ax_z'], state['vec_z0'], state['vec_z1'])
         self.add_fixed_orientation_mobjects(state['lab_x'], state['lab_y'], state['lab_z'], state['thumb0'], state['border0'], state['lab_z0'], state['thumb1'], state['border1'], state['lab_z1'])
         self.add_fixed_in_frame_mobjects(state['scene_title'], state['prompt_bg'], state['p_title'], state['p_lines'])
         self.add(state['lab_x'], state['lab_y'], state['lab_z'], state['thumb0'], state['border0'], state['lab_z0'], state['thumb1'], state['border1'], state['lab_z1'], state['scene_title'], state['prompt_bg'], state['p_title'], state['p_lines'])
 
     def play_interpolation(self, state: dict[str, object]) -> None:
+        """Animate the compact interpolation sequence."""
         self.add_fixed_orientation_mobjects(state['lab_za'], state['img_follow'], state['img_follow_border'])
         self.play(Create(state['arc_3d']), FadeIn(state['vec_za']), FadeIn(state['lab_za']), FadeIn(state['img_follow']), FadeIn(state['img_follow_border']), run_time=0.9)
         self.wait(0.2)
@@ -1118,22 +1165,25 @@ class _Study1Step4CompactBase(ThreeDScene):
         self.wait(0.8)
 
 class Study1Stage1Step4Setup(_Study1Step4CompactBase):
-
+    """Render the compact latent-space setup before interpolation begins."""
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         state = self.build_common_state()
         self.play_setup_intro(state)
         self.wait(0.8)
 
 class Study1Stage1Step4Interpolation(_Study1Step4CompactBase):
-
+    """Animate only the compact latent interpolation on top of the prebuilt setup."""
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         state = self.build_common_state()
         self.add_setup_static(state)
         self.play_interpolation(state)
 
 class Study1Stage1Step4(_Study1Step4CompactBase):
-
+    """Combine the compact latent-space setup and interpolation into one scene."""
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         state = self.build_common_state()
         self.play_setup_intro(state)
         self.play_interpolation(state)
@@ -1156,6 +1206,7 @@ _s1_step5__C_ZA = '#D97706'
 _s1_step5__C_ARC = '#93C5FD'
 
 def _s1_step5__slerp(u: np.ndarray, v: np.ndarray, t: float) -> np.ndarray:
+    """Interpolate between two latent directions on the unit sphere."""
     cos_t = float(np.clip(np.dot(u, v), -1.0, 1.0))
     theta = np.arccos(cos_t)
     if abs(np.sin(theta)) < 1e-08:
@@ -1163,9 +1214,11 @@ def _s1_step5__slerp(u: np.ndarray, v: np.ndarray, t: float) -> np.ndarray:
     return (np.sin((1.0 - t) * theta) * u + np.sin(t * theta) * v) / np.sin(theta)
 
 def _s1_step5__vec3(start, end, color, sw: float=3.5, tl: float=0.18) -> Arrow:
+    """Build a thin 3-D arrow for latent-space annotations."""
     return Arrow(np.asarray(start, dtype=float), np.asarray(end, dtype=float), color=color, stroke_width=sw, tip_length=tl, buff=0, max_stroke_width_to_length_ratio=100)
 
 def _s1_step5_load_lpips_to_anchor(csv_path: Path, anchor_name: str) -> tuple[list[str], np.ndarray]:
+    """Load LPIPS scores from the anchor image to every interpolation step."""
     df = pd.read_csv(csv_path, index_col=0)
     df.index.name = None
     names = df.index.tolist()
@@ -1173,6 +1226,7 @@ def _s1_step5_load_lpips_to_anchor(csv_path: Path, anchor_name: str) -> tuple[li
     return (names, scores)
 
 def _s1_step5_load_pixels(images_dir: Path, image_names: list[str], sz: int=256) -> np.ndarray:
+    """Load and resize the selected interpolation images."""
     N = len(image_names)
     pixels = np.empty((N, sz, sz, 4), dtype=np.uint8)
     for i, name in enumerate(image_names):
@@ -1180,6 +1234,7 @@ def _s1_step5_load_pixels(images_dir: Path, image_names: list[str], sz: int=256)
     return pixels
 
 def _s1_step5_build_deck(images_dir: Path, image_names: list[str], n_visible: int, selected_indices: list[int], thumb_h: float=0.55, rotation_deg: float=0.0, step_x: float=0.38, step_y: float=0.02, depth_scale: float=0.998) -> Group:
+    """Build the compressed interpolation deck and reserve a placeholder slot near the centre."""
     total = len(image_names)
     sample = np.linspace(0, total - 1, n_visible).round().astype(int).tolist()
     endpoint_indices = {0, total - 1}
@@ -1207,10 +1262,12 @@ def _s1_step5_build_deck(images_dir: Path, image_names: list[str], n_visible: in
     return (thumbs, placeholder_rank)
 
 def _s1_step5_find_thumb(deck: Group, img_idx: int) -> Group:
+    """Return the visible deck card closest to the requested image index."""
     candidates = [t for t in deck if not getattr(t, 'is_placeholder', False)]
     return min(candidates, key=lambda t: abs(t.img_idx - img_idx))
 
 def _s1_step5_row_layout_for_mobs(mobs: list[Mobject], target_h: float, buff: float, max_width: float, y: float=0.0) -> tuple[float, float, list[np.ndarray]]:
+    """Compute a centered row layout that fits the supplied mobjects within a maximum width."""
     raw_widths = [mob.width * (target_h / max(mob.height, 1e-06)) for mob in mobs]
     total_w = sum(raw_widths) + buff * max(len(mobs) - 1, 0)
     scale = min(1.0, max_width / max(total_w, 1e-06))
@@ -1225,6 +1282,7 @@ def _s1_step5_row_layout_for_mobs(mobs: list[Mobject], target_h: float, buff: fl
     return (final_h, final_buff, positions)
 
 def _s1_step5_build_anchor_panel(images_dir: Path, anchor_name: str, img_h: float=1.55) -> Group:
+    """Build the labelled anchor panel used beside the interpolation deck."""
     img = ImageMobject(str(images_dir / anchor_name))
     img.height = img_h
     border = SurroundingRectangle(img, color=_s1_step5_BLUE, stroke_width=2.5, buff=0.04)
@@ -1234,6 +1292,7 @@ def _s1_step5_build_anchor_panel(images_dir: Path, anchor_name: str, img_h: floa
     return panel
 
 def _s1_step5_build_placeholder_card(card_h: float) -> Mobject:
+    """Build the ellipsis placeholder used for omitted interpolation steps."""
     box = Square(side_length=card_h)
     box.set_stroke(opacity=0)
     box.set_fill(opacity=0)
@@ -1244,8 +1303,9 @@ def _s1_step5_build_placeholder_card(card_h: float) -> Mobject:
     return mob
 
 class _Study1Step5Base(ThreeDScene):
-
+    """Shared handoff, deck, and LPIPS-preselection helpers for the interpolation-strip scenes."""
     def build_common_state(self) -> dict:
+        """Build the shared interpolation-strip scene state."""
         self.camera.background_color = _s1_step5_BG
         self.set_camera_orientation(phi=0 * DEGREES, theta=-90 * DEGREES)
         P1_IMG_H = 2.4
@@ -1282,6 +1342,7 @@ class _Study1Step5Base(ThreeDScene):
         return {'image_names': image_names, 'lpips_scores': lpips_scores, 'selected_indices': selected_indices, 'pixels': pixels, 'N': N, 'anchor_simple': anchor_simple, 'guide_simple': guide_simple, 'anchor_grp': anchor_grp, 'guide_grp': guide_grp, 'anchor_panel': anchor_panel, 'deck': deck, 'placeholder_rank': placeholder_rank, 'deck_label': deck_label, 'deck_count_label': deck_count_label}
 
     def _deck_final_layout(self, st: dict) -> dict:
+        """Compute the held deck layout for the interpolation-strip scenes."""
         anchor_grp = st['anchor_grp']
         guide_grp = st['guide_grp']
         deck = st['deck']
@@ -1325,6 +1386,7 @@ class _Study1Step5Base(ThreeDScene):
         return {'anchor_target': anchor_target, 'guide_target': guide_target, 'target_h': target_h, 'edge_gap': edge_gap, 'final_centers': final_centers, 'final_scales': final_scales, 'final_opacities': final_opacities, 'placeholder_center': placeholder_center, 'placeholder_scale': placeholder_scale}
 
     def _apply_deck_card_layout(self, deck: Group, layout: dict) -> None:
+        """Apply a precomputed layout to each visible deck card."""
         center = (len(deck) - 1) / 2
         for idx, card in enumerate(deck):
             card.scale_to_fit_height(layout['target_h'])
@@ -1334,6 +1396,7 @@ class _Study1Step5Base(ThreeDScene):
             card.set_z_index(10 + abs(idx - center))
 
     def setup_deck_final_state(self, st: dict) -> None:
+        """Add the held deck layout without replaying the preceding animation."""
         layout = self._deck_final_layout(st)
         deck = st['deck']
         anchor_grp = st['anchor_grp']
@@ -1469,6 +1532,7 @@ class _Study1Step5Base(ThreeDScene):
         self.wait(0.8)
 
     def play_lpips_formula(self, st: dict) -> None:
+        """Animate the LPIPS formula."""
         formula = MathTex('\\mathrm{LPIPS}(\\mathrm{anchor},\\, x_n)', color=_s1_step5_INK, font_size=34).move_to([0.0, 0.0, 0.0])
         arrow = Arrow(start=[0.0, 1.6, 0.0], end=formula.get_top() + UP * 0.12, color=_s1_step5_INK, stroke_width=2.5, tip_length=0.18, buff=0.0)
         self.play(GrowArrow(arrow), Write(formula), run_time=0.8)
@@ -1477,6 +1541,7 @@ class _Study1Step5Base(ThreeDScene):
         st['_lpips_arrow'] = arrow
 
     def play_preselection(self, st: dict) -> None:
+        """Animate the preselection."""
         deck = st['deck']
         selected_indices = st['selected_indices']
         endpoint_indices = {0, st['N'] - 1}
@@ -1495,6 +1560,7 @@ class _Study1Step5Base(ThreeDScene):
         self.wait(1.0)
 
     def play_final_reveal(self, st: dict) -> None:
+        """Animate the final reveal."""
         deck = st['deck']
         selected_indices = st['selected_indices']
         anchor_grp = st['anchor_grp']
@@ -1517,6 +1583,7 @@ class Study1Stage1Step5Handoff(_Study1Step5Base):
     """Scene 1 — step-4 3-D ending → anchor and guide settle on screen."""
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         state = self.build_common_state()
         self.play_step4_handoff(state)
         self.wait(0.5)
@@ -1525,6 +1592,7 @@ class Study1Stage1Step5Deck(_Study1Step5Base):
     """Scene 2 — deck of cards fans between anchor and guide."""
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         state = self.build_common_state()
         self.add(state['anchor_grp'], state['guide_grp'])
         self.play_deck_between(state)
@@ -1534,6 +1602,7 @@ class Study1Stage1Step5LPIPS(_Study1Step5Base):
     """Scene 3 — LPIPS formula, then model-based preselection of 10 images."""
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         state = self.build_common_state()
         self.setup_deck_final_state(state)
         self.play_lpips_formula(state)
@@ -1550,6 +1619,7 @@ _s1_stimshow_STIMULI_TASK_DIR = env_path('STIMULI_TASK_DIR', REPO_ROOT / 'assets
 _s1_stimshow_SHOWCASE_TARGETS = [('Tropical Karst', 'LAN-TRP'), ('Pine Mediterranean', 'PLA-PIE'), ('Observatory', 'BUI-OBS'), ('Sofa', 'ITE-SOF'), ('Passenger train', 'VEH-PAS')]
 
 def _s1_stimshow_resolve_strip_paths(display_name: str, image_code: str) -> list[Path]:
+    """Resolve the 10-image strip for one preselected stimulus set."""
     paths = [_s1_stimshow_STIMULI_TASK_DIR / f'{image_code}-{idx:02d}.png' for idx in range(10)]
     missing = [fp.name for fp in paths if not fp.exists()]
     if missing:
@@ -1557,6 +1627,7 @@ def _s1_stimshow_resolve_strip_paths(display_name: str, image_code: str) -> list
     return paths
 
 def _s1_stimshow_build_row(image_paths: list[Path]) -> dict[str, Mobject]:
+    """Build one horizontal row of preselected stimulus thumbnails."""
     thumbs = Group(*[ImageMobject(str(image_path)) for image_path in image_paths])
     for thumb in thumbs:
         thumb.height = 0.94
@@ -1564,8 +1635,9 @@ def _s1_stimshow_build_row(image_paths: list[Path]) -> dict[str, Mobject]:
     return {'thumbs': thumbs}
 
 class Study1StimulusSetShowcase(Scene):
-
+    """Display several model-preselected 10-image stimulus sets as held strips."""
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stimshow_BG
         title = Tex('\\textbf{Model-based preselected sets of 10 images for each object-scene}', color=_s1_stimshow_INK, font_size=24)
         title.to_edge(UP, buff=0.18)
@@ -1631,9 +1703,11 @@ _s1_stage2_STIM_DIR = env_path('STIMULI_REORDERED_DIR', REPO_ROOT / 'assets' / '
 _s1_stage2_STAGE2_ASSET_DIR = REPO_ROOT / 'assets' / 'images' / 'study1_stage2'
 
 def _s1_stage2_fish_path(idx: int) -> str:
+    """Return the fish stimulus path for one index."""
     return str(_s1_stage2_STIM_DIR / f'animal_fish-{idx:02d}.png')
 
 def _s1_stage2_stimulus_path(prefix: str, idx: int) -> str:
+    """Return the ordered stimulus path for a category prefix and index."""
     return str(_s1_stage2_STIM_DIR / f'{prefix}-{idx:02d}.png')
 _s1_stage2_EMBED_Y = np.array([1.0, 0.93, 0.83, 0.7, 0.57, 0.44, 0.32, 0.2, 0.09, 0.02])
 
@@ -1648,6 +1722,7 @@ class Study1Stage2TripletTask(Scene):
     _CY = -1.05
 
     def _positions(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return the positions."""
         d, h = (self._D, self._D * np.sqrt(3) / 2)
         cy = self._CY
         si = np.array([0.0, cy + 2 * h / 3, 0.0])
@@ -1656,18 +1731,22 @@ class Study1Stage2TripletTask(Scene):
         return (si, sj, sk)
 
     def _make_probe(self, idx: int, pos: np.ndarray) -> tuple[ImageMobject, SurroundingRectangle]:
+        """Build the probe."""
         img = ImageMobject(_s1_stage2_fish_path(idx)).scale_to_fit_height(self._IMG_H).move_to(pos)
         bdr = SurroundingRectangle(img, color=_s1_stage2_LGREY, stroke_width=1.5, buff=0.05)
         return (img, bdr)
 
     def _index_tex(self, idx: int, color: str) -> MathTex:
+        """Return the index TeX."""
         return MathTex(f's_{{{idx + 1}}}', color=color, font_size=28)
 
     def _response_row(self, ref_idx: int, selected_idx: int, other_idx: int) -> VGroup:
+        """Return the response row."""
         parts = [MathTex('(', color=_s1_stage2_INK, font_size=28), MathTex(str(ref_idx + 1), color=_s1_stage2_INK, font_size=28), MathTex(',', color=_s1_stage2_INK, font_size=28), MathTex(str(selected_idx + 1), color=_s1_stage2_INK, font_size=28), MathTex(',', color=_s1_stage2_INK, font_size=28), MathTex(str(other_idx + 1), color=_s1_stage2_INK, font_size=28), MathTex(')', color=_s1_stage2_INK, font_size=28)]
         return VGroup(*parts).arrange(RIGHT, buff=0.06, aligned_edge=DOWN)
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage2_BG
         si_pos, sj_pos, sk_pos = self._positions()
         IMG_H = self._IMG_H
@@ -1721,6 +1800,7 @@ class Study1Stage2TripletTask(Scene):
         continuation_dots.move_to([response_rows[-1].get_center()[0], continuation_dots.get_center()[1], 0.0])
 
         def emphasize_response_mapping(row: VGroup, selected_side: str) -> None:
+            """Animate the response mapping."""
             selected_bdr = sj_bdr if selected_side == 'left' else sk_bdr
             self.play(AnimationGroup(Indicate(si_bdr, color=_s1_stage2_BLUE, scale_factor=1.06), Indicate(row.submobjects[1], color=_s1_stage2_BLUE, scale_factor=1.25), lag_ratio=0.0), run_time=0.75)
             self.wait(0.12)
@@ -1728,6 +1808,7 @@ class Study1Stage2TripletTask(Scene):
             self.wait(0.12)
 
         def highlight_choice(selected_side: str) -> None:
+            """Animate the choice."""
             if selected_side == 'left':
                 selected_img, selected_bdr, selected_lbl = (sj_img, sj_bdr, sj_lbl)
                 other_img, other_bdr, other_lbl = (sk_img, sk_bdr, sk_lbl)
@@ -1760,6 +1841,7 @@ class Study1Stage2TripletTask2(Study1Stage2TripletTask):
     """Follow-up scene: example trials and participant triplet-set construction."""
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage2_BG
         si_pos, sj_pos, sk_pos = self._positions()
         IMG_H = self._IMG_H
@@ -1812,6 +1894,7 @@ class Study1Stage2TripletTask2(Study1Stage2TripletTask):
         continuation_dots.move_to([response_rows[-1].get_center()[0], continuation_dots.get_center()[1], 0.0])
 
         def emphasize_response_mapping(row: VGroup, selected_side: str) -> None:
+            """Animate the response mapping."""
             selected_bdr = sj_bdr if selected_side == 'left' else sk_bdr
             self.play(AnimationGroup(Indicate(si_bdr, color=_s1_stage2_BLUE, scale_factor=1.06), Indicate(row.submobjects[1], color=_s1_stage2_BLUE, scale_factor=1.25), lag_ratio=0.0), run_time=0.75)
             self.wait(0.12)
@@ -1819,6 +1902,7 @@ class Study1Stage2TripletTask2(Study1Stage2TripletTask):
             self.wait(0.12)
 
         def highlight_choice(selected_side: str) -> None:
+            """Animate the choice."""
             if selected_side == 'left':
                 selected_img, selected_bdr, selected_lbl = (sj_img, sj_bdr, sj_lbl)
                 other_img, other_bdr, other_lbl = (sk_img, sk_bdr, sk_lbl)
@@ -1859,6 +1943,7 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
     """Introduce additional within-category triplets for object-scene classes."""
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage2_BG
         title_prev = Tex('Psychophysical Validation', color=_s1_stage2_INK, font_size=38).to_edge(UP, buff=0.28)
         subtitle_prev = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_MGREY, font_size=24).next_to(title_prev, DOWN, buff=0.1)
@@ -1906,6 +1991,7 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
         categories = [('landscape_element_tropical_karst', 'Tropical karst', (1, 4, 8)), ('item_sofa', 'Sofa', (0, 3, 7)), ('vehicle_campervan', 'Campervan', (2, 5, 9)), ('plant_pine_med', 'Pine med', (1, 6, 8))]
 
         def mini_triplet(prefix: str, label: str, indices: tuple[int, int, int], center: np.ndarray) -> Group:
+            """Build one compact triplet example card."""
             ref_i, left_i, right_i = indices
             frame = Square(side_length=2.45, color=_s1_stage2_LGREY, stroke_width=1.3).set_fill('#F9FAFB', opacity=0.55).move_to(center)
             top = center + UP * 0.55
@@ -1930,6 +2016,7 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
         self.wait(1.2)
 
     def _mini_response_row(self, a: int, b: int, c: int) -> VGroup:
+        """Build one compact behavioural-response row."""
         parts = [MathTex('(', color=_s1_stage2_INK, font_size=28), MathTex(str(a), color=_s1_stage2_INK, font_size=28), MathTex(',', color=_s1_stage2_INK, font_size=28), MathTex(str(b), color=_s1_stage2_INK, font_size=28), MathTex(',', color=_s1_stage2_INK, font_size=28), MathTex(str(c), color=_s1_stage2_INK, font_size=28), MathTex(')', color=_s1_stage2_INK, font_size=28)]
         return VGroup(*parts).arrange(RIGHT, buff=0.06, aligned_edge=DOWN)
 
@@ -1949,6 +2036,7 @@ class Study1Stage2OrdinalEmbedding(Scene):
 
     @staticmethod
     def _card(fish_idx: int, img_h: float, border_color=None) -> Group:
+        """Return the card."""
         border_color = border_color or _s1_stage2_LGREY
         img = ImageMobject(_s1_stage2_fish_path(fish_idx)).scale_to_fit_height(img_h)
         bdr = SurroundingRectangle(img, color=border_color, stroke_width=1.3, buff=0.04)
@@ -1961,6 +2049,7 @@ class Study1Stage2OrdinalEmbedding(Scene):
         return ArcBetweenPoints(np.array([x1, edge_y, 0.0]), np.array([x2, edge_y, 0.0]), angle=angle_sign * PI / 3.5, color=color, stroke_width=2.2)
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage2_BG
         xs, y, IMG_H = (self._XS, self._Y, self._IMG_H)
         scramble = self._SCRAMBLE
@@ -2017,6 +2106,7 @@ class Study1Stage2EmbeddingResult(Scene):
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage2_BG
         title = Tex('From behavioural responses to perceptual embedding', color=_s1_stage2_INK, font_size=34).to_edge(UP, buff=0.28)
         responses_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=28)
@@ -2068,23 +2158,28 @@ class Study1Stage2EmbeddingResult(Scene):
         self.wait(1.2)
 
 class Study1Stage2ModelOrderToHeatmap(Scene):
+    """Compare behaviourally reordered sets with the LPIPS-versus-embedding heatmap."""
     STIMULI_DIR = _s1_stage2_STIM_DIR
     HEATMAP_PDF = _s1_stage2_STAGE2_ASSET_DIR / 'lpips_vs_embedding_orders_heatmap.pdf'
 
     def _natural_key(self, path: Path):
+        """Return a natural-sort key for a stimulus filename."""
         import re
         parts = re.split('(\\d+)', path.stem.lower())
         return [int(part) if part.isdigit() else part for part in parts]
 
     def _normalise(self, path: Path) -> str:
+        """Normalize a stimulus filename for keyword matching."""
         return path.stem.lower().replace('_', ' ').replace('-', ' ')
 
     def _all_stimulus_paths(self) -> list[Path]:
+        """Return all valid stimulus image paths in the task directory."""
         valid_suffixes = {'.png', '.jpg', '.jpeg', '.webp'}
         paths = [p for p in self.STIMULI_DIR.iterdir() if p.suffix.lower() in valid_suffixes]
         return sorted(paths, key=self._natural_key)
 
     def _select_category_paths(self, required_keywords: tuple[str, ...], n: int=10) -> list[Path]:
+        """Select stimulus paths that best match the requested category keywords."""
         all_paths = self._all_stimulus_paths()
         exact = [p for p in all_paths if all((keyword in self._normalise(p) for keyword in required_keywords))]
         if len(exact) >= n:
@@ -2102,6 +2197,7 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
         raise ValueError(f'Could not find {n} images for keywords {required_keywords}. Found {len(merged)}.')
 
     def _pdf_first_page_to_png(self, pdf_path: Path) -> str:
+        """Convert the first page of the heatmap PDF into a PNG snapshot."""
         import hashlib
         import shutil
         import subprocess
@@ -2127,6 +2223,7 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
         raise FileNotFoundError('Could not convert heatmap PDF to PNG. Install sips, pdftoppm, or ImageMagick.')
 
     def _embedding_result_snapshot(self) -> Group:
+        """Build the held end state of the previous embedding-result scene."""
         title = Tex('From behavioural responses to perceptual embedding', color=_s1_stage2_INK, font_size=34).to_edge(UP, buff=0.28)
         responses_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=28)
         responses_main = MathTex('\\mathit{T}=\\{(i,j,k)\\}', color=_s1_stage2_INK, font_size=36)
@@ -2162,12 +2259,14 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
         return Group(title, responses_block, algo_block, down_arrow, side_arrow, plot_title, axes, x_label, y_label, x_nums, y_nums, curve, dots, strip_title, dot_to_img_connectors, fish_imgs, fish_borders)
 
     def _category_row(self, image_paths: list[Path], image_height: float=0.44) -> Group:
+        """Build one horizontal category row with matching borders."""
         images = Group(*[ImageMobject(str(path)).scale_to_fit_height(image_height) for path in image_paths])
         images.arrange(RIGHT, buff=0.055)
         borders = Group(*[SurroundingRectangle(images[i], color=_s1_stage2_LGREY, stroke_width=0.75, buff=0.016) for i in range(len(images))])
         return Group(images, borders)
 
     def construct(self):
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage2_BG
         heatmap_png = self._pdf_first_page_to_png(self.HEATMAP_PDF)
         previous_scene = self._embedding_result_snapshot()
@@ -2211,23 +2310,28 @@ _s1_stage3_STIM_INFO_CSV = env_path('STIM_INFO_CSV', REPO_ROOT / 'assets' / 'dat
 _s1_stage3_FIXATION_PATH = str(REPO_ROOT / 'assets' / 'images' / 'fixation_target.png')
 
 def _s1_stage3_stimulus_path(prefix: str, idx: int) -> str:
+    """Return the reordered-study stimulus path for one continuum image."""
     return str(_s1_stage3_STIM_DIR / f'{prefix}-{idx:02d}.png')
 
 def _s1_stage3_memory_task_stimulus_path(name: str) -> str:
+    """Return the path for a memory-task exemplar image."""
     return str(_s1_stage3_MEMORY_TASK_STIM_DIR / name)
 
 def _s1_stage3_load_stimulus_lookup() -> dict[tuple[str, str], dict[str, str]]:
+    """Load the Stage 3 stimulus metadata keyed by category and object."""
     with _s1_stage3_STIM_INFO_CSV.open() as f:
         rows = list(csv.DictReader(f))
     return {(row['category'], row['object']): row for row in rows}
 
 def _s1_stage3_stimulus_image(prefix: str, idx: int, height: float, pos: tuple[float, float, float] | np.ndarray) -> ImageMobject:
+    """Instantiate and position one Stage 3 stimulus card."""
     img = ImageMobject(_s1_stage3_stimulus_path(prefix, idx))
     img.scale_to_fit_height(height)
     img.move_to(pos)
     return img
 
 def _s1_stage3_fixation_on(mob: Mobject | np.ndarray, height: float=0.18) -> ImageMobject:
+    """Return a fixation target centered on a mobject or raw point."""
     fixation = ImageMobject(_s1_stage3_FIXATION_PATH)
     fixation.scale_to_fit_height(height)
     fixation.set_z_index(10)
@@ -2238,9 +2342,11 @@ def _s1_stage3_fixation_on(mob: Mobject | np.ndarray, height: float=0.18) -> Ima
     return fixation
 
 def _s1_stage3__get_hex(color: ParsableManimColor | None) -> str | None:
+    """Return an uppercase hex string for a Manim color, if present."""
     return color.to_hex().upper() if color else None
 
 def _s1_stage3_recolor_svg(svg: SVGMobject, color_map: dict[str, ParsableManimColor]) -> None:
+    """Recolor SVG strokes and fills using a hex-to-Manim mapping."""
     for submob in svg.family_members_with_points():
         stroke_hex = _s1_stage3__get_hex(submob.get_stroke_color())
         if stroke_hex in color_map:
@@ -2265,10 +2371,12 @@ def _s1_stage3_restore_agg_nonrepeated_dashes(svg: SVGMobject) -> None:
         svg.add(dashed)
 
 def _s1_stage3_svg_local_point(svg: SVGMobject, x: float, y: float, *, base_height: float=3.0) -> np.ndarray:
+    """Convert SVG-local coordinates into scene coordinates."""
     scale = svg.height / base_height
     return svg.get_center() + np.array([x * scale, y * scale, 0.0])
 
 def _s1_stage3_crisp_tex_label(text: str, center: np.ndarray, *, font_size: float, rotation: float=0.0, buff: float=0.04) -> VGroup:
+    """Build a TeX label with a white backing rectangle for SVG overlays."""
     label = Tex(text, color=_s1_stage3_INK, font_size=font_size)
     if rotation:
         label.rotate(rotation)
@@ -2280,6 +2388,7 @@ def _s1_stage3_crisp_tex_label(text: str, center: np.ndarray, *, font_size: floa
     return VGroup(bg, label)
 
 def _s1_stage3_build_agg_tex_overlays(svg: SVGMobject) -> VGroup:
+    """Build the aggregate-results SVG text overlays."""
     scale = svg.height / 3.0
     tick_fs = 16 * scale
     label_fs = 18 * scale
@@ -2297,6 +2406,7 @@ def _s1_stage3_build_agg_tex_overlays(svg: SVGMobject) -> VGroup:
     return overlays
 
 def _s1_stage3_build_block_tex_overlays(svg: SVGMobject) -> VGroup:
+    """Build the blockwise-results SVG text overlays."""
     scale = svg.height / 3.0
     tick_fs = 15 * scale
     label_fs = 18 * scale
@@ -2330,12 +2440,14 @@ class Study1Stage3MemoryIntro(Scene):
     """Transition from similarity judgements into the memory-validation task."""
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage3_BG
         title = Tex('Memory validation task', color=_s1_stage3_INK, font_size=40).move_to(ORIGIN)
         title_top_target = title.copy().to_edge(UP, buff=0.28)
         question = VGroup(Tex('Does proximity along the perceptual continua', color=_s1_stage3_INK, font_size=26), Tex('of our image sets predict memory performance?', color=_s1_stage3_INK, font_size=26)).arrange(DOWN, buff=0.1).next_to(title_top_target, DOWN, buff=0.24)
 
         def set_image(prefix: str, idx: int, height: float, pos: tuple[float, float, float]) -> ImageMobject:
+            """Load and position one Stage 3 exemplar image."""
             img = ImageMobject(_s1_stage3_stimulus_path(prefix, idx))
             img.scale_to_fit_height(height)
             img.move_to(pos)
@@ -2438,6 +2550,7 @@ class Study1Stage3MemoryIntro(Scene):
         target_visible = True
 
         def swap_example(delay: float) -> None:
+            """Toggle the overlaid target example during the intro alternation beat."""
             nonlocal target_visible
             target_visible = not target_visible
             self.play(example_target.animate.set_opacity(1.0 if target_visible else 0.0), run_time=0.1, rate_func=linear)
@@ -2516,6 +2629,7 @@ class Study1Stage3MemoryExpDesignLegacy(Scene):
     """Show the delayed match-to-sample design alongside the selected memory sets."""
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage3_BG
         title = Tex('Memory validation task', color=_s1_stage3_INK, font_size=40).to_edge(UP, buff=0.28)
         question = VGroup(Tex('Does proximity along the perceptual continua', color=_s1_stage3_INK, font_size=26), Tex('of our image sets predict memory performance?', color=_s1_stage3_INK, font_size=26)).arrange(DOWN, buff=0.1).next_to(title, DOWN, buff=0.24)
@@ -2573,6 +2687,7 @@ class Study1Stage3MemoryExpDesignLegacy(Scene):
         probe2_idx = target_idx
 
         def stage_content(kind: str, center: np.ndarray, large: bool) -> Group:
+            """Build the visual payload for one trial phase in either large or parked form."""
             image_height = 0.95 if large else 0.44
             fixation_height = 0.18 if large else 0.06
             if kind == 'target':
@@ -2689,9 +2804,10 @@ class Study1Stage3MemoryExpDesignLegacy(Scene):
         self.wait(1.0)
 
 class Study1Stage3MemoryExpDesignB(Scene):
-    """Difficulty labels, N=240, and block structure — sequel to ExpDesignA."""
+    """Add difficulty labels and experiment-level counts to the design summary."""
 
     def construct(self) -> None:
+        """Annotate the parked trial strip with difficulty, timing, and sample size."""
         self.camera.background_color = _s1_stage3_BG
         title = Tex('Memory validation task', color=_s1_stage3_INK, font_size=40).to_edge(UP, buff=0.28)
         question = VGroup(Tex('Does proximity along the perceptual continua', color=_s1_stage3_INK, font_size=26), Tex('of our image sets predict memory performance?', color=_s1_stage3_INK, font_size=26)).arrange(DOWN, buff=0.1).next_to(title, DOWN, buff=0.24)
@@ -2742,6 +2858,7 @@ class Study1Stage3MemoryExpDesignB(Scene):
         probe2_idx = target_idx
 
         def stage_content(kind: str, center: np.ndarray, large: bool) -> Group:
+            """Build the visual payload for one trial phase in either large or parked form."""
             image_height = 0.95 if large else 0.44
             fixation_height = 0.18 if large else 0.06
             if kind == 'target':
@@ -2813,9 +2930,11 @@ class Study1Stage3MemoryExpResults(Scene):
     BLOCK_IMG = str(REPO_ROOT / 'assets' / 'images' / 'study1_stage3' / 'behaviour_block_manim.svg')
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage3_BG
 
         def build_expdesignb_final_frame() -> Group:
+            """Build the held design-summary frame reused before the results reveal."""
             title = Tex('Memory validation task', color=_s1_stage3_INK, font_size=40).to_edge(UP, buff=0.28)
             question = VGroup(Tex('Does proximity along the perceptual continua', color=_s1_stage3_INK, font_size=26), Tex('of our image sets predict memory performance?', color=_s1_stage3_INK, font_size=26)).arrange(DOWN, buff=0.1).next_to(title, DOWN, buff=0.24)
             lookup = _s1_stage3_load_stimulus_lookup()
@@ -2865,6 +2984,7 @@ class Study1Stage3MemoryExpResults(Scene):
             probe2_idx = target_idx
 
             def stage_content(kind: str, center: np.ndarray) -> Group:
+                """Return the stage content."""
                 image_height = 0.44
                 fixation_height = 0.06
                 if kind == 'target':
@@ -3084,14 +3204,17 @@ FIXATION_PATH = str(REPO_ROOT / "assets" / "images" / "fixation_target.png")
 
 
 def stimulus_path(prefix: str, idx: int) -> str:
+    """Return the reordered-study stimulus path for one continuum image."""
     return str(STIM_DIR / f"{prefix}-{idx:02d}.png")
 
 
 def memory_task_stimulus_path(name: str) -> str:
+    """Return the path for a pre-rendered memory-task exemplar image."""
     return str(MEMORY_TASK_STIM_DIR / name)
 
 
 def load_stimulus_lookup() -> dict[tuple[str, str], dict[str, str]]:
+    """Load the study metadata rows keyed by `(category, object)`."""
     with STIM_INFO_CSV.open() as handle:
         rows = list(csv.DictReader(handle))
     return {(row["category"], row["object"]): row for row in rows}
@@ -3103,6 +3226,7 @@ def stimulus_image(
     height: float,
     pos: tuple[float, float, float] | np.ndarray,
 ) -> ImageMobject:
+    """Instantiate and position one continuum stimulus card."""
     image = ImageMobject(stimulus_path(prefix, idx))
     image.scale_to_fit_height(height)
     image.move_to(pos)
@@ -3113,6 +3237,7 @@ def fixation_on(
     mob: VMobject | np.ndarray,
     height: float = 0.18,
 ) -> ImageMobject:
+    """Return a fixation target centered on a mobject or raw point."""
     fixation = ImageMobject(FIXATION_PATH)
     fixation.scale_to_fit_height(height)
     fixation.set_z_index(10)
@@ -3971,7 +4096,7 @@ def _memory_dissimilarity_shift_below_difficulty(
 
 
 def _build_memory_intro_c_end_state() -> dict[str, object]:
-    """Assemble the shared frozen end state reused by Intro C, Intro D, and ExpDesignA."""
+    """Assemble the frozen repeated-exposure state reused by later Stage 3 scenes."""
     criterion_intersection_x = _normal_curve_intersection_x(
         left_mean=_MEMORY_INTRO_TOP_FOIL_MEAN,
         right_mean=_MEMORY_INTRO_A_TOP_TARGET_MEAN,

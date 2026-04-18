@@ -89,6 +89,7 @@ class _Study2NumberedScene:
     """Mixin: auto-prefix the output file with the narrative scene number."""
 
     def __init__(self, *args, **kwargs):
+        """Initialize the numbered-scene mixin and register the output filename."""
         number = _STUDY2_SCENE_ORDER.get(self.__class__.__name__, "")
         if number:
             config.output_file = f"{number}_{self.__class__.__name__}"
@@ -230,7 +231,7 @@ _JITTER = r"$M = 4\,\mathrm{s}$"
 
 
 class Study2ExperimentalDesign(_Study2NumberedScene, Scene):
-
+    """Present the Session 1 memory-task and Session 2 perceptual-task timelines side by side."""
     _S1 = [
         {"img": LAKE,    "time": "2 s",     "lbl": "Target"},
         {"img": None,    "time": "8 s",     "lbl": "Delay"},
@@ -250,6 +251,7 @@ class Study2ExperimentalDesign(_Study2NumberedScene, Scene):
     ]
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         # ── Session 1 ──────────────────────────────────────────────────────────
@@ -380,10 +382,12 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     _ICON_FRAME_BUFF = 0.05
 
     def _pattern_for_index(self, idx: int) -> np.ndarray:
+        """Return the permuted activity pattern for one overview stimulus."""
         flat = self._GRID_PAT.flatten()
         return flat[self._GRID_PERMS[idx]].reshape(self._GRID_PAT.shape)
 
     def _make_grid(self, center: np.ndarray, col: str, pattern: np.ndarray) -> VGroup:
+        """Build the grid."""
         step = self._GRID_CS + self._GRID_GAP
         group = VGroup()
         for r in range(3):
@@ -408,6 +412,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         return group
 
     def _make_feature_vector(self, center: np.ndarray, col: str, pattern: np.ndarray) -> VGroup:
+        """Build the feature vector."""
         step = self._VEC_CS + self._VEC_GAP
         group = VGroup()
         for i, v in enumerate(pattern.flatten()):
@@ -426,6 +431,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         return group
 
     def _make_grid_frame(self, grid: VGroup, center: np.ndarray) -> Rectangle:
+        """Build the grid frame."""
         return Rectangle(
             width=grid.width,
             height=grid.height,
@@ -444,6 +450,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         )
 
     def _vector_layout(self, vector_center_x: float, count: int) -> list[np.ndarray]:
+        """Return the vector layout."""
         ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
         return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
 
@@ -455,6 +462,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         image_height: float = IMG_H * _STACK_SCALE,
         fixation_height: float = FIX_H * _STACK_SCALE,
     ) -> tuple[Group, SurroundingRectangle]:
+        """Build the stack target."""
         img = ImageMobject(img_path).scale_to_fit_height(image_height)
         fix = ImageMobject(FIX).scale_to_fit_height(fixation_height).move_to(img.get_center())
         icon = Group(img, fix)
@@ -471,6 +479,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         self,
         col: str,
     ) -> tuple[Group, SurroundingRectangle]:
+        """Build the delay card."""
         card = _box(None)
         card.scale(self._STACK_SCALE)
         card[0].set_stroke(color=GREY, width=1.5, opacity=0.85)
@@ -485,6 +494,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         return card, frame
 
     def _build_overview_end_state(self) -> dict[str, object]:
+        """Build the overview end state."""
         slide_title = Tex(
             r"\textbf{Session 2 :} Perceptual task",
             color=INK,
@@ -675,6 +685,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     # ── Scene ─────────────────────────────────────────────────────────────────
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         # ── Phase 0: Start from the full experimental-design end state ─────────
@@ -863,11 +874,13 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         current_grid: VGroup | None = None
 
         def synced_source_pulse(t: float) -> float:
+            """Return the synchronized source pulse animation."""
             if t <= 0.12:
                 return 0.0
             return there_and_back((t - 0.12) / 0.88)
 
         def vector_layout(count: int) -> list[np.ndarray]:
+            """Return the vector-layout centres for the current scene."""
             ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
             return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
 
@@ -941,6 +954,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         icon_fix_h = stim_icons[0][1].height
 
         def make_stack_target(img_path: str, col: str) -> tuple[Group, SurroundingRectangle]:
+            """Build the stack target."""
             img = ImageMobject(img_path).scale_to_fit_height(icon_img_h)
             fix = ImageMobject(FIX).scale_to_fit_height(icon_fix_h).move_to(img.get_center())
             icon = Group(img, fix)
@@ -1130,6 +1144,7 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         title_pair: tuple[Mobject, Mobject] | None = None,
         exit_ghost_pair: tuple[Mobject, Mobject] | None = None,
     ) -> tuple[list[Group], list[VMobject], tuple[Mobject, Mobject]]:
+        """Return the data for one reverse roll step in the overview carousel."""
         incoming_icon.move_to(np.array([icon_center_x, ghost_y, 0.0]))
         incoming_frame.move_to(incoming_icon.get_center())
         incoming_icon.set_opacity(0.18)
@@ -1168,6 +1183,7 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         return new_visible_icons, new_visible_frames, new_exit_ghost
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
         ctx = self._build_overview_end_state()
         self.add(ctx["frame"])
@@ -1296,6 +1312,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
     ]
 
     def _row_values(self, base_idx: int, run_idx: int) -> np.ndarray:
+        """Return the conceptual row values for the within-session decoding matrix."""
         base = self._BASE_ROWS[base_idx % len(self._BASE_ROWS)]
         rolled = np.roll(base, (run_idx + base_idx) % 3)
         jitter = 0.05 * np.sin(
@@ -1304,6 +1321,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
         return np.clip(0.84 * base + 0.16 * rolled + jitter, 0.08, 0.98)
 
     def _matrix_row_centers(self, x: float, y_shift: float = 0.0) -> list[np.ndarray]:
+        """Return the scene centres for the conceptual decoding-matrix rows."""
         row_h = 0.11
         row_gap = 0.025
         run_gap = 0.080
@@ -1320,6 +1338,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
         return centers
 
     def _make_test_points(self, ax: Axes, fold_idx: int) -> VGroup:
+        """Build the test-point markers for the conceptual decoding matrix."""
         pts = [
             (
                 -1.55 + 0.10 * np.sin(0.8 * fold_idx),
@@ -1355,6 +1374,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
         ])
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         title = Tex(
@@ -1371,6 +1391,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
         ghost_y = self._COL_YS[0] + row_step * 1.02
 
         def make_stack_icon(img_path: str) -> Group:
+            """Build one stacked icon for the current layout."""
             img = ImageMobject(img_path).scale_to_fit_height(stack_img_h)
             fix = ImageMobject(FIX).scale_to_fit_height(stack_fix_h).move_to(img.get_center())
             return Group(img, fix)
@@ -1685,9 +1706,11 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
         )
 
         def _decision_shift(fold_idx: int) -> tuple[float, float]:
+            """Return the decision shift."""
             return 0.13 * np.sin(0.72 * fold_idx), 0.09 * np.cos(0.86 * fold_idx)
 
         def _class_centers(fold_idx: int) -> dict[str, tuple[float, float]]:
+            """Return the class centers."""
             x_shift, y_shift = _decision_shift(fold_idx)
             return {
                 "blue": (-1.25 + 0.28 * x_shift, -0.02 + 0.20 * y_shift),
@@ -1698,6 +1721,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
         def make_train_plot_state(
             fold_idx: int,
         ) -> tuple[VGroup, VGroup, VGroup, VGroup]:
+            """Build the current train-plot state."""
             centers = _class_centers(fold_idx)
             blue_pts = [
                 (-1.88 + 0.11 * np.sin(0.70 * fold_idx), 0.98 + 0.10 * np.cos(0.52 * fold_idx)),
@@ -1745,18 +1769,22 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
             return regions, blue_group, green_group, amber_group
 
         def _region_fill(col: str) -> ManimColor:
+            """Return the region fill."""
             return interpolate_color(WHITE, ManimColor(col), 0.58)
 
         def _clip_polygon_halfplane(
             poly: list[np.ndarray], normal: np.ndarray, offset: float
         ) -> list[np.ndarray]:
+            """Return the clip polygon halfplane."""
             if not poly:
                 return []
 
             def inside(p: np.ndarray) -> bool:
+                """Return whether the current point lies inside the active region."""
                 return float(np.dot(normal, p)) <= offset + 1e-9
 
             def intersect(p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
+                """Return the intersection point for the current line segment."""
                 direction = p2 - p1
                 denom = float(np.dot(normal, direction))
                 if abs(denom) < 1e-9:
@@ -1781,6 +1809,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
         def _linear_region_polygon(
             label: str, centers: dict[str, tuple[float, float]]
         ) -> list[np.ndarray]:
+            """Return the linear region polygon."""
             x_min, x_max = -2.45, 2.45
             y_min, y_max = -1.35, 1.55
             poly = [
@@ -1802,6 +1831,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
             return poly
 
         def _decision_regions(ax: Axes, centers: dict[str, tuple[float, float]]) -> VGroup:
+            """Return the decision regions."""
             color_map = {"blue": class_one_col, "green": _D_GREEN, "amber": _D_AMBER}
             regions = VGroup()
             for label in ["blue", "green", "amber"]:
@@ -1818,6 +1848,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
             return regions
 
         def _error_mark(center: np.ndarray, *, visible: bool) -> VGroup:
+            """Return the error mark."""
             anchor = Circle(radius=0.082).move_to(center)
             mark = Cross(
                 anchor,
@@ -1832,6 +1863,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
         def make_test_plot_state(
             fold_idx: int,
         ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
+            """Build the current test-plot state."""
             centers = _class_centers(fold_idx)
             misclassified = fold_misclassified[fold_idx]
             blue_pts = [
@@ -1894,6 +1926,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
             np.array([4.80, -2.42 + right_block_y_shift, 0.0])
         )
         def make_accuracy_display(n_filled: int) -> MathTex:
+            """Build the current accuracy display."""
             if n_filled <= 0:
                 tex = r"[\ ]"
             else:
@@ -1965,6 +1998,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
             top_pad: float = 0.04,
             bottom_pad: float = 0.04,
         ) -> RoundedRectangle:
+            """Build the block box."""
             group = VGroup(*rows)
             left = group.get_left()[0] - x_pad
             right = group.get_right()[0] + x_pad
@@ -1981,6 +2015,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
             ).set_fill(color, opacity=fill_opacity)
 
         def _empty_train_box() -> RoundedRectangle:
+            """Return the empty train box."""
             return _make_block_box(
                 [matrix_rows[0]],
                 color=train_col,
@@ -1989,11 +2024,13 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
             ).set_stroke(opacity=0.0)
 
         def _empty_train_label(box: Mobject) -> Tex:
+            """Return the empty train label."""
             return Tex("train", color=train_col, font_size=16).move_to(
                 np.array([label_col_x, box.get_center()[1], 0.0])
             ).set_opacity(0.0)
 
         def _set_tag(text: str, color: ManimColor, box: Mobject) -> VGroup:
+            """Set up the tag."""
             tag_text = Tex(text, color=color, font_size=16)
             tag_bg = RoundedRectangle(
                 corner_radius=0.05,
@@ -2014,6 +2051,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewA):
             return tag
 
         def make_train_overlays(fold_idx: int) -> Group:
+            """Build the train overlays for the current panel."""
             top_rows = matrix_rows[: 4 * fold_idx]
             bottom_rows = matrix_rows[4 * (fold_idx + 1) :]
             if top_rows:
@@ -2170,6 +2208,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
     """
 
     def _build_final_frame(self) -> dict[str, Mobject]:
+        """Build the held final frame reused by the split results variants."""
         title = Tex(
             "Decoding object-identity during perception from early visual cortex",
             color=INK,
@@ -2310,9 +2349,11 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         )
 
         def _decision_shift(fold_idx: int) -> tuple[float, float]:
+            """Return the decision shift."""
             return 0.13 * np.sin(0.72 * fold_idx), 0.09 * np.cos(0.86 * fold_idx)
 
         def _class_centers(fold_idx: int) -> dict[str, tuple[float, float]]:
+            """Return the class centers."""
             x_shift, y_shift = _decision_shift(fold_idx)
             return {
                 "blue": (-1.25 + 0.28 * x_shift, -0.02 + 0.20 * y_shift),
@@ -2321,18 +2362,22 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             }
 
         def _region_fill(col: str) -> ManimColor:
+            """Return the region fill."""
             return interpolate_color(WHITE, ManimColor(col), 0.58)
 
         def _clip_polygon_halfplane(
             poly: list[np.ndarray], normal: np.ndarray, offset: float
         ) -> list[np.ndarray]:
+            """Return the clip polygon halfplane."""
             if not poly:
                 return []
 
             def inside(p: np.ndarray) -> bool:
+                """Return whether the current point lies inside the active region."""
                 return float(np.dot(normal, p)) <= offset + 1e-9
 
             def intersect(p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
+                """Return the intersection point for the current line segment."""
                 direction = p2 - p1
                 denom = float(np.dot(normal, direction))
                 if abs(denom) < 1e-9:
@@ -2357,6 +2402,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         def _linear_region_polygon(
             label: str, centers: dict[str, tuple[float, float]]
         ) -> list[np.ndarray]:
+            """Return the linear region polygon."""
             x_min, x_max = -2.45, 2.45
             y_min, y_max = -1.35, 1.55
             poly = [
@@ -2378,6 +2424,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             return poly
 
         def _decision_regions(ax: Axes, centers: dict[str, tuple[float, float]]) -> VGroup:
+            """Return the decision regions."""
             color_map = {"blue": class_one_col, "green": _D_GREEN, "amber": _D_AMBER}
             regions = VGroup()
             for label in ["blue", "green", "amber"]:
@@ -2394,6 +2441,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             return regions
 
         def _error_mark(center: np.ndarray) -> VGroup:
+            """Return the error mark."""
             anchor = Circle(radius=0.082).move_to(center)
             mark = Cross(
                 anchor,
@@ -2406,6 +2454,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         def make_train_plot_state(
             fold_idx: int,
         ) -> tuple[VGroup, VGroup, VGroup, VGroup]:
+            """Build the current train-plot state."""
             centers = _class_centers(fold_idx)
             blue_pts = [
                 (-1.88 + 0.11 * np.sin(0.70 * fold_idx), 0.98 + 0.10 * np.cos(0.52 * fold_idx)),
@@ -2454,6 +2503,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         def make_test_plot_state(
             fold_idx: int,
         ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
+            """Build the current test-plot state."""
             centers = _class_centers(fold_idx)
             misclassified = fold_misclassified[fold_idx]
             blue_pts = [
@@ -2590,7 +2640,9 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         }
 
     def _build_results_end_static(self) -> dict[str, Mobject]:
+        """Build the held within-session results state without replaying the animation."""
         def make_small_icon(img_path: str, frame_col: str) -> Group:
+            """Build one small icon for the current layout."""
             img = ImageMobject(img_path).scale_to_fit_height(0.52)
             frame = SurroundingRectangle(
                 img,
@@ -2602,6 +2654,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             return Group(img, frame)
 
         def _hex(color) -> str | None:
+            """Return the hex."""
             if color is None:
                 return None
             if isinstance(color, str):
@@ -2609,6 +2662,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             return color.to_hex().upper()
 
         def make_results_plot() -> Group:
+            """Build the current results plot."""
             svg = (
                 SVGMobject(str(_STUDY2_ASSET_DIR / "study2_results.svg"))
                 .scale_to_fit_height(3.64)
@@ -2782,6 +2836,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         }
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
         layout = self._build_final_frame()
         static_frame = layout["static_frame"]
@@ -2869,6 +2924,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         scale: float,
         center: np.ndarray,
     ) -> tuple[Tex, Group, list[Group], VGroup, VGroup, VGroup]:
+        """Build one session row for the cross-session decoding layout."""
         title = Tex(title_text, color=INK, font_size=24)
         boxes, xs = _build_row(specs, row_y)
         dots, x_end = _ellipsis(xs, row_y)
@@ -2880,6 +2936,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         return title, row_group, boxes, dots, time_lbl, ph_lbl
 
     def _delay_row_values(self, base_idx: int, exemplar_idx: int = 0) -> np.ndarray:
+        """Return the y-values used for the delay row in the cross-session layout."""
         base = self._row_values(base_idx, exemplar_idx)
         rolled = np.roll(base, 1 + ((base_idx + exemplar_idx) % 4))
         ripple = 0.035 * np.cos(
@@ -2888,6 +2945,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         return np.clip(0.62 * base + 0.38 * rolled + ripple, 0.10, 0.90)
 
     def _ordered_examples(self, order: list[int]) -> list[tuple[int, int]]:
+        """Return the example stimuli in the presentation order used by the layout."""
         return [self._TEST_EXAMPLES[idx] for idx in order]
 
     def _make_matrix_panel(
@@ -2906,6 +2964,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         role_font_size: int = 19,
         content_font_size: int = 19,
     ) -> VGroup:
+        """Build one conceptual train-test matrix panel."""
         rows = VGroup(*[
             _make_feature_row(
                 values,
@@ -2939,6 +2998,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         return VGroup(role_label, pattern_group, content_label)
 
     def _make_panel_focus_frame(self, target: Mobject) -> VMobject:
+        """Build a focus frame around one conceptual matrix panel."""
         return DashedVMobject(
             SurroundingRectangle(
                 target,
@@ -2958,6 +3018,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         *,
         angle: float,
     ) -> CurvedArrow:
+        """Build the decode arrow used in the cross-session layout."""
         return CurvedArrow(
             source.get_right() + UP * 0.20 + RIGHT * 0.02,
             target.get_left() + UP * 0.20 + LEFT * 0.02,
@@ -2968,6 +3029,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         )
 
     def _build_cross_session_layout(self) -> dict[str, object]:
+        """Build the reusable cross-session decoding layout and its parts."""
         slide_title = Tex("Between-session decoding", color=INK, font_size=30)
         slide_title.to_edge(UP, buff=0.18)
 
@@ -3137,6 +3199,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         }
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
         layout = self._build_cross_session_layout()
         slide_title = layout["slide_title"]
@@ -3275,6 +3338,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         *,
         label_direction: np.ndarray = UP,
     ) -> VGroup:
+        """Build the compact results matrix reused in summary layouts."""
         rows = VGroup(*[
             _make_feature_row(
                 values[row_idx * 3 : (row_idx + 1) * 3],
@@ -3306,6 +3370,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         *,
         label_direction: np.ndarray = UP,
     ) -> None:
+        """Position the compact results matrix relative to the current summary layout."""
         rows, frame, label = matrix
         rows.move_to(center)
         frame.move_to(rows)
@@ -3317,6 +3382,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         center: np.ndarray,
         font_size: int = 22,
     ) -> VGroup:
+        """Build the takeaway text for the cross-session results summary."""
         test_s1_purple = ManimColor("#A855F7")
         takeaway_line_1 = Tex(
             r"{{Sensory-trained}} classifiers can decode stimulus identity",
@@ -3341,6 +3407,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         return takeaway
 
     def _make_partial_path(self, template: VMobject, alpha: float) -> VMobject:
+        """Build the partial path."""
         partial = template.copy()
         alpha = float(np.clip(alpha, 0.0, 1.0))
         if alpha <= 1e-4:
@@ -3354,6 +3421,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         return partial
 
     def _trace_step_proportions(self, trace_template: VMobject, step_count: int) -> np.ndarray:
+        """Animate the step proportions."""
         sample_props = np.linspace(0.0, 1.0, 1200)
         sample_xs = np.array([
             trace_template.point_from_proportion(float(prop))[0]
@@ -3371,6 +3439,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         return np.array(step_props)
 
     def _glm_svg_hex(self, color) -> str | None:
+        """Return the GLM SVG hex."""
         if color is None:
             return None
         if isinstance(color, str):
@@ -3378,6 +3447,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         return color.to_hex().upper()
 
     def _glm_svg_plot_frame(self, svg: SVGMobject) -> VGroup:
+        """Return the GLM SVG plot frame."""
         candidates = [
             submob
             for submob in svg.submobjects
@@ -3401,6 +3471,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         return VGroup(left, right, bottom, top)
 
     def _glm_svg_group(self, svg: SVGMobject, color_hex: str, side: str) -> VGroup:
+        """Return the GLM SVG group."""
         frame_center_x = self._glm_svg_plot_frame(svg).get_center()[0]
         color_hex = color_hex.upper()
         return VGroup(*[
@@ -3418,6 +3489,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         ])
 
     def _glm_svg_scatter_points(self, group: VGroup) -> VGroup:
+        """Return the GLM SVG scatter points."""
         points = sorted(
             [
                 submob
@@ -3429,6 +3501,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         return VGroup(*points)
 
     def _glm_svg_chance_line(self, svg: SVGMobject) -> VMobject:
+        """Return the GLM SVG chance line."""
         plot_frame = self._glm_svg_plot_frame(svg)
         x_tol = plot_frame.width * 0.02
         y_tol = plot_frame.height * 0.02
@@ -3449,6 +3522,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         return max(candidates, key=lambda mob: mob.width)
 
     def _glm_svg_significance_marker(self, svg: SVGMobject, color_hex: str, side: str) -> VGroup:
+        """Return the GLM SVG significance marker."""
         plot_top = self._glm_svg_plot_frame(svg).get_top()[1]
         frame_center_x = self._glm_svg_plot_frame(svg).get_center()[0]
         color_hex = color_hex.upper()
@@ -3468,6 +3542,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         ])
 
     def _glm_svg_hide_color_groups(self, svg: SVGMobject) -> None:
+        """Return the GLM SVG hide color groups."""
         for submob in svg.submobjects:
             if (
                 self._glm_svg_hex(submob.get_fill_color()) in {"#7B51A0", "#3C9553"}
@@ -3476,6 +3551,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
                 submob.set_opacity(0)
 
     def _glm_svg_bottom_label(self, plot_frame: VGroup, x: float, tex: str) -> MathTex:
+        """Return the GLM SVG bottom label."""
         label = MathTex(tex, color=BLACK)
         label.scale_to_fit_width(plot_frame.width * 0.21)
         label.move_to([x, plot_frame.get_bottom()[1] - 0.19, 0.0])
@@ -3487,6 +3563,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         source_frame: Mobject,
         target_frame: Mobject,
     ) -> Mobject:
+        """Position the plot mobject."""
         mapped = mob.copy()
         source_center = source_frame.get_center()
         mapped.stretch(
@@ -3503,6 +3580,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         return mapped
 
     def _build_results_context(self) -> dict:
+        """Build the results context."""
         self.camera.background_color = BG
         layout = self._build_cross_session_layout()
         test_s1_purple = ManimColor("#A855F7")
@@ -3777,6 +3855,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         )
 
         def make_diagonal_striped_rect(template: Mobject) -> VGroup:
+            """Build a diagonally striped highlight rectangle."""
             x0, x1 = template.get_left()[0], template.get_right()[0]
             y0, y1 = template.get_bottom()[1], template.get_top()[1]
             background = Rectangle(
@@ -3786,6 +3865,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             ).set_fill(WHITE, opacity=1.0).move_to(template)
 
             def stripe_segment(diagonal_offset: float) -> tuple[np.ndarray, np.ndarray] | None:
+                """Build one diagonal stripe segment."""
                 candidates = [
                     np.array([x0, x0 + diagonal_offset, 0.0]),
                     np.array([x1, x1 + diagonal_offset, 0.0]),
@@ -3967,6 +4047,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         ])
 
         def time_to_x(time_s: float) -> float:
+            """Map a time index onto the x-axis position."""
             return float(interpolate(
                 design_start_x,
                 design_end_x,
@@ -3980,6 +4061,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             *,
             resp: bool = False,
         ) -> Group:
+            """Build one compact design icon."""
             icon = _box(img_path, resp=resp)
             icon.scale_to_fit_height(design_fill_height * 0.78)
             max_width = max(time_to_x(end_s) - time_to_x(start_s) - 0.07, 0.08)
@@ -3994,6 +4076,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             fill_opacity: float,
             icon: Mobject | None,
         ) -> Group:
+            """Build one compact design phase card."""
             phase_fill = Rectangle(
                 width=time_to_x(end_s) - time_to_x(start_s),
                 height=design_fill_height,
@@ -4129,6 +4212,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         design_label_y = design_frame_target.get_bottom()[1] - 0.20
 
         def make_design_phase_label(text: str, center_x: float, color: str) -> Tex:
+            """Build the label for one compact design phase."""
             return Tex(
                 rf"\textbf{{{text}}}",
                 color=color,
@@ -4165,6 +4249,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         step_tracker = ValueTracker(0)
 
         def sweep_target_x(step_value: float) -> float:
+            """Return the current x target for the sweep animation."""
             step_value = float(np.clip(step_value, 0.0, len(time_bins) - 1))
             return float(interpolate(
                 timeres_trace_xs[0],
@@ -4173,9 +4258,11 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             ))
 
         def step_center(step_value: float) -> np.ndarray:
+            """Return the centre point for the current step."""
             return np.array([sweep_target_x(step_value), timeres_strip_y, 0.0])
 
         def sweep_trace_prop() -> float:
+            """Return the current trace proportion for the sweep animation."""
             return float(np.interp(
                 sweep_target_x(step_tracker.get_value()),
                 trace_unique_xs,
@@ -4183,6 +4270,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             ))
 
         def current_curve_point() -> np.ndarray:
+            """Return the current point on the animated curve."""
             target_x = sweep_target_x(step_tracker.get_value())
             return np.array([
                 target_x,
@@ -4191,6 +4279,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             ])
 
         def current_trace_mobject() -> VMobject:
+            """Build the trace mobject for the current animation state."""
             target_x = sweep_target_x(step_tracker.get_value())
             curve_point = current_curve_point()
             idx = int(np.searchsorted(trace_unique_xs, target_x, side="right"))
@@ -4216,6 +4305,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             return trace
 
         def phase_color(step_value: float) -> ManimColor:
+            """Return the colour assigned to the current phase."""
             current_time = float(
                 interpolate(
                     0.0,
@@ -4234,6 +4324,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         timeres_trace = always_redraw(current_trace_mobject)
 
         def current_selector_center() -> np.ndarray:
+            """Return the centre of the active selector."""
             return np.array([sweep_target_x(step_tracker.get_value()), timeres_strip_y, 0.0])
 
         active_bin = always_redraw(lambda: RoundedRectangle(
@@ -4246,9 +4337,11 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         sweep_arrow_start = schematic_train[1].get_bottom() + DOWN * 0.04
 
         def sweep_arrow_tip(step_value: float) -> np.ndarray:
+            """Return the current tip position of the sweep arrow."""
             return step_center(step_value) + UP * (timeres_bin_height / 2 + 0.05)
 
         def make_arrow_to_tip(tip_point: np.ndarray) -> Arrow:
+            """Build an arrow that points to the current tip location."""
             return Arrow(
                 sweep_arrow_start,
                 tip_point,
@@ -4259,6 +4352,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             )
 
         def make_sweep_arrow(step_value: float) -> Arrow:
+            """Build the sweep arrow for the current panel."""
             return make_arrow_to_tip(sweep_arrow_tip(step_value))
 
         design_intro_arrow = Arrow(
@@ -4276,6 +4370,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         sweep_test_label_template = Tex("Test", color=INK, font_size=16)
 
         def sweep_test_label_position_for_tip(arrow_end: np.ndarray) -> np.ndarray:
+            """Return the sweep test-label position for the current arrow tip."""
             arrow_start = sweep_arrow_start
             arrow_direction = arrow_end - arrow_start
             arrow_norm = np.linalg.norm(arrow_direction[:2])
@@ -4286,9 +4381,11 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             return interpolate(arrow_start, arrow_end, 0.52) + arrow_perp * 0.18
 
         def sweep_test_label_position_for_step(step_value: float) -> np.ndarray:
+            """Return the sweep test-label position for one step index."""
             return sweep_test_label_position_for_tip(sweep_arrow_tip(step_value))
 
         def sweep_test_label_position() -> np.ndarray:
+            """Return the current position of the sweep test label."""
             return sweep_test_label_position_for_step(step_tracker.get_value())
 
         sweep_test_label = always_redraw(
@@ -4409,6 +4506,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         }
 
     def _animate_left_results(self, ctx: dict) -> None:
+        """Animate the left results."""
         layout = ctx["layout"]
         glm_train = ctx["glm_train"]
         glm_stim_test = ctx["glm_stim_test"]
@@ -4469,6 +4567,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         self._animate_left_results_followthrough(ctx)
 
     def _animate_left_results_followthrough(self, ctx: dict) -> None:
+        """Animate the left results followthrough."""
         glm_train = ctx["glm_train"]
         glm_stim_test = ctx["glm_stim_test"]
         glm_delay_test = ctx["glm_delay_test"]
@@ -4581,6 +4680,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         rationale: dict[str, Mobject],
         ctx: dict[str, Mobject],
     ) -> None:
+        """Animate the left results from within session rationale."""
         stim_case = rationale["stim_stim_case"]
         delay_case = rationale["delay_delay_case"]
         cross_case = rationale["stim_delay_case"]
@@ -4774,6 +4874,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         self,
         ctx: dict[str, Mobject],
     ) -> None:
+        """Position the within session act-1 to shared layout."""
         shared_ctx = self._build_results_context()
         ctx["shared_timeres_title"] = shared_ctx["timeres_title"].copy()
         plot_shift = (
@@ -4852,6 +4953,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         ))
 
     def _show_left_results_final_state(self, ctx: dict) -> None:
+        """Animate the left results final state."""
         for matrix in (ctx["glm_train"], ctx["glm_stim_test"], ctx["glm_delay_test"]):
             matrix[1].set_stroke(
                 width=ctx["frame_width_final"],
@@ -4881,10 +4983,12 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         )
 
     def _reset_to_left_results_final_state(self, ctx: dict) -> None:
+        """Animate the to left results final state."""
         self.clear()
         self._show_left_results_final_state(ctx)
 
     def _animate_right_results(self, ctx: dict) -> None:
+        """Animate the right results."""
         design_drop = ctx["design_drop"]
         intro_test_label = ctx["sweep_test_label_reset_target"].copy()
         intro_test_label.set_z_index(ctx["sweep_test_label"].z_index)
@@ -5010,6 +5114,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         self.wait(2.0)
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         ctx = self._build_results_context()
         self._animate_left_results(ctx)
         self._animate_right_results(ctx)
@@ -5025,6 +5130,7 @@ class Study2CrossSessionDecodingResultsA(Study2CrossSessionDecodingResultsCombin
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         ctx = self._build_results_context()
         self._animate_left_results(ctx)
         self._reset_to_left_results_final_state(ctx)
@@ -5041,6 +5147,7 @@ class Study2CrossSessionDecodingResultsB(Study2CrossSessionDecodingResultsCombin
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         ctx = self._build_results_context()
         self._reset_to_left_results_final_state(ctx)
         self.wait(0.6)
@@ -5078,6 +5185,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         color: ManimColor = _D_MGREY,
         font_size: int = 22,
     ) -> Tex:
+        """Build the results heading."""
         return Tex(
             text,
             color=color,
@@ -5086,6 +5194,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
 
     def _make_takeaway(self, lines: list[Tex]) -> VGroup:
+        """Build the takeaway."""
         takeaway = VGroup(*lines).arrange(DOWN, buff=0.08, center=True)
         takeaway.move_to(np.array([0.0, -3.15, 0.0]))
         return takeaway
@@ -5096,6 +5205,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         center: np.ndarray,
         font_size: int = 24,
     ) -> VGroup:
+        """Build the cross session intro summary."""
         summary_line_1 = Tex(
             r"{{Sensory trained}} classifiers",
             color=INK,
@@ -5133,6 +5243,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         return summary
 
     def _build_within_session_intro_context(self) -> dict[str, Mobject]:
+        """Build the within session intro context."""
         return {
             "layout": self._build_cross_session_layout(),
             "rationale": self._build_rationale_end_static(),
@@ -5151,6 +5262,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         self,
         results_ctx: dict[str, Mobject],
     ) -> None:
+        """Animate the cross session resultsb final state."""
         for matrix in (
             results_ctx["glm_train"],
             results_ctx["glm_stim_test"],
@@ -5169,6 +5281,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         results_ctx["sweep_test_label"].update()
 
     def _build_cross_session_resultsb_summary_card(self) -> dict[str, Mobject]:
+        """Build the cross session resultsb summary card."""
         results_ctx = self._build_results_context()
         self._prepare_cross_session_resultsb_final_state(results_ctx)
 
@@ -5252,6 +5365,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         crop_box: tuple[int, int, int, int],
         full_snapshot: ImageMobject,
     ) -> ImageMobject:
+        """Build the snapshot plot overlay."""
         source_w, source_h = self._CROSSSESSION_RESULTSB_SNAPSHOT_SIZE
         x0, y0, x1, y1 = crop_box
         crop_center_x = (x0 + x1) / 2
@@ -5270,6 +5384,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         return overlay
 
     def _build_within_session_summary_card(self) -> dict[str, Mobject]:
+        """Build the within session summary card."""
         takeaway = self._make_cross_session_takeaway(
             center=np.array([0.0, 2.18, 0.0]),
             font_size=26,
@@ -5306,6 +5421,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         summary_hold: float = 3.0,
         question_hold: float = 2.0,
     ) -> None:
+        """Animate the within session intro."""
         self.play(FadeIn(ctx["result_intro"], shift=UP * 0.08), run_time=0.75)
         self.wait(summary_hold)
         self.play(
@@ -5321,6 +5437,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         *,
         question_already_at_title: bool = False,
     ) -> None:
+        """Animate the within session scheme from question."""
         layout = ctx["layout"]
         rationale = ctx["rationale"]
         question_intro = ctx["question_intro"]
@@ -5513,9 +5630,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         center: np.ndarray,
         height: float,
     ) -> SVGMobject:
+        """Load the SVG plot."""
         return SVGMobject(path).scale_to_fit_height(height).move_to(center)
 
     def _tempgen_svg_plot_frame(self, svg: SVGMobject) -> VGroup:
+        """Return the temporal-generalisation SVG plot frame."""
         return self._svg_plot_frame_from_long_lines(
             svg,
             min_span_ratio=0.48,
@@ -5523,6 +5642,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
 
     def _shared_sanitized_tempgen_svg(self, svg_path: str | Path) -> Path:
+        """Return the shared sanitized temporal-generalisation SVG."""
         svg_path = Path(svg_path)
         cache_dir = Path(tempfile.gettempdir()) / "study2_tempgen_svg_sanitized"
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -5542,6 +5662,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         return sanitized_path
 
     def _cached_tempgen_colorbar_gradient_png(self) -> Path:
+        """Return the cached temporal-generalisation colorbar gradient PNG."""
         svg_path = Path(self._TEMPGEN_LOGIC_MATRIX)
         cache_dir = Path(tempfile.gettempdir()) / "study2_tempgen_colorbar_cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -5573,6 +5694,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         *,
         z_index: float,
     ) -> ImageMobject:
+        """Build the temporal-generalisation colorbar gradient overlay."""
         plot_x0, plot_y0, plot_x1, plot_y1 = self._TEMPGEN_SOURCE_PLOT_BOX
         cbar_x0, cbar_y0, cbar_x1, cbar_y1 = self._TEMPGEN_SOURCE_COLORBAR_IMAGE_BOX
         plot_width = plot_x1 - plot_x0
@@ -5599,6 +5721,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         *,
         z_index: float,
     ) -> Rectangle:
+        """Build the temporal-generalisation colorbar mask."""
         plot_x0, plot_y0, plot_x1, plot_y1 = self._TEMPGEN_SOURCE_PLOT_BOX
         cbar_x0, cbar_y0, cbar_x1, cbar_y1 = self._TEMPGEN_SOURCE_COLORBAR_IMAGE_BOX
         plot_width = plot_x1 - plot_x0
@@ -5629,6 +5752,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         center: np.ndarray,
         height: float,
     ) -> tuple[SVGMobject, VGroup]:
+        """Load the temporal-generalisation SVG with frame."""
         svg = self._load_svg_plot(
             str(self._shared_sanitized_tempgen_svg(self._TEMPGEN_LOGIC_MATRIX)),
             center=center,
@@ -5653,6 +5777,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
     ) -> VGroup:
         # Matplotlib clips the heatmap and contours to the square plot box, but
         # Manim's SVG importer does not consistently honor that clip path.
+        """Return the temporal-generalisation plot clip masks."""
         masks = VGroup()
         bleed = 0.002
 
@@ -5745,6 +5870,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         return masks
 
     def _hide_svg_background_rect(self, svg: SVGMobject) -> None:
+        """Return the hide SVG background rect."""
         for submob in svg.submobjects:
             fill_hex = self._glm_svg_hex(submob.get_fill_color())
             stroke_hex = self._glm_svg_hex(submob.get_stroke_color())
@@ -5759,6 +5885,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
                 return
 
     def _hide_svg_white_regions(self, svg: SVGMobject, min_area_ratio: float = 0.02) -> None:
+        """Return the hide SVG white regions."""
         min_area = svg.width * svg.height * min_area_ratio
         for submob in svg.submobjects:
             fill_hex = self._glm_svg_hex(submob.get_fill_color())
@@ -5775,6 +5902,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         min_span_ratio: float = 0.7,
         max_thickness_ratio: float | None = None,
     ) -> VGroup:
+        """Return the SVG plot frame from long lines."""
         candidates = [
             submob
             for submob in svg.submobjects
@@ -5822,6 +5950,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         inset: float = 0.02,
         fill_color: ParsableManimColor = BG,
     ) -> list[VGroup]:
+        """Build the temporal-generalisation column covers."""
         left = plot_frame.get_left()[0] + inset
         right = plot_frame.get_right()[0] - inset
         bottom = plot_frame.get_bottom()[1] + inset
@@ -5856,6 +5985,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         fill_hex: str | None = None,
         min_points: int = 0,
     ) -> list[VMobject]:
+        """Return the time-resolved select many."""
         stroke_hex = stroke_hex.upper() if stroke_hex else None
         fill_hex = fill_hex.upper() if fill_hex else None
         matches: list[VMobject] = []
@@ -5879,6 +6009,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         fill_hex: str | None = None,
         min_points: int = 0,
     ) -> VMobject:
+        """Return the time-resolved select single."""
         matches = self._timeres_select_many(
             svg,
             stroke_hex=stroke_hex,
@@ -5892,9 +6023,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         return matches[0]
 
     def _timeres_significance_bands(self, svg: SVGMobject) -> VGroup:
+        """Return the time-resolved significance bands."""
         return VGroup(*self._timeres_select_many(svg, stroke_hex="#C49A00", min_points=4))
 
     def _glm_svg_center_group(self, svg: SVGMobject, color_hex: str) -> VGroup:
+        """Return the GLM SVG center group."""
         plot_frame = self._glm_svg_plot_frame(svg)
         x_pad = plot_frame.width * 0.03
         y_pad = plot_frame.height * 0.03
@@ -5911,6 +6044,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         ])
 
     def _glm_svg_center_significance_marker(self, svg: SVGMobject, color_hex: str) -> VGroup:
+        """Return the GLM SVG center significance marker."""
         plot_frame = self._glm_svg_plot_frame(svg)
         color_hex = color_hex.upper()
         return VGroup(*[
@@ -5924,12 +6058,14 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         ])
 
     def _scale_session_label_groups(self, time_labels: VGroup, phase_labels: VGroup) -> None:
+        """Position the session label groups."""
         for label in time_labels:
             label.scale(self._ROW_TIME_LABEL_SCALE)
         for label in phase_labels:
             label.scale(self._ROW_PHASE_LABEL_SCALE)
 
     def _rationale_question_text(self) -> str:
+        """Return the rationale question text."""
         return (
             r"Is there any stimulus-specific information\\"
             r"in the delay period in V1-V3?"
@@ -5955,6 +6091,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         role_font_size: int = 16,
         phase_label_buff: float = 0.08,
     ) -> dict[str, Mobject]:
+        """Build the within session case."""
         left_matrix = self._make_small_results_matrix(
             train_values,
             train_color,
@@ -6076,6 +6213,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         }
 
     def _build_rationale_end_static(self) -> dict[str, Mobject]:
+        """Build the rationale end static."""
         question_title = self._make_results_heading(
             self._rationale_question_text(),
             color=BLACK,
@@ -6213,6 +6351,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         }
 
     def _build_results_stage(self) -> dict[str, Mobject]:
+        """Build the results stage."""
         plot_title_y = self.slide_title.get_bottom()[1] - 0.95
         act2_heading = self._make_results_heading(
             r"Does the encoding code generalise\\to the delay?",
@@ -6689,6 +6828,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         self,
         ctx: dict[str, Mobject],
     ) -> dict[str, Mobject]:
+        """Build the within session time-resolved context."""
         timeres_svg = self._load_svg_plot(
             self._RESULTS_TIMERES,
             center=ctx["timeres_base"].get_center(),
@@ -6787,6 +6927,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
 
         def make_diagonal_striped_rect(template: Mobject) -> VGroup:
+            """Build a diagonally striped highlight rectangle."""
             x0, x1 = template.get_left()[0], template.get_right()[0]
             y0, y1 = template.get_bottom()[1], template.get_top()[1]
             background = Rectangle(
@@ -6796,6 +6937,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             ).set_fill(WHITE, opacity=1.0).move_to(template)
 
             def stripe_segment(diagonal_offset: float) -> tuple[np.ndarray, np.ndarray] | None:
+                """Build one diagonal stripe segment."""
                 candidates = [
                     np.array([x0, x0 + diagonal_offset, 0.0]),
                     np.array([x1, x1 + diagonal_offset, 0.0]),
@@ -6918,6 +7060,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         ])
 
         def phase_color(step_value: float) -> ManimColor:
+            """Return the colour assigned to the current phase."""
             current_time = float(
                 interpolate(
                     0.0,
@@ -6934,6 +7077,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             return ManimColor(_D_MGREY)
 
         def time_to_x(time_s: float) -> float:
+            """Map a time index onto the x-axis position."""
             return float(interpolate(
                 design_start_x,
                 design_end_x,
@@ -6947,6 +7091,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             *,
             resp: bool = False,
         ) -> Group:
+            """Build one compact design icon."""
             icon = _box(img_path, resp=resp)
             icon.scale_to_fit_height(design_fill_height * 0.78)
             max_width = max(time_to_x(end_s) - time_to_x(start_s) - 0.07, 0.08)
@@ -6961,6 +7106,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             fill_opacity: float,
             icon: Mobject | None,
         ) -> Group:
+            """Build one compact design phase card."""
             phase_fill = Rectangle(
                 width=time_to_x(end_s) - time_to_x(start_s),
                 height=design_fill_height,
@@ -7089,6 +7235,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         design_label_y = design_frame_target.get_bottom()[1] - 0.20
 
         def make_design_phase_label(text: str, center_x: float, color: str) -> Tex:
+            """Build the label for one compact design phase."""
             return Tex(
                 rf"\textbf{{{text}}}",
                 color=color,
@@ -7156,6 +7303,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         step_tracker = ValueTracker(0)
 
         def sweep_target_x(step_value: float) -> float:
+            """Return the current x target for the sweep animation."""
             step_value = float(np.clip(step_value, 0.0, len(train_time_bins) - 1))
             return float(interpolate(
                 timeres_trace_xs[0],
@@ -7164,6 +7312,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             ))
 
         def current_curve_point() -> np.ndarray:
+            """Return the current point on the animated curve."""
             target_x = sweep_target_x(step_tracker.get_value())
             return np.array([
                 target_x,
@@ -7172,6 +7321,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             ])
 
         def current_trace_mobject() -> VMobject:
+            """Build the trace mobject for the current animation state."""
             target_x = sweep_target_x(step_tracker.get_value())
             curve_point = current_curve_point()
             idx = int(np.searchsorted(trace_unique_xs, target_x, side="right"))
@@ -7205,6 +7355,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         ).set_stroke(WHITE, width=1.0).set_z_index(5))
 
         def train_selector_center() -> np.ndarray:
+            """Return the centre of the current train selector."""
             return np.array([
                 sweep_target_x(step_tracker.get_value()),
                 train_strip_y,
@@ -7212,6 +7363,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             ])
 
         def test_selector_center() -> np.ndarray:
+            """Return the centre of the current test selector."""
             return np.array([
                 sweep_target_x(step_tracker.get_value()),
                 test_strip_y,
@@ -7384,10 +7536,12 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         return ctx
 
     def _show_within_session_results_rationale(self, rationale: dict[str, Mobject]) -> None:
+        """Animate the within session results rationale."""
         self.add(rationale["frame"])
         self.wait(0.25)
 
     def _fade_from_within_session_rationale(self, rationale: dict[str, Mobject]) -> None:
+        """Return the fade from within session rationale."""
         self.play(
             FadeOut(rationale["s1_title"]),
             FadeOut(rationale["s1_row_group"]),
@@ -7400,6 +7554,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
 
     def _animate_within_session_act1_results(self, ctx: dict[str, Mobject]) -> None:
+        """Animate the within session act-1 results."""
         self.play(
             FadeIn(ctx["glm_title"], shift=UP * 0.05),
             AnimationGroup(
@@ -7482,9 +7637,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         self.wait(0.75)
 
     def _show_within_session_act1_final_state(self, ctx: dict[str, Mobject]) -> None:
+        """Animate the within session act-1 final state."""
         self.add(ctx["glm_plot"])
 
     def _reset_to_within_session_act1_final_state(self, ctx: dict[str, Mobject]) -> None:
+        """Animate the to within session act-1 final state."""
         self.clear()
         self._show_within_session_act1_final_state(ctx)
 
@@ -7492,6 +7649,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         self,
         timeres_ctx: dict[str, Mobject],
     ) -> None:
+        """Animate the within session resultsb final state."""
         timeres_ctx["step_tracker"].set_value(len(timeres_ctx["time_bins"]) - 1)
         timeres_ctx["design_frame"].become(timeres_ctx["design_frame_target"].copy())
         timeres_ctx["timeres_trace"].update()
@@ -7501,6 +7659,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         self,
         timeres_ctx: dict[str, Mobject],
     ) -> None:
+        """Animate the within session resultsb final state."""
         self._prepare_within_session_resultsb_final_state(timeres_ctx)
         self.add(
             timeres_ctx["timeres_title"],
@@ -7522,6 +7681,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
 
     def _animate_within_session_timeres_results(self, ctx: dict[str, Mobject]) -> None:
+        """Animate the within session time-resolved results."""
         self.play(
             FadeIn(ctx["timeres_title"], shift=UP * 0.06),
             FadeIn(ctx["timeres_train_explainer"], shift=UP * 0.05),
@@ -7638,6 +7798,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         ctx: dict[str, Mobject],
         timeres_ctx: dict[str, Mobject],
     ) -> dict[str, object]:
+        """Build the within session temporal-generalisation logic context."""
         logic_matrix_frame = ctx["tempgen_plot_frame"].copy().move_to(
             ctx["glm2_plot_frame"].get_center()
         )
@@ -7711,6 +7872,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         cell_count = len(train_bins_target)
 
         def axis_spacing(axis_values: np.ndarray, fallback: float) -> float:
+            """Return the spacing between the active axis anchors."""
             if len(axis_values) <= 1:
                 return fallback
             deltas = np.abs(np.diff(axis_values))
@@ -7737,6 +7899,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         matrix_total_time = 19.2
 
         def matrix_time_to_x(time_s: float) -> float:
+            """Map a matrix time index onto the x-axis position."""
             return float(interpolate(
                 matrix_left,
                 matrix_right,
@@ -7744,6 +7907,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             ))
 
         def matrix_time_to_y(time_s: float) -> float:
+            """Map a matrix time index onto the y-axis position."""
             return float(interpolate(
                 matrix_bottom,
                 matrix_top,
@@ -7819,6 +7983,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         logic_matrix_underlay = VGroup(logic_matrix_panel, logic_matrix_label_masks)
 
         def interpolated_center(bin_group: VGroup, value: float) -> np.ndarray:
+            """Return the interpolated centre for the current transition."""
             low_idx = int(np.clip(np.floor(value), 0, len(bin_group) - 1))
             high_idx = min(low_idx + 1, len(bin_group) - 1)
             alpha = float(np.clip(value - low_idx, 0.0, 1.0))
@@ -7829,12 +7994,14 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             )
 
         def axis_center(axis_values: np.ndarray, value: float) -> float:
+            """Return the centre of the active axis."""
             low_idx = int(np.clip(np.floor(value), 0, len(axis_values) - 1))
             high_idx = min(low_idx + 1, len(axis_values) - 1)
             alpha = float(np.clip(value - low_idx, 0.0, 1.0))
             return float(interpolate(axis_values[low_idx], axis_values[high_idx], alpha))
 
         def matrix_cell_center(column_value: float, row_value: float) -> np.ndarray:
+            """Return the centre of one matrix cell in scene coordinates."""
             x = axis_center(train_center_xs, column_value)
             y = axis_center(test_center_ys, row_value)
             return np.array([x, y, 0.0])
@@ -8081,6 +8248,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             height: float,
             center_y: float,
         ) -> VGroup:
+            """Build the highlighted peak matrix column."""
             peak_matrix_column_fill = Rectangle(
                 width=cell_width * 1.02,
                 height=height,
@@ -8253,6 +8421,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         ctx: dict[str, Mobject],
         timeres_ctx: dict[str, Mobject],
     ) -> dict[str, object]:
+        """Animate the within session resultsc final state."""
         self._prepare_within_session_resultsb_final_state(timeres_ctx)
         logic_ctx = self._build_within_session_tempgen_logic_context(ctx, timeres_ctx)
 
@@ -8287,6 +8456,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         ctx: dict[str, Mobject],
         timeres_ctx: dict[str, Mobject],
     ) -> None:
+        """Animate the within session temporal-generalisation logic."""
         logic_ctx = self._build_within_session_tempgen_logic_context(ctx, timeres_ctx)
         design_stacked_target = logic_ctx["design_stacked_target"]
         train_bins_stacked_target = logic_ctx["train_bins_stacked_target"]
@@ -8394,7 +8564,9 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
 
         def sync_demo_column_to_test_tracker(column_group: VGroup) -> None:
+            """Synchronize the demo column to the active test tracker."""
             def update_column(group: VGroup) -> VGroup:
+                """Update the active column in place."""
                 revealed_row_idx = int(np.floor(test_tracker.get_value() + 1e-6))
                 for row_idx, cover in enumerate(group):
                     cover.set_fill(opacity=0.0 if row_idx <= revealed_row_idx else 1.0)
@@ -8454,6 +8626,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         self,
         logic_ctx: dict[str, object],
     ) -> None:
+        """Animate the within session temporal-generalisation followup."""
         train_tracker = logic_ctx["train_tracker"]
         test_tracker = logic_ctx["test_tracker"]
         train_selector = logic_ctx["train_selector"]
@@ -8496,6 +8669,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             sample_count: int = 64,
             z_index: float = 4.85,
         ) -> VMobject:
+            """Sample a polyline at evenly spaced proportions."""
             sampled = VMobject()
             props = np.linspace(0.0, 1.0, sample_count)
             sampled.set_points_as_corners([
@@ -8639,6 +8813,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         self.wait(2.0)
 
     def _animate_tempgen_results(self, ctx: dict[str, Mobject]) -> None:
+        """Animate the temporal-generalisation results."""
         tempgen_title = ctx["tempgen_title"]
         tempgen_underlay = ctx["tempgen_underlay"]
         tempgen_plot_frame = ctx["tempgen_plot_frame"]
@@ -8698,6 +8873,7 @@ class Study2WithinSession1DecodingSetupCombined(_Study2WithinSession1DecodingBas
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         ctx = self._build_within_session_intro_context()
@@ -8720,6 +8896,7 @@ class Study2WithinSession1DecodingSetupA(_Study2WithinSession1DecodingBase):
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         summary_card = self._build_within_session_summary_card()
@@ -8767,6 +8944,7 @@ class Study2WithinSession1DecodingSetupB(_Study2WithinSession1DecodingBase):
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
         ctx = self._build_within_session_intro_context()
         summary_card = self._build_within_session_summary_card()
@@ -8802,6 +8980,7 @@ class Study2WithinSession1DecodingResultsCombined(_Study2WithinSession1DecodingB
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         rationale = self._build_rationale_end_static()
@@ -8869,6 +9048,7 @@ class Study2WithinSession1DecodingResultsA(_Study2WithinSession1DecodingBase):
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         rationale = self._build_rationale_end_static()
@@ -8891,6 +9071,7 @@ class Study2WithinSession1DecodingResultsB(_Study2WithinSession1DecodingBase):
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         rationale = self._build_rationale_end_static()
@@ -8915,6 +9096,7 @@ class Study2WithinSession1DecodingResultsC(_Study2WithinSession1DecodingBase):
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         rationale = self._build_rationale_end_static()
@@ -8944,6 +9126,7 @@ class Study2WithinSession1DecodingResultsD(_Study2WithinSession1DecodingBase):
     """
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         rationale = self._build_rationale_end_static()
@@ -8970,12 +9153,14 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
     _LTM_TIMERES = str(_STUDY2_ASSET_DIR / "figure_LTM_decoding_timeresolved.svg")
 
     def _ltm_question_text(self) -> str:
+        """Return the LTM question text."""
         return (
             r"Do {{Repeated}} and {{Non-repeated}} stimuli differ\\"
             r"in their similarity to sensory representations?"
         )
 
     def _clean_ltm_svg_path(self, svg_path: str, *, remove_text: bool = False) -> Path:
+        """Normalize the LTM SVG path."""
         svg_file = Path(svg_path)
         cache_dir = Path(tempfile.gettempdir()) / "study2_ltm_svg_cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -9016,6 +9201,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         height: float,
         remove_text: bool = False,
     ) -> SVGMobject:
+        """Load the LTM SVG plot."""
         svg = SVGMobject(str(self._clean_ltm_svg_path(svg_path, remove_text=remove_text)))
         svg.scale_to_fit_height(height)
         svg.move_to(center)
@@ -9027,6 +9213,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         svg: SVGMobject,
         color_map: dict[str, str],
     ) -> None:
+        """Position the SVG hex colors."""
         for submob in svg.family_members_with_points():
             stroke_hex = self._glm_svg_hex(submob.get_stroke_color())
             if stroke_hex in color_map:
@@ -9044,6 +9231,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
                 )
 
     def _set_behaviour_svg_text_black(self, svg: SVGMobject) -> None:
+        """Set up the behaviour SVG text black."""
         for submob in svg.family_members_with_points():
             stroke_hex = self._glm_svg_hex(submob.get_stroke_color())
             fill_hex = self._glm_svg_hex(submob.get_fill_color())
@@ -9052,6 +9240,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
                 submob.set_fill(color=BLACK, opacity=submob.get_fill_opacity())
 
     def _make_ltm_takeaway(self) -> VGroup:
+        """Build the LTM takeaway."""
         takeaway_line = Tex(
             r"{{Repetition}} improved {{working memory performance}}, but did not make {{memory representations}} more {{sensory-like}}.",
             color=INK,
@@ -9065,6 +9254,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         return self._make_takeaway([takeaway_line])
 
     def _ltm_timeres_frame(self, timeres_svg: SVGMobject) -> VGroup:
+        """Return the LTM time-resolved frame."""
         frame_lines = [
             submob
             for submob in timeres_svg.submobjects
@@ -9090,6 +9280,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         )
 
     def _ltm_beh_frame(self, beh_svg: SVGMobject) -> Mobject:
+        """Return the LTM behaviour frame."""
         black_lines = [
             submob
             for submob in beh_svg.submobjects
@@ -9133,6 +9324,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         target_top: float,
         target_height: float,
     ) -> Mobject:
+        """Position the LTM plot frame."""
         scale_factor = target_height / frame.height
         svg.scale(scale_factor)
         svg.shift(RIGHT * (target_center_x - frame.get_center()[0]))
@@ -9141,6 +9333,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
 
     def _make_ltm_timeres_text_overlay(self, timeres_svg: SVGMobject, frame: VGroup) -> VGroup:
 
+        """Build the LTM time-resolved text overlay."""
         chance_candidates = [
             submob
             for submob in self._timeres_select_many(timeres_svg, stroke_hex="#808080", min_points=4)
@@ -9151,6 +9344,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         chance_line = max(chance_candidates, key=lambda mob: mob.width)
 
         def _legend_line(color_hex: str) -> VMobject:
+            """Return the legend line."""
             candidates = [
                 submob
                 for submob in self._timeres_select_many(timeres_svg, stroke_hex=color_hex, min_points=4)
@@ -9229,6 +9423,7 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         )
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         question = self._make_results_heading(
@@ -9399,6 +9594,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
     }
 
     def _cached_svg_raster(self, svg_path: Path) -> Path:
+        """Return the cached SVG raster."""
         cache_dir = Path(tempfile.gettempdir()) / "study2_suppl_roi_cache"
         cache_dir.mkdir(parents=True, exist_ok=True)
         raster_path = cache_dir / f"{svg_path.stem}_d{self._RASTER_DENSITY}.png"
@@ -9423,6 +9619,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
 
     @classmethod
     def _panel_spec(cls) -> dict[str, object]:
+        """Return the panel spec."""
         return {
             "title": cls._PANEL_TITLE,
             "row_x_label": cls._ROW_X_LABEL,
@@ -9435,6 +9632,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         }
 
     def _extract_target_axes_block(self, svg_path: Path, *, axes_index: int) -> str:
+        """Return the extract target axes block."""
         match = re.search(
             rf'<g id="axes_{axes_index}">(.*?)<g id="axes_{axes_index + 1}">',
             svg_path.read_text(),
@@ -9445,6 +9643,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         return match.group(1)
 
     def _extract_group_path(self, axes_block: str, group_id: str) -> list[tuple[float, float]]:
+        """Return the extract group path."""
         match = re.search(
             rf'<g id="{group_id}">\s*<path d="(.*?)"',
             axes_block,
@@ -9464,6 +9663,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         axes_block: str,
         group_prefix: str,
     ) -> list[list[tuple[float, float]]]:
+        """Return the extract matching group paths."""
         matches = re.finditer(
             rf'<g id="({group_prefix}\d+)">\s*<path d="(.*?)"',
             axes_block,
@@ -9477,6 +9677,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         return paths
 
     def _extract_polycollection_polygon(self, axes_block: str, group_id: str) -> list[tuple[float, float]]:
+        """Return the extract polycollection polygon."""
         match = re.search(
             (
                 rf'<g id="{group_id}">.*?<path id="([^"]+)" d="(.*?)"\s*/>.*?'
@@ -9500,6 +9701,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         ]
 
     def _extract_text_specs(self, axes_block: str) -> list[dict[str, object]]:
+        """Return the extract text specs."""
         matches = re.finditer(
             (
                 r'<!--\s*(.*?)\s*-->\s*<g style="fill: #262626" '
@@ -9525,6 +9727,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         svg_path: Path,
         panel_spec: dict[str, object],
     ) -> dict[str, object]:
+        """Return the supplemental overlay spec."""
         axes_block = self._extract_target_axes_block(
             svg_path,
             axes_index=int(panel_spec["axes_index"]),
@@ -9546,6 +9749,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         }
 
     def _make_plot_canvas(self) -> Rectangle:
+        """Build the plot canvas."""
         x0, y0, x1, y1 = self._TIMERES_SOURCE_BOX
         canvas = Rectangle(
             width=self._PLOT_WIDTH,
@@ -9557,6 +9761,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         return canvas
 
     def _source_point_to_plot(self, plot: Mobject, point: tuple[float, float]) -> np.ndarray:
+        """Return the source point to plot."""
         x0, y0, x1, y1 = self._TIMERES_SOURCE_BOX
         px, py = point
         u = (px - x0) / (x1 - x0)
@@ -9572,6 +9777,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         color: str,
         stroke_width: float,
     ) -> VMobject:
+        """Return the plot polyline."""
         points = [self._source_point_to_plot(plot, point) for point in source_points]
         polyline = VMobject()
         polyline.set_points_as_corners(points)
@@ -9587,6 +9793,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         color: str,
         fill_opacity: float,
     ) -> Polygon:
+        """Return the plot polygon."""
         points = [self._source_point_to_plot(plot, point) for point in source_points]
         polygon = Polygon(*points, stroke_width=0.0)
         polygon.set_fill(color, opacity=fill_opacity)
@@ -9602,6 +9809,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         dashed: bool = False,
         dash_length: float = 0.08,
     ) -> VMobject:
+        """Return the plot line."""
         start = self._source_point_to_plot(plot, source_points[0])
         end = self._source_point_to_plot(plot, source_points[-1])
         if dashed:
@@ -9612,6 +9820,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         return line
 
     def _make_text_overlay(self, plot: Mobject, specs: list[dict[str, object]]) -> VGroup:
+        """Build the text overlay."""
         labels = VGroup()
         for spec in specs:
             text = str(spec["text"])
@@ -9626,6 +9835,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         return labels
 
     def _make_plot_group(self, svg_path: Path, panel_spec: dict[str, object]) -> Group:
+        """Build the plot group."""
         spec = self._supplemental_overlay_spec(svg_path, panel_spec)
         plot = self._make_plot_canvas()
         overlay = VGroup(
@@ -9692,6 +9902,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         return Group(plot, overlay)
 
     def _match_plot_group_to_reference(self, plot_group: Group, reference_plot_group: Group) -> Group:
+        """Position the plot group to reference."""
         target_canvas = plot_group[0]
         reference_canvas = reference_plot_group[0]
         plot_group.scale(reference_canvas.width / target_canvas.width)
@@ -9699,6 +9910,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         return plot_group
 
     def _shift_roi_labels_right(self, cards: list[Group]) -> None:
+        """Position the ROI labels right."""
         for card in cards:
             card[0].shift(RIGHT * (card[1].width * self._ROI_LABEL_RIGHT_SHIFT_RATIO))
 
@@ -9707,6 +9919,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         source_cards: list[Group],
         panel_spec: dict[str, object],
     ) -> list[Group]:
+        """Build the matched target plots."""
         target_plots: list[Group] = []
         for (_, svg_path), source_card in zip(self._ROI_SVGS, source_cards):
             target_plot = self._make_plot_group(svg_path, panel_spec)
@@ -9719,6 +9932,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         source_cards: list[Group],
         target_plots: list[Group],
     ) -> list[AnimationGroup]:
+        """Build the plot swap animations."""
         return [
             AnimationGroup(
                 FadeOut(source_card[1]),
@@ -9733,12 +9947,14 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         top_cards: Group,
         bottom_cards: Group,
     ) -> list[Group]:
+        """Build the column groups."""
         return [
             Group(top_card, bottom_card)
             for top_card, bottom_card in zip(top_cards, bottom_cards)
         ]
 
     def _make_roi_card(self, label: str, svg_path: Path, panel_spec: dict[str, object]) -> Group:
+        """Build the ROI card."""
         plot_group = self._make_plot_group(svg_path, panel_spec)
         roi_label = Tex(label, color=INK, font_size=23)
         if roi_label.width > plot_group.width * 1.08:
@@ -9753,6 +9969,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         *,
         include_x_label: bool,
     ) -> tuple[Group, Group, Mobject]:
+        """Build the row group."""
         row_cards = Group(*cards).arrange(RIGHT, buff=0.34, aligned_edge=UP)
         accuracy_label = Tex("Accuracy", color=INK, font_size=17).rotate(PI / 2)
         accuracy_label.next_to(row_cards, LEFT, buff=0.16)
@@ -9765,6 +9982,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         return Group(row_cards, accuracy_label, test_time_label), row_cards, test_time_label
 
     def _make_row_x_label(self, row_cards: Group, row_x_label: str) -> Mobject:
+        """Build the row x label."""
         if "\n" in row_x_label:
             test_time_label = VGroup(
                 *[
@@ -9779,6 +9997,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         return test_time_label
 
     def _build_panel(self, panel_spec: dict[str, object]) -> dict[str, object]:
+        """Build the panel."""
         title = Tex(str(panel_spec["title"]), color=INK, font_size=24).to_edge(UP, buff=0.20)
         cards = [
             self._make_roi_card(label, svg_path, panel_spec)
@@ -9821,6 +10040,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         }
 
     def _play_panel_intro(self, panel: dict[str, object]) -> None:
+        """Animate the panel intro."""
         column_groups = self._make_column_groups(
             panel["top_row_cards"],
             panel["bottom_row_cards"],
@@ -9838,6 +10058,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
         )
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
         panel = self._build_panel(self._panel_spec())
         self._play_panel_intro(panel)
@@ -9873,6 +10094,7 @@ class Study2SupplementalRoiTimecoursesB(Study2SupplementalRoiTimecoursesCombined
     _SPINE_GROUP_IDS = ("patch_23", "patch_24", "patch_25", "patch_26")
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         panel_a_scene = Study2SupplementalRoiTimecoursesA()
@@ -9955,6 +10177,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
     _TEMPGEN_COLORBAR_TICKS = (-0.10, -0.05, 0.00, 0.05, 0.10)
 
     def _sanitized_tempgen_svg(self, svg_path: Path) -> Path:
+        """Normalize the temporal-generalisation SVG."""
         cache_dir = Path(tempfile.gettempdir()) / "study2_tempgen_svg_sanitized"
         cache_dir.mkdir(parents=True, exist_ok=True)
         sanitized_path = cache_dir / svg_path.name
@@ -9973,6 +10196,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         return sanitized_path
 
     def _tempgen_transform_matrix(self, transform: str) -> tuple[float, float, float, float, float, float]:
+        """Return the temporal-generalisation transform matrix."""
         transform = transform.strip()
         matrix_match = re.search(
             r"matrix\(\s*([-0-9.eE]+)[ ,]+([-0-9.eE]+)[ ,]+([-0-9.eE]+)[ ,]+([-0-9.eE]+)[ ,]+([-0-9.eE]+)[ ,]+([-0-9.eE]+)\s*\)",
@@ -9998,6 +10222,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         return (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
 
     def _tempgen_svg_context(self, svg_path: Path) -> tuple[ET.Element, tuple[float, float, float, float], tuple[float, float]]:
+        """Return the temporal-generalisation SVG context."""
         root = ET.parse(self._sanitized_tempgen_svg(svg_path)).getroot()
         view_box = tuple(float(value) for value in root.get("viewBox").replace(",", " ").split())
 
@@ -10028,6 +10253,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         raster_size: tuple[int, int],
         point: tuple[float, float],
     ) -> tuple[float, float]:
+        """Return the temporal-generalisation source point to raster."""
         view_x0, view_y0, view_w, view_h = view_box
         offset_x, offset_y = wrapper_offset
         display_x = point[0] + offset_x
@@ -10042,6 +10268,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         self,
         svg_path: Path,
     ) -> np.ndarray:
+        """Return the supplemental temporal-generalisation panel."""
         raster_path = self._cached_svg_raster(svg_path)
         _, view_box, wrapper_offset = self._tempgen_svg_context(svg_path)
 
@@ -10071,6 +10298,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         self,
         path_d: str,
     ) -> list[list[tuple[float, float]]]:
+        """Return the temporal-generalisation path polylines."""
         element = SVGPath(path_d)
         polylines: list[list[tuple[float, float]]] = []
         current: list[tuple[float, float]] = []
@@ -10102,6 +10330,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         source_box: tuple[float, float, float, float],
         point: tuple[float, float],
     ) -> np.ndarray:
+        """Return the temporal-generalisation source point to plot."""
         src_x0, src_y0, src_x1, src_y1 = source_box
         px, py = point
         u = (px - src_x0) / (src_x1 - src_x0)
@@ -10118,6 +10347,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         color: str,
         stroke_width: float,
     ) -> VMobject:
+        """Return the temporal-generalisation polyline mobject."""
         points = [
             self._tempgen_source_point_to_plot(
                 plot,
@@ -10139,6 +10369,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         source_box: tuple[float, float, float, float],
         svg_path: Path,
     ) -> VGroup:
+        """Build the temporal-generalisation overlay."""
         root, _, _ = self._tempgen_svg_context(svg_path)
         overlay = VGroup()
         box_x0, box_y0, box_x1, box_y1 = source_box
@@ -10200,6 +10431,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         return overlay
 
     def _make_tempgen_text_overlay(self, plot: ImageMobject) -> VGroup:
+        """Build the temporal-generalisation text overlay."""
         plot_left = self._tempgen_source_point_to_plot(
             plot,
             source_box=self._TEMPGEN_SOURCE_CROP_BOX,
@@ -10304,6 +10536,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         return labels
 
     def _make_tempgen_plot_group(self, svg_path: Path) -> Group:
+        """Build the temporal-generalisation plot group."""
         panel_array = self._supplemental_tempgen_panel(svg_path)
         plot = ImageMobject(panel_array)
         plot.scale_to_fit_height(self._TEMPGEN_PLOT_HEIGHT)
@@ -10316,6 +10549,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         return Group(plot, overlay, labels)
 
     def _make_tempgen_roi_card(self, label: str, svg_path: Path) -> Group:
+        """Build the temporal-generalisation ROI card."""
         plot_group = self._make_tempgen_plot_group(svg_path)
         roi_label = Tex(label, color=INK, font_size=23)
         if roi_label.width > plot_group.width * 1.08:
@@ -10325,6 +10559,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         return card
 
     def _make_tempgen_row_group(self, cards: list[Group]) -> tuple[Group, Group]:
+        """Build the temporal-generalisation row group."""
         row_cards = Group(*cards).arrange(RIGHT, buff=0.34, aligned_edge=UP)
         row_y_label = Tex("Test time (s)", color=INK, font_size=21)
         row_y_label.rotate(PI / 2)
@@ -10336,6 +10571,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         top_row_cards: Group,
         bottom_row_cards: Group,
     ) -> VGroup:
+        """Build the temporal-generalisation column x labels."""
         labels = VGroup()
         for top_card, bottom_card in zip(top_row_cards, bottom_row_cards):
             label = Tex("Train time (s)", color=INK, font_size=20)
@@ -10345,6 +10581,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         return labels
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
         title = Tex(
@@ -10496,6 +10733,7 @@ def _study2_build_plot_stat_map_rgba(
     colorbar: bool = True,
     cut_coords: tuple[int, ...] = _SEARCHLIGHT_CUT_COORDS_Z,
 ) -> np.ndarray:
+    """Build an RGBA rendering of a statistical brain map plot."""
     with mpl.rc_context(
         {
             "text.usetex": True,
@@ -10542,6 +10780,7 @@ def _study2_make_small_results_matrix(
     label_direction: np.ndarray = UP,
     scale_factor: float = 1.35,
 ) -> VGroup:
+    """Build the compact matrix view used in the Study 2 results layouts."""
     rows = VGroup(*[
         _make_feature_row(
             values[row_idx * 3 : (row_idx + 1) * 3],
@@ -10577,6 +10816,7 @@ class _Study2SearchlightSceneBase(_Study2NumberedScene, Scene):
     _SUPPLEMENTAL_IMAGE_BUFF: float = 0.14
 
     def _matrix_stack(self, mini_specs: list[dict]) -> Group:
+        """Return the matrix stack."""
         matrices = Group()
         matrix_objects: list[VGroup] = []
         for spec in mini_specs:
@@ -10608,6 +10848,7 @@ class _Study2SearchlightSceneBase(_Study2NumberedScene, Scene):
         return Group(matrices)
 
     def _row_group(self, *, path: Path, cluster_info: str, mini_specs: list[dict]) -> Group:
+        """Return the row group."""
         matrix_stack = self._matrix_stack(mini_specs)
         plot_image = ImageMobject(
             _study2_build_plot_stat_map_rgba(
@@ -10621,6 +10862,7 @@ class _Study2SearchlightSceneBase(_Study2NumberedScene, Scene):
         return Group(matrix_stack, plot_group).arrange(RIGHT, buff=1.12, aligned_edge=UP)
 
     def _content_group(self, rows: Group) -> tuple[Group, ImageMobject | None]:
+        """Return the content group."""
         if self._SUPPLEMENTAL_IMAGE_PATH is None:
             return rows, None
 
@@ -10632,6 +10874,7 @@ class _Study2SearchlightSceneBase(_Study2NumberedScene, Scene):
         return Group(rows, supplemental), supplemental
 
     def construct(self) -> None:
+        """Run the animation sequence for this scene."""
         self.camera.background_color = BG
         title = Tex(rf"\textbf{{{self._TITLE_TEXT}}}", color=INK, font_size=28).to_edge(UP, buff=0.28)
 
