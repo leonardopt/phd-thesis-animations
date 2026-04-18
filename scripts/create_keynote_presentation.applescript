@@ -2,8 +2,13 @@ use AppleScript version "2.4"
 use framework "Foundation"
 use scripting additions
 
-set projectRoot to "/Users/leonardo/phd-thesis-animations"
-set manifestPath to projectRoot & "/assets/presentation_deck.toml"
+-- Usage:
+--   osascript scripts/create_keynote_presentation.applescript
+--   osascript scripts/create_keynote_presentation.applescript -qh
+--   osascript scripts/create_keynote_presentation.applescript --quality-folder 1080p60
+
+property projectRoot : "/Users/leonardo/phd-thesis-animations"
+property manifestPath : "/Users/leonardo/phd-thesis-animations/assets/presentation_deck.toml"
 
 on ensureDirectoryExists(posixPath)
 	set fileManager to current application's NSFileManager's defaultManager()
@@ -61,10 +66,36 @@ on runCommandInDirectory(executablePath, argumentList, workingDirectory)
 	return stdoutText
 end runCommandInDirectory
 
-on loadDeckSpec(projectRoot, manifestPath)
+on qualityFolderFromArgs(argv)
+	if (count of argv) is 0 then return "480p15"
+	
+	set currentArg to (item 1 of argv) as text
+	if currentArg is "--quality-folder" then
+		if (count of argv) < 2 then error "Missing folder name after --quality-folder."
+		return my normalizeQualityValue((item 2 of argv) as text)
+	else if currentArg starts with "--quality-folder=" then
+		return my normalizeQualityValue(text ((length of "--quality-folder=") + 1) thru -1 of currentArg)
+	else
+		return my normalizeQualityValue(currentArg)
+	end if
+end qualityFolderFromArgs
+
+on normalizeQualityValue(rawValue)
+	set trimmedValue to rawValue as text
+	if trimmedValue is "" then return "480p15"
+	
+	if trimmedValue is "-ql" or trimmedValue is "ql" or trimmedValue is "480p15" then return "480p15"
+	if trimmedValue is "-qm" or trimmedValue is "qm" or trimmedValue is "720p30" then return "720p30"
+	if trimmedValue is "-qh" or trimmedValue is "qh" or trimmedValue is "1080p60" then return "1080p60"
+	if trimmedValue is "-qk" or trimmedValue is "qk" or trimmedValue is "2160p60" then return "2160p60"
+	
+	error "Unsupported quality argument: " & trimmedValue & ". Use -ql, -qm, -qh, -qk, or a folder like 480p15."
+end normalizeQualityValue
+
+on loadDeckSpec(projectRoot, manifestPath, qualityFolder)
 	my existingFileOrFail(manifestPath, "Presentation manifest")
 	try
-		set rawSpec to my runCommandInDirectory("/usr/bin/python3", {"scripts/presentation_manifest.py", "--manifest", manifestPath, "--project-root", projectRoot}, projectRoot)
+		set rawSpec to my runCommandInDirectory("/usr/bin/python3", {"scripts/presentation_manifest.py", "--manifest", manifestPath, "--project-root", projectRoot, "--quality-dir", qualityFolder}, projectRoot)
 	on error errMsg number errNum
 		error "Unable to load presentation manifest. " & errMsg number errNum
 	end try
@@ -235,41 +266,45 @@ on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, tit
 	error "Unsupported slide type: " & slideType
 end populateSlide
 
-set {outputDir, deckBaseName, slideWidth, slideHeight, slideSpecs} to my loadDeckSpec(projectRoot, manifestPath)
-set ts to my timestampString()
-set outputName to deckBaseName & "_" & ts & ".key"
-set outputPath to outputDir & "/" & outputName
-
-my ensureDirectoryExists(outputDir)
-
-tell application "Keynote"
-	activate
+on run argv
+	set qualityFolder to my qualityFolderFromArgs(argv)
+	set {outputDir, deckBaseName, slideWidth, slideHeight, slideSpecs} to my loadDeckSpec(projectRoot, manifestPath, qualityFolder)
+	set ts to my timestampString()
+	set outputName to deckBaseName & "_" & ts & ".key"
+	set outputPath to outputDir & "/" & outputName
 	
-	set docRef to make new document
-	set width of docRef to slideWidth
-	set height of docRef to slideHeight
+	my ensureDirectoryExists(outputDir)
 	
-	set blankLayout to my slideLayoutNamed(docRef, {"Blank"}, first slide layout of docRef)
-	set titleLayout to my slideLayoutNamed(docRef, {"Title"}, blankLayout)
-	set sectionLayout to my slideLayoutNamed(docRef, {"Section", "Title"}, titleLayout)
-	set titleOnlyLayout to my slideLayoutNamed(docRef, {"Title Only", "Title"}, titleLayout)
-	set textBulletsLayout to my slideLayoutNamed(docRef, {"Title & Bullets", "Bullets", "Title"}, titleOnlyLayout)
+	tell application "Keynote"
+		activate
+		
+		set docRef to make new document
+		set width of docRef to slideWidth
+		set height of docRef to slideHeight
+		
+		set blankLayout to my slideLayoutNamed(docRef, {"Blank"}, first slide layout of docRef)
+		set titleLayout to my slideLayoutNamed(docRef, {"Title"}, blankLayout)
+		set sectionLayout to my slideLayoutNamed(docRef, {"Section", "Title"}, titleLayout)
+		set titleOnlyLayout to my slideLayoutNamed(docRef, {"Title Only", "Title"}, titleLayout)
+		set textBulletsLayout to my slideLayoutNamed(docRef, {"Title & Bullets", "Bullets", "Title"}, titleOnlyLayout)
+		
+		set slideIndex to 0
+		repeat with slideSpec in slideSpecs
+			set slideIndex to slideIndex + 1
+			if slideIndex is 1 then
+				set slideRef to first slide of docRef
+			else
+				set slideRef to make new slide at end of slides of docRef with properties {base layout:blankLayout}
+			end if
+			my populateSlide(slideRef, slideSpec, blankLayout, titleLayout, sectionLayout, titleOnlyLayout, textBulletsLayout, slideWidth, slideHeight)
+		end repeat
+		
+		export docRef to (POSIX file outputPath) as Keynote 09
+		close docRef saving no
+	end tell
 	
-	set slideIndex to 0
-	repeat with slideSpec in slideSpecs
-		set slideIndex to slideIndex + 1
-		if slideIndex is 1 then
-			set slideRef to first slide of docRef
-		else
-			set slideRef to make new slide at end of slides of docRef with properties {base layout:blankLayout}
-		end if
-		my populateSlide(slideRef, slideSpec, blankLayout, titleLayout, sectionLayout, titleOnlyLayout, textBulletsLayout, slideWidth, slideHeight)
-	end repeat
+	if my waitForFile(outputPath, 120) is false then error "Keynote did not produce the saved file at " & outputPath
 	
-	export docRef to (POSIX file outputPath) as Keynote 09
-	close docRef saving no
-end tell
-
-if my waitForFile(outputPath, 120) is false then error "Keynote did not produce the saved file at " & outputPath
-
-display dialog "Created " & outputName & " with " & (count of slideSpecs) & " slides at " & outputPath buttons {"OK"} default button "OK"
+	display dialog "Created " & outputName & " using video folder " & qualityFolder & " with " & (count of slideSpecs) & " slides at " & outputPath buttons {"OK"} default button "OK"
+	return outputPath
+end run

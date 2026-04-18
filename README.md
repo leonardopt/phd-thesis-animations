@@ -43,11 +43,20 @@ If you want to override any asset locations, copy `.env.example` to `.env` and e
 
 ## Rendering
 
+Common quality flags:
+
+- `-ql`: low quality, writes videos to `480p15/`
+- `-qm`: medium quality, writes videos to `720p30/`
+- `-qh`: high quality, writes videos to `1080p60/`
+- `-qk`: 4K quality, writes videos to `2160p60/`
+
 Render all Study 1 scenes in narrative order:
 
 ```bash
 ./render_study1.sh -qh
 ```
+
+Runs the consolidated Study 1 deck sequence and writes outputs under `media/videos/study1/<quality>/`.
 
 Render all Study 2 scenes in narrative order:
 
@@ -55,11 +64,15 @@ Render all Study 2 scenes in narrative order:
 ./render_study2.sh -qh
 ```
 
+Runs the consolidated Study 2 deck sequence and writes outputs under `media/videos/study2/<quality>/`.
+
 Render every top-level render script with one quality setting:
 
 ```bash
 ./render_all.sh -qh
 ```
+
+Runs the full talk sequence across all top-level render helpers with one shared quality flag.
 
 Render a single scene directly:
 
@@ -68,6 +81,30 @@ uv run manim scenes/study1.py Study1Step1a -qh
 uv run manim scenes/study2.py Study2ExperimentalDesign -qh
 uv run manim scenes/intro.py -a -qh
 ```
+
+Use this when you only want to rerender one scene or one file.
+
+## Presentation Build
+
+The Keynote deck is driven by [assets/presentation_deck.toml](/Users/leonardo/phd-thesis-animations/assets/presentation_deck.toml). Add `title`, `section`, `text`, `image`, `pdf`, `video`, or `video_sequence` entries there to control slide order.
+
+Build a Keynote deck from the manifest:
+
+```bash
+osascript /Users/leonardo/phd-thesis-animations/scripts/create_keynote_presentation.applescript
+```
+
+By default this uses the `480p15/` video folders.
+
+Build the same deck against a different render quality:
+
+```bash
+osascript /Users/leonardo/phd-thesis-animations/scripts/create_keynote_presentation.applescript -ql
+osascript /Users/leonardo/phd-thesis-animations/scripts/create_keynote_presentation.applescript -qh
+osascript /Users/leonardo/phd-thesis-animations/scripts/create_keynote_presentation.applescript --quality-folder 1080p60
+```
+
+`-ql`, `-qm`, `-qh`, and `-qk` map to the standard Manim output folders. The deck build will fail cleanly if the corresponding video folder does not exist yet.
 
 ## Asset Notes
 
