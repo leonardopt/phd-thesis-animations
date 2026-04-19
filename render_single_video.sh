@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Render all Study 1 and Study 2 scenes sequentially, then concatenate them
-# into a single MP4.
+# Render the full Study 1 and Study 2 production scenes, then concatenate
+# them into a single MP4.
 #
 # Usage:
 #   ./render_single_video.sh
@@ -12,7 +12,7 @@ set -euo pipefail
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     echo "Usage: ./render_single_video.sh [QUALITY] [OUTPUT_MP4]"
     echo
-    echo "Render all Study 1 scenes, then all Study 2 scenes, sequentially."
+    echo "Render the full Study 1 scene, then the full Study 2 scene."
     echo "After rendering, concatenate them into one MP4 with ffmpeg."
     echo
     echo "Examples:"
@@ -37,54 +37,39 @@ if ! command -v ffmpeg >/dev/null 2>&1; then
     exit 1
 fi
 
-scene_entries=()
-while IFS= read -r line; do
-    scene_entries+=("$line")
-done < <(
-    uv run python - <<'PY'
-import ast
-import re
-import sys
-from pathlib import Path
+quality_dir_from_arg() {
+    case "${1:-}" in
+        ""|-ql|ql|480p15)
+            printf '%s\n' "480p15"
+            ;;
+        -qm|qm|720p30)
+            printf '%s\n' "720p30"
+            ;;
+        -qh|qh|1080p60)
+            printf '%s\n' "1080p60"
+            ;;
+        -qp|qp|1440p60)
+            printf '%s\n' "1440p60"
+            ;;
+        -qk|qk|2160p60)
+            printf '%s\n' "2160p60"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
 
-SCENES_DIR = Path("scenes").resolve()
-if str(SCENES_DIR) not in sys.path:
-    sys.path.insert(0, str(SCENES_DIR))
+QUALITY_DIR=""
+if QUALITY_DIR="$(quality_dir_from_arg "$QUALITY")"; then
+    :
+else
+    QUALITY_DIR=""
+fi
 
-from utils import section_output_dir
-
-
-def load_mapping(path_str: str, variable_name: str):
-    tree = ast.parse(Path(path_str).read_text())
-    for node in tree.body:
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == variable_name:
-            return ast.literal_eval(node.value)
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == variable_name:
-                    return ast.literal_eval(node.value)
-    raise SystemExit(f"Could not find {variable_name} in {path_str}")
-
-
-def scene_sort_key(scene_number: str) -> tuple[int, str]:
-    match = re.fullmatch(r"(\d+)([A-Za-z]*)", scene_number)
-    if match is None:
-        raise SystemExit(f"Unsupported scene number: {scene_number}")
-    return int(match.group(1)), match.group(2)
-
-
-def emit_entries(study_slug: str, scene_file: str, order_var: str, overrides_var: str | None = None):
-    scene_order = load_mapping(scene_file, order_var)
-    output_overrides = load_mapping(scene_file, overrides_var) if overrides_var else {}
-    study_dir = section_output_dir(study_slug)
-    for class_name, scene_number in sorted(scene_order.items(), key=lambda item: scene_sort_key(item[1])):
-        output_name = output_overrides.get(class_name, f"{scene_number}_{class_name}")
-        print(f"{study_slug}:{study_dir}:{scene_file}:{output_name}:{class_name}")
-
-
-emit_entries("study1", "scenes/study1.py", "_STUDY1_SCENE_ORDER", "_STUDY1_OUTPUT_NAME_OVERRIDES")
-emit_entries("study2", "scenes/study2.py", "_STUDY2_SCENE_ORDER")
-PY
+scene_entries=(
+    "study1:03_study1:scenes/study1.py:study1:Study1:--save_sections"
+    "study2:04_study2:scenes/study2.py:study2:Study2:--save_sections"
 )
 
 if [[ ${#scene_entries[@]} -eq 0 ]]; then
@@ -106,13 +91,20 @@ for entry in "${scene_entries[@]}"; do
     scene_file="${rest%%:*}"
     rest="${rest#*:}"
     output_name="${rest%%:*}"
-    class_name="${rest#*:}"
+    rest="${rest#*:}"
+    class_name="${rest%%:*}"
+    sections_flag="${rest#*:}"
 
     idx=$((idx + 1))
-    echo "[$idx/$total] $class_name -> $output_name"
-    uv run manim "$scene_file" "$class_name" "$QUALITY" -o "$output_name"
+    echo "[$idx/$total] $class_name -> $output_name${sections_flag:+ (sectioned)}"
+    uv run manim "$scene_file" "$class_name" "$QUALITY" ${sections_flag:+$sections_flag}
 
-    rendered_path="$(find "media/videos/$study_dir" -type f -name "${output_name}.mp4" | sort | tail -n 1)"
+    rendered_path=""
+    if [[ -n "$QUALITY_DIR" && -f "media/videos/$study_dir/$QUALITY_DIR/${output_name}.mp4" ]]; then
+        rendered_path="media/videos/$study_dir/$QUALITY_DIR/${output_name}.mp4"
+    else
+        rendered_path="$(find "media/videos/$study_dir" -type f -name "${output_name}.mp4" | sort | tail -n 1)"
+    fi
     if [[ -z "$rendered_path" ]]; then
         echo "Could not locate rendered output for $output_name in media/videos/$study_dir" >&2
         exit 1

@@ -496,10 +496,18 @@ def _identity_colors(image_paths: list[str]) -> list[str]:
 
 # Brain icon used in the decoding overview
 _BRAIN_PNG_PATH = _STUDY2_ASSET_DIR / "brain_icon_sagittal.png"
+_OVERVIEW_BRAIN_PNG_PATH = REPO_ROOT / "assets" / "images" / "v1v2v3_multiplanar.png"
 _MRI_SCANNER_PNG_PATH = _STUDY2_ASSET_DIR / "MRIscanner.png"
 _V1V2V3_VIEWING_PNG_PATH = REPO_ROOT / "assets" / "images" / "v1v2v3_viewing.png"
 _SVM_CLASSIFIER_SVG_PATH = REPO_ROOT / "assets" / "images" / "references" / "svm_classifier_schematic.svg"
 _SVM_CLASSIFIER_GREYSCALE_SVG_PATH = REPO_ROOT / "assets" / "images" / "references" / "svm_classifier_schematic_greyscale.svg"
+_OVERVIEW_BRAIN_ASSET_W = 1520.0
+_OVERVIEW_BRAIN_CONTENT_LEFT = 13.0
+_OVERVIEW_BRAIN_CONTENT_RIGHT = 1442.0
+_OVERVIEW_BRAIN_CONTENT_W = _OVERVIEW_BRAIN_CONTENT_RIGHT - _OVERVIEW_BRAIN_CONTENT_LEFT
+_OVERVIEW_BRAIN_CONTENT_CENTER_X = (
+    _OVERVIEW_BRAIN_CONTENT_LEFT + _OVERVIEW_BRAIN_CONTENT_RIGHT
+) / 2.0
 
 # Current PNG asset is cropped tightly around the beam + brain composition.
 _V1V2V3_VIEWING_ASSET_W = 422.0
@@ -565,6 +573,15 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     _TITLE_TOP_BUFF = 0.24
     _SCANNER_TO_BRAIN_BUFF = 0.18
     _SCANNER_WIDTH_SCALE = 1.02
+    _SCANNER_LABEL_TEXT = "3T"
+    _SCANNER_LABEL_FONT_SIZE = 18
+    _SCANNER_LABEL_BUFF = 0.04
+    _BRAIN_SOURCE_X_NORM = 0.64
+    _BRAIN_SOURCE_Y_NORM = -0.47
+    _BRAIN_SOURCE_FRAME_SCALE = 0.30
+    _BRAIN_SOURCE_FRAME_COLOR = "#4F4339"
+    _BRAIN_SOURCE_FRAME_STROKE_WIDTH = 2.4
+    _BRAIN_SOURCE_LABEL_BUFF = 0.08
 
     # Activity matrix shown below the brain before becoming a feature vector
     _GRID_PAT = np.array([[0.9, 0.2, 0.7],
@@ -659,9 +676,16 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         ).move_to(center)
 
     def _brain_source_point(
-        self, brain: ImageMobject, x_norm: float = 0.6, y_norm: float = 0.0
+        self,
+        brain: ImageMobject,
+        x_norm: float | None = None,
+        y_norm: float | None = None,
     ) -> np.ndarray:
         """Map normalized [-1, 1] image coordinates to scene coordinates."""
+        if x_norm is None:
+            x_norm = self._BRAIN_SOURCE_X_NORM
+        if y_norm is None:
+            y_norm = self._BRAIN_SOURCE_Y_NORM
         return (
             brain.get_center()
             + RIGHT * (0.5 * x_norm * brain.width)
@@ -682,30 +706,86 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     def _make_brain_and_scanner(
         self,
         brain_height: float,
-    ) -> tuple[ImageMobject, ImageMobject]:
+    ) -> tuple[ImageMobject, Group]:
         """Build the paired brain/scanner column for the overview scenes."""
         brain = (
-            ImageMobject(str(_BRAIN_PNG_PATH))
+            ImageMobject(str(_OVERVIEW_BRAIN_PNG_PATH))
             .scale_to_fit_height(brain_height)
             .move_to(UP * self._BRAIN_Y)
         )
         brain.set_z_index(-20)
 
-        scanner = ImageMobject(str(_MRI_SCANNER_PNG_PATH))
-        scanner.scale_to_fit_width(brain.width * self._SCANNER_WIDTH_SCALE)
-        scanner.set_z_index(-21)
+        scanner_img = ImageMobject(str(_MRI_SCANNER_PNG_PATH))
+        scanner_img.scale_to_fit_width(brain.width * self._SCANNER_WIDTH_SCALE)
+        scanner_img.set_z_index(-21)
+        scanner_label = Tex(
+            self._SCANNER_LABEL_TEXT,
+            color=INK,
+            font_size=self._SCANNER_LABEL_FONT_SIZE,
+        ).next_to(scanner_img, UP, buff=self._SCANNER_LABEL_BUFF)
+        scanner_label.set_z_index(-19)
+        scanner = Group(scanner_img, scanner_label)
         return brain, scanner
+
+    def _overview_brain_content_width(self, brain: ImageMobject) -> float:
+        """Return the width of the visible MRI montage within the brain asset."""
+        return brain.width * (_OVERVIEW_BRAIN_CONTENT_W / _OVERVIEW_BRAIN_ASSET_W)
+
+    def _overview_brain_content_center_offset_x(self, brain: ImageMobject) -> float:
+        """Return the visible MRI montage centre offset from the asset centre."""
+        return brain.width * (
+            (_OVERVIEW_BRAIN_CONTENT_CENTER_X / _OVERVIEW_BRAIN_ASSET_W) - 0.5
+        )
+
+    def _overview_column_center_x(self, stack_right: float, brain: ImageMobject) -> float:
+        """Return the shared x-axis for the scanner, MRI montage, and matrix."""
+        return stack_right + self._H_GAP + self._overview_brain_content_width(brain) / 2.0
+
+    def _overview_matrix_center(
+        self,
+        brain: ImageMobject,
+        column_center_x: float,
+    ) -> np.ndarray:
+        """Return the matrix centre aligned to the MRI column centre."""
+        return np.array([column_center_x, brain.get_bottom()[1] - 0.58, 0.0])
+
+    def _make_brain_source_frame(
+        self,
+        matrix_template: VGroup,
+        brain: ImageMobject,
+    ) -> tuple[Rectangle, Tex]:
+        """Build the V1-V3 ROI marker and label for the overview brain asset."""
+        source_frame = self._make_grid_frame(
+            matrix_template,
+            self._brain_source_point(brain),
+        ).scale(self._BRAIN_SOURCE_FRAME_SCALE)
+        source_frame.set_stroke(
+            color=self._BRAIN_SOURCE_FRAME_COLOR,
+            width=self._BRAIN_SOURCE_FRAME_STROKE_WIDTH,
+        )
+        source_label = Tex(
+            "V1-V3",
+            color=INK,
+            font_size=20,
+        ).next_to(source_frame, RIGHT, buff=self._BRAIN_SOURCE_LABEL_BUFF)
+        return source_frame, source_label
 
     def _position_brain_and_scanner(
         self,
         brain: ImageMobject,
-        scanner: ImageMobject,
-        brain_x: float,
+        scanner: Group,
+        column_center_x: float,
     ) -> None:
         """Position the scanner directly above the brain icon."""
-        brain.move_to(np.array([brain_x, self._BRAIN_Y, 0.0]))
-        scanner.next_to(brain, UP, buff=self._SCANNER_TO_BRAIN_BUFF)
-        scanner.move_to(np.array([brain.get_center()[0], scanner.get_center()[1], 0.0]))
+        scanner_img, scanner_label = scanner
+        brain.move_to(np.array([
+            column_center_x - self._overview_brain_content_center_offset_x(brain),
+            self._BRAIN_Y,
+            0.0,
+        ]))
+        scanner_img.next_to(brain, UP, buff=self._SCANNER_TO_BRAIN_BUFF)
+        scanner_img.move_to(np.array([column_center_x, scanner_img.get_center()[1], 0.0]))
+        scanner_label.next_to(scanner_img, UP, buff=self._SCANNER_LABEL_BUFF)
 
     def _make_stack_target(
         self,
@@ -777,13 +857,12 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
             ORIGIN, self._COLS[0], self._pattern_for_index(0)
         )
         stack_right = max(frame.get_right()[0] for frame in visible_frames)
-        brain_x = stack_right + self._H_GAP + brain.width / 2
-        vector_left_x = brain_x + brain.width / 2 + self._H_GAP
+        brain_x = self._overview_column_center_x(stack_right, brain)
+        vector_left_x = brain_x + self._overview_brain_content_width(brain) / 2 + self._H_GAP
         vector_center_x = vector_left_x + vector_template.width / 2
         self._position_brain_and_scanner(brain, scanner, brain_x)
 
-        matrix_center = brain.get_bottom() + DOWN * 0.58
-        matrix_source = self._brain_source_point(brain, x_norm=0.7, y_norm=-0.1)
+        matrix_center = self._overview_matrix_center(brain, brain_x)
         matrix_template = self._make_grid(
             matrix_center,
             self._COLS[0],
@@ -794,13 +873,8 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
             self._ROLLING_TARGETS[-1][1],
             self._pattern_for_index(len(self._ROLLING_TARGETS) + 2),
         )
-        source_frame = self._make_grid_frame(matrix_template, matrix_source).scale(0.56)
+        source_frame, source_label = self._make_brain_source_frame(matrix_template, brain)
         source_frame.set_z_index(2)
-        source_label = Tex(
-            "V1-V3",
-            color=INK,
-            font_size=20,
-        ).next_to(source_frame, RIGHT, buff=0.10)
         source_label.set_z_index(2)
 
         vector_centers = self._vector_layout(
@@ -1062,8 +1136,8 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
             ORIGIN, self._COLS[0], self._pattern_for_index(0)
         )
         stack_right = max(highlight.get_right()[0] for highlight in highlights)
-        brain_x = stack_right + self._H_GAP + brain.width / 2
-        vector_left_x = brain_x + brain.width / 2 + self._H_GAP
+        brain_x = self._overview_column_center_x(stack_right, brain)
+        vector_left_x = brain_x + self._overview_brain_content_width(brain) / 2 + self._H_GAP
         vector_center_x = vector_left_x + vector_template.width / 2
         self._position_brain_and_scanner(brain, scanner, brain_x)
         self.play(
@@ -1075,16 +1149,14 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         self.wait(0.25)
 
         # ── Phase 4: Each image maps to a feature vector ───────────────────────
-        matrix_center = brain.get_bottom() + DOWN * 0.58
-        matrix_source = self._brain_source_point(brain, x_norm=0.7, y_norm=-0.1)
+        matrix_center = self._overview_matrix_center(brain, brain_x)
         vector_centers = [
             np.array([vector_center_x, row_y, 0.0]) for row_y in self._COL_YS
         ]
         visible_vectors: list[VGroup] = []
         matrix_template = self._make_grid(matrix_center, self._COLS[0], self._pattern_for_index(0))
         matrix_frame = self._make_grid_frame(matrix_template, matrix_center)
-        source_frame = self._make_grid_frame(matrix_template, matrix_source).scale(0.56)
-        source_label = Tex("V1-V3", color=INK, font_size=20).next_to(source_frame, RIGHT, buff=0.10)
+        source_frame, source_label = self._make_brain_source_frame(matrix_template, brain)
         projection_lines = VGroup(
             Line(
                 source_frame.get_corner(UL),
@@ -1448,6 +1520,15 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         pair.move_to(ORIGIN)
         return pair, stim_icon, stim_frame, delay_card, delay_frame
 
+    def _anchor_memory_pair_to_stimulus(
+        self,
+        pair: Group,
+        stim_icon: Group,
+        target_center: np.ndarray,
+    ) -> None:
+        """Place a memory-decoding row so the stimulus card stays on the legacy column anchor."""
+        pair.shift(target_center - stim_icon.get_center())
+
     def _memory_pattern_for_index(self, idx: int) -> np.ndarray:
         """Return a memory-scene voxel pattern with a different composition from Overview A."""
         base = self._pattern_for_index(idx % len(self._GRID_PERMS))
@@ -1471,36 +1552,34 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
             self._COLS,
         ):
             target_pair, stim_icon, _, _, _ = self._make_memory_pair_target(img_path, col)
-            target_pair.move_to(np.array([self._COL_X, row_y, 0.0]))
+            self._anchor_memory_pair_to_stimulus(
+                target_pair,
+                stim_icon,
+                np.array([self._COL_X, row_y, 0.0]),
+            )
             memory_targets.append(target_pair)
             memory_stim_icons.append(stim_icon)
 
         icon_h = max(icon.height for icon in memory_stim_icons)
         brain, scanner = self._make_brain_and_scanner(2.0 * icon_h)
         stack_right = max(pair.get_right()[0] for pair in memory_targets)
-        brain_x = stack_right + self._H_GAP + brain.width / 2
+        brain_x = self._overview_column_center_x(stack_right, brain)
         self._position_brain_and_scanner(brain, scanner, brain_x)
 
         vector_template = self._make_feature_vector(
             ORIGIN, self._COLS[0], self._memory_pattern_for_index(0)
         )
-        vector_left_x = brain_x + brain.width / 2 + self._H_GAP
+        vector_left_x = brain_x + self._overview_brain_content_width(brain) / 2 + self._H_GAP
         vector_center_x = vector_left_x + vector_template.width / 2
 
-        matrix_center = brain.get_bottom() + DOWN * 0.58
-        matrix_source = self._brain_source_point(brain, x_norm=0.7, y_norm=-0.1)
+        matrix_center = self._overview_matrix_center(brain, brain_x)
         matrix_template = self._make_grid(
             matrix_center,
             self._COLS[0],
             self._memory_pattern_for_index(0),
         )
-        source_frame = self._make_grid_frame(matrix_template, matrix_source).scale(0.56)
+        source_frame, source_label = self._make_brain_source_frame(matrix_template, brain)
         source_frame.set_z_index(2)
-        source_label = Tex(
-            "V1-V3",
-            color=INK,
-            font_size=20,
-        ).next_to(source_frame, RIGHT, buff=0.10)
         source_label.set_z_index(2)
         current_grid = self._make_grid(
             matrix_center,
@@ -1621,7 +1700,6 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         self._set_overview_camera_frame()
         ctx = self._build_overview_end_state()
         self.add(ctx["frame"])
-        self.bring_to_back(ctx["scanner"], ctx["brain"])
         self.wait(0.25)
 
         s1_title = self._make_overview_title(r"\textbf{Session 1 :} Memory task")
@@ -1689,7 +1767,11 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
             self._COLS,
         ):
             target_pair, stim_icon, stim_frame, delay_card, delay_frame = self._make_memory_pair_target(img_path, col)
-            target_pair.move_to(np.array([self._COL_X, row_y, 0.0]))
+            self._anchor_memory_pair_to_stimulus(
+                target_pair,
+                stim_icon,
+                np.array([self._COL_X, row_y, 0.0]),
+            )
             memory_targets.append(target_pair)
             memory_stim_icons.append(stim_icon)
             memory_stim_frames.append(stim_frame)
@@ -1720,7 +1802,7 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         icon_h = max(icon.height for icon in memory_stim_icons)
         brain, scanner = self._make_brain_and_scanner(2.0 * icon_h)
         stack_right = max(pair.get_right()[0] for pair in memory_targets)
-        brain_x = stack_right + self._H_GAP + brain.width / 2
+        brain_x = self._overview_column_center_x(stack_right, brain)
         self._position_brain_and_scanner(brain, scanner, brain_x)
         self.play(
             FadeIn(brain, shift=RIGHT * 0.15),
@@ -1733,23 +1815,17 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         vector_template = self._make_feature_vector(
             ORIGIN, self._COLS[0], self._memory_pattern_for_index(0)
         )
-        vector_left_x = brain_x + brain.width / 2 + self._H_GAP
+        vector_left_x = brain_x + self._overview_brain_content_width(brain) / 2 + self._H_GAP
         vector_center_x = vector_left_x + vector_template.width / 2
-        matrix_center = brain.get_bottom() + DOWN * 0.58
-        matrix_source = self._brain_source_point(brain, x_norm=0.7, y_norm=-0.1)
+        matrix_center = self._overview_matrix_center(brain, brain_x)
         matrix_template = self._make_grid(
             matrix_center,
             self._COLS[0],
             self._memory_pattern_for_index(0),
         )
         matrix_frame = self._make_grid_frame(matrix_template, matrix_center)
-        source_frame = self._make_grid_frame(matrix_template, matrix_source).scale(0.56)
+        source_frame, source_label = self._make_brain_source_frame(matrix_template, brain)
         source_frame.set_z_index(2)
-        source_label = Tex(
-            "V1-V3",
-            color=INK,
-            font_size=20,
-        ).next_to(source_frame, RIGHT, buff=0.10)
         source_label.set_z_index(2)
         projection_lines = VGroup(
             Line(
@@ -2686,7 +2762,6 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
         self._set_overview_camera_frame()
         ctx = self._build_overview_b_end_state()
         self.add(ctx["frame"])
-        self.bring_to_back(ctx["scanner"], ctx["brain"])
         self.wait(0.70)
 
         similar_pattern = self._pattern_for_index(3)
@@ -13016,7 +13091,7 @@ class Study2(
         """Pin the previous section's last frame into the next section."""
         self.wait(1 / config.frame_rate)
 
-    def _run_legacy_section(
+    def _render_section(
         self,
         section_name: str,
         scene_cls: type[Scene],
@@ -13034,7 +13109,7 @@ class Study2(
         """Render the full Study 2 narrative as one sectioned scene."""
         self._reset_master_scene_state()
         for idx, (section_name, scene_cls) in enumerate(self._SECTION_SCENES):
-            self._run_legacy_section(
+            self._render_section(
                 section_name,
                 scene_cls,
                 carry_previous_frame=idx > 0,

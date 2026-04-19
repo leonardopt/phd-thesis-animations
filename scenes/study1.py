@@ -50,6 +50,59 @@ def _ensure_study1_output_dirs(output_name: str | None = None) -> None:
         (video_dir / "partial_movie_files" / output_name).mkdir(parents=True, exist_ok=True)
 
 
+_STUDY1_CLOUD_RINGS = (
+    (0.0, 1, 0.0),
+    (0.65, 6, 0.0),
+    (1.3, 12, 0.26),
+    (1.95, 18, 0.0),
+    (2.6, 23, 0.14),
+)
+
+
+def _study1_noise_magma(seed: int, sz: int = 128) -> np.ndarray:
+    """Generate one deterministic magma-coloured noise image."""
+    rng = np.random.default_rng(seed)
+    gray = rng.random((sz, sz)).astype(np.float32)
+    return (_mcm.magma(gray) * 255).astype(np.uint8)
+
+
+def _study1_cloud_positions(n: int, cx: float, cy: float) -> list[tuple[float, float]]:
+    """Build the shared deterministic ring layout used for exemplar clouds."""
+    out: list[tuple[float, float]] = []
+    total = 0
+    for radius, ring_count, offset in _STUDY1_CLOUD_RINGS:
+        count = min(ring_count, n - total)
+        if count <= 0:
+            break
+        for idx in range(count):
+            angle = 2 * np.pi * idx / max(count, 1) + offset
+            out.append((cx + radius * np.cos(angle), cy + radius * np.sin(angle)))
+        total += count
+    return out
+
+
+def _study1_slerp(u: np.ndarray, v: np.ndarray, t: float) -> np.ndarray:
+    """Interpolate between two latent directions on the unit sphere."""
+    cos_t = float(np.clip(np.dot(u, v), -1.0, 1.0))
+    theta = np.arccos(cos_t)
+    if abs(np.sin(theta)) < 1e-08:
+        return (1 - t) * u + t * v
+    return (np.sin((1 - t) * theta) * u + np.sin(t * theta) * v) / np.sin(theta)
+
+
+def _study1_vec3(start, end, color, sw: float = 3.5, tl: float = 0.18) -> Arrow:
+    """Build a thin 3-D arrow that projects correctly in Manim."""
+    return Arrow(
+        np.asarray(start, dtype=float),
+        np.asarray(end, dtype=float),
+        color=color,
+        stroke_width=sw,
+        tip_length=tl,
+        buff=0,
+        max_stroke_width_to_length_ratio=100,
+    )
+
+
 
 # --- inlined from study1_step1.py ---
 
@@ -283,9 +336,7 @@ _s1_step2_PROMPT_LINES = ['``award-winning marine photo', 'of a colorful fish in
 
 def _s1_step2_noise_magma(seed: int, sz: int=128) -> np.ndarray:
     """Generate a deterministic magma-coloured noise image for one seed."""
-    rng = np.random.default_rng(seed)
-    gray = rng.random((sz, sz)).astype(np.float32)
-    return (_mcm.magma(gray) * 255).astype(np.uint8)
+    return _study1_noise_magma(seed, sz)
 
 def _s1_step2_cloud_positions(n: int, cx: float, cy: float):
     """
@@ -300,17 +351,7 @@ def _s1_step2_cloud_positions(n: int, cx: float, cy: float):
       ring 3 : r=1.95, 18  → tangential gap ≈ 0.68
       ring 4 : r=2.60, 23  → tangential gap ≈ 0.71   total = 60
     """
-    rings = [(0.0, 1, 0.0), (0.65, 6, 0.0), (1.3, 12, 0.26), (1.95, 18, 0.0), (2.6, 23, 0.14)]
-    out, total = ([], 0)
-    for r, n_def, off in rings:
-        cnt = min(n_def, n - total)
-        if cnt <= 0:
-            break
-        for k in range(cnt):
-            ang = 2 * np.pi * k / max(cnt, 1) + off
-            out.append((cx + r * np.cos(ang), cy + r * np.sin(ang)))
-        total += cnt
-    return out
+    return _study1_cloud_positions(n, cx, cy)
 
 class Study1Stage1Step2(Scene):
     """Show how one fixed prompt and varying noise seeds produce a cloud of exemplars."""
@@ -421,23 +462,11 @@ _s1_step2_showcase_HOLD_TIME = 1.6
 
 def _s1_step2_showcase_noise_magma(seed: int, sz: int=128) -> np.ndarray:
     """Generate a deterministic showcase noise image for one seed."""
-    rng = np.random.default_rng(seed)
-    gray = rng.random((sz, sz)).astype(np.float32)
-    return (_mcm.magma(gray) * 255).astype(np.uint8)
+    return _study1_noise_magma(seed, sz)
 
 def _s1_step2_showcase_cloud_positions(n: int, cx: float, cy: float):
     """Return the fixed concentric layout used for showcase exemplar clouds."""
-    rings = [(0.0, 1, 0.0), (0.65, 6, 0.0), (1.3, 12, 0.26), (1.95, 18, 0.0), (2.6, 23, 0.14)]
-    out, total = ([], 0)
-    for r, n_def, off in rings:
-        cnt = min(n_def, n - total)
-        if cnt <= 0:
-            break
-        for k in range(cnt):
-            ang = 2 * np.pi * k / max(cnt, 1) + off
-            out.append((cx + r * np.cos(ang), cy + r * np.sin(ang)))
-        total += cnt
-    return out
+    return _study1_cloud_positions(n, cx, cy)
 _s1_step2_showcase_SZ = 512
 
 def _s1_step2_showcase_load_pixels(img_dir: Path, glob: str) -> list[np.ndarray]:
@@ -565,17 +594,7 @@ def _s1_step3_cloud_positions(n: int, cx: float, cy: float):
     """
     Same deterministic ring layout used in Study1Step2.
     """
-    rings = [(0.0, 1, 0.0), (0.65, 6, 0.0), (1.3, 12, 0.26), (1.95, 18, 0.0), (2.6, 23, 0.14)]
-    out, total = ([], 0)
-    for r, n_def, off in rings:
-        cnt = min(n_def, n - total)
-        if cnt <= 0:
-            break
-        for k in range(cnt):
-            ang = 2 * np.pi * k / max(cnt, 1) + off
-            out.append((cx + r * np.cos(ang), cy + r * np.sin(ang)))
-        total += cnt
-    return out
+    return _study1_cloud_positions(n, cx, cy)
 
 def _s1_step3_choose_demo_pairs(cloud_pts: list[tuple[float, float]], cx: float, cy: float, selected_pair: tuple[int, int], excluded_indices: set[int], count: int=8) -> list[tuple[int, int]]:
     """
@@ -992,15 +1011,11 @@ _s1_step4_COMPACT_PROMPT_LINES = ('``award-winning marine photo', 'of a colorful
 
 def _s1_step4_slerp(u: np.ndarray, v: np.ndarray, t: float) -> np.ndarray:
     """Interpolate between two latent directions on the unit sphere."""
-    cos_t = float(np.clip(np.dot(u, v), -1.0, 1.0))
-    theta = np.arccos(cos_t)
-    if abs(np.sin(theta)) < 1e-08:
-        return (1 - t) * u + t * v
-    return (np.sin((1 - t) * theta) * u + np.sin(t * theta) * v) / np.sin(theta)
+    return _study1_slerp(u, v, t)
 
 def _s1_step4_vec3(start, end, color, sw=3.5, tl=0.18) -> Arrow:
     """Thin VMobject arrow in 3-D space (fast to create, projects correctly)."""
-    return Arrow(np.asarray(start, dtype=float), np.asarray(end, dtype=float), color=color, stroke_width=sw, tip_length=tl, buff=0, max_stroke_width_to_length_ratio=100)
+    return _study1_vec3(start, end, color, sw=sw, tl=tl)
 
 def _s1_step4_load_interpolation_pixels() -> tuple[np.ndarray, int]:
     """Load and resize the fish interpolation frames for Step 4."""
@@ -1232,15 +1247,11 @@ _s1_step5__C_ARC = '#93C5FD'
 
 def _s1_step5__slerp(u: np.ndarray, v: np.ndarray, t: float) -> np.ndarray:
     """Interpolate between two latent directions on the unit sphere."""
-    cos_t = float(np.clip(np.dot(u, v), -1.0, 1.0))
-    theta = np.arccos(cos_t)
-    if abs(np.sin(theta)) < 1e-08:
-        return (1.0 - t) * u + t * v
-    return (np.sin((1.0 - t) * theta) * u + np.sin(t * theta) * v) / np.sin(theta)
+    return _study1_slerp(u, v, t)
 
 def _s1_step5__vec3(start, end, color, sw: float=3.5, tl: float=0.18) -> Arrow:
     """Build a thin 3-D arrow for latent-space annotations."""
-    return Arrow(np.asarray(start, dtype=float), np.asarray(end, dtype=float), color=color, stroke_width=sw, tip_length=tl, buff=0, max_stroke_width_to_length_ratio=100)
+    return _study1_vec3(start, end, color, sw=sw, tl=tl)
 
 def _s1_step5_load_lpips_to_anchor(csv_path: Path, anchor_name: str) -> tuple[list[str], np.ndarray]:
     """Load LPIPS scores from the anchor image to every interpolation step."""
@@ -3150,16 +3161,27 @@ class Study1Stage1_2D(Scene):
         Study1Stage1Step2Showcase.construct(self)
         self.clear()
         self.segment = "merged"
-        _Study1Step3Base.construct(self)
-        del self.segment
+        try:
+            _Study1Step3Base.construct(self)
+        finally:
+            del self.segment
 
 
-class Study1Stage2(
-    Study1Stage2ModelOrderToHeatmap,
-    Study1Stage2SimilarityJudgementsExamples,
-    Study1Stage2TripletTask,
-):
+class Study1Stage2(Study1Stage2TripletTask):
     """Scenes 12–17 merged: StimulusSetShowcase through ModelOrderToHeatmap."""
+
+    # The merged/master render replays several Stage 2 scene bodies on this
+    # wrapper instance, so it must expose the scene-local helpers they expect.
+    _mini_response_row = Study1Stage2SimilarityJudgementsExamples._mini_response_row
+    STIMULI_DIR = Study1Stage2ModelOrderToHeatmap.STIMULI_DIR
+    HEATMAP_PDF = Study1Stage2ModelOrderToHeatmap.HEATMAP_PDF
+    _natural_key = Study1Stage2ModelOrderToHeatmap._natural_key
+    _normalise = Study1Stage2ModelOrderToHeatmap._normalise
+    _all_stimulus_paths = Study1Stage2ModelOrderToHeatmap._all_stimulus_paths
+    _select_category_paths = Study1Stage2ModelOrderToHeatmap._select_category_paths
+    _pdf_first_page_to_png = Study1Stage2ModelOrderToHeatmap._pdf_first_page_to_png
+    _embedding_result_snapshot = Study1Stage2ModelOrderToHeatmap._embedding_result_snapshot
+    _category_row = Study1Stage2ModelOrderToHeatmap._category_row
 
     def construct(self) -> None:
         self.next_section("12_StimulusSetShowcase")
@@ -5078,7 +5100,7 @@ class Study1(
         """Pin the previous section's last frame into the next section."""
         self.wait(1 / config.frame_rate)
 
-    def _run_legacy_section(
+    def _render_section(
         self,
         section_name: str,
         scene_cls: type[Scene],
@@ -5111,7 +5133,7 @@ class Study1(
         _ensure_study1_output_dirs(str(getattr(config, "output_file", self.__class__.__name__)))
         self._reset_master_scene_state()
         for idx, (section_name, scene_cls) in enumerate(self._SECTION_SCENES):
-            self._run_legacy_section(
+            self._render_section(
                 section_name,
                 scene_cls,
                 carry_previous_frame=idx > 0,
