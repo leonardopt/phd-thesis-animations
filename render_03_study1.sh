@@ -46,11 +46,13 @@ def load_mapping(path_str: str, variable_name: str):
 
 scene_order = load_mapping("scenes/study1.py", "_STUDY1_SCENE_ORDER")
 output_name_overrides = load_mapping("scenes/study1.py", "_STUDY1_OUTPUT_NAME_OVERRIDES")
+sectioned = load_mapping("scenes/study1.py", "_STUDY1_SECTIONED_SCENES")
 
 for class_name, scene_number in sorted(scene_order.items(), key=lambda item: int(item[1])):
     output_name = output_name_overrides.get(class_name, f"{scene_number}_{class_name}")
-    print(f"{output_name}:{class_name}")
-' 
+    flag = "--save_sections" if class_name in sectioned else ""
+    print(f"{output_name}:{class_name}:{flag}")
+'
 )
 
 total=${#scenes[@]}
@@ -58,10 +60,15 @@ idx=0
 
 for entry in "${scenes[@]}"; do
     outname="${entry%%:*}"
-    classname="${entry##*:}"
+    rest="${entry#*:}"
+    classname="${rest%%:*}"
+    sections_flag="${rest##*:}"
     idx=$((idx + 1))
-    echo "[$idx/$total] $classname -> $outname"
-    uv run manim scenes/study1.py "$classname" "$QUALITY" -o "$outname"
+    echo "[$idx/$total] $classname -> $outname${sections_flag:+ (sectioned)}"
+    uv run manim scenes/study1.py "$classname" "$QUALITY" -o "$outname" $sections_flag
 done
 
-echo "Done. Videos saved to media/videos/03_study1/"
+# Remove combined videos — keep only per-section files.
+find media/videos/study1 -maxdepth 2 -name "*.mp4" -not -path "*/sections/*" -delete 2>/dev/null || true
+
+echo "Done. Section videos saved to media/videos/study1/*/sections/"

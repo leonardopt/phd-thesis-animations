@@ -4,6 +4,7 @@ import tempfile
 import shutil
 from functools import lru_cache
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 from PIL import Image
@@ -78,6 +79,49 @@ def section_display_name(section_name: str) -> str:
     """Return a human-friendly section label from either a key or output directory."""
     section_key = section_key_from_output_dir(section_name)
     return SECTION_DISPLAY_NAMES.get(section_key, section_key.replace("_", " ").title())
+
+
+def simplify_manim_section_video_names(
+    namer: Callable[[str, int, str, str], str] | None = None,
+) -> None:
+    """Patch Manim so section videos use a project-defined filename convention.
+
+    Manim 0.20.1 hardcodes section filenames as
+    ``<SceneName>_<index>_<section_name>.mp4``. For production renders we keep the
+    section name in the JSON index and simplify the actual video filenames.
+    """
+    from manim import config
+    from manim.scene.scene_file_writer import SceneFileWriter
+    from manim.scene.section import Section
+    from manim.utils.file_ops import write_to_movie
+
+    if getattr(SceneFileWriter.next_section, "_phd_simple_section_names", False):
+        return
+
+    if namer is None:
+        namer = lambda output_name, index, name, ext: f"{output_name}_{index:04}{ext}"
+
+    def _next_section_simple_name(self, name: str, type_: str, skip_animations: bool) -> None:
+        self.finish_last_section()
+
+        section_video: str | None = None
+        if (
+            not config.dry_run
+            and write_to_movie()
+            and config.save_sections
+            and not skip_animations
+        ):
+            section_video = namer(
+                str(self.output_name),
+                len(self.sections),
+                name,
+                config.movie_file_extension,
+            )
+
+        self.sections.append(Section(type_, section_video, name, skip_animations))
+
+    _next_section_simple_name._phd_simple_section_names = True
+    SceneFileWriter.next_section = _next_section_simple_name
 
 
 STIM_DIR = env_path("STIMULI_REORDERED_DIR", REPO_ROOT / "assets" / "images" / "stimuli_reordered")

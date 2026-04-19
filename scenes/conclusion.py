@@ -23,8 +23,10 @@ import sys
 from manim import *
 
 _SCENES_DIR = Path(__file__).resolve().parent
-if str(_SCENES_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCENES_DIR))
+_SCRIPTS_DIR = _SCENES_DIR.parent / "scripts"
+for _import_dir in (_SCENES_DIR, _SCRIPTS_DIR):
+    if str(_import_dir) not in sys.path:
+        sys.path.insert(0, str(_import_dir))
 
 from utils import section_output_dir
 
@@ -280,3 +282,61 @@ class ConclusionLimitations(_ConclusionNumberedScene, Scene):
         self.play(FadeIn(title, shift=UP * 0.08), run_time=0.5)
         self.play(FadeIn(bullets, shift=UP * 0.06), run_time=0.8)
         self.wait(1.2)
+
+
+_CONCLUSION_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
+    ConclusionQuestions,
+    ConclusionApproach,
+    ConclusionResults,
+    ConclusionLimitations,
+)
+
+
+class Conclusion(Scene):
+    """Unified production render for the conclusion."""
+
+    _SECTION_SCENES: tuple[tuple[str, type[Scene]], ...] = tuple(
+        (
+            f"{_CONCLUSION_SCENE_ORDER[scene_cls.__name__]}_{scene_cls.__name__}",
+            scene_cls,
+        )
+        for scene_cls in _CONCLUSION_MASTER_SECTION_ORDER
+    )
+
+    def _reset_master_scene_state(self) -> None:
+        """Reset mobjects and camera placement before replaying one legacy scene."""
+        self.clear()
+        self.camera.background_color = BG
+        if hasattr(self.camera, "frame_center"):
+            self.camera.frame_center = ORIGIN.copy()
+
+    def _hold_previous_section_frame(self) -> None:
+        """Pin the previous section's last frame into the next section."""
+        self.wait(1 / config.frame_rate)
+
+    def _run_legacy_section(
+        self,
+        section_name: str,
+        scene_cls: type[Scene],
+        *,
+        carry_previous_frame: bool,
+    ) -> None:
+        """Replay one conclusion scene inside the master section render."""
+        self.next_section(section_name)
+        if carry_previous_frame:
+            self._hold_previous_section_frame()
+        self._reset_master_scene_state()
+        scene_cls.construct(self)
+
+    def construct(self) -> None:
+        """Render the full conclusion as one sectioned scene."""
+        self._reset_master_scene_state()
+        for idx, (section_name, scene_cls) in enumerate(self._SECTION_SCENES):
+            self._run_legacy_section(
+                section_name,
+                scene_cls,
+                carry_previous_frame=idx > 0,
+            )
+
+
+__all__ = ["Conclusion", *list(_CONCLUSION_SCENE_ORDER)]

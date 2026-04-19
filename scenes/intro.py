@@ -1,24 +1,11 @@
 """
-Introduction — consolidated public entrypoint.
+Introduction — sectioned production render.
 
 Render from this file to keep all introduction outputs in the same
 `media/videos/01_intro/...` folder.
 
-Public scenes (narrative order):
-    IntroCognitiveProblemA     — naturalistic input                   (~15 s)
-    IntroCognitiveProblemB     — delay with fixation                  (~15 s)
-    IntroCognitiveProblemC     — memory-guided decision               (~15 s)
-    IntroClassicalView         — PFC / parietal classical view        (~45 s)
-    IntroSensoryRecruitment    — MVPA + open debate                   (~75 s)
-    IntroResearchQuestions     — three open questions                 (~60 s)
-
-Render examples:
-    uv run manim scenes/intro.py IntroCognitiveProblemA -ql
-    uv run manim scenes/intro.py IntroCognitiveProblemB -ql
-    uv run manim scenes/intro.py IntroCognitiveProblemC -ql
-    uv run manim scenes/intro.py IntroClassicalView -ql
-    uv run manim scenes/intro.py IntroSensoryRecruitment -ql
-    uv run manim scenes/intro.py IntroResearchQuestions -ql
+Production render:
+    uv run manim scenes/intro.py Introduction -ql --save_sections
 """
 from __future__ import annotations
 
@@ -29,52 +16,21 @@ import numpy as np
 from manim import *
 
 _SCENES_DIR = Path(__file__).resolve().parent
-if str(_SCENES_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCENES_DIR))
+_SCRIPTS_DIR = _SCENES_DIR.parent / "scripts"
+for _import_dir in (_SCENES_DIR, _SCRIPTS_DIR):
+    if str(_import_dir) not in sys.path:
+        sys.path.insert(0, str(_import_dir))
 
-from utils import REPO_ROOT, env_path, section_output_dir
+from utils import REPO_ROOT, env_path, section_output_dir, simplify_manim_section_video_names
 
 
 _SECTION_OUTPUT_DIR = section_output_dir("intro")
 config.video_dir = f"{{media_dir}}/videos/{_SECTION_OUTPUT_DIR}/{{quality}}"
 config.images_dir = f"{{media_dir}}/images/{_SECTION_OUTPUT_DIR}"
-
-
-# Narrative order — drives output filenames via _wrap_scene / _IntroductionNumberedScene.
-_INTRODUCTION_SCENE_ORDER: dict[str, str] = {
-    "IntroCognitiveProblemA": "01",
-    "IntroCognitiveProblemB": "02",
-    "IntroCognitiveProblemC": "03",
-    "IntroClassicalView": "04",
-    "IntroSensoryRecruitment": "05",
-    "IntroResearchQuestions": "06",
-}
-
-
-class _IntroductionNumberedScene:
-    """Mixin that assigns intro output filenames while preserving future numbering."""
-
-    def __init__(self, *args, **kwargs):
-        """Set `config.output_file` from the intro registry before scene init."""
-        scene_name = self.__class__.__name__
-        number = _INTRODUCTION_SCENE_ORDER.get(scene_name, "")
-        config.output_file = f"{number}_{scene_name}" if number else scene_name
-        super().__init__(*args, **kwargs)
-
-
-def _wrap_scene(scene_cls: type[Scene]) -> type[Scene]:
-    """Wrap a scene so it inherits the intro output naming without renaming it."""
-
-    class _Wrapped(_IntroductionNumberedScene, scene_cls):
-        """Wrapped scene type that adds intro output naming while preserving metadata."""
-
-        pass
-
-    _Wrapped.__name__ = scene_cls.__name__
-    _Wrapped.__qualname__ = scene_cls.__name__
-    _Wrapped.__module__ = __name__
-    _Wrapped.__doc__ = scene_cls.__doc__
-    return _Wrapped
+config.output_file = "intro"
+simplify_manim_section_video_names(
+    lambda _output_name, index, name, ext: f"{index:03}_{name}{ext}"
+)
 
 
 # ── Palette ───────────────────────────────────────────────────────────────────
@@ -272,15 +228,74 @@ def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.
     }
 
 
-class IntroCognitiveProblemA(Scene):
-    """Scene A — behavioral problem: naturalistic input → abrupt interruption → probe."""
+class _IntroductionFlow(Scene):
+    """Shared helper methods for the introduction production render."""
 
-    _ORDER = (5, 3, 7, 1, 8, 2, 6, 4)  # frame cycling order (pseudo-random)
+    _SECTION_HOLD = 0.35
+    _ORDER = (5, 3, 7, 1, 8, 2, 6, 4)
+    _STRIP = (0, 2, 4, 6, 8)
+    _FROZEN_IDX = 4
+    _PRIOR_SPECS = ((0.62, 0.28), (0.74, 0.56), (0.86, 0.90))
 
-    def construct(self) -> None:
+    def _section_boundary_hold(self) -> None:
+        """Hold the previous clip's last frame at the start of the next clip."""
+        self.wait(self._SECTION_HOLD)
+
+    def _transition_to_empty_stage(self, *, target_bg: str, run_time: float = 0.55) -> None:
+        """Fade out the current stage and optionally crossfade the background color."""
+        current_bg = ManimColor(self.camera.background_color).to_hex()
+        target_bg_hex = ManimColor(target_bg).to_hex()
+        fade_targets = list(self.mobjects)
+
+        if current_bg != target_bg_hex:
+            overlay = FullScreenRectangle(stroke_width=0).set_fill(target_bg, opacity=0.0)
+            overlay.set_z_index(10_000)
+            self.add(overlay)
+            animations = [overlay.animate.set_opacity(1.0)]
+            animations.extend(FadeOut(mob) for mob in fade_targets)
+            self.play(*animations, run_time=run_time)
+            self.camera.background_color = target_bg
+            self.clear()
+            return
+
+        if fade_targets:
+            self.play(*[FadeOut(mob) for mob in fade_targets], run_time=run_time)
+        self.clear()
+        self.camera.background_color = target_bg
+
+    def _build_intro_a_end_state(self) -> dict[str, Mobject]:
+        """Build the held final state for clip A."""
+        question = Tex(r"Which probe matches?", color=WHITE, font_size=44)
+        probe_target = make_image_card(
+            stim_path(_HOOK_CODE, 5),
+            height=2.40,
+            border_color=AMBER,
+            fill_color=BLACK,
+            fill_opacity=1.0,
+            buff=0.05,
+        )
+        probe_foil = make_image_card(
+            stim_path(_HOOK_CODE, 8),
+            height=2.40,
+            border_color="#555555",
+            fill_color=BLACK,
+            fill_opacity=1.0,
+            buff=0.05,
+        )
+        probes = Group(probe_target, probe_foil).arrange(RIGHT, buff=0.70)
+        content = Group(question, probes).arrange(DOWN, buff=0.50)
+        content.move_to(ORIGIN)
+        return {
+            "question": question,
+            "probe_target": probe_target,
+            "probe_foil": probe_foil,
+            "content": content,
+        }
+
+    def _play_intro_a_core(self) -> None:
+        """Play clip A from an empty stage."""
         self.camera.background_color = BLACK
 
-        # ── Video simulation: hard cuts, no dissolve ───────────────────────────
         def _frame(idx: int) -> ImageMobject:
             img = ImageMobject(stim_path(_HOOK_CODE, idx))
             img.height = 5.80
@@ -299,10 +314,8 @@ class IntroCognitiveProblemA(Scene):
             self.wait(0.12)
             current = nxt
 
-        # Abrupt blackout — no fade
         self.remove(current)
 
-        # Fixation cross during delay: mirrors the actual experiment
         fix = VGroup(
             Line(UP * 0.20, DOWN * 0.20, stroke_width=2.4, color="#666666"),
             Line(LEFT * 0.20, RIGHT * 0.20, stroke_width=2.4, color="#666666"),
@@ -312,64 +325,38 @@ class IntroCognitiveProblemA(Scene):
         self.remove(fix)
         self.wait(0.10)
 
-        # ── Probe question ─────────────────────────────────────────────────────
-        question = Tex(r"Which probe matches?", color=WHITE, font_size=44)
-
-        probe_target = make_image_card(
-            stim_path(_HOOK_CODE, 5), height=2.40,
-            border_color=AMBER, fill_color=BLACK, fill_opacity=1.0, buff=0.05,
-        )
-        probe_foil = make_image_card(
-            stim_path(_HOOK_CODE, 8), height=2.40,
-            border_color="#555555", fill_color=BLACK, fill_opacity=1.0, buff=0.05,
-        )
-        probes = Group(probe_target, probe_foil).arrange(RIGHT, buff=0.70)
-
-        # Anchor question + probes as a unit so spacing is always consistent
-        content = Group(question, probes).arrange(DOWN, buff=0.50)
-        content.move_to(ORIGIN)
-
-        self.play(FadeIn(question, shift=DOWN * 0.06), run_time=0.50)
+        state = self._build_intro_a_end_state()
+        self.play(FadeIn(state["question"], shift=DOWN * 0.06), run_time=0.50)
         self.play(
             LaggedStart(
-                FadeIn(probe_target, scale=0.97),
-                FadeIn(probe_foil, scale=0.97),
+                FadeIn(state["probe_target"], scale=0.97),
+                FadeIn(state["probe_foil"], scale=0.97),
                 lag_ratio=0.28,
             ),
             run_time=0.70,
         )
         self.wait(3.50)
 
-
-class IntroCognitiveProblemB(Scene):
-    """Scene B — make perception → interruption → maintenance → comparison visible."""
-
-    _STRIP = (0, 2, 4, 6, 8)
-    _FROZEN_IDX = 4   # frame kept in memory
-
-    def construct(self) -> None:
-        self.camera.background_color = BG
-
-        title = title_block(
-            r"Perception $\to$ interruption $\to$ maintenance $\to$ comparison"
-        )
-
-        # ── Row 1: frame strip (left-biased so cut line + dead zone fit right) ─
-        CARD_H = 1.05
+    def _build_intro_b_layout(self) -> dict[str, Mobject]:
+        """Build the full static layout for clip B."""
+        title = title_block(r"Perception $\to$ interruption $\to$ maintenance $\to$ comparison")
+        card_h = 1.05
         frozen_pos = list(self._STRIP).index(self._FROZEN_IDX)
         strip_cards = Group(
             *[
                 make_image_card(
                     stim_path(_HOOK_CODE, idx),
-                    height=CARD_H,
+                    height=card_h,
                     border_color=BLUE if idx == self._FROZEN_IDX else LGREY,
-                    fill_color=WHITE, fill_opacity=1.0, buff=0.035,
+                    fill_color=WHITE,
+                    fill_opacity=1.0,
+                    buff=0.035,
                 )
                 for idx in self._STRIP
             ]
         ).arrange(RIGHT, buff=0.22)
         strip_cards.next_to(title, DOWN, buff=0.40)
-        strip_cards.shift(LEFT * 1.50)  # push left: leaves ~3 u on right for cut + dead zone
+        strip_cards.shift(LEFT * 1.50)
 
         time_dots = VGroup(
             *[
@@ -382,49 +369,64 @@ class IntroCognitiveProblemB(Scene):
 
         frozen_card = strip_cards[frozen_pos]
         frozen_ring = SurroundingRectangle(
-            frozen_card, color=BLUE, stroke_width=2.4, buff=0.07, corner_radius=0.07,
+            frozen_card,
+            color=BLUE,
+            stroke_width=2.4,
+            buff=0.07,
+            corner_radius=0.07,
         )
 
-        # ── Interruption: dashed line + grey dead zone ─────────────────────────
         cut_x = strip_cards[-1].get_right()[0] + 0.50
         zone_top = strip_cards.get_top()[1] + 0.22
         zone_bot = time_dots.get_bottom()[1] - 0.16
         cut_line = DashedLine(
-            [cut_x, zone_top, 0], [cut_x, zone_bot, 0],
-            color=RED, stroke_width=2.0, dash_length=0.10,
+            [cut_x, zone_top, 0],
+            [cut_x, zone_bot, 0],
+            color=RED,
+            stroke_width=2.0,
+            dash_length=0.10,
         )
         cut_label = Tex(r"\textbf{interruption}", color=RED, font_size=15)
         cut_label.next_to(cut_line, UP, buff=0.10)
 
-        dead_zone = Rectangle(
-            width=2.40, height=zone_top - zone_bot, stroke_width=0,
-        ).set_fill(LGREY, opacity=0.16)
+        dead_zone = Rectangle(width=2.40, height=zone_top - zone_bot, stroke_width=0).set_fill(
+            LGREY, opacity=0.16
+        )
         dead_zone.next_to(cut_line, RIGHT, buff=0.0)
         dead_zone.align_to([0, zone_bot, 0], DOWN)
 
-        # ── Row 2: brain (center-left) and probe (right) ───────────────────────
         brain_parts = brain_icon_with_evc(highlight_color=AMBER, scale_factor=0.76)
         brain_group = brain_parts["group"]
         brain_group.move_to(LEFT * 0.60 + DOWN * 1.20)
 
         wm_trace = make_image_card(
-            stim_path(_HOOK_CODE, self._FROZEN_IDX), height=0.76,
-            border_color=AMBER, fill_color=WHITE, fill_opacity=1.0, buff=0.025,
+            stim_path(_HOOK_CODE, self._FROZEN_IDX),
+            height=0.76,
+            border_color=AMBER,
+            fill_color=WHITE,
+            fill_opacity=1.0,
+            buff=0.025,
         )
         wm_trace.move_to(brain_group.get_center() + LEFT * 0.18 + UP * 0.10)
         wm_label = Tex("WM trace", color=AMBER, font_size=14)
         wm_label.next_to(wm_trace, DOWN, buff=0.08)
 
-        # Straight arrow: frozen frame bottom → brain top
         encode_arrow = Arrow(
             frozen_card.get_bottom() + DOWN * 0.06,
             brain_group.get_top() + UP * 0.06,
-            color=BLUE, stroke_width=1.8, buff=0.06, tip_shape=StealthTip,
+            color=BLUE,
+            stroke_width=1.8,
+            buff=0.06,
+            tip_shape=StealthTip,
         )
 
         probe = make_image_card(
-            stim_path(_HOOK_CODE, self._FROZEN_IDX), height=0.82,
-            border_color=GREEN, fill_color=WHITE, fill_opacity=1.0, buff=0.03,
+            stim_path(_HOOK_CODE, self._FROZEN_IDX),
+            height=0.82,
+            border_color=GREEN,
+            fill_color=WHITE,
+            fill_opacity=1.0,
+            buff=0.03,
         )
         probe.move_to(RIGHT * 4.60 + DOWN * 1.20)
         probe_label = Tex("probe", color=GREEN, font_size=14)
@@ -433,12 +435,14 @@ class IntroCognitiveProblemB(Scene):
         compare_arrow = Arrow(
             probe.get_left() + LEFT * 0.04,
             brain_group.get_right() + RIGHT * 0.04,
-            color=GREEN, stroke_width=1.8, buff=0.06, tip_shape=StealthTip,
+            color=GREEN,
+            stroke_width=1.8,
+            buff=0.06,
+            tip_shape=StealthTip,
         )
         compare_label = Tex("compare", color=GREEN, font_size=14)
         compare_label.next_to(compare_arrow, UP, buff=0.08)
 
-        # ── Phase bar ─────────────────────────────────────────────────────────
         phase_bar = VGroup(
             Tex("perception", color=BLUE, font_size=18),
             Tex(r"$\to$", color=LGREY, font_size=18),
@@ -449,65 +453,110 @@ class IntroCognitiveProblemB(Scene):
             Tex("comparison", color=GREEN, font_size=18),
         ).arrange(RIGHT, buff=0.18).to_edge(DOWN, buff=0.28)
 
-        # ── Animation ─────────────────────────────────────────────────────────
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.65)
+        final_group = Group(
+            title,
+            strip_cards,
+            time_dots,
+            frozen_ring,
+            cut_line,
+            cut_label,
+            dead_zone,
+            brain_group,
+            wm_trace,
+            wm_label,
+            encode_arrow,
+            probe,
+            probe_label,
+            compare_arrow,
+            compare_label,
+            phase_bar,
+        )
+        return {
+            "title": title,
+            "strip_cards": strip_cards,
+            "time_dots": time_dots,
+            "frozen_ring": frozen_ring,
+            "cut_line": cut_line,
+            "cut_label": cut_label,
+            "dead_zone": dead_zone,
+            "brain_group": brain_group,
+            "wm_trace": wm_trace,
+            "wm_label": wm_label,
+            "encode_arrow": encode_arrow,
+            "probe": probe,
+            "probe_label": probe_label,
+            "compare_arrow": compare_arrow,
+            "compare_label": compare_label,
+            "phase_bar": phase_bar,
+            "final_group": final_group,
+        }
+
+    def _play_intro_b_core(self) -> dict[str, Mobject]:
+        """Play clip B from an empty stage."""
+        self.camera.background_color = BG
+        state = self._build_intro_b_layout()
+        self.play(FadeIn(state["title"], shift=UP * 0.04), run_time=0.65)
         self.play(
-            LaggedStart(*[FadeIn(c, shift=UP * 0.04) for c in strip_cards], lag_ratio=0.12),
-            FadeIn(time_dots),
+            LaggedStart(
+                *[FadeIn(card, shift=UP * 0.04) for card in state["strip_cards"]],
+                lag_ratio=0.12,
+            ),
+            FadeIn(state["time_dots"]),
             run_time=0.80,
         )
-        self.play(Create(frozen_ring), run_time=0.45)
+        self.play(Create(state["frozen_ring"]), run_time=0.45)
         self.wait(0.40)
         self.play(
-            Create(cut_line),
-            FadeIn(cut_label, shift=DOWN * 0.04),
-            FadeIn(dead_zone),
+            Create(state["cut_line"]),
+            FadeIn(state["cut_label"], shift=DOWN * 0.04),
+            FadeIn(state["dead_zone"]),
             run_time=0.55,
         )
         self.wait(0.30)
-        self.play(FadeIn(brain_group, scale=0.97), run_time=0.55)
+        self.play(FadeIn(state["brain_group"], scale=0.97), run_time=0.55)
         self.play(
-            Create(encode_arrow),
-            TransformFromCopy(frozen_card, wm_trace),
-            FadeIn(wm_label, shift=UP * 0.04),
+            Create(state["encode_arrow"]),
+            TransformFromCopy(state["strip_cards"][list(self._STRIP).index(self._FROZEN_IDX)], state["wm_trace"]),
+            FadeIn(state["wm_label"], shift=UP * 0.04),
             run_time=0.85,
         )
         self.wait(0.60)
-        self.play(FadeIn(probe, scale=0.97), FadeIn(probe_label), run_time=0.50)
-        self.play(Create(compare_arrow), FadeIn(compare_label, shift=DOWN * 0.04), run_time=0.50)
-        self.play(FadeIn(phase_bar, shift=UP * 0.04), run_time=0.55)
+        self.play(
+            FadeIn(state["probe"], scale=0.97),
+            FadeIn(state["probe_label"]),
+            run_time=0.50,
+        )
+        self.play(
+            Create(state["compare_arrow"]),
+            FadeIn(state["compare_label"], shift=DOWN * 0.04),
+            run_time=0.50,
+        )
+        self.play(FadeIn(state["phase_bar"], shift=UP * 0.04), run_time=0.55)
         self.wait(3.50)
+        return state
 
-
-class IntroCognitiveProblemC(Scene):
-    """Scene C — LTM as a top-down modulator of the maintained WM trace."""
-
-    _FROZEN_IDX = 4
-    # Prior specs: (height, opacity) — smallest+faintest = oldest, largest+brightest = most recent
-    _PRIOR_SPECS = [(0.62, 0.28), (0.74, 0.56), (0.86, 0.90)]
-
-    def construct(self) -> None:
-        self.camera.background_color = BG
-
+    def _build_intro_c_layout(self) -> dict[str, Mobject]:
+        """Build the full static layout for clip C."""
         title = title_block(
             r"\textbf{Long-term memory modulates the maintained trace}",
             r"Prior exposure shapes the WM representation --- without replacing it",
         )
-
-        # ── Brain + WM trace (prominent; this is the focal element) ───────────
         brain_parts = brain_icon_with_evc(highlight_color=AMBER, scale_factor=1.00)
         brain_group = brain_parts["group"]
         brain_group.move_to(RIGHT * 0.80 + DOWN * 0.40)
 
         wm_trace = make_image_card(
-            stim_path(_HOOK_CODE, self._FROZEN_IDX), height=0.86,
-            border_color=AMBER, fill_color=WHITE, fill_opacity=1.0, buff=0.03,
+            stim_path(_HOOK_CODE, self._FROZEN_IDX),
+            height=0.86,
+            border_color=AMBER,
+            fill_color=WHITE,
+            fill_opacity=1.0,
+            buff=0.03,
         )
         wm_trace.move_to(brain_group.get_center() + LEFT * 0.20 + UP * 0.12)
         wm_label = Tex("WM trace", color=AMBER, font_size=17)
         wm_label.next_to(wm_trace, DOWN, buff=0.10)
 
-        # ── Prior exposures: diagonal fan (oldest bottom-left → newest top-right)
         fan_anchors = [
             LEFT * 4.60 + DOWN * 0.90,
             LEFT * 4.20 + DOWN * 0.35,
@@ -516,78 +565,127 @@ class IntroCognitiveProblemC(Scene):
         prior_cards = Group(
             *[
                 make_image_card(
-                    stim_path(_HOOK_CODE, self._FROZEN_IDX), height=h,
-                    border_color=GREEN, fill_color=WHITE, fill_opacity=1.0, buff=0.025,
+                    stim_path(_HOOK_CODE, self._FROZEN_IDX),
+                    height=h,
+                    border_color=GREEN,
+                    fill_color=WHITE,
+                    fill_opacity=1.0,
+                    buff=0.025,
                 ).set(opacity=op).move_to(anchor)
                 for (h, op), anchor in zip(self._PRIOR_SPECS, fan_anchors)
             ]
         )
-
         prior_header = Tex("prior exposures", color=GREEN, font_size=19)
         prior_header.move_to(LEFT * 4.20 + UP * 1.05)
         prior_sub = Tex("repetition history / familiarity", color=GREEN, font_size=15)
         prior_sub.next_to(prior_cards, DOWN, buff=0.18)
 
-        # ── Modulatory arrow: most-recent card → WM trace ─────────────────────
-        mod_start = prior_cards[-1].get_right() + RIGHT * 0.08
-        mod_end = wm_trace.get_left() + LEFT * 0.06
         mod_arrow = CurvedArrow(
-            mod_start, mod_end,
-            angle=-0.40, color=GREEN, stroke_width=2.0, tip_shape=StealthTip,
+            prior_cards[-1].get_right() + RIGHT * 0.08,
+            wm_trace.get_left() + LEFT * 0.06,
+            angle=-0.40,
+            color=GREEN,
+            stroke_width=2.0,
+            tip_shape=StealthTip,
         )
         mod_label = Tex("top-down modulation", color=GREEN, font_size=16)
         mod_label.next_to(mod_arrow.get_center(), UP, buff=0.18)
 
-        # ── Callout ────────────────────────────────────────────────────────────
         callout = make_callout(
             r"LTM shapes the trace --- it does not replace it.",
-            GREEN, font_size=22,
+            GREEN,
+            font_size=22,
         ).to_edge(DOWN, buff=0.34)
 
-        # ── Animation ─────────────────────────────────────────────────────────
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(brain_group, scale=0.97), run_time=0.60)
-        self.play(
-            FadeIn(wm_trace, scale=0.97),
-            FadeIn(wm_label, shift=UP * 0.04),
-            run_time=0.60,
+        final_group = Group(
+            title,
+            brain_group,
+            wm_trace,
+            wm_label,
+            prior_cards,
+            prior_header,
+            prior_sub,
+            mod_arrow,
+            mod_label,
+            callout,
         )
-        self.wait(0.60)
-        self.play(FadeIn(prior_header, shift=DOWN * 0.04), run_time=0.40)
+        return {
+            "title": title,
+            "brain_group": brain_group,
+            "wm_trace": wm_trace,
+            "wm_label": wm_label,
+            "prior_cards": prior_cards,
+            "prior_header": prior_header,
+            "prior_sub": prior_sub,
+            "mod_arrow": mod_arrow,
+            "mod_label": mod_label,
+            "callout": callout,
+            "final_group": final_group,
+        }
+
+    def _transition_b_to_c(self, b_state: dict[str, Mobject]) -> dict[str, Mobject]:
+        """Transition clip B into clip C using their shared brain/trace motif."""
+        c_state = self._build_intro_c_layout()
+        self.play(
+            FadeOut(b_state["title"], shift=UP * 0.04),
+            FadeOut(b_state["strip_cards"], shift=UP * 0.05),
+            FadeOut(b_state["time_dots"], shift=UP * 0.03),
+            FadeOut(b_state["frozen_ring"]),
+            FadeOut(b_state["cut_line"]),
+            FadeOut(b_state["cut_label"], shift=DOWN * 0.03),
+            FadeOut(b_state["dead_zone"]),
+            FadeOut(b_state["encode_arrow"]),
+            FadeOut(b_state["probe"]),
+            FadeOut(b_state["probe_label"]),
+            FadeOut(b_state["compare_arrow"]),
+            FadeOut(b_state["compare_label"], shift=DOWN * 0.03),
+            FadeOut(b_state["phase_bar"], shift=DOWN * 0.04),
+            Transform(b_state["brain_group"], c_state["brain_group"]),
+            Transform(b_state["wm_trace"], c_state["wm_trace"]),
+            Transform(b_state["wm_label"], c_state["wm_label"]),
+            run_time=0.90,
+        )
+        self.play(FadeIn(c_state["title"], shift=UP * 0.04), run_time=0.70)
+        self.play(FadeIn(c_state["prior_header"], shift=DOWN * 0.04), run_time=0.40)
         self.play(
             LaggedStart(
-                *[FadeIn(c, scale=0.96) for c in prior_cards],
+                *[FadeIn(card, scale=0.96) for card in c_state["prior_cards"]],
                 lag_ratio=0.24,
             ),
-            FadeIn(prior_sub),
+            FadeIn(c_state["prior_sub"]),
             run_time=0.85,
         )
         self.wait(0.50)
-        self.play(Create(mod_arrow), FadeIn(mod_label, shift=DOWN * 0.04), run_time=0.80)
+        self.play(
+            Create(c_state["mod_arrow"]),
+            FadeIn(c_state["mod_label"], shift=DOWN * 0.04),
+            run_time=0.80,
+        )
         self.wait(0.60)
-        self.play(FadeIn(callout, shift=UP * 0.04), run_time=0.60)
+        self.play(FadeIn(c_state["callout"], shift=UP * 0.04), run_time=0.60)
         self.wait(3.50)
+        return c_state
 
-
-class IntroClassicalView(Scene):
-    """Classical view of working memory --- PFC, parietal, and temporal regions."""
-
-    def construct(self) -> None:
-        self.camera.background_color = BG
-
+    def _build_intro_d_layout(self) -> dict[str, Mobject]:
+        """Build the full static layout for clip D."""
         title = title_block(
             r"\textbf{Classical view of working memory}",
             "Lesions, persistent firing, and early human imaging converged on association cortex",
         )
-
         paper_column = Group(
             make_paper_snapshot(
-                _FUNAHASHI_1989_FIG, "delay-period firing", "Funahashi et al. (1989)",
-                accent=AMBER, height=1.74,
+                _FUNAHASHI_1989_FIG,
+                "delay-period firing",
+                "Funahashi et al. (1989)",
+                accent=AMBER,
+                height=1.74,
             ),
             make_paper_snapshot(
-                _JONIDES_1993_FIG, "PET evidence", "Jonides et al. (1993)",
-                accent=AMBER, height=1.55,
+                _JONIDES_1993_FIG,
+                "PET evidence",
+                "Jonides et al. (1993)",
+                accent=AMBER,
+                height=1.55,
             ),
         ).arrange(DOWN, buff=0.24)
         paper_header = Tex("Seminal evidence", color=MGREY, font_size=20)
@@ -603,52 +701,56 @@ class IntroClassicalView(Scene):
             make_literature_entry(
                 "Persistent firing",
                 ("Sustained activity in monkey PFC", "looked like the memory trace itself"),
-                (r"Fuster \& Alexander (1971); Kubota \& Niki (1971)",
-                 "Funahashi et al. (1989, 1993)"),
+                (r"Fuster \& Alexander (1971); Kubota \& Niki (1971)", "Funahashi et al. (1989, 1993)"),
                 accent=AMBER,
             ),
             make_literature_entry(
                 "Human imaging",
                 ("PET and fMRI reinforced a frontal-parietal", "maintenance network"),
-                (r"Jonides et al. (1993); D'Esposito et al. (1995)",
-                 "Courtney et al. (1997, 1998)"),
+                (r"Jonides et al. (1993); D'Esposito et al. (1995)", "Courtney et al. (1997, 1998)"),
                 accent=AMBER,
             ),
         ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
 
         content = Group(paper_stack, evidence).arrange(RIGHT, buff=0.86, aligned_edge=UP)
         content.next_to(title, DOWN, buff=0.34)
-
         takeaway = make_callout(
             "Working memory was mainly localized to prefrontal and association cortex.",
-            AMBER, font_size=22,
+            AMBER,
+            font_size=22,
         ).to_edge(DOWN, buff=0.34)
+        return {"title": title, "content": content, "takeaway": takeaway, "final_group": Group(title, content, takeaway)}
 
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(content, shift=UP * 0.05), run_time=0.95)
-        self.play(FadeIn(takeaway, shift=UP * 0.04), run_time=0.55)
-        self.wait(4.00)
-
-
-class IntroSensoryRecruitment(Scene):
-    """Sensory recruitment model --- MVPA evidence and the ongoing debate."""
-
-    def construct(self) -> None:
+    def _play_intro_d_core(self) -> dict[str, Mobject]:
+        """Play clip D from an empty stage."""
         self.camera.background_color = BG
+        state = self._build_intro_d_layout()
+        self.play(FadeIn(state["title"], shift=UP * 0.04), run_time=0.75)
+        self.play(FadeIn(state["content"], shift=UP * 0.05), run_time=0.95)
+        self.play(FadeIn(state["takeaway"], shift=UP * 0.04), run_time=0.55)
+        self.wait(4.00)
+        return state
 
+    def _build_intro_e_layout(self) -> dict[str, Mobject]:
+        """Build the full static layout for clip E."""
         title = title_block(
             r"\textbf{Sensory recruitment model}",
             "Theory papers and MVPA studies suggested that visual cortex also carries maintained content",
         )
-
         paper_column = Group(
             make_paper_snapshot(
-                _AWH_JONIDES_2001_FIG, "theory shift", r"Awh \& Jonides (2001)",
-                accent=BLUE, height=1.62,
+                _AWH_JONIDES_2001_FIG,
+                "theory shift",
+                r"Awh \& Jonides (2001)",
+                accent=BLUE,
+                height=1.62,
             ),
             make_paper_snapshot(
-                _HARRISON_TONG_2009_FIG, "orientation decoding", r"Harrison \& Tong (2009)",
-                accent=BLUE, height=1.62,
+                _HARRISON_TONG_2009_FIG,
+                "orientation decoding",
+                r"Harrison \& Tong (2009)",
+                accent=BLUE,
+                height=1.62,
             ),
         ).arrange(DOWN, buff=0.24)
         paper_header = Tex("Seminal evidence", color=MGREY, font_size=20)
@@ -677,27 +779,26 @@ class IntroSensoryRecruitment(Scene):
 
         content = Group(paper_stack, evidence).arrange(RIGHT, buff=0.86, aligned_edge=UP)
         content.next_to(title, DOWN, buff=0.34)
-
         takeaway = make_callout(
             r"The key claim: early visual cortex may actively carry WM content --- but the debate continues.",
-            BLUE, font_size=21,
+            BLUE,
+            font_size=21,
         ).to_edge(DOWN, buff=0.34)
+        return {"title": title, "content": content, "takeaway": takeaway, "final_group": Group(title, content, takeaway)}
 
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(content, shift=UP * 0.05), run_time=0.95)
-        self.play(FadeIn(takeaway, shift=UP * 0.04), run_time=0.55)
-        self.wait(4.50)
-
-
-class IntroResearchQuestions(Scene):
-    """Introduce the three research questions motivating the thesis."""
-
-    def construct(self) -> None:
-        """Run the animation sequence for this scene."""
+    def _play_intro_e_core(self) -> dict[str, Mobject]:
+        """Play clip E from an empty stage."""
         self.camera.background_color = BG
+        state = self._build_intro_e_layout()
+        self.play(FadeIn(state["title"], shift=UP * 0.04), run_time=0.75)
+        self.play(FadeIn(state["content"], shift=UP * 0.05), run_time=0.95)
+        self.play(FadeIn(state["takeaway"], shift=UP * 0.04), run_time=0.55)
+        self.wait(4.50)
+        return state
 
+    def _build_intro_f_layout(self) -> dict[str, Mobject]:
+        """Build the full static layout for clip F."""
         title = title_block(r"\textbf{Three research questions}")
-
         brain = brain_icon_with_evc(highlight_color=BLUE, scale_factor=0.82)
         focus_frame = RoundedRectangle(
             width=4.45,
@@ -739,33 +840,74 @@ class IntroResearchQuestions(Scene):
                 height=1.18,
             ),
         ).arrange(DOWN, buff=0.22)
-        question_stack = question_cards
 
-        content = Group(focus_panel, question_stack).arrange(RIGHT, buff=0.78, aligned_edge=UP)
+        content = Group(focus_panel, question_cards).arrange(RIGHT, buff=0.78, aligned_edge=UP)
         content.next_to(title, DOWN, buff=0.36)
+        return {
+            "title": title,
+            "focus_panel": focus_panel,
+            "question_cards": question_cards,
+            "content": content,
+            "final_group": Group(title, focus_panel, question_cards),
+        }
 
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(focus_panel, shift=UP * 0.05), run_time=0.85)
+    def _play_intro_f_core(self) -> dict[str, Mobject]:
+        """Play clip F from an empty stage."""
+        self.camera.background_color = BG
+        state = self._build_intro_f_layout()
+        self.play(FadeIn(state["title"], shift=UP * 0.04), run_time=0.75)
+        self.play(FadeIn(state["focus_panel"], shift=UP * 0.05), run_time=0.85)
         self.play(
             LaggedStart(
-                *[FadeIn(card, shift=RIGHT * 0.08) for card in question_cards],
+                *[FadeIn(card, shift=RIGHT * 0.08) for card in state["question_cards"]],
                 lag_ratio=0.18,
             ),
             run_time=1.20,
         )
         self.wait(4.00)
+        return state
 
 
-_PUBLIC_SCENES: tuple[type[Scene], ...] = (
-    IntroCognitiveProblemA,
-    IntroCognitiveProblemB,
-    IntroCognitiveProblemC,
-    IntroClassicalView,
-    IntroSensoryRecruitment,
-    IntroResearchQuestions,
+_INTRODUCTION_SECTION_NAMES: tuple[str, ...] = (
+    "intro_cognitive_problem_a",
+    "intro_cognitive_problem_b",
+    "intro_cognitive_problem_c",
+    "intro_classical_view",
+    "intro_sensory_recruitment",
+    "intro_research_questions",
 )
 
-for _scene_cls in _PUBLIC_SCENES:
-    globals()[_scene_cls.__name__] = _wrap_scene(_scene_cls)
 
-__all__ = [scene_cls.__name__ for scene_cls in _PUBLIC_SCENES]
+class Introduction(_IntroductionFlow):
+    """Unified production render for the introduction."""
+
+    def construct(self) -> None:
+        """Render the full introduction as one sectioned scene."""
+        self.next_section(_INTRODUCTION_SECTION_NAMES[0])
+        self._play_intro_a_core()
+
+        self.next_section(_INTRODUCTION_SECTION_NAMES[1])
+        self._section_boundary_hold()
+        self._transition_to_empty_stage(target_bg=BG)
+        b_state = self._play_intro_b_core()
+
+        self.next_section(_INTRODUCTION_SECTION_NAMES[2])
+        self._section_boundary_hold()
+        self._transition_b_to_c(b_state)
+
+        self.next_section(_INTRODUCTION_SECTION_NAMES[3])
+        self._section_boundary_hold()
+        self._transition_to_empty_stage(target_bg=BG)
+        self._play_intro_d_core()
+
+        self.next_section(_INTRODUCTION_SECTION_NAMES[4])
+        self._section_boundary_hold()
+        self._transition_to_empty_stage(target_bg=BG)
+        self._play_intro_e_core()
+
+        self.next_section(_INTRODUCTION_SECTION_NAMES[5])
+        self._section_boundary_hold()
+        self._transition_to_empty_stage(target_bg=BG)
+        self._play_intro_f_core()
+
+__all__ = ["Introduction"]

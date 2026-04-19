@@ -1,47 +1,11 @@
 """
-Study 2.
+Study 2 — sectioned production render.
 
-  00 Study2ResearchQuestions
-  01 Study2ExperimentalDesign
-  02 Study2DecodingOverviewA
-  03 Study2DecodingOverviewB
-  04 Study2DecodingOverviewC
-  05 Study2WithinSession2DecodingSetup
-  06 Study2WithinSession2DecodingResults
-  07 Study2CrossSessionDecodingSetup
-  08 Study2CrossSessionDecodingResultsA
-  09 Study2CrossSessionDecodingResultsB
-  10 Study2WithinSession1DecodingSetupA
-  11 Study2WithinSession1DecodingSetupB
-  12 Study2WithinSession1DecodingResultsA
-  13 Study2WithinSession1DecodingResultsB
-  14 Study2WithinSession1DecodingResultsC
-  15 Study2WithinSession1DecodingResultsD
-  16 Study2LTMResultsExplainer
-  17 Study2SupplementalRoiTimecoursesA
-  18 Study2SupplementalRoiTimecoursesB
-  19 Study2SupplementalRoiTempGenMats
-  20 Study2SearchlightStimulation
-  21 Study2SearchlightDelay
-  22 Study2DecodingSummary
+Render from this file to keep all Study 2 outputs in the same
+`media/videos/04_study2/...` folder.
 
-Render:
-    uv run manim scenes/study2.py Study2ResearchQuestions -qh
-    uv run manim scenes/study2.py Study2ExperimentalDesign -qh
-    uv run manim scenes/study2.py Study2DecodingOverviewA -qh
-    uv run manim scenes/study2.py Study2DecodingOverviewB -qh
-    uv run manim scenes/study2.py Study2DecodingOverviewC -qh
-    uv run manim scenes/study2.py Study2WithinSession2DecodingSetup -qh
-    uv run manim scenes/study2.py Study2CrossSessionDecodingSetup -qh
-    uv run manim scenes/study2.py Study2WithinSession1DecodingSetupA -qh
-    uv run manim scenes/study2.py Study2WithinSession1DecodingResultsA -qh
-    uv run manim scenes/study2.py Study2LTMResultsExplainer -qh
-    uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesA -qh
-    uv run manim scenes/study2.py Study2SupplementalRoiTimecoursesB -qh
-    uv run manim scenes/study2.py Study2SupplementalRoiTempGenMats -qh
-    uv run manim scenes/study2.py Study2SearchlightStimulation -qh
-    uv run manim scenes/study2.py Study2SearchlightDelay -qh
-    uv run manim scenes/study2.py Study2DecodingSummary -qh
+Production render:
+    uv run manim scenes/study2.py Study2 -ql --save_sections
 """
 from __future__ import annotations
 import base64
@@ -62,69 +26,32 @@ from manim import *
 from svgelements import Path as SVGPath
 
 _SCENES_DIR = Path(__file__).resolve().parent
-if str(_SCENES_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCENES_DIR))
+_SCRIPTS_DIR = _SCENES_DIR.parent / "scripts"
+for _import_dir in (_SCENES_DIR, _SCRIPTS_DIR):
+    if str(_import_dir) not in sys.path:
+        sys.path.insert(0, str(_import_dir))
 
-from utils import section_output_dir
+from utils import section_output_dir, simplify_manim_section_video_names
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 _SECTION_OUTPUT_DIR = section_output_dir("study2")
 config.video_dir = f"{{media_dir}}/videos/{_SECTION_OUTPUT_DIR}/{{quality}}"
 config.images_dir = f"{{media_dir}}/images/{_SECTION_OUTPUT_DIR}"
+config.output_file = "study2"
+simplify_manim_section_video_names(
+    lambda _output_name, index, name, ext: f"{index:03}_{name}{ext}"
+)
 _STUDY2_ASSET_DIR = REPO_ROOT / "assets" / "images" / "study2"
 _STUDY2_STIM_DIR = _STUDY2_ASSET_DIR / "stimuli_task"
 _STUDY2_TRAINING_DIR = _STUDY2_ASSET_DIR / "stimuli_training"
 
-# ── Narrative render order ────────────────────────────────────────────────────
-_STUDY2_SCENE_ORDER: dict[str, str] = {
-    "Study2ResearchQuestions":               "00",
-    "Study2ExperimentalDesign":              "01",
-    "Study2DecodingOverviewA":               "02",
-    "Study2DecodingOverviewB":               "03",
-    "Study2DecodingOverviewC":               "04",
-    "Study2WithinSession2DecodingSetup":     "05",
-    "Study2WithinSession2DecodingResults":   "06",
-    "Study2CrossSessionDecodingSetup":       "07",
-    "Study2CrossSessionDecodingResultsA":    "08",
-    "Study2CrossSessionDecodingResultsB":    "09",
-    "Study2WithinSession1DecodingSetupA":    "10",
-    "Study2WithinSession1DecodingSetupB":    "11",
-    "Study2WithinSession1DecodingResultsA":  "12",
-    "Study2WithinSession1DecodingResultsB":  "13",
-    "Study2WithinSession1DecodingResultsC":  "14",
-    "Study2WithinSession1DecodingResultsD":  "15",
-    "Study2LTMResultsExplainer":             "16",
-    "Study2SupplementalRoiTimecoursesA":     "17",
-    "Study2SupplementalRoiTimecoursesB":     "18",
-    "Study2SupplementalRoiTempGenMats":      "19",
-    "Study2SearchlightStimulation":          "20",
-    "Study2SearchlightDelay":                "21",
-    "Study2DecodingSummary":                 "22",
-}
-
 
 class _Study2NumberedScene:
-    """Mixin: auto-prefix the output file with the narrative scene number."""
+    """Compatibility mixin for legacy Study 2 scene classes."""
 
     def __init__(self, *args, **kwargs):
-        """Initialize the numbered-scene mixin and register the output filename."""
-        number = _STUDY2_SCENE_ORDER.get(self.__class__.__name__, "")
-        if number:
-            config.output_file = f"{number}_{self.__class__.__name__}"
+        """Forward to the regular Scene initialization."""
         super().__init__(*args, **kwargs)
-
-
-def _wrap_public_scene(scene_cls: type[Scene], public_name: str) -> type[Scene]:
-    """Expose one scene class under an ordered public wrapper."""
-
-    class _Wrapped(scene_cls):
-        pass
-
-    _Wrapped.__name__ = public_name
-    _Wrapped.__qualname__ = public_name
-    _Wrapped.__module__ = __name__
-    _Wrapped.__doc__ = scene_cls.__doc__
-    return _Wrapped
 
 
 # ── Palette ───────────────────────────────────────────────────────────────────
@@ -13002,6 +12929,118 @@ class Study2SearchlightDelay(_Study2SearchlightSceneBase):
     _SUPPLEMENTAL_IMAGE_PATH = _SEARCHLIGHT_DELAY_BRAIN_PNG
 
 
+_STUDY2_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
+    Study2ResearchQuestions,
+    Study2ExperimentalDesign,
+    Study2DecodingOverviewA,
+    Study2DecodingOverviewB,
+    Study2DecodingOverviewC,
+    Study2WithinSession2DecodingSetup,
+    Study2WithinSession2DecodingResults,
+    Study2CrossSessionDecodingSetup,
+    Study2CrossSessionDecodingResultsA,
+    Study2CrossSessionDecodingResultsB,
+    Study2WithinSession1DecodingSetupA,
+    Study2WithinSession1DecodingSetupB,
+    Study2WithinSession1DecodingResultsA,
+    Study2WithinSession1DecodingResultsB,
+    Study2WithinSession1DecodingResultsC,
+    Study2WithinSession1DecodingResultsD,
+    Study2LTMResultsExplainer,
+    Study2SupplementalRoiTimecoursesA,
+    Study2SupplementalRoiTimecoursesB,
+    Study2SupplementalRoiTempGenMats,
+    Study2SearchlightStimulation,
+    Study2SearchlightDelay,
+    Study2DecodingSummary,
+)
+_STUDY2_SECTION_NAMES: tuple[str, ...] = (
+    "study2_research_questions",
+    "study2_experimental_design",
+    "study2_decoding_overview_a",
+    "study2_decoding_overview_b",
+    "study2_decoding_overview_c",
+    "study2_within_session2_decoding_setup",
+    "study2_within_session2_decoding_results",
+    "study2_cross_session_decoding_setup",
+    "study2_cross_session_decoding_results_a",
+    "study2_cross_session_decoding_results_b",
+    "study2_within_session1_decoding_setup_a",
+    "study2_within_session1_decoding_setup_b",
+    "study2_within_session1_decoding_results_a",
+    "study2_within_session1_decoding_results_b",
+    "study2_within_session1_decoding_results_c",
+    "study2_within_session1_decoding_results_d",
+    "study2_ltm_results_explainer",
+    "study2_supplemental_roi_timecourses_a",
+    "study2_supplemental_roi_timecourses_b",
+    "study2_supplemental_roi_temp_gen_mats",
+    "study2_searchlight_stimulation",
+    "study2_searchlight_delay",
+    "study2_decoding_summary",
+)
+
+
+class Study2(
+    Study2LTMResultsExplainer,
+    Study2SupplementalRoiTempGenMats,
+    Study2SearchlightDelay,
+    Study2ResearchQuestions,
+    Study2ExperimentalDesign,
+):
+    """
+    Unified production render for Study 2.
+
+    This master scene emits the full narrative from one continuous scene via
+    ``--save_sections``.
+    """
+
+    _SECTION_SCENES: tuple[tuple[str, type[Scene]], ...] = tuple(
+        zip(_STUDY2_SECTION_NAMES, _STUDY2_MASTER_SECTION_ORDER)
+    )
+
+    def _legacy_scene_proxy(self, scene_cls: type[Scene]) -> Scene:
+        """Return a scene-typed proxy sharing this scene's live state."""
+        proxy = scene_cls.__new__(scene_cls)
+        proxy.__dict__ = self.__dict__
+        return proxy
+
+    def _reset_master_scene_state(self) -> None:
+        """Reset mobjects and camera placement before replaying one legacy scene."""
+        self.clear()
+        self.camera.background_color = BG
+        if hasattr(self.camera, "frame_center"):
+            self.camera.frame_center = ORIGIN.copy()
+
+    def _hold_previous_section_frame(self) -> None:
+        """Pin the previous section's last frame into the next section."""
+        self.wait(1 / config.frame_rate)
+
+    def _run_legacy_section(
+        self,
+        section_name: str,
+        scene_cls: type[Scene],
+        *,
+        carry_previous_frame: bool,
+    ) -> None:
+        """Replay one existing Study 2 scene inside the master section render."""
+        self.next_section(section_name)
+        if carry_previous_frame:
+            self._hold_previous_section_frame()
+        self._reset_master_scene_state()
+        scene_cls.construct(self._legacy_scene_proxy(scene_cls))
+
+    def construct(self) -> None:
+        """Render the full Study 2 narrative as one sectioned scene."""
+        self._reset_master_scene_state()
+        for idx, (section_name, scene_cls) in enumerate(self._SECTION_SCENES):
+            self._run_legacy_section(
+                section_name,
+                scene_cls,
+                carry_previous_frame=idx > 0,
+            )
+
+
 _HIDDEN_STUDY2_SCENES: tuple[type[Scene], ...] = (
     Study2ResearchQuestions,
     Study2ExperimentalDesign,
@@ -13036,34 +13075,5 @@ _HIDDEN_STUDY2_SCENES: tuple[type[Scene], ...] = (
 
 for _scene_cls in _HIDDEN_STUDY2_SCENES:
     _scene_cls.__module__ = "_study2_internal"
-
-_PUBLIC_STUDY2_SCENES: tuple[tuple[str, type[Scene], str], ...] = (
-    ("SCENE_00", Study2ResearchQuestions, "Study2ResearchQuestions"),
-    ("SCENE_01", Study2ExperimentalDesign, "Study2ExperimentalDesign"),
-    ("SCENE_02", Study2DecodingOverviewA, "Study2DecodingOverviewA"),
-    ("SCENE_03", Study2DecodingOverviewB, "Study2DecodingOverviewB"),
-    ("SCENE_04", Study2DecodingOverviewC, "Study2DecodingOverviewC"),
-    ("SCENE_05", Study2WithinSession2DecodingSetup, "Study2WithinSession2DecodingSetup"),
-    ("SCENE_06", Study2WithinSession2DecodingResults, "Study2WithinSession2DecodingResults"),
-    ("SCENE_07", Study2CrossSessionDecodingSetup, "Study2CrossSessionDecodingSetup"),
-    ("SCENE_08", Study2CrossSessionDecodingResultsA, "Study2CrossSessionDecodingResultsA"),
-    ("SCENE_09", Study2CrossSessionDecodingResultsB, "Study2CrossSessionDecodingResultsB"),
-    ("SCENE_10", Study2WithinSession1DecodingSetupA, "Study2WithinSession1DecodingSetupA"),
-    ("SCENE_11", Study2WithinSession1DecodingSetupB, "Study2WithinSession1DecodingSetupB"),
-    ("SCENE_12", Study2WithinSession1DecodingResultsA, "Study2WithinSession1DecodingResultsA"),
-    ("SCENE_13", Study2WithinSession1DecodingResultsB, "Study2WithinSession1DecodingResultsB"),
-    ("SCENE_14", Study2WithinSession1DecodingResultsC, "Study2WithinSession1DecodingResultsC"),
-    ("SCENE_15", Study2WithinSession1DecodingResultsD, "Study2WithinSession1DecodingResultsD"),
-    ("SCENE_16", Study2LTMResultsExplainer, "Study2LTMResultsExplainer"),
-    ("SCENE_17", Study2SupplementalRoiTimecoursesA, "Study2SupplementalRoiTimecoursesA"),
-    ("SCENE_18", Study2SupplementalRoiTimecoursesB, "Study2SupplementalRoiTimecoursesB"),
-    ("SCENE_19", Study2SupplementalRoiTempGenMats, "Study2SupplementalRoiTempGenMats"),
-    ("SCENE_20", Study2SearchlightStimulation, "Study2SearchlightStimulation"),
-    ("SCENE_21", Study2SearchlightDelay, "Study2SearchlightDelay"),
-    ("SCENE_22", Study2DecodingSummary, "Study2DecodingSummary"),
-)
-
-for _slot_name, _scene_cls, _public_name in _PUBLIC_STUDY2_SCENES:
-    globals()[_slot_name] = _wrap_public_scene(_scene_cls, _public_name)
-
-__all__ = list(_STUDY2_SCENE_ORDER)
+Study2.__module__ = __name__
+__all__ = ["Study2"]

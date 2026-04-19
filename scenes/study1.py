@@ -1,38 +1,11 @@
 """
-Study 1 — consolidated, numbered entrypoint.
+Study 1 — sectioned production render.
 
 Render from this file to keep all Study 1 outputs in the same
-`media/videos/03_study1/...` folder with `NN_ClassName` filenames.
+`media/videos/03_study1/...` folder.
 
-Main narrative sequence:
-    01 Study1Stage1Step1a
-    02 Study1Stage1Step1b
-    03 Study1Stage1Step2
-    04 Study1Stage1Step2Showcase
-    05 Study1Stage1Step3Part1
-    06 Study1Stage1Step3Part2
-    07 Study1Stage1Step4Setup
-    08 Study1Stage1Step4Interpolation
-    09 Study1Stage1Step5Handoff
-    10 Study1Stage1Step5Deck
-    11 Study1Stage1Step5LPIPS
-    12 Study1StimulusSetShowcase
-    13 Study1Stage2TripletTask
-    14 Study1Stage2TripletTask2
-    15 Study1Stage2SimilarityJudgementsExamples
-    16 Study1Stage2EmbeddingResult
-    17 Study1Stage2ModelOrderToHeatmap
-    18 Study1Stage3MemoryIntroA
-    19 Study1Stage3MemoryIntroB
-    20 Study1Stage3MemoryIntroC
-    21 Study1Stage3MemoryIntroD
-    22 Study1Stage3MemoryExpDesign
-    23 Study1Stage3MemoryExpResults
-
-Render examples:
-    uv run manim scenes/study1.py Study1Stage1Step1a -qh
-    uv run manim scenes/study1.py Study1Stage1Step5LPIPS -qh
-    uv run manim scenes/study1.py Study1Stage2TripletTask -qh
+Production render:
+    uv run manim scenes/study1.py Study1 -ql --save_sections
 """
 from __future__ import annotations
 
@@ -46,19 +19,35 @@ import matplotlib.cm as _mcm
 from PIL import Image as PILImage
 
 _SCENES_DIR = Path(__file__).resolve().parent
-if str(_SCENES_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCENES_DIR))
+_SCRIPTS_DIR = _SCENES_DIR.parent / "scripts"
+for _import_dir in (_SCENES_DIR, _SCRIPTS_DIR):
+    if str(_import_dir) not in sys.path:
+        sys.path.insert(0, str(_import_dir))
 
 import types
 
 from manim import *
 
-from utils import REPO_ROOT, env_path, section_output_dir
+from utils import REPO_ROOT, env_path, section_output_dir, simplify_manim_section_video_names
 
 
 _SECTION_OUTPUT_DIR = section_output_dir("study1")
 config.video_dir = f"{{media_dir}}/videos/{_SECTION_OUTPUT_DIR}/{{quality}}"
 config.images_dir = f"{{media_dir}}/images/{_SECTION_OUTPUT_DIR}"
+config.output_file = "study1"
+simplify_manim_section_video_names(
+    lambda _output_name, index, name, ext: f"{index:03}_{name}{ext}"
+)
+
+
+def _ensure_study1_output_dirs(output_name: str | None = None) -> None:
+    """Create the Study 1 render directories before Manim writes uncached frames."""
+    video_dir = Path(config.get_dir("video_dir"))
+    images_dir = Path(config.get_dir("images_dir"))
+    video_dir.mkdir(parents=True, exist_ok=True)
+    images_dir.mkdir(parents=True, exist_ok=True)
+    if output_name:
+        (video_dir / "partial_movie_files" / output_name).mkdir(parents=True, exist_ok=True)
 
 
 
@@ -945,6 +934,20 @@ class _Study1Step3Base(Scene):
             current_cloud_left_final = cloud_pair_box(final_pair[0]).set_z_index(4)
             current_cloud_right_final = cloud_pair_box(final_pair[1]).set_z_index(4)
             return {'pair_card': pair_card_final, 'repeat_note': repeat_note_final, 'pair_arrow': pair_arrow_final, 'current_cell': current_cell_final, 'current_cloud_left': current_cloud_left_final, 'current_cloud_right': current_cloud_right_final}
+        if self.segment == 'merged':
+            self.next_section("05_Step3Part1")
+            play_intro_and_matrix(keep_example_visible=True)
+            self.wait(0.55)
+            self.next_section("06_Step3Part2")
+            self.play(
+                FadeOut(current_cloud_left, current_cloud_right),
+                FadeOut(pair_arrow, current_cell),
+                FadeOut(pair_title, pair_formula, pair_l, pair_r, pair_score, repeat_note),
+                run_time=0.45,
+            )
+            self.wait(0.25)
+            play_selection_sequence()
+            return
         if self.segment == 'selection':
             part1_final_frame = build_part1_final_frame()
             self.add(cloud_title, *cloud_imgs, tri_bg, tri_frame, diag_line, matrix_title, axis_x, axis_y, *band_imgs, part1_final_frame['pair_card'], part1_final_frame['repeat_note'], part1_final_frame['pair_arrow'], part1_final_frame['current_cell'], part1_final_frame['current_cloud_left'], part1_final_frame['current_cloud_right'])
@@ -960,8 +963,8 @@ class _Study1Step3Base(Scene):
         play_selection_sequence()
 
 class Study1Stage1Step3(_Study1Step3Base):
-    """Run the full LPIPS matrix construction and anchor-guide selection sequence."""
-    segment = 'full'
+    """LPIPS matrix construction and anchor-guide selection with next_section() continuity."""
+    segment = 'merged'
 
 class Study1Stage1Step3Part1(_Study1Step3Base):
     """Render the matrix-building half of the LPIPS selection story."""
@@ -1188,25 +1191,27 @@ class Study1Stage1Step4Setup(_Study1Step4CompactBase):
     """Render the compact latent-space setup before interpolation begins."""
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
-        state = self.build_common_state()
-        self.play_setup_intro(state)
+        state = _Study1Step4CompactBase.build_common_state(self)
+        _Study1Step4CompactBase.play_setup_intro(self, state)
         self.wait(0.8)
 
 class Study1Stage1Step4Interpolation(_Study1Step4CompactBase):
     """Animate only the compact latent interpolation on top of the prebuilt setup."""
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
-        state = self.build_common_state()
-        self.add_setup_static(state)
-        self.play_interpolation(state)
+        state = _Study1Step4CompactBase.build_common_state(self)
+        _Study1Step4CompactBase.add_setup_static(self, state)
+        _Study1Step4CompactBase.play_interpolation(self, state)
 
 class Study1Stage1Step4(_Study1Step4CompactBase):
-    """Combine the compact latent-space setup and interpolation into one scene."""
+    """Compact latent-space setup and interpolation with next_section() continuity."""
     def construct(self) -> None:
-        """Run the animation sequence for this scene."""
-        state = self.build_common_state()
-        self.play_setup_intro(state)
-        self.play_interpolation(state)
+        state = _Study1Step4CompactBase.build_common_state(self)
+        self.next_section("07_Step4Setup")
+        _Study1Step4CompactBase.play_setup_intro(self, state)
+        self.wait(0.8)
+        self.next_section("08_Step4Interpolation")
+        _Study1Step4CompactBase.play_interpolation(self, state)
 
 
 # --- inlined from study1_step5.py ---
@@ -1476,12 +1481,12 @@ class _Study1Step5Base(ThreeDScene):
         vec_za = _s1_step5__vec3(ORIGIN, tip_a, _s1_step5__C_ZA, sw=4.2, tl=0.28)
         lab_za = MathTex('\\mathbf{z}_\\alpha', color=_s1_step5__C_ZA, font_size=36).move_to(tip_a * 1.3)
         THUMB_H = 0.95
-        thumb0 = ImageMobject(pixels[0]).scale_to_fit_height(THUMB_H)
-        thumb0.move_to(tip0 + z0_dir * 0.92)
+        thumb0 = st['anchor_grp'][0]
+        thumb0.scale_to_fit_height(THUMB_H).move_to(tip0 + z0_dir * 0.92)
         border0 = SurroundingRectangle(thumb0, color=_s1_step5_BLUE, stroke_width=2.5, buff=0.03)
         t1_offset = np.array([THUMB_H / 2 + 0.05, THUMB_H / 2, 0.16])
-        thumb1 = ImageMobject(pixels[-1]).scale_to_fit_height(THUMB_H)
-        thumb1.move_to(tip1 + t1_offset)
+        thumb1 = st['guide_grp'][0]
+        thumb1.scale_to_fit_height(THUMB_H).move_to(tip1 + t1_offset)
         border1 = SurroundingRectangle(thumb1, color=_s1_step5__C_Z1, stroke_width=2.5, buff=0.03)
         lab_z0 = Tex('\\text{anchor}', color=_s1_step5_BLUE, font_size=30).set_z_index(10)
         lab_z0.move_to(thumb0.get_center() + np.array([0.0, 0.0, THUMB_H / 2 + 0.26]))
@@ -1549,6 +1554,7 @@ class _Study1Step5Base(ThreeDScene):
             self.play(Write(deck_count_label), FadeIn(placeholder), run_time=0.4)
         else:
             self.play(Write(deck_count_label), run_time=0.4)
+        st['_placeholder'] = placeholder
         self.wait(0.8)
 
     def play_lpips_formula(self, st: dict) -> None:
@@ -1604,8 +1610,8 @@ class Study1Stage1Step5Handoff(_Study1Step5Base):
 
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
-        state = self.build_common_state()
-        self.play_step4_handoff(state)
+        state = _Study1Step5Base.build_common_state(self)
+        _Study1Step5Base.play_step4_handoff(self, state)
         self.wait(0.5)
 
 class Study1Stage1Step5Deck(_Study1Step5Base):
@@ -1613,9 +1619,9 @@ class Study1Stage1Step5Deck(_Study1Step5Base):
 
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
-        state = self.build_common_state()
+        state = _Study1Step5Base.build_common_state(self)
         self.add(state['anchor_grp'], state['guide_grp'])
-        self.play_deck_between(state)
+        _Study1Step5Base.play_deck_between(self, state)
         self.wait(0.5)
 
 class Study1Stage1Step5LPIPS(_Study1Step5Base):
@@ -1623,11 +1629,34 @@ class Study1Stage1Step5LPIPS(_Study1Step5Base):
 
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
-        state = self.build_common_state()
-        self.setup_deck_final_state(state)
-        self.play_lpips_formula(state)
-        self.play_preselection(state)
-        self.play_final_reveal(state)
+        state = _Study1Step5Base.build_common_state(self)
+        _Study1Step5Base.setup_deck_final_state(self, state)
+        _Study1Step5Base.play_lpips_formula(self, state)
+        _Study1Step5Base.play_preselection(self, state)
+        _Study1Step5Base.play_final_reveal(self, state)
+        self.wait(1.0)
+
+
+class Study1Stage1Step5(_Study1Step5Base):
+    """Merged handoff → deck → LPIPS preselection with next_section() continuity."""
+
+    def construct(self) -> None:
+        state = _Study1Step5Base.build_common_state(self)
+
+        self.next_section("09_Step5Handoff")
+        _Study1Step5Base.play_step4_handoff(self, state)
+        self.wait(0.5)
+
+        self.next_section("10_Step5Deck")
+        # anchor_grp and guide_grp are already on screen from the handoff animation
+        _Study1Step5Base.play_deck_between(self, state)
+        self.wait(0.5)
+
+        self.next_section("11_Step5LPIPS")
+        # deck layout and anchor/guide corners are live — no rebuild needed
+        _Study1Step5Base.play_lpips_formula(self, state)
+        _Study1Step5Base.play_preselection(self, state)
+        _Study1Step5Base.play_final_reveal(self, state)
         self.wait(1.0)
 
 
@@ -3104,6 +3133,86 @@ class Study1Stage3MemoryExpResults(Scene):
         self.play(FadeIn(conclusion, shift=UP * 0.06), run_time=0.55)
         self.wait(1.2)
 
+class Study1Stage1_2D(Scene):
+    """Scenes 01–06 merged: Step1a, Step1b, Step2, Step2Showcase, Step3 (sections 05–06)."""
+
+    def construct(self) -> None:
+        self.next_section("01_Step1a")
+        Study1Stage1Step1a.construct(self)
+        self.next_section("02_Step1b")
+        self.clear()
+        Study1Stage1Step1b.construct(self)
+        self.next_section("03_Step2")
+        self.clear()
+        Study1Stage1Step2.construct(self)
+        self.next_section("04_Step2Showcase")
+        self.clear()
+        Study1Stage1Step2Showcase.construct(self)
+        self.clear()
+        self.segment = "merged"
+        _Study1Step3Base.construct(self)
+        del self.segment
+
+
+class Study1Stage2(
+    Study1Stage2ModelOrderToHeatmap,
+    Study1Stage2SimilarityJudgementsExamples,
+    Study1Stage2TripletTask,
+):
+    """Scenes 12–17 merged: StimulusSetShowcase through ModelOrderToHeatmap."""
+
+    def construct(self) -> None:
+        self.next_section("12_StimulusSetShowcase")
+        Study1StimulusSetShowcase.construct(self)
+        self.next_section("13_TripletTask")
+        self.clear()
+        Study1Stage2TripletTask.construct(self)
+        self.next_section("14_TripletTask2")
+        self.clear()
+        Study1Stage2TripletTask2.construct(self)
+        self.next_section("15_SimilarityJudgements")
+        self.clear()
+        Study1Stage2SimilarityJudgementsExamples.construct(self)
+        self.next_section("16_EmbeddingResult")
+        self.clear()
+        Study1Stage2EmbeddingResult.construct(self)
+        self.next_section("17_ModelOrderToHeatmap")
+        self.clear()
+        Study1Stage2ModelOrderToHeatmap.construct(self)
+
+
+class Study1Stage3(Scene):
+    """Scenes 18–23 merged: MemoryIntroA–D, MemoryExpDesign, MemoryExpResults."""
+
+    # The merged scene replays Study1Stage3MemoryExpResults on itself, so it
+    # needs the same asset paths that results scene expects on `self`.
+    AGG_IMG = Study1Stage3MemoryExpResults.AGG_IMG
+    BLOCK_IMG = Study1Stage3MemoryExpResults.BLOCK_IMG
+
+    def construct(self) -> None:
+        self.next_section("18_MemoryIntroA")
+        Study1Stage3MemoryIntroA.construct(self)
+        self.next_section("19_MemoryIntroB")
+        self.clear()
+        Study1Stage3MemoryIntroB.construct(self)
+        self.next_section("20_MemoryIntroC")
+        self.clear()
+        Study1Stage3MemoryIntroC.construct(self)
+        self.next_section("21_MemoryIntroD")
+        self.clear()
+        Study1Stage3MemoryIntroD.construct(self)
+        self.next_section("22_MemoryExpDesign")
+        self.clear()
+        Study1Stage3MemoryExpDesign.construct(self)
+        self.next_section("23_MemoryExpResults")
+        self.clear()
+        Study1Stage3MemoryExpResults.construct(self)
+
+
+_Study1Stage1_2D = Study1Stage1_2D
+_Study1Stage2 = Study1Stage2
+_Study1Stage3 = Study1Stage3
+
 _Study1Stage1Step1a = Study1Stage1Step1a
 _Study1Stage1Step1b = Study1Stage1Step1b
 _Study1Stage1Step2 = Study1Stage1Step2
@@ -3115,6 +3224,7 @@ _Study1Stage1Step4 = Study1Stage1Step4
 _Study1Stage1Step4Detailed = Study1Stage1Step4Detailed
 _Study1Stage1Step4Interpolation = Study1Stage1Step4Interpolation
 _Study1Stage1Step4Setup = Study1Stage1Step4Setup
+_Study1Stage1Step5 = Study1Stage1Step5
 _Study1Stage1Step5Deck = Study1Stage1Step5Deck
 _Study1Stage1Step5Handoff = Study1Stage1Step5Handoff
 _Study1Stage1Step5LPIPS = Study1Stage1Step5LPIPS
@@ -3142,66 +3252,6 @@ Study1Step4Setup = Study1Stage1Step4Setup
 Study1Step5Deck = Study1Stage1Step5Deck
 Study1Step5Handoff = Study1Stage1Step5Handoff
 Study1Step5LPIPS = Study1Stage1Step5LPIPS
-
-# Narrative order for numbered outputs.
-_STUDY1_SCENE_ORDER: dict[str, str] = {
-    "Study1Stage1Step1a": "01",
-    "Study1Stage1Step1b": "02",
-    "Study1Stage1Step2": "03",
-    "Study1Stage1Step2Showcase": "04",
-    "Study1Stage1Step3Part1": "05",
-    "Study1Stage1Step3Part2": "06",
-    "Study1Stage1Step4Setup": "07",
-    "Study1Stage1Step4Interpolation": "08",
-    "Study1Stage1Step5Handoff": "09",
-    "Study1Stage1Step5Deck": "10",
-    "Study1Stage1Step5LPIPS": "11",
-    "Study1StimulusSetShowcase": "12",
-    "Study1Stage2TripletTask": "13",
-    "Study1Stage2TripletTask2": "14",
-    "Study1Stage2SimilarityJudgementsExamples": "15",
-    "Study1Stage2EmbeddingResult": "16",
-    "Study1Stage2ModelOrderToHeatmap": "17",
-    "Study1Stage3MemoryIntroA": "18",
-    "Study1Stage3MemoryIntroB": "19",
-    "Study1Stage3MemoryIntroC": "20",
-    "Study1Stage3MemoryIntroD": "21",
-    "Study1Stage3MemoryExpDesign": "22",
-    "Study1Stage3MemoryExpResults": "23",
-}
-
-_STUDY1_OUTPUT_NAME_OVERRIDES: dict[str, str] = {}
-
-
-class _Study1NumberedScene:
-    """Mixin that assigns consolidated Study 1 output filenames to wrapped scenes."""
-
-    def __init__(self, *args, **kwargs):
-        """Set `config.output_file` from the Study 1 scene registry before scene init."""
-        scene_name = self.__class__.__name__
-        output_name = None
-        number = _STUDY1_SCENE_ORDER.get(scene_name, "")
-        if number:
-            output_name = f"{number}_{scene_name}"
-        if output_name:
-            config.output_file = output_name
-        super().__init__(*args, **kwargs)
-
-
-def _wrap_scene(scene_cls: type[Scene]) -> type[Scene]:
-    """Wrap an imported scene so it inherits Study 1 output naming without renaming it."""
-
-    class _Wrapped(_Study1NumberedScene, scene_cls):
-        """Wrapped scene type that adds Study 1 numbering while preserving metadata."""
-
-        pass
-
-    _Wrapped.__name__ = scene_cls.__name__
-    _Wrapped.__qualname__ = scene_cls.__name__
-    _Wrapped.__module__ = __name__
-    _Wrapped.__doc__ = scene_cls.__doc__
-    return _Wrapped
-
 
 BG = "#FFFFFF"
 INK = "#1C1C1E"
@@ -4939,31 +4989,133 @@ _Study1Stage3MemoryExpDesign = Study1Stage3MemoryExpDesign
 Study1Stage3MemoryExpDesignA = Study1Stage3MemoryExpDesign
 
 
-_PUBLIC_SCENES: tuple[type[Scene], ...] = (
-    _Study1Stage1Step1a,
-    _Study1Stage1Step1b,
-    _Study1Stage1Step2,
-    _Study1Stage1Step2Showcase,
-    _Study1Stage1Step3Part1,
-    _Study1Stage1Step3Part2,
-    _Study1Stage1Step4Setup,
-    _Study1Stage1Step4Interpolation,
-    _Study1Stage1Step5Handoff,
-    _Study1Stage1Step5Deck,
-    _Study1Stage1Step5LPIPS,
-    _Study1StimulusSetShowcase,
-    _Study1Stage2TripletTask,
-    _Study1Stage2TripletTask2,
-    _Study1Stage2SimilarityJudgementsExamples,
-    _Study1Stage2EmbeddingResult,
-    _Study1Stage2ModelOrderToHeatmap,
+_STUDY1_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
+    Study1Stage1Step1a,
+    Study1Stage1Step1b,
+    Study1Stage1Step2,
+    Study1Stage1Step2Showcase,
+    Study1Stage1Step3Part1,
+    Study1Stage1Step3Part2,
+    Study1Stage1Step4Setup,
+    Study1Stage1Step4Interpolation,
+    Study1Stage1Step5Handoff,
+    Study1Stage1Step5Deck,
+    Study1Stage1Step5LPIPS,
+    Study1StimulusSetShowcase,
+    Study1Stage2TripletTask,
+    Study1Stage2TripletTask2,
+    Study1Stage2SimilarityJudgementsExamples,
+    Study1Stage2EmbeddingResult,
+    Study1Stage2ModelOrderToHeatmap,
     Study1Stage3MemoryIntroA,
     Study1Stage3MemoryIntroB,
     Study1Stage3MemoryIntroC,
     Study1Stage3MemoryIntroD,
-    _Study1Stage3MemoryExpDesign,
-    _Study1Stage3MemoryExpResults,
+    Study1Stage3MemoryExpDesign,
+    Study1Stage3MemoryExpResults,
 )
+_STUDY1_SECTION_NAMES: tuple[str, ...] = (
+    "study1_stage1_step1a",
+    "study1_stage1_step1b",
+    "study1_stage1_step2",
+    "study1_stage1_step2_showcase",
+    "study1_stage1_step3_part1",
+    "study1_stage1_step3_part2",
+    "study1_stage1_step4_setup",
+    "study1_stage1_step4_interpolation",
+    "study1_stage1_step5_handoff",
+    "study1_stage1_step5_deck",
+    "study1_stage1_step5_lpips",
+    "study1_stimulus_set_showcase",
+    "study1_stage2_triplet_task",
+    "study1_stage2_triplet_task2",
+    "study1_stage2_similarity_judgements_examples",
+    "study1_stage2_embedding_result",
+    "study1_stage2_model_order_to_heatmap",
+    "study1_stage3_memory_intro_a",
+    "study1_stage3_memory_intro_b",
+    "study1_stage3_memory_intro_c",
+    "study1_stage3_memory_intro_d",
+    "study1_stage3_memory_exp_design",
+    "study1_stage3_memory_exp_results",
+)
+
+
+class Study1(
+    Study1Stage1Step5,
+    Study1Stage1Step4,
+    Study1Stage1Step3,
+    Study1Stage2,
+    Study1Stage3,
+):
+    """
+    Unified production render for Study 1.
+
+    This master scene emits the full narrative from one continuous Manim scene
+    via ``--save_sections``.
+    """
+
+    _SECTION_SCENES: tuple[tuple[str, type[Scene]], ...] = tuple(
+        zip(_STUDY1_SECTION_NAMES, _STUDY1_MASTER_SECTION_ORDER)
+    )
+    _SCENE_INSTANCE_OVERRIDES: tuple[str, ...] = ("segment",)
+
+    def _reset_master_scene_state(self) -> None:
+        """Reset mobjects and camera placement before replaying one legacy scene."""
+        self.clear()
+        self.camera.background_color = WHITE
+        if hasattr(self.camera, "frame_center"):
+            self.camera.frame_center = ORIGIN.copy()
+        self.set_camera_orientation(
+            phi=0 * DEGREES,
+            theta=-90 * DEGREES,
+            gamma=0 * DEGREES,
+            zoom=1,
+            frame_center=ORIGIN,
+        )
+
+    def _hold_previous_section_frame(self) -> None:
+        """Pin the previous section's last frame into the next section."""
+        self.wait(1 / config.frame_rate)
+
+    def _run_legacy_section(
+        self,
+        section_name: str,
+        scene_cls: type[Scene],
+        *,
+        carry_previous_frame: bool,
+    ) -> None:
+        """Replay one existing Study 1 scene inside the master section render."""
+        self.next_section(section_name)
+        if carry_previous_frame:
+            self._hold_previous_section_frame()
+        self._reset_master_scene_state()
+        instance_overrides: dict[str, tuple[bool, object | None]] = {}
+        for attr_name in self._SCENE_INSTANCE_OVERRIDES:
+            if attr_name not in scene_cls.__dict__:
+                continue
+            had_instance_value = attr_name in self.__dict__
+            instance_overrides[attr_name] = (had_instance_value, self.__dict__.get(attr_name))
+            setattr(self, attr_name, scene_cls.__dict__[attr_name])
+        try:
+            scene_cls.construct(self)
+        finally:
+            for attr_name, (had_instance_value, previous_value) in instance_overrides.items():
+                if had_instance_value:
+                    setattr(self, attr_name, previous_value)
+                else:
+                    self.__dict__.pop(attr_name, None)
+
+    def construct(self) -> None:
+        """Render the full Study 1 narrative as one sectioned scene."""
+        _ensure_study1_output_dirs(str(getattr(config, "output_file", self.__class__.__name__)))
+        self._reset_master_scene_state()
+        for idx, (section_name, scene_cls) in enumerate(self._SECTION_SCENES):
+            self._run_legacy_section(
+                section_name,
+                scene_cls,
+                carry_previous_frame=idx > 0,
+            )
 
 _HIDDEN_STUDY1_SCENES: tuple[type[Scene], ...] = tuple(
     dict.fromkeys(
@@ -4979,8 +5131,5 @@ _HIDDEN_STUDY1_SCENES: tuple[type[Scene], ...] = tuple(
 for _scene_cls in _HIDDEN_STUDY1_SCENES:
     _scene_cls.__module__ = "_study1_internal"
 
-for _scene_cls in _PUBLIC_SCENES:
-    _scene_num = _STUDY1_SCENE_ORDER[_scene_cls.__name__]
-    globals()[f"SCENE_{_scene_num}"] = _wrap_scene(_scene_cls)
-
-__all__ = list(_STUDY1_SCENE_ORDER)
+Study1.__module__ = __name__
+__all__ = ["Study1"]
