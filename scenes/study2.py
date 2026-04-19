@@ -1,30 +1,32 @@
 """
 Study 2.
 
+  00 Study2ResearchQuestions
   01 Study2ExperimentalDesign
   02 Study2DecodingOverviewA
   03 Study2DecodingOverviewB
-  03c Study2DecodingOverviewC
-  04 Study2WithinSession2DecodingSetup
-  05 Study2WithinSession2DecodingResults
-  06 Study2CrossSessionDecodingSetup
-  07 Study2CrossSessionDecodingResultsA
-  08 Study2CrossSessionDecodingResultsB
-  09 Study2WithinSession1DecodingSetupA
-  10 Study2WithinSession1DecodingSetupB
-  11 Study2WithinSession1DecodingResultsA
-  12 Study2WithinSession1DecodingResultsB
-  13 Study2WithinSession1DecodingResultsC
-  14 Study2WithinSession1DecodingResultsD
-  15 Study2LTMResultsExplainer
-  16 Study2SupplementalRoiTimecoursesA
-  17 Study2SupplementalRoiTimecoursesB
-  18 Study2SupplementalRoiTempGenMats
-  19 Study2SearchlightStimulation
-  20 Study2SearchlightDelay
-  21 Study2DecodingSummary
+  04 Study2DecodingOverviewC
+  05 Study2WithinSession2DecodingSetup
+  06 Study2WithinSession2DecodingResults
+  07 Study2CrossSessionDecodingSetup
+  08 Study2CrossSessionDecodingResultsA
+  09 Study2CrossSessionDecodingResultsB
+  10 Study2WithinSession1DecodingSetupA
+  11 Study2WithinSession1DecodingSetupB
+  12 Study2WithinSession1DecodingResultsA
+  13 Study2WithinSession1DecodingResultsB
+  14 Study2WithinSession1DecodingResultsC
+  15 Study2WithinSession1DecodingResultsD
+  16 Study2LTMResultsExplainer
+  17 Study2SupplementalRoiTimecoursesA
+  18 Study2SupplementalRoiTimecoursesB
+  19 Study2SupplementalRoiTempGenMats
+  20 Study2SearchlightStimulation
+  21 Study2SearchlightDelay
+  22 Study2DecodingSummary
 
 Render:
+    uv run manim scenes/study2.py Study2ResearchQuestions -qh
     uv run manim scenes/study2.py Study2ExperimentalDesign -qh
     uv run manim scenes/study2.py Study2DecodingOverviewA -qh
     uv run manim scenes/study2.py Study2DecodingOverviewB -qh
@@ -79,25 +81,25 @@ _STUDY2_SCENE_ORDER: dict[str, str] = {
     "Study2ExperimentalDesign":              "01",
     "Study2DecodingOverviewA":               "02",
     "Study2DecodingOverviewB":               "03",
-    "Study2DecodingOverviewC":               "03c",
-    "Study2WithinSession2DecodingSetup":     "04",
-    "Study2WithinSession2DecodingResults":   "05",
-    "Study2CrossSessionDecodingSetup":       "06",
-    "Study2CrossSessionDecodingResultsA":    "07",
-    "Study2CrossSessionDecodingResultsB":    "08",
-    "Study2WithinSession1DecodingSetupA":    "09",
-    "Study2WithinSession1DecodingSetupB":    "10",
-    "Study2WithinSession1DecodingResultsA":  "11",
-    "Study2WithinSession1DecodingResultsB":  "12",
-    "Study2WithinSession1DecodingResultsC":  "13",
-    "Study2WithinSession1DecodingResultsD":  "14",
-    "Study2LTMResultsExplainer":             "15",
-    "Study2SupplementalRoiTimecoursesA":     "16",
-    "Study2SupplementalRoiTimecoursesB":     "17",
-    "Study2SupplementalRoiTempGenMats":      "18",
-    "Study2SearchlightStimulation":          "19",
-    "Study2SearchlightDelay":                "20",
-    "Study2DecodingSummary":                 "21",
+    "Study2DecodingOverviewC":               "04",
+    "Study2WithinSession2DecodingSetup":     "05",
+    "Study2WithinSession2DecodingResults":   "06",
+    "Study2CrossSessionDecodingSetup":       "07",
+    "Study2CrossSessionDecodingResultsA":    "08",
+    "Study2CrossSessionDecodingResultsB":    "09",
+    "Study2WithinSession1DecodingSetupA":    "10",
+    "Study2WithinSession1DecodingSetupB":    "11",
+    "Study2WithinSession1DecodingResultsA":  "12",
+    "Study2WithinSession1DecodingResultsB":  "13",
+    "Study2WithinSession1DecodingResultsC":  "14",
+    "Study2WithinSession1DecodingResultsD":  "15",
+    "Study2LTMResultsExplainer":             "16",
+    "Study2SupplementalRoiTimecoursesA":     "17",
+    "Study2SupplementalRoiTimecoursesB":     "18",
+    "Study2SupplementalRoiTempGenMats":      "19",
+    "Study2SearchlightStimulation":          "20",
+    "Study2SearchlightDelay":                "21",
+    "Study2DecodingSummary":                 "22",
 }
 
 
@@ -110,6 +112,19 @@ class _Study2NumberedScene:
         if number:
             config.output_file = f"{number}_{self.__class__.__name__}"
         super().__init__(*args, **kwargs)
+
+
+def _wrap_public_scene(scene_cls: type[Scene], public_name: str) -> type[Scene]:
+    """Expose one scene class under an ordered public wrapper."""
+
+    class _Wrapped(scene_cls):
+        pass
+
+    _Wrapped.__name__ = public_name
+    _Wrapped.__qualname__ = public_name
+    _Wrapped.__module__ = __name__
+    _Wrapped.__doc__ = scene_cls.__doc__
+    return _Wrapped
 
 
 # ── Palette ───────────────────────────────────────────────────────────────────
@@ -126,6 +141,7 @@ PINE = str(_STIM / "PLA-PIN-T00.png")
 OBS = str(_STIM / "BUI-OBS-T00.png")
 CAT = str(_STIM / "ANI-CAT-T00.png")
 VASE = str(_STIM / "ITE-VAS-T00.png")
+BRI = str(_STIM / "PLA-BRI-T00.png")
 SOFA = str(_STUDY2_TRAINING_DIR / "ITE-SOF-T00.png")
 FIX = str(REPO_ROOT / "assets" / "images" / "fixation_target.png")
 
@@ -497,13 +513,101 @@ _D_PURP  = "#7C3AED"
 _D_CYAN  = "#0891B2"
 _D_LGREY = "#D1D5DB"
 _D_MGREY = "#9CA3AF"
+_DIVERGING_MATRIX_VALUE_MIN = 0.16
+_DIVERGING_MATRIX_VALUE_MAX = 0.84
+_RESULTS_MATRIX_STROKE_COLOR = "#D8D1C7"
+_RESULTS_MATRIX_DIVERGING_LOW_COLOR = "#6E8FB3"
+_RESULTS_MATRIX_DIVERGING_MID_COLOR = "#F5F3EE"
+_RESULTS_MATRIX_DIVERGING_HIGH_COLOR = "#C46A5A"
+_CROSSSESSION_STIM_SCATTER_HEX = "#7B51A0"
+_CROSSSESSION_DELAY_SCATTER_HEX = "#3C9553"
+_CROSSSESSION_STIM_SCATTER = ManimColor(_CROSSSESSION_STIM_SCATTER_HEX)
+_CROSSSESSION_DELAY_SCATTER = ManimColor(_CROSSSESSION_DELAY_SCATTER_HEX)
+
+# ── Overview-only identity palette ───────────────────────────────────────────
+_OVERVIEW_ID_COLOR_BY_IMAGE: dict[str, str] = {
+    LAKE: "#4F78A8",
+    PINE: "#2E8B94",
+    OBS: "#4E8B62",
+    CAT: "#C76A4E",
+    VASE: "#8B6FB3",
+    BRI: "#B45A7A",
+    SOFA: "#2E8B94",
+}
+
+
+def _overview_identity_color(image_path: str) -> str:
+    """Return the overview-scene accent color for one stimulus identity."""
+    if image_path not in _OVERVIEW_ID_COLOR_BY_IMAGE:
+        raise KeyError(f"No overview identity color registered for {image_path}")
+    return _OVERVIEW_ID_COLOR_BY_IMAGE[image_path]
+
+# ── Image identity palette ───────────────────────────────────────────────────
+_ID_COLOR_BY_IMAGE: dict[str, str] = {
+    LAKE: _D_BLUE,
+    LAKE_D1: _D_BLUE,
+    LAKE_D2: _D_BLUE,
+    PINE: _D_AMBER,
+    OBS: _D_GREEN,
+    CAT: _D_RED,
+    VASE: _D_PURP,
+    BRI: _D_CYAN,
+    SOFA: _D_AMBER,
+}
+
+
+def _identity_color(image_path: str) -> str:
+    """Return the shared accent color for one stimulus identity."""
+    if image_path not in _ID_COLOR_BY_IMAGE:
+        raise KeyError(f"No identity color registered for {image_path}")
+    return _ID_COLOR_BY_IMAGE[image_path]
+
+
+def _identity_colors(image_paths: list[str]) -> list[str]:
+    """Return shared accent colors for a sequence of stimulus identities."""
+    return [_identity_color(path) for path in image_paths]
 
 # Brain icon used in the decoding overview
 _BRAIN_PNG_PATH = _STUDY2_ASSET_DIR / "brain_icon_sagittal.png"
 _MRI_SCANNER_PNG_PATH = _STUDY2_ASSET_DIR / "MRIscanner.png"
-_V1V2V3_PNG_PATH = REPO_ROOT / "assets" / "images" / "v1v2v3.png"
+_V1V2V3_VIEWING_PNG_PATH = REPO_ROOT / "assets" / "images" / "v1v2v3_viewing.png"
 _SVM_CLASSIFIER_SVG_PATH = REPO_ROOT / "assets" / "images" / "references" / "svm_classifier_schematic.svg"
 _SVM_CLASSIFIER_GREYSCALE_SVG_PATH = REPO_ROOT / "assets" / "images" / "references" / "svm_classifier_schematic_greyscale.svg"
+
+# Current PNG asset is cropped tightly around the beam + brain composition.
+_V1V2V3_VIEWING_ASSET_W = 422.0
+_V1V2V3_VIEWING_ASSET_H = 285.0
+_V1V2V3_VIEWING_BRAIN_LEFT = 94.0
+_V1V2V3_VIEWING_BRAIN_W = 328.0
+_V1V2V3_VIEWING_BRAIN_H = 285.0
+_V1V2V3_VIEWING_BRAIN_CENTER_X = _V1V2V3_VIEWING_BRAIN_LEFT + _V1V2V3_VIEWING_BRAIN_W / 2.0
+_V1V2V3_VIEWING_BRAIN_CENTER_Y = _V1V2V3_VIEWING_BRAIN_H / 2.0
+
+
+def _make_v1v2v3_viewing_brain(
+    *,
+    brain_left_x: float,
+    brain_center_y: float,
+    target_brain_height: float,
+) -> ImageMobject:
+    """Return the positioned viewing-brain asset using its internal brain bounds."""
+    viewing_brain = ImageMobject(str(_V1V2V3_VIEWING_PNG_PATH))
+    viewing_brain.scale_to_fit_height(
+        target_brain_height / (_V1V2V3_VIEWING_BRAIN_H / _V1V2V3_VIEWING_ASSET_H)
+    )
+    brain_center_offset = np.array([
+        ((_V1V2V3_VIEWING_BRAIN_CENTER_X / _V1V2V3_VIEWING_ASSET_W) - 0.5) * viewing_brain.width,
+        (0.5 - (_V1V2V3_VIEWING_BRAIN_CENTER_Y / _V1V2V3_VIEWING_ASSET_H)) * viewing_brain.height,
+        0.0,
+    ])
+    brain_width = viewing_brain.width * (
+        _V1V2V3_VIEWING_BRAIN_W / _V1V2V3_VIEWING_ASSET_W
+    )
+    brain_center_x = brain_left_x + brain_width / 2.0
+    viewing_brain.move_to(
+        np.array([brain_center_x, brain_center_y, 0.0]) - brain_center_offset
+    )
+    return viewing_brain
 
 
 class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
@@ -517,7 +621,11 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     """
 
     # Three S2 stimulus colours (matching Stimulus 1/2/3 order)
-    _COLS = [_D_BLUE, _D_AMBER, _D_GREEN]
+    _COLS = [
+        _overview_identity_color(LAKE),
+        _overview_identity_color(PINE),
+        _overview_identity_color(OBS),
+    ]
 
     # Target column (left side, after transition)
     _COL_X  = -5.50
@@ -548,14 +656,14 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     _VEC_CS   = 0.17
     _VEC_GAP  = 0.055
     _ROLLING_TARGETS = [
-        (str(_STIM / "ANI-CAT-T00.png"), _D_RED),
-        (str(_STIM / "ITE-VAS-T00.png"), _D_PURP),
-        (str(_STIM / "PLA-BRI-T00.png"), _D_CYAN),
+        (CAT, _overview_identity_color(CAT)),
+        (VASE, _overview_identity_color(VASE)),
+        (BRI, _overview_identity_color(BRI)),
     ]
     _RESTORE_TARGETS = [
-        (OBS, _D_GREEN),
-        (PINE, _D_AMBER),
-        (LAKE, _D_BLUE),
+        (OBS, _overview_identity_color(OBS)),
+        (PINE, _overview_identity_color(PINE)),
+        (LAKE, _overview_identity_color(LAKE)),
     ]
     _ICON_FRAME_STROKE_WIDTH = 2.4
     _ICON_FRAME_BUFF = 0.05
@@ -1619,7 +1727,7 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         self.wait(0.2)
 
         s1_delay_highlight = SurroundingRectangle(
-            boxes1[1], color=_D_RED, stroke_width=3.0, buff=0.06, corner_radius=0.12,
+            boxes1[1], color=_D_GREEN, stroke_width=3.0, buff=0.06, corner_radius=0.12,
         )
         self.play(
             Create(s1_delay_highlight),
@@ -2394,7 +2502,6 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
         shared_item_height = self._SCHEMA_ITEM_HEIGHT
         row_center_y = 0.0
         card = self._make_schema_card(variant)
-        brain = ImageMobject(str(_V1V2V3_PNG_PATH)).scale_to_fit_height(shared_item_height)
         decoder = self._make_schema_decoder(
             ORIGIN,
             shared_item_height * self._SCHEMA_DECODER_HEIGHT_RATIO,
@@ -2407,8 +2514,11 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
         )
 
         card.shift(ORIGIN - card.layout_anchor.get_center())
-        brain.next_to(card.layout_anchor, RIGHT, buff=0.92)
-        projection_lines = self._make_schema_projection_lines(card.projection_source, brain)
+        brain = _make_v1v2v3_viewing_brain(
+            brain_left_x=card.layout_anchor.get_right()[0] + 0.92,
+            brain_center_y=row_center_y,
+            target_brain_height=shared_item_height,
+        )
         pattern_box.next_to(brain, RIGHT, buff=self._SCHEMA_LINK_SPAN)
         pattern_box.shift(UP * (row_center_y - pattern_box.matrix.get_center()[1]))
         arrow_y = row_center_y
@@ -2426,7 +2536,6 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
 
         row_items: list[Mobject] = [
             card,
-            projection_lines,
             brain,
             brain_to_pattern_arrow,
             pattern_box,
@@ -2452,12 +2561,11 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
         row.decoder = decoder
         row.mode = mode
         row.card_group = Group(card)
-        row.brain_group = Group(projection_lines, brain)
+        row.brain_group = Group(brain)
         row.pattern_group = Group(brain_to_pattern_arrow, pattern_box)
         row.decoder_group = Group(decode_arrow, action_label, decoder)
         row.input_group = Group(
             card,
-            projection_lines,
             brain,
             brain_to_pattern_arrow,
             pattern_box,
@@ -2475,7 +2583,6 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
         )
         row.layout_group = Group(
             card.layout_anchor,
-            projection_lines,
             brain,
             brain_to_pattern_arrow,
             pattern_box,
@@ -2851,6 +2958,10 @@ def _make_feature_row(
                 0.10 + 0.90 * value,
             )
         else:
+            value = (
+                _DIVERGING_MATRIX_VALUE_MIN
+                + (_DIVERGING_MATRIX_VALUE_MAX - _DIVERGING_MATRIX_VALUE_MIN) * value
+            )
             midpoint = float(np.clip(midpoint, 1e-6, 1.0 - 1e-6))
             if value <= midpoint:
                 local_t = value / midpoint
@@ -2898,6 +3009,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
     _MATRIX_DIVERGING_LOW_COLOR = "#6E8FB3"
     _MATRIX_DIVERGING_MID_COLOR = "#F5F3EE"
     _MATRIX_DIVERGING_HIGH_COLOR = "#C46A5A"
+    _SETUP_ROWS_RIGHT_SHIFT_RATIO = 0.10
     _BASE_ROWS = [
         np.array([0.90, 0.20, 0.70, 0.30, 0.80, 0.10, 0.50, 0.40, 0.90]),
         np.array([0.25, 0.82, 0.18, 0.74, 0.22, 0.88, 0.30, 0.68, 0.24]),
@@ -3040,6 +3152,10 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
         """Build the locked setup/results handoff frame."""
         return Study2WithinSession2DecodingResults._build_locked_setup_frame(self)
 
+    def _build_cross_session_handoff_frame(self) -> dict[str, Mobject]:
+        """Build the locked results/cross-session handoff frame."""
+        return Study2WithinSession2DecodingResults._build_results_end_static(self)
+
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = BG
@@ -3071,6 +3187,11 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 - bottom_row.layout_anchor.get_left()[0]
             )
         )
+        row_pair_width = Group(top_row.layout_anchor, bottom_row.layout_anchor).width
+        setup_rows_right_shift = RIGHT * (
+            row_pair_width * self._SETUP_ROWS_RIGHT_SHIFT_RATIO
+        )
+        bottom_row.shift(setup_rows_right_shift)
 
         title = self._make_overview_title(self._SENSORY_CASE_TITLE)
 
@@ -3079,6 +3200,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
 
         self.play(
             TransformMatchingTex(overview_title, title),
+            top_row.animate.shift(setup_rows_right_shift),
             FadeOut(overview_memory_fork, shift=RIGHT * 0.08),
             FadeOut(overview_memory_row, shift=DOWN * 0.04),
             run_time=0.70,
@@ -3144,8 +3266,9 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
         right_bracket.next_to(matrix_body, RIGHT, buff=0.18)
         train_col = self._SCHEMA_TRAIN_COLOR
         test_col = self._SCHEMA_TEST_COLOR
-        class_one_col = _D_RED
-        class_three_col = _D_PURP
+        class_one_col = _identity_color(CAT)
+        class_two_col = _identity_color(OBS)
+        class_three_col = _identity_color(VASE)
         summary_title = Tex(
             r"Sensory responses\\in Session 2",
             color=INK,
@@ -3263,7 +3386,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             test_ax, LEFT, buff=0.08
         )
         class_example_paths = [CAT, OBS, VASE]
-        class_cols = [class_one_col, _D_GREEN, class_three_col]
+        class_cols = [class_one_col, class_two_col, class_three_col]
         class_examples = Group(*[
             Group(
                 ImageMobject(path).scale_to_fit_height(0.50),
@@ -3356,7 +3479,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 for x, y in blue_pts
             ])
             green_group = VGroup(*[
-                Dot(train_ax.c2p(x, y), radius=0.055, color=_D_GREEN, fill_opacity=0.88)
+                Dot(train_ax.c2p(x, y), radius=0.055, color=class_two_col, fill_opacity=0.88)
                 for x, y in green_pts
             ])
             amber_group = VGroup(*[
@@ -3430,7 +3553,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
 
         def _decision_regions(ax: Axes, centers: dict[str, tuple[float, float]]) -> VGroup:
             """Return the decision regions."""
-            color_map = {"blue": class_one_col, "green": _D_GREEN, "amber": class_three_col}
+            color_map = {"blue": class_one_col, "green": class_two_col, "amber": class_three_col}
             regions = VGroup()
             for label in ["blue", "green", "amber"]:
                 poly = _linear_region_polygon(label, centers)
@@ -3504,7 +3627,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 for x, y in blue_pts
             ])
             green_group = VGroup(*[
-                Dot(test_ax.c2p(x, y), radius=0.070, color=_D_GREEN, fill_opacity=0.92)
+                Dot(test_ax.c2p(x, y), radius=0.070, color=class_two_col, fill_opacity=0.92)
                 for x, y in green_pts
             ])
             amber_group = VGroup(*[
@@ -3798,13 +3921,14 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
     _RESULTS_ICON_FRAME_OPACITY = 0.36
     _RESULTS_MATRIX_FRAME_OPACITY = 0.34
     _RESULTS_MATRIX_FILL_OPACITY = 0.92
-    _RESULTS_STRIP_GAP = 0.42
+    _RESULTS_STRIP_GAP = 0.30
+    _RESULTS_CHAIN_GAP = 0.18
     _RESULTS_STRIP_TO_QUESTION_GAP = 0.34
     _RESULTS_BRAIN_HEIGHT = 1.08
     _RESULTS_DECODER_HEIGHT = 0.60
     _RESULTS_PROJECTION_SOURCE_INSET = 0.16
     _RESULTS_PROJECTION_TARGET_INSET = 0.03
-    _RESULTS_LINK_ARROW_INSET = 0.04
+    _RESULTS_LINK_ARROW_LENGTH = 0.24
 
     def _build_locked_setup_frame(self) -> dict[str, Mobject]:
         """Build the locked setup/results handoff frame."""
@@ -3845,8 +3969,9 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         right_bracket.next_to(matrix_body, RIGHT, buff=0.18)
         train_col = self._SCHEMA_TRAIN_COLOR
         test_col = self._SCHEMA_TEST_COLOR
-        class_one_col = _D_RED
-        class_three_col = _D_PURP
+        class_one_col = _identity_color(CAT)
+        class_two_col = _identity_color(OBS)
+        class_three_col = _identity_color(VASE)
 
         summary_title = Tex(
             r"Sensory responses\\in Session 2",
@@ -3921,7 +4046,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             Group(ImageMobject(path).scale_to_fit_height(0.50))
             for path in [CAT, OBS, VASE]
         ])
-        for icon, col in zip(class_examples, [class_one_col, _D_GREEN, class_three_col]):
+        for icon, col in zip(class_examples, [class_one_col, class_two_col, class_three_col]):
             frame = SurroundingRectangle(
                 icon[0],
                 color=col,
@@ -4027,7 +4152,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
 
         def _decision_regions(ax: Axes, centers: dict[str, tuple[float, float]]) -> VGroup:
             """Return the decision regions."""
-            color_map = {"blue": class_one_col, "green": _D_GREEN, "amber": class_three_col}
+            color_map = {"blue": class_one_col, "green": class_two_col, "amber": class_three_col}
             regions = VGroup()
             for label in ["blue", "green", "amber"]:
                 poly = _linear_region_polygon(label, centers)
@@ -4093,7 +4218,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 for x, y in blue_pts
             ])
             green_group = VGroup(*[
-                Dot(train_ax.c2p(x, y), radius=0.055, color=_D_GREEN, fill_opacity=0.88)
+                Dot(train_ax.c2p(x, y), radius=0.055, color=class_two_col, fill_opacity=0.88)
                 for x, y in green_pts
             ])
             amber_group = VGroup(*[
@@ -4148,7 +4273,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 for x, y in blue_pts
             ])
             green_group = VGroup(*[
-                Dot(test_ax.c2p(x, y), radius=0.070, color=_D_GREEN, fill_opacity=0.92)
+                Dot(test_ax.c2p(x, y), radius=0.070, color=class_two_col, fill_opacity=0.92)
                 for x, y in green_pts
             ])
             amber_group = VGroup(*[
@@ -4296,44 +4421,26 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             grid.set_opacity(opacity)
             return VGroup(frame, grid)
 
-        def make_results_brain() -> Group:
-            """Build the V1-V3 brain image used in the results strip."""
-            brain = ImageMobject(str(_V1V2V3_PNG_PATH))
-            return Group(brain)
-
-        def make_results_projection_lines(source_group: Mobject, brain: Mobject) -> VGroup:
-            """Build longer converging card-to-brain guide lines for the results strip."""
-            start_x = source_group.get_right()[0] + self._RESULTS_PROJECTION_SOURCE_INSET
-            focus_x = brain.get_left()[0] - self._RESULTS_PROJECTION_TARGET_INSET
-            source_y = source_group.get_center()[1]
-            half_angle = 0.5 * DEGREES * self._SCHEMA_PROJECTION_OPENING_DEG
-            dx = max(0.01, focus_x - start_x)
-            dy = np.tan(half_angle) * dx
-            return VGroup(
-                Line(
-                    np.array([start_x, source_y + dy, 0.0]),
-                    np.array([focus_x, source_y, 0.0]),
-                    color=self._SCHEMA_PROJECTION_COLOR,
-                    stroke_width=0.9,
-                ).set_stroke(opacity=0.85),
-                Line(
-                    np.array([start_x, source_y - dy, 0.0]),
-                    np.array([focus_x, source_y, 0.0]),
-                    color=self._SCHEMA_PROJECTION_COLOR,
-                    stroke_width=0.9,
-                ).set_stroke(opacity=0.85),
+        def make_results_brain(brain_left_x: float, center_y: float) -> Group:
+            """Build the viewing-brain asset for the strip from its own bounds."""
+            return Group(
+                _make_v1v2v3_viewing_brain(
+                    brain_left_x=brain_left_x,
+                    brain_center_y=center_y,
+                    target_brain_height=self._RESULTS_BRAIN_HEIGHT,
+                )
             )
 
-        def make_results_link_arrow(source: Mobject, target: Mobject, y: float) -> Arrow:
+        def make_results_link_arrow(source_right_x: float, y: float) -> Arrow:
             """Build one detached horizontal connector for the results strip."""
             return Arrow(
                 np.array([
-                    source.get_right()[0] + self._RESULTS_LINK_ARROW_INSET,
+                    source_right_x + self._RESULTS_CHAIN_GAP,
                     y,
                     0.0,
                 ]),
                 np.array([
-                    target.get_left()[0] - self._RESULTS_LINK_ARROW_INSET,
+                    source_right_x + self._RESULTS_CHAIN_GAP + self._RESULTS_LINK_ARROW_LENGTH,
                     y,
                     0.0,
                 ]),
@@ -4342,6 +4449,17 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 buff=0.0,
                 tip_length=0.08,
             )
+
+        def place_strip_item(item: Mobject, left_x: float, center_y: float) -> Mobject:
+            """Place one strip item by its full bounds on a shared centerline."""
+            item.shift(
+                np.array([
+                    left_x - item.get_left()[0],
+                    center_y - item.get_center()[1],
+                    0.0,
+                ])
+            )
+            return item
 
         def make_deck(specs, builder):
             """Build one diagonal deck and return the front-most item anchor."""
@@ -4516,11 +4634,11 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         ).move_to(np.array([-3.15, 1.42, 0.0]))
 
         example_specs = [
-            (SOFA, _D_AMBER, 1),
-            (PINE, _D_GREEN, 2),
-            (str(_STIM / "ITE-VAS-T00.png"), _D_PURP, 4),
-            (str(_STIM / "PLA-BRI-T00.png"), _D_CYAN, 5),
-            (str(_STIM / "ANI-CAT-T00.png"), _D_RED, 3),
+            (SOFA, _identity_color(SOFA), 1),
+            (PINE, _identity_color(PINE), 2),
+            (VASE, _identity_color(VASE), 4),
+            (BRI, _identity_color(BRI), 5),
+            (CAT, _identity_color(CAT), 3),
         ]
         image_deck, image_front = make_deck(
             example_specs,
@@ -4544,55 +4662,32 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         )
         image_deck.shift(-image_deck.get_center())
         strip_center_y = image_deck.get_center()[1]
+        strip_gap = self._RESULTS_STRIP_GAP
+        chain_gap = self._RESULTS_CHAIN_GAP
 
-        brain_group = make_results_brain().scale_to_fit_height(self._RESULTS_BRAIN_HEIGHT)
-        brain_group.shift(
-            np.array([
-                image_deck.get_right()[0]
-                + self._RESULTS_STRIP_GAP
-                - brain_group[0].get_left()[0],
-                strip_center_y - brain_group.get_center()[1],
-                0.0,
-            ])
-        )
-        projection_lines = make_results_projection_lines(image_deck, brain_group[0])
+        brain_left_x = image_deck.get_right()[0] + strip_gap
+        brain_group = make_results_brain(brain_left_x, strip_center_y)
 
-        pattern_deck.shift(
-            np.array([
-                brain_group.get_right()[0]
-                + self._RESULTS_STRIP_GAP
-                - pattern_deck.get_left()[0],
-                strip_center_y - pattern_deck.get_center()[1],
-                0.0,
-            ])
+        brain_to_pattern_arrow = make_results_link_arrow(
+            brain_group.get_right()[0],
+            strip_center_y,
         )
+
+        pattern_left_x = brain_to_pattern_arrow.get_end()[0] + chain_gap
+        place_strip_item(pattern_deck, pattern_left_x, strip_center_y)
 
         decoder_icon = (
             SVGMobject(str(_SVM_CLASSIFIER_GREYSCALE_SVG_PATH))
             .scale_to_fit_height(self._RESULTS_DECODER_HEIGHT)
         )
-        decoder_icon.shift(
-            np.array([
-                pattern_deck.get_right()[0]
-                + self._RESULTS_STRIP_GAP
-                - decoder_icon.get_left()[0],
-                strip_center_y - decoder_icon.get_center()[1],
-                0.0,
-            ])
-        )
-        brain_to_pattern_arrow = make_results_link_arrow(
-            brain_group[0],
-            pattern_deck,
-            strip_center_y,
-        )
         pattern_to_decoder_arrow = make_results_link_arrow(
-            pattern_deck,
-            decoder_icon,
+            pattern_deck.get_right()[0],
             strip_center_y,
         )
+        decoder_left_x = pattern_to_decoder_arrow.get_end()[0] + chain_gap
+        place_strip_item(decoder_icon, decoder_left_x, strip_center_y)
         strip_group = Group(
             image_deck,
-            projection_lines,
             brain_group,
             brain_to_pattern_arrow,
             pattern_deck,
@@ -4614,7 +4709,6 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         frame = Group(
             question,
             example_column,
-            projection_lines,
             brain_group,
             brain_to_pattern_arrow,
             pattern_to_decoder_arrow,
@@ -4626,7 +4720,6 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             "frame": frame,
             "question": question,
             "example_column": example_column,
-            "projection_lines": projection_lines,
             "brain_group": brain_group,
             "brain_to_pattern_arrow": brain_to_pattern_arrow,
             "pattern_to_decoder_arrow": pattern_to_decoder_arrow,
@@ -4646,7 +4739,6 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         end_layout = self._build_results_end_static()
         question_target = end_layout["question"]
         example_column = end_layout["example_column"]
-        projection_lines = end_layout["projection_lines"]
         brain_group = end_layout["brain_group"]
         brain_to_pattern_arrow = end_layout["brain_to_pattern_arrow"]
         pattern_to_decoder_arrow = end_layout["pattern_to_decoder_arrow"]
@@ -4664,7 +4756,6 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
         )
         self.play(
             FadeIn(example_column, shift=UP * 0.08),
-            FadeIn(projection_lines, shift=RIGHT * 0.04),
             FadeIn(brain_group, shift=RIGHT * 0.06),
             FadeIn(brain_to_pattern_arrow, shift=RIGHT * 0.05),
             FadeIn(pattern_to_decoder_arrow, shift=RIGHT * 0.05),
@@ -4678,6 +4769,19 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             run_time=0.85,
         )
         self.play(FadeIn(takeaway, shift=UP * 0.10), run_time=0.65)
+        locked_layout = self._build_cross_session_handoff_frame()
+        locked_frame = locked_layout["frame"]
+        self.remove(
+            question,
+            example_column,
+            brain_group,
+            brain_to_pattern_arrow,
+            pattern_to_decoder_arrow,
+            decoder_icon,
+            results_plot,
+            takeaway,
+        )
+        self.add(locked_frame)
         self.wait(1.5)
 
 
@@ -4686,7 +4790,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
+class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingResults):
     """
     Build a conceptual cross-session decoding setup that shows Session 2
     stimulation providing the training patterns, then tests the fixed decoder
@@ -4704,12 +4808,14 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
     _TRAIN_PANEL_CENTER = np.array([-4.05, -1.20, 0.0])
     _PERCEPTION_PANEL_CENTER = np.array([1.15, -1.20, 0.0])
     _DELAY_PANEL_CENTER = np.array([4.75, -1.20, 0.0])
-    _S1_STIM_ACCENT = ManimColor("#A855F7")
+    _S1_STIM_ACCENT = _CROSSSESSION_STIM_SCATTER
     _TARGET_TEST = _S1_STIM_ACCENT
-    _DELAY_TEST = _D_GREEN
-    _TRAIN_ACCENT = _D_PURP
-    _PERCEPTION_ACCENT = _S1_STIM_ACCENT
-    _DELAY_ACCENT = _D_GREEN
+    _DELAY_TEST = _CROSSSESSION_DELAY_SCATTER
+    _TRAIN_ACCENT = Study2WithinSession2DecodingSetup._SCHEMA_TRAIN_COLOR
+    _PERCEPTION_ACCENT = Study2WithinSession2DecodingSetup._SCHEMA_TEST_COLOR
+    _DELAY_ACCENT = Study2WithinSession2DecodingSetup._SCHEMA_TEST_COLOR
+    _STIMULATION_LABEL_COLOR = _CROSSSESSION_STIM_SCATTER
+    _DELAY_LABEL_COLOR = _CROSSSESSION_DELAY_SCATTER
     _TEST_EXAMPLES = [
         (0, 0),
         (1, 0),
@@ -4770,21 +4876,28 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         row_colors: list[str],
         *,
         accent_color: str,
+        content_color: str | None = None,
         cell_w: float = 0.104,
         cell_h: float = 0.104,
         gap: float = 0.026,
         row_gap: float = 0.048,
         role_font_size: int = 19,
         content_font_size: int = 19,
+        content_buff: float = 0.18,
     ) -> VGroup:
         """Build one conceptual train-test matrix panel."""
         rows = VGroup(*[
             _make_feature_row(
                 values,
-                color=col,
+                color=self._MATRIX_DIVERGING_HIGH_COLOR,
                 cell_w=cell_w,
                 cell_h=cell_h,
                 gap=gap,
+                low_color=self._MATRIX_DIVERGING_LOW_COLOR,
+                mid_color=self._MATRIX_DIVERGING_MID_COLOR,
+                high_color=self._MATRIX_DIVERGING_HIGH_COLOR,
+                stroke_color=self._MATRIX_STROKE_COLOR,
+                stroke_width=0.65,
             )
             for values, col in zip(row_values, row_colors)
         ]).arrange(DOWN, buff=row_gap, aligned_edge=LEFT)
@@ -4804,10 +4917,10 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         ).next_to(pattern_group, UP, buff=0.16)
         content_label = Tex(
             content_text,
-            color=accent_color,
+            color=content_color if content_color is not None else accent_color,
             font_size=content_font_size,
             tex_environment="center",
-        ).next_to(pattern_group, DOWN, buff=0.12)
+        ).next_to(pattern_group, DOWN, buff=content_buff)
         return VGroup(role_label, pattern_group, content_label)
 
     def _make_panel_focus_frame(self, target: Mobject) -> VMobject:
@@ -4840,6 +4953,46 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
             stroke_width=1.8,
             tip_length=0.14,
         )
+
+    def _build_cross_session_setup_handoff_frame(self) -> dict[str, object]:
+        """Build the locked cross-session setup state shared with Results A."""
+        layout = self._build_cross_session_layout()
+        for mob in layout["s2_dim_mobs"]:
+            mob.set_opacity(0.18)
+        for mob in layout["dim_right_mobs"]:
+            mob.set_opacity(0.18)
+
+        train_body = layout["train_panel"][self._PANEL_BODY_IDX]
+        delay_body = layout["delay_panel"][self._PANEL_BODY_IDX]
+        train_focus_frame = self._make_panel_focus_frame(train_body)
+        delay_focus_frame = self._make_panel_focus_frame(delay_body)
+        delay_decode_arrow = self._make_decode_arrow(train_body, delay_body, angle=-0.34)
+
+        frame = Group(
+            layout["slide_title"],
+            layout["s2_title"],
+            layout["s2_row_group"],
+            layout["s1_title"],
+            layout["s1_row_group"],
+            layout["train_panel"][self._PANEL_BODY_IDX],
+            layout["train_panel"][self._PANEL_CONTENT_IDX],
+            layout["train_panel"][self._PANEL_ROLE_IDX],
+            train_focus_frame,
+            layout["perception_panel"][self._PANEL_BODY_IDX],
+            layout["perception_panel"][self._PANEL_CONTENT_IDX],
+            layout["delay_panel"][self._PANEL_BODY_IDX],
+            layout["delay_panel"][self._PANEL_CONTENT_IDX],
+            layout["delay_panel"][self._PANEL_ROLE_IDX],
+            delay_focus_frame,
+            delay_decode_arrow,
+        )
+        return {
+            "layout": layout,
+            "train_focus_frame": train_focus_frame,
+            "delay_focus_frame": delay_focus_frame,
+            "delay_decode_arrow": delay_decode_arrow,
+            "frame": frame,
+        }
 
     def _build_cross_session_layout(self) -> dict[str, object]:
         """Build the reusable cross-session decoding layout and its parts."""
@@ -4903,6 +5056,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
                 for base_idx, _ in train_examples
             ],
             accent_color=self._TRAIN_ACCENT,
+            content_color=self._STIMULATION_LABEL_COLOR,
         )
         perception_panel = self._make_matrix_panel(
             self._PERCEPTION_PANEL_CENTER,
@@ -4917,6 +5071,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
                 for base_idx, _ in perception_examples
             ],
             accent_color=self._PERCEPTION_ACCENT,
+            content_color=self._STIMULATION_LABEL_COLOR,
         )
         delay_panel = self._make_matrix_panel(
             self._DELAY_PANEL_CENTER,
@@ -4931,6 +5086,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
                 for base_idx, _ in delay_examples
             ],
             accent_color=self._DELAY_ACCENT,
+            content_color=self._DELAY_LABEL_COLOR,
         )
 
         train_arrow_targets = [
@@ -5014,7 +5170,8 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = BG
-        layout = self._build_cross_session_layout()
+        handoff = self._build_cross_session_setup_handoff_frame()
+        layout = handoff["layout"]
         slide_title = layout["slide_title"]
         s2_title = layout["s2_title"]
         s2_row_group = layout["s2_row_group"]
@@ -5035,15 +5192,16 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
         perception_body = perception_panel[self._PANEL_BODY_IDX]
         delay_body = delay_panel[self._PANEL_BODY_IDX]
 
-        train_focus_frame = self._make_panel_focus_frame(train_body)
+        train_focus_frame = handoff["train_focus_frame"]
         stim_focus_frame = self._make_panel_focus_frame(perception_body)
-        delay_focus_frame = self._make_panel_focus_frame(delay_body)
+        delay_focus_frame = handoff["delay_focus_frame"]
         stim_decode_arrow = self._make_decode_arrow(train_body, perception_body, angle=-0.55)
-        delay_decode_arrow = self._make_decode_arrow(train_body, delay_body, angle=-0.34)
+        delay_decode_arrow = handoff["delay_decode_arrow"]
 
-        previous_scene = Study2WithinSession2DecodingResults._build_results_end_static(self)
+        previous_scene = self._build_cross_session_handoff_frame()
         previous_frame = previous_scene["frame"]
         self.add(previous_frame)
+        self.wait(0.25)
 
         self.play(
             FadeOut(previous_frame),
@@ -5122,6 +5280,8 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingSetup):
             ReplacementTransform(stim_decode_arrow, delay_decode_arrow),
             run_time=0.85,
         )
+        self.clear()
+        self.add(handoff["frame"])
         self.wait(1.2)
 
 
@@ -5155,10 +5315,15 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         rows = VGroup(*[
             _make_feature_row(
                 values[row_idx * 3 : (row_idx + 1) * 3],
-                color=color,
+                color=self._MATRIX_DIVERGING_HIGH_COLOR,
                 cell_w=0.12,
                 cell_h=0.12,
                 gap=0.024,
+                low_color=self._MATRIX_DIVERGING_LOW_COLOR,
+                mid_color=self._MATRIX_DIVERGING_MID_COLOR,
+                high_color=self._MATRIX_DIVERGING_HIGH_COLOR,
+                stroke_color=self._MATRIX_STROKE_COLOR,
+                stroke_width=0.65,
             )
             for row_idx in range(3)
         ]).arrange(DOWN, buff=0.024)
@@ -5196,13 +5361,13 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         font_size: int = 22,
     ) -> VGroup:
         """Build the takeaway text for the cross-session results summary."""
-        test_s1_purple = ManimColor("#A855F7")
+        test_s1_purple = self._S1_STIM_ACCENT
         takeaway_line_1 = Tex(
             r"{{Sensory-trained}} classifiers can decode stimulus identity",
             color=INK,
             font_size=font_size,
         )
-        takeaway_line_1.set_color_by_tex("Sensory-trained", _D_PURP)
+        takeaway_line_1.set_color_by_tex("Sensory-trained", self._S1_STIM_ACCENT)
 
         takeaway_line_2 = Tex(
             r"from the {{stimulation period}}, but do not generalise throughout the {{delay phase}}",
@@ -5210,7 +5375,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             font_size=font_size,
         )
         takeaway_line_2.set_color_by_tex("stimulation period", test_s1_purple)
-        takeaway_line_2.set_color_by_tex("delay phase", _D_GREEN)
+        takeaway_line_2.set_color_by_tex("delay phase", self._DELAY_TEST)
 
         takeaway = VGroup(
             takeaway_line_1,
@@ -5358,8 +5523,14 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         """Return the GLM SVG hide color groups."""
         for submob in svg.submobjects:
             if (
-                self._glm_svg_hex(submob.get_fill_color()) in {"#7B51A0", "#3C9553"}
-                or self._glm_svg_hex(submob.get_stroke_color()) in {"#7B51A0", "#3C9553"}
+                self._glm_svg_hex(submob.get_fill_color()) in {
+                    _CROSSSESSION_STIM_SCATTER_HEX,
+                    _CROSSSESSION_DELAY_SCATTER_HEX,
+                }
+                or self._glm_svg_hex(submob.get_stroke_color()) in {
+                    _CROSSSESSION_STIM_SCATTER_HEX,
+                    _CROSSSESSION_DELAY_SCATTER_HEX,
+                }
             ):
                 submob.set_opacity(0)
 
@@ -5395,22 +5566,18 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
     def _build_results_context(self) -> dict:
         """Build the results context."""
         self.camera.background_color = BG
-        layout = self._build_cross_session_layout()
-        test_s1_purple = ManimColor("#A855F7")
-
-        for mob in layout["s2_dim_mobs"]:
-            mob.set_opacity(0.18)
-        for mob in layout["dim_right_mobs"]:
-            mob.set_opacity(0.18)
+        handoff = self._build_cross_session_setup_handoff_frame()
+        layout = handoff["layout"]
+        test_s1_purple = self._S1_STIM_ACCENT
 
         train_panel = layout["train_panel"]
         perception_panel = layout["perception_panel"]
         delay_panel = layout["delay_panel"]
         train_body = train_panel[self._PANEL_BODY_IDX]
         delay_body = delay_panel[self._PANEL_BODY_IDX]
-        train_focus_frame = self._make_panel_focus_frame(train_body)
-        delay_focus_frame = self._make_panel_focus_frame(delay_body)
-        delay_decode_arrow = self._make_decode_arrow(train_body, delay_body, angle=-0.34)
+        train_focus_frame = handoff["train_focus_frame"]
+        delay_focus_frame = handoff["delay_focus_frame"]
+        delay_decode_arrow = handoff["delay_decode_arrow"]
 
         plot_height = 3.55
         left_panel_center = np.array([-3.95, -1.15, 0.0])
@@ -5435,10 +5602,18 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             and submob is not glm_chance_template
         ])
         glm_accuracy_label = VGroup(*[glm_plot_rest[idx].copy() for idx in range(21, 29)])
-        glm_left_group = self._glm_svg_group(glm_svg, "#7B51A0", "left")
-        glm_right_group = self._glm_svg_group(glm_svg, "#3C9553", "right")
-        glm_left_significance = self._glm_svg_significance_marker(glm_svg, "#7B51A0", "left")
-        glm_right_significance = self._glm_svg_significance_marker(glm_svg, "#3C9553", "right")
+        glm_left_group = self._glm_svg_group(glm_svg, _CROSSSESSION_STIM_SCATTER_HEX, "left")
+        glm_right_group = self._glm_svg_group(glm_svg, _CROSSSESSION_DELAY_SCATTER_HEX, "right")
+        glm_left_significance = self._glm_svg_significance_marker(
+            glm_svg,
+            _CROSSSESSION_STIM_SCATTER_HEX,
+            "left",
+        )
+        glm_right_significance = self._glm_svg_significance_marker(
+            glm_svg,
+            _CROSSSESSION_DELAY_SCATTER_HEX,
+            "right",
+        )
         glm_left_visual = VGroup(*[
             submob for submob in glm_left_group if submob not in glm_left_significance
         ])
@@ -5473,7 +5648,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
 
         glm_train = self._make_small_results_matrix(
             self._MINI_TRAIN_VALUES,
-            _D_PURP,
+            self._S1_STIM_ACCENT,
             r"$S_2$",
             label_direction=UP,
         )
@@ -5485,14 +5660,14 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         )
         glm_delay_test = self._make_small_results_matrix(
             self._MINI_DELAY_VALUES,
-            _D_GREEN,
+            self._DELAY_TEST,
             r"$D_1$",
             label_direction=DOWN,
         )
         glm_train_explainer = VGroup(
             Tex("Train on", color=INK, font_size=17),
-            Tex("Stimulation", color=_D_PURP, font_size=17),
-            Tex("Session 2", color=_D_PURP, font_size=17),
+            Tex("Stimulation", color=self._S1_STIM_ACCENT, font_size=17),
+            Tex("Session 2", color=self._S1_STIM_ACCENT, font_size=17),
         ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
         glm_stim_explainer = VGroup(
             Tex("Test on", color=INK, font_size=17),
@@ -5501,8 +5676,8 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         ).arrange(DOWN, buff=0.03, aligned_edge=RIGHT)
         glm_delay_explainer = VGroup(
             Tex("Test on", color=INK, font_size=17),
-            Tex("Delay", color=_D_GREEN, font_size=17),
-            Tex("Session 1", color=_D_GREEN, font_size=17),
+            Tex("Delay", color=self._DELAY_TEST, font_size=17),
+            Tex("Session 1", color=self._DELAY_TEST, font_size=17),
         ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
 
         glm_left_x = (
@@ -5717,7 +5892,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
                 stripe_group.add(Line(
                     segment[0],
                     segment[1],
-                    color=_D_PURP,
+                    color=self._S1_STIM_ACCENT,
                     stroke_width=2.2,
                     stroke_opacity=0.95,
                 ))
@@ -5725,7 +5900,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             border = Rectangle(
                 width=template.width,
                 height=template.height,
-                stroke_color=_D_PURP,
+                stroke_color=self._S1_STIM_ACCENT,
                 stroke_width=max(template.get_stroke_width(), 0.8),
             ).set_fill(opacity=0.0).move_to(template)
             border.set_stroke(opacity=0.20)
@@ -5818,14 +5993,14 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
 
         schematic_train = self._make_small_results_matrix(
             self._MINI_TRAIN_VALUES,
-            _D_PURP,
+            self._S1_STIM_ACCENT,
             r"$S_2$",
             label_direction=UP,
         )
         timeres_train_explainer = VGroup(
             Tex("Train on", color=INK, font_size=17),
-            Tex("Stimulation", color=_D_PURP, font_size=17),
-            Tex("Session 2", color=_D_PURP, font_size=17),
+            Tex("Stimulation", color=self._S1_STIM_ACCENT, font_size=17),
+            Tex("Session 2", color=self._S1_STIM_ACCENT, font_size=17),
         ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
         self._position_small_results_matrix(
             schematic_train,
@@ -5978,7 +6153,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         delay_phase = make_design_phase(
             2.0,
             10.0,
-            _D_GREEN,
+            self._DELAY_TEST,
             0.14,
             make_design_icon(None, 2.0, 10.0),
         )
@@ -6035,17 +6210,17 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         design_stimulation_label = make_design_phase_label(
             "Stimulation",
             target_phase.get_center()[0],
-            _D_PURP,
+            self._S1_STIM_ACCENT,
         )
         design_delay_label = make_design_phase_label(
             "Delay",
             delay_phase.get_center()[0],
-            _D_GREEN,
+            self._DELAY_TEST,
         )
         design_probes_label = make_design_phase_label(
             "Probes",
             probe_phase.get_center()[0],
-            _D_PURP,
+            self._S1_STIM_ACCENT,
         )
         design_response_label = make_design_phase_label(
             "Response",
@@ -6129,7 +6304,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             if current_time < 2.0:
                 return ManimColor(test_s1_purple)
             if current_time < 10.0:
-                return ManimColor(_D_GREEN)
+                return ManimColor(self._DELAY_TEST)
             if current_time < 12.5:
                 return ManimColor(test_s1_purple)
             return ManimColor(_D_MGREY)
@@ -6244,6 +6419,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
 
         return {
             "layout": layout,
+            "setup_handoff_frame": handoff["frame"],
             "train_focus_frame": train_focus_frame,
             "delay_focus_frame": delay_focus_frame,
             "delay_decode_arrow": delay_decode_arrow,
@@ -6325,24 +6501,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         glm_stim_test = ctx["glm_stim_test"]
         glm_delay_test = ctx["glm_delay_test"]
 
-        self.add(
-            layout["slide_title"],
-            layout["s2_title"],
-            layout["s2_row_group"],
-            layout["s1_title"],
-            layout["s1_row_group"],
-            layout["train_panel"][self._PANEL_BODY_IDX],
-            layout["train_panel"][self._PANEL_CONTENT_IDX],
-            layout["train_panel"][self._PANEL_ROLE_IDX],
-            ctx["train_focus_frame"],
-            layout["perception_panel"][self._PANEL_BODY_IDX],
-            layout["perception_panel"][self._PANEL_CONTENT_IDX],
-            layout["delay_panel"][self._PANEL_BODY_IDX],
-            layout["delay_panel"][self._PANEL_CONTENT_IDX],
-            layout["delay_panel"][self._PANEL_ROLE_IDX],
-            ctx["delay_focus_frame"],
-            ctx["delay_decode_arrow"],
-        )
+        self.add(ctx["setup_handoff_frame"])
         self.wait(0.35)
 
         self.add(glm_train[1], glm_stim_test[1], glm_delay_test[1])
@@ -6989,8 +7148,20 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
     _CROSSSESSION_RESULTSB_SNAPSHOT_SIZE = (854, 480)
     _CROSSSESSION_RESULTSB_LEFT_BOX = (82, 124, 390, 442)
     _CROSSSESSION_RESULTSB_RIGHT_BOX = (460, 52, 802, 442)
-    _GLM_ACCENT = _D_PURP
-    _DELAY_ACCENT = _D_GREEN
+    _GLM_ACCENT = _CROSSSESSION_STIM_SCATTER
+    _DELAY_ACCENT = _CROSSSESSION_DELAY_SCATTER
+    _RATIONALE_S1_ROW_SCALE = 0.56
+    _RATIONALE_S1_ROW_CENTER = np.array([0.0, 1.78, 0.0])
+    _RATIONALE_CASE_CENTERS = [
+        np.array([0.0, 0.10, 0.0]),
+        np.array([0.0, -1.34, 0.0]),
+        np.array([0.0, -2.78, 0.0]),
+    ]
+    _RATIONALE_MATRIX_SCALE = 0.70
+    _RATIONALE_MATRIX_HALF_SPACING = 0.82
+    _RATIONALE_PHASE_FONT_SIZE = 18
+    _RATIONALE_ROLE_FONT_SIZE = 16
+    _RATIONALE_PHASE_LABEL_BUFF = 0.18
 
     def _make_results_heading(
         self,
@@ -7024,7 +7195,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             color=INK,
             font_size=font_size,
         )
-        summary_line_1.set_color_by_tex("Sensory trained", _D_PURP)
+        summary_line_1.set_color_by_tex("Sensory trained", self._GLM_ACCENT)
 
         summary_line_2 = Tex(
             r"can decode object-scene identity",
@@ -7037,7 +7208,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             color=INK,
             font_size=font_size,
         )
-        summary_line_3.set_color_by_tex("stimulation period", ManimColor("#A855F7"))
+        summary_line_3.set_color_by_tex("stimulation period", self._GLM_ACCENT)
 
         summary_line_4 = Tex(
             r"but not throughout the {{delay period}}.",
@@ -7254,6 +7425,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         layout = ctx["layout"]
         rationale = ctx["rationale"]
         question_intro = ctx["question_intro"]
+        reference_values = self._session1_reference_values()
 
         if not question_already_at_title:
             self.play(
@@ -7292,11 +7464,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
                 "highlights": [rationale["target_hi"]],
                 "left_source_box": rationale["s1_boxes"][0],
                 "right_source_box": rationale["s1_boxes"][0],
-                "train_values": self._row_values(0, 0),
+                "train_values": reference_values["stim_train"],
                 "train_color": self._GLM_ACCENT,
                 "train_code": r"$S_1$",
                 "train_phase": "Stimulation",
-                "test_values": self._row_values(0, 1),
+                "test_values": reference_values["stim_test"],
                 "test_color": self._GLM_ACCENT,
                 "test_code": r"$S_1$",
                 "test_phase": "Stimulation",
@@ -7306,11 +7478,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
                 "highlights": [rationale["delay_hi"]],
                 "left_source_box": rationale["s1_boxes"][1],
                 "right_source_box": rationale["s1_boxes"][1],
-                "train_values": self._delay_row_values(0, 0),
+                "train_values": reference_values["delay_train"],
                 "train_color": self._DELAY_ACCENT,
                 "train_code": r"$D_1$",
                 "train_phase": "Delay",
-                "test_values": self._delay_row_values(0, 1),
+                "test_values": reference_values["delay_test"],
                 "test_color": self._DELAY_ACCENT,
                 "test_code": r"$D_1$",
                 "test_phase": "Delay",
@@ -7320,11 +7492,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
                 "highlights": [rationale["target_hi"], rationale["delay_hi"]],
                 "left_source_box": rationale["s1_boxes"][0],
                 "right_source_box": rationale["s1_boxes"][1],
-                "train_values": self._row_values(0, 0),
+                "train_values": reference_values["stim_train"],
                 "train_color": self._GLM_ACCENT,
                 "train_code": r"$S_1$",
                 "train_phase": "Stimulation",
-                "test_values": self._delay_row_values(0, 0),
+                "test_values": reference_values["delay_train"],
                 "test_color": self._DELAY_ACCENT,
                 "test_code": r"$D_1$",
                 "test_phase": "Delay",
@@ -7884,6 +8056,23 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             r"in the delay period in V1-V3?"
         )
 
+    def _session1_reference_values(self) -> dict[str, np.ndarray]:
+        """Return the frozen Session 1 matrix exemplars reused across scenes."""
+        cache_name = "_session1_reference_values_cache"
+        if not hasattr(self, cache_name):
+            setattr(
+                self,
+                cache_name,
+                {
+                    "stim_train": self._row_values(0, 0).copy(),
+                    "stim_test": self._row_values(0, 1).copy(),
+                    "delay_train": self._delay_row_values(0, 0).copy(),
+                    "delay_test": self._delay_row_values(0, 1).copy(),
+                },
+            )
+        cached = getattr(self, cache_name)
+        return {key: values.copy() for key, values in cached.items()}
+
     def _make_within_session_case(
         self,
         *,
@@ -8027,6 +8216,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
 
     def _build_rationale_end_static(self) -> dict[str, Mobject]:
         """Build the rationale end static."""
+        reference_values = self._session1_reference_values()
         question_title = self._make_results_heading(
             self._rationale_question_text(),
             color=BLACK,
@@ -8037,8 +8227,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             Study2ExperimentalDesign._S1,
             S1_Y,
             r"\textbf{Session 1 :} Memory task",
-            0.64,
-            np.array([0.0, 1.60, 0.0]),
+            self._RATIONALE_S1_ROW_SCALE,
+            self._RATIONALE_S1_ROW_CENTER,
         )
         self._scale_session_label_groups(s1_time_lbl, s1_ph_lbl)
 
@@ -8079,56 +8269,56 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         stim_stim_case = self._make_within_session_case(
             left_source_box=s1_boxes[0],
             right_source_box=s1_boxes[0],
-            center=np.array([0.0, -0.02, 0.0]),
-            train_values=self._row_values(0, 0),
+            center=self._RATIONALE_CASE_CENTERS[0],
+            train_values=reference_values["stim_train"],
             train_color=self._GLM_ACCENT,
             train_code=r"$S_1$",
             train_phase="Stimulation",
-            test_values=self._row_values(0, 1),
+            test_values=reference_values["stim_test"],
             test_color=self._GLM_ACCENT,
             test_code=r"$S_1$",
             test_phase="Stimulation",
-            matrix_scale=0.60,
-            matrix_half_spacing=0.92,
-            phase_font_size=16,
-            role_font_size=14,
-            phase_label_buff=0.16,
+            matrix_scale=self._RATIONALE_MATRIX_SCALE,
+            matrix_half_spacing=self._RATIONALE_MATRIX_HALF_SPACING,
+            phase_font_size=self._RATIONALE_PHASE_FONT_SIZE,
+            role_font_size=self._RATIONALE_ROLE_FONT_SIZE,
+            phase_label_buff=self._RATIONALE_PHASE_LABEL_BUFF,
         )
         delay_delay_case = self._make_within_session_case(
             left_source_box=s1_boxes[1],
             right_source_box=s1_boxes[1],
-            center=np.array([0.0, -1.48, 0.0]),
-            train_values=self._delay_row_values(0, 0),
+            center=self._RATIONALE_CASE_CENTERS[1],
+            train_values=reference_values["delay_train"],
             train_color=self._DELAY_ACCENT,
             train_code=r"$D_1$",
             train_phase="Delay",
-            test_values=self._delay_row_values(0, 1),
+            test_values=reference_values["delay_test"],
             test_color=self._DELAY_ACCENT,
             test_code=r"$D_1$",
             test_phase="Delay",
-            matrix_scale=0.60,
-            matrix_half_spacing=0.92,
-            phase_font_size=16,
-            role_font_size=14,
-            phase_label_buff=0.16,
+            matrix_scale=self._RATIONALE_MATRIX_SCALE,
+            matrix_half_spacing=self._RATIONALE_MATRIX_HALF_SPACING,
+            phase_font_size=self._RATIONALE_PHASE_FONT_SIZE,
+            role_font_size=self._RATIONALE_ROLE_FONT_SIZE,
+            phase_label_buff=self._RATIONALE_PHASE_LABEL_BUFF,
         )
         stim_delay_case = self._make_within_session_case(
             left_source_box=s1_boxes[0],
             right_source_box=s1_boxes[1],
-            center=np.array([0.0, -2.94, 0.0]),
-            train_values=self._row_values(0, 0),
+            center=self._RATIONALE_CASE_CENTERS[2],
+            train_values=reference_values["stim_train"],
             train_color=self._GLM_ACCENT,
             train_code=r"$S_1$",
             train_phase="Stimulation",
-            test_values=self._delay_row_values(0, 0),
+            test_values=reference_values["delay_train"],
             test_color=self._DELAY_ACCENT,
             test_code=r"$D_1$",
             test_phase="Delay",
-            matrix_scale=0.60,
-            matrix_half_spacing=0.92,
-            phase_font_size=16,
-            role_font_size=14,
-            phase_label_buff=0.16,
+            matrix_scale=self._RATIONALE_MATRIX_SCALE,
+            matrix_half_spacing=self._RATIONALE_MATRIX_HALF_SPACING,
+            phase_font_size=self._RATIONALE_PHASE_FONT_SIZE,
+            role_font_size=self._RATIONALE_ROLE_FONT_SIZE,
+            phase_label_buff=self._RATIONALE_PHASE_LABEL_BUFF,
         )
         matrix_triptych = Group(
             stim_stim_case["group"],
@@ -8165,6 +8355,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
 
     def _build_results_stage(self) -> dict[str, Mobject]:
         """Build the results stage."""
+        reference_values = self._session1_reference_values()
         plot_title_y = self.slide_title.get_bottom()[1] - 0.95
         act2_heading = self._make_results_heading(
             r"Does the encoding code generalise\\to the delay?",
@@ -8187,10 +8378,18 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             if submob not in glm_plot_frame.submobjects
             and submob is not glm_chance_template
         ])
-        glm_left_group = self._glm_svg_group(glm_svg, "#7B51A0", "left")
-        glm_right_group = self._glm_svg_group(glm_svg, "#3C9553", "right")
-        glm_left_significance = self._glm_svg_significance_marker(glm_svg, "#7B51A0", "left")
-        glm_right_significance = self._glm_svg_significance_marker(glm_svg, "#3C9553", "right")
+        glm_left_group = self._glm_svg_group(glm_svg, _CROSSSESSION_STIM_SCATTER_HEX, "left")
+        glm_right_group = self._glm_svg_group(glm_svg, _CROSSSESSION_DELAY_SCATTER_HEX, "right")
+        glm_left_significance = self._glm_svg_significance_marker(
+            glm_svg,
+            _CROSSSESSION_STIM_SCATTER_HEX,
+            "left",
+        )
+        glm_right_significance = self._glm_svg_significance_marker(
+            glm_svg,
+            _CROSSSESSION_DELAY_SCATTER_HEX,
+            "right",
+        )
         glm_title = Tex("GLM-based decoding", color=INK, font_size=22).move_to(
             np.array([glm_plot_frame.get_left()[0] - 0.35, plot_title_y, 0.0])
         )
@@ -8256,25 +8455,25 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         glm_significance = VGroup(glm_left_significance, glm_right_significance)
 
         glm_left_train = self._make_small_results_matrix(
-            self._row_values(0, 0),
+            reference_values["stim_train"],
             self._GLM_ACCENT,
             r"$S_1$",
             label_direction=UP,
         ).scale(0.82)
         glm_right_train = self._make_small_results_matrix(
-            self._delay_row_values(0, 0),
+            reference_values["delay_train"],
             self._DELAY_ACCENT,
             r"$D_1$",
             label_direction=UP,
         ).scale(0.82)
         glm_left_test = self._make_small_results_matrix(
-            self._row_values(0, 1),
+            reference_values["stim_test"],
             self._GLM_ACCENT,
             r"$S_1$",
             label_direction=DOWN,
         ).scale(0.82)
         glm_right_test = self._make_small_results_matrix(
-            self._delay_row_values(0, 1),
+            reference_values["delay_test"],
             self._DELAY_ACCENT,
             r"$D_1$",
             label_direction=DOWN,
@@ -8520,13 +8719,13 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
 
         stim_small = self._make_small_results_matrix(
-            self._row_values(0, 0),
+            reference_values["stim_train"],
             self._GLM_ACCENT,
             r"$S_1$",
             label_direction=UP,
         )
         delay_small = self._make_small_results_matrix(
-            self._delay_row_values(0, 0),
+            reference_values["delay_train"],
             self._DELAY_ACCENT,
             r"$D_1$",
             label_direction=UP,
@@ -8682,13 +8881,25 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             else None
         )
         timeres_hrf_rect_sources = VGroup(
-            self._timeres_select_single(timeres_svg, fill_hex="#3C9553", min_points=4),
+            self._timeres_select_single(
+                timeres_svg,
+                fill_hex=_CROSSSESSION_DELAY_SCATTER_HEX,
+                min_points=4,
+            ),
             self._timeres_select_single(timeres_svg, fill_hex="#7570B3", min_points=4),
             self._timeres_select_single(timeres_svg, fill_hex="#000000", min_points=4),
         )
         timeres_hrf_line_sources = VGroup(
-            *self._timeres_select_many(timeres_svg, stroke_hex="#3C9553", min_points=200),
-            *self._timeres_select_many(timeres_svg, stroke_hex="#7B51A0", min_points=200),
+            *self._timeres_select_many(
+                timeres_svg,
+                stroke_hex=_CROSSSESSION_DELAY_SCATTER_HEX,
+                min_points=200,
+            ),
+            *self._timeres_select_many(
+                timeres_svg,
+                stroke_hex=_CROSSSESSION_STIM_SCATTER_HEX,
+                min_points=200,
+            ),
         )
         excluded_ids = {
             id(submob)
@@ -8789,7 +9000,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
                 stripe_group.add(Line(
                     segment[0],
                     segment[1],
-                    color=_D_PURP,
+                    color=self._GLM_ACCENT,
                     stroke_width=2.2,
                     stroke_opacity=0.95,
                 ))
@@ -8797,7 +9008,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             border = Rectangle(
                 width=template.width,
                 height=template.height,
-                stroke_color=_D_PURP,
+                stroke_color=self._GLM_ACCENT,
                 stroke_width=max(template.get_stroke_width(), 0.8),
             ).set_fill(opacity=0.0).move_to(template)
             border.set_stroke(opacity=0.20)
@@ -8882,11 +9093,11 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
                 )
             )
             if current_time < 2.0:
-                return ManimColor("#A855F7")
+                return self._GLM_ACCENT
             if current_time < 10.0:
-                return ManimColor(_D_GREEN)
+                return self._DELAY_ACCENT
             if current_time < 12.5:
-                return ManimColor("#A855F7")
+                return self._GLM_ACCENT
             return ManimColor(_D_MGREY)
 
         def time_to_x(time_s: float) -> float:
@@ -8994,14 +9205,14 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         target_phase = make_design_phase(
             0.0,
             2.0,
-            "#A855F7",
+            self._GLM_ACCENT,
             0.16,
             make_design_icon(LAKE, 0.0, 2.0),
         )
         delay_phase = make_design_phase(
             2.0,
             10.0,
-            _D_GREEN,
+            self._DELAY_ACCENT,
             0.14,
             make_design_icon(None, 2.0, 10.0),
         )
@@ -9016,7 +9227,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         probe_phase = make_design_phase(
             10.0,
             12.5,
-            "#A855F7",
+            self._GLM_ACCENT,
             0.16,
             probe_icons,
         )
@@ -9058,17 +9269,17 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         design_stimulation_label = make_design_phase_label(
             "Stimulation",
             target_phase.get_center()[0],
-            _D_PURP,
+            self._GLM_ACCENT,
         )
         design_delay_label = make_design_phase_label(
             "Delay",
             delay_phase.get_center()[0],
-            _D_GREEN,
+            self._DELAY_ACCENT,
         )
         design_probes_label = make_design_phase_label(
             "Probes",
             probe_phase.get_center()[0],
-            _D_PURP,
+            self._GLM_ACCENT,
         )
         design_response_label = make_design_phase_label(
             "Response",
@@ -10625,6 +10836,51 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         )
         self.wait(2.0)
 
+    def _build_within_session_resultsd_handoff_frame(self) -> Group:
+        """Build the shared static handoff frame between ResultsD and the LTM explainer."""
+        rationale = self._build_rationale_end_static()
+        self.slide_title = rationale["question_title"]
+        ctx = self._build_results_stage()
+        self._align_within_session_act1_to_shared_layout(ctx)
+        timeres_ctx = self._build_within_session_timeres_context(ctx)
+        self._prepare_within_session_resultsb_final_state(timeres_ctx)
+        logic_ctx = self._build_within_session_tempgen_logic_context(ctx, timeres_ctx)
+
+        experimental_design = logic_ctx["design_target"].copy()
+        train_time_bins = logic_ctx["train_bins_target"].copy()
+        test_time_bins = logic_ctx["test_bins_target"].copy()
+        train_row_label = logic_ctx["train_label_target"].copy()
+        test_row_label = logic_ctx["test_label_target"].copy()
+
+        train_tracker = logic_ctx["train_tracker"]
+        test_tracker = logic_ctx["test_tracker"]
+        train_tracker.set_value(float(logic_ctx["peak_column_idx"]))
+        test_tracker.set_value(float(logic_ctx["subselect_low_value"]))
+
+        handoff_frame = Group(
+            experimental_design,
+            train_time_bins,
+            test_time_bins,
+            train_row_label,
+            test_row_label,
+            logic_ctx["logic_matrix_frame"],
+            logic_ctx["logic_matrix_underlay"],
+            logic_ctx["logic_matrix_colorbar_mask"],
+            logic_ctx["logic_matrix_colorbar_gradient"],
+            logic_ctx["matrix_x_ticks"],
+            logic_ctx["matrix_y_ticks"],
+            logic_ctx["diagonal_trace"],
+            logic_ctx["train_selector"],
+            logic_ctx["right_plot_scaffold"],
+            logic_ctx["right_plot_ci"],
+            logic_ctx["right_plot_trace"],
+            logic_ctx["peak_curve_marker"],
+            logic_ctx["peak_curve_ring"],
+            logic_ctx["peak_matrix_column"],
+            logic_ctx["final_takeaway"],
+        )
+        return handoff_frame
+
     def _animate_tempgen_results(self, ctx: dict[str, Mobject]) -> None:
         """Animate the temporal-generalisation results."""
         tempgen_title = ctx["tempgen_title"]
@@ -10950,6 +11206,10 @@ class Study2WithinSession1DecodingResultsD(_Study2WithinSession1DecodingBase):
         logic_ctx = self._show_within_session_resultsc_final_state(ctx, timeres_ctx)
         self.wait(0.6)
         self._animate_within_session_tempgen_followup(logic_ctx)
+        handoff_frame = self._build_within_session_resultsd_handoff_frame()
+        self.clear()
+        self.add(handoff_frame)
+        self.wait(0.25)
 
 
 class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
@@ -11239,6 +11499,8 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
+        handoff_frame = self._build_within_session_resultsd_handoff_frame()
+
         question = self._make_results_heading(
             self._ltm_question_text(),
             color=BLACK,
@@ -11342,7 +11604,13 @@ class Study2LTMResultsExplainer(_Study2WithinSession1DecodingBase):
         takeaway = self._make_ltm_takeaway()
         takeaway.move_to(np.array([0.0, -3.28, 0.0]))
 
-        self.play(FadeIn(question, shift=UP * 0.06), run_time=0.55)
+        self.add(handoff_frame)
+        self.wait(0.25)
+        self.play(
+            FadeOut(handoff_frame),
+            FadeIn(question, shift=UP * 0.06),
+            run_time=0.60,
+        )
         self.play(
             LaggedStart(
                 FadeIn(beh_title, shift=UP * 0.05),
@@ -12597,10 +12865,15 @@ def _study2_make_small_results_matrix(
     rows = VGroup(*[
         _make_feature_row(
             values[row_idx * 3 : (row_idx + 1) * 3],
-            color=color,
+            color=_RESULTS_MATRIX_DIVERGING_HIGH_COLOR,
             cell_w=0.11,
             cell_h=0.11,
             gap=0.022,
+            low_color=_RESULTS_MATRIX_DIVERGING_LOW_COLOR,
+            mid_color=_RESULTS_MATRIX_DIVERGING_MID_COLOR,
+            high_color=_RESULTS_MATRIX_DIVERGING_HIGH_COLOR,
+            stroke_color=_RESULTS_MATRIX_STROKE_COLOR,
+            stroke_width=0.65,
         )
         for row_idx in range(3)
     ]).arrange(DOWN, buff=0.022)
@@ -12729,13 +13002,68 @@ class Study2SearchlightDelay(_Study2SearchlightSceneBase):
     _SUPPLEMENTAL_IMAGE_PATH = _SEARCHLIGHT_DELAY_BRAIN_PNG
 
 
-Study2DecodingOverview = Study2DecodingOverviewA
-Study2WithinSession2Decoding = Study2WithinSession2DecodingSetup
-Study2CrossSessionDecoding = Study2CrossSessionDecodingSetup
-Study2CrossSessionDecodingResults = Study2CrossSessionDecodingResultsCombined
-Study2WithinSession1DecodingCombined = Study2WithinSession1DecodingSetupCombined
-Study2WithinSession1Decoding = Study2WithinSession1DecodingSetupCombined
-Study2WithinSession1DecodingA = Study2WithinSession1DecodingSetupA
-Study2WithinSession1DecodingB = Study2WithinSession1DecodingSetupB
-Study2WithinSession1DecodingResults = Study2WithinSession1DecodingResultsCombined
-Study2SupplementalRoiTimecourses = Study2SupplementalRoiTimecoursesCombined
+_HIDDEN_STUDY2_SCENES: tuple[type[Scene], ...] = (
+    Study2ResearchQuestions,
+    Study2ExperimentalDesign,
+    Study2DecodingOverviewA,
+    Study2DecodingOverviewB,
+    Study2DecodingOverviewC,
+    Study2DecodingSummary,
+    Study2WithinSession2DecodingSetup,
+    Study2WithinSession2DecodingResults,
+    Study2CrossSessionDecodingSetup,
+    Study2CrossSessionDecodingResultsA,
+    Study2CrossSessionDecodingResultsB,
+    Study2CrossSessionDecodingResultsCombined,
+    _Study2WithinSession1DecodingBase,
+    Study2WithinSession1DecodingSetupCombined,
+    Study2WithinSession1DecodingSetupA,
+    Study2WithinSession1DecodingSetupB,
+    Study2WithinSession1DecodingResultsCombined,
+    Study2WithinSession1DecodingResultsA,
+    Study2WithinSession1DecodingResultsB,
+    Study2WithinSession1DecodingResultsC,
+    Study2WithinSession1DecodingResultsD,
+    Study2LTMResultsExplainer,
+    Study2SupplementalRoiTimecoursesCombined,
+    Study2SupplementalRoiTimecoursesA,
+    Study2SupplementalRoiTimecoursesB,
+    Study2SupplementalRoiTempGenMats,
+    _Study2SearchlightSceneBase,
+    Study2SearchlightStimulation,
+    Study2SearchlightDelay,
+)
+
+for _scene_cls in _HIDDEN_STUDY2_SCENES:
+    _scene_cls.__module__ = "_study2_internal"
+
+_PUBLIC_STUDY2_SCENES: tuple[tuple[str, type[Scene], str], ...] = (
+    ("SCENE_00", Study2ResearchQuestions, "Study2ResearchQuestions"),
+    ("SCENE_01", Study2ExperimentalDesign, "Study2ExperimentalDesign"),
+    ("SCENE_02", Study2DecodingOverviewA, "Study2DecodingOverviewA"),
+    ("SCENE_03", Study2DecodingOverviewB, "Study2DecodingOverviewB"),
+    ("SCENE_04", Study2DecodingOverviewC, "Study2DecodingOverviewC"),
+    ("SCENE_05", Study2WithinSession2DecodingSetup, "Study2WithinSession2DecodingSetup"),
+    ("SCENE_06", Study2WithinSession2DecodingResults, "Study2WithinSession2DecodingResults"),
+    ("SCENE_07", Study2CrossSessionDecodingSetup, "Study2CrossSessionDecodingSetup"),
+    ("SCENE_08", Study2CrossSessionDecodingResultsA, "Study2CrossSessionDecodingResultsA"),
+    ("SCENE_09", Study2CrossSessionDecodingResultsB, "Study2CrossSessionDecodingResultsB"),
+    ("SCENE_10", Study2WithinSession1DecodingSetupA, "Study2WithinSession1DecodingSetupA"),
+    ("SCENE_11", Study2WithinSession1DecodingSetupB, "Study2WithinSession1DecodingSetupB"),
+    ("SCENE_12", Study2WithinSession1DecodingResultsA, "Study2WithinSession1DecodingResultsA"),
+    ("SCENE_13", Study2WithinSession1DecodingResultsB, "Study2WithinSession1DecodingResultsB"),
+    ("SCENE_14", Study2WithinSession1DecodingResultsC, "Study2WithinSession1DecodingResultsC"),
+    ("SCENE_15", Study2WithinSession1DecodingResultsD, "Study2WithinSession1DecodingResultsD"),
+    ("SCENE_16", Study2LTMResultsExplainer, "Study2LTMResultsExplainer"),
+    ("SCENE_17", Study2SupplementalRoiTimecoursesA, "Study2SupplementalRoiTimecoursesA"),
+    ("SCENE_18", Study2SupplementalRoiTimecoursesB, "Study2SupplementalRoiTimecoursesB"),
+    ("SCENE_19", Study2SupplementalRoiTempGenMats, "Study2SupplementalRoiTempGenMats"),
+    ("SCENE_20", Study2SearchlightStimulation, "Study2SearchlightStimulation"),
+    ("SCENE_21", Study2SearchlightDelay, "Study2SearchlightDelay"),
+    ("SCENE_22", Study2DecodingSummary, "Study2DecodingSummary"),
+)
+
+for _slot_name, _scene_cls, _public_name in _PUBLIC_STUDY2_SCENES:
+    globals()[_slot_name] = _wrap_public_scene(_scene_cls, _public_name)
+
+__all__ = list(_STUDY2_SCENE_ORDER)

@@ -4965,7 +4965,22 @@ _PUBLIC_SCENES: tuple[type[Scene], ...] = (
     _Study1Stage3MemoryExpResults,
 )
 
+_HIDDEN_STUDY1_SCENES: tuple[type[Scene], ...] = tuple(
+    dict.fromkeys(
+        value
+        for value in globals().values()
+        if isinstance(value, type)
+        and issubclass(value, Scene)
+        and value is not Scene
+        and value.__module__.startswith(__name__)
+    )
+)
+
+for _scene_cls in _HIDDEN_STUDY1_SCENES:
+    _scene_cls.__module__ = "_study1_internal"
+
 for _scene_cls in _PUBLIC_SCENES:
-    globals()[_scene_cls.__name__] = _wrap_scene(_scene_cls)
+    _scene_num = _STUDY1_SCENE_ORDER[_scene_cls.__name__]
+    globals()[f"SCENE_{_scene_num}"] = _wrap_scene(_scene_cls)
 
 __all__ = list(_STUDY1_SCENE_ORDER)

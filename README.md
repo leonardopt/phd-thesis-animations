@@ -96,7 +96,7 @@ Use these when you want the numbered study sequences rather than one-off scene r
 Use direct `manim` commands during development when you only want to rerender one scene instead of a full numbered sequence.
 
 ```bash
-uv run manim scenes/study1.py Study1Step1a -qh
+uv run manim scenes/study1.py Study1Stage1Step1a -qh
 uv run manim scenes/study2.py Study2ExperimentalDesign -qh
 ```
 

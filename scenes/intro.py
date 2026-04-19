@@ -4,21 +4,21 @@ Introduction — consolidated public entrypoint.
 Render from this file to keep all introduction outputs in the same
 `media/videos/01_intro/...` folder.
 
-Public scenes (narrative order, ~5:30 total):
-    IntroVisualMemoryHook      — perception → delay → decision hook  (~45 s)
+Public scenes (narrative order):
+    IntroCognitiveProblemA     — naturalistic input                   (~15 s)
+    IntroCognitiveProblemB     — delay with fixation                  (~15 s)
+    IntroCognitiveProblemC     — memory-guided decision               (~15 s)
     IntroClassicalView         — PFC / parietal classical view        (~45 s)
     IntroSensoryRecruitment    — MVPA + open debate                   (~75 s)
-    IntroResearchQuestions     — three open RQs                       (~60 s)
-    IntroStimulusRequirements  — design constraints + prior failures  (~45 s)
-    IntroMethodologicalApproach — Prompt→Generate→Select→S1→S2        (~60 s)
+    IntroResearchQuestions     — three open questions                 (~60 s)
 
 Render examples:
-    uv run manim scenes/intro.py IntroVisualMemoryHook -ql
+    uv run manim scenes/intro.py IntroCognitiveProblemA -ql
+    uv run manim scenes/intro.py IntroCognitiveProblemB -ql
+    uv run manim scenes/intro.py IntroCognitiveProblemC -ql
     uv run manim scenes/intro.py IntroClassicalView -ql
     uv run manim scenes/intro.py IntroSensoryRecruitment -ql
     uv run manim scenes/intro.py IntroResearchQuestions -ql
-    uv run manim scenes/intro.py IntroStimulusRequirements -ql
-    uv run manim scenes/intro.py IntroMethodologicalApproach -ql
 """
 from __future__ import annotations
 
@@ -48,8 +48,6 @@ _INTRODUCTION_SCENE_ORDER: dict[str, str] = {
     "IntroClassicalView": "04",
     "IntroSensoryRecruitment": "05",
     "IntroResearchQuestions": "06",
-    "IntroStimulusRequirements": "07",
-    "IntroMethodologicalApproach": "08",
 }
 
 
@@ -145,13 +143,6 @@ def make_image_card(
     ).set_fill(fill_color, opacity=fill_opacity)
     frame.move_to(image)
     return Group(frame, image)
-
-
-def make_pill(text: str, color: str, *, font_size: float = 18) -> VGroup:
-    """Create a compact colored label."""
-    label = Tex(text, color=color, font_size=font_size)
-    dot = Dot(radius=0.045, color=color)
-    return VGroup(dot, label).arrange(RIGHT, buff=0.12)
 
 
 def make_callout(text: str, color: str, *, font_size: float = 23) -> VGroup:
@@ -252,78 +243,6 @@ def make_paper_snapshot(
     return Group(image_card, label, refs).arrange(DOWN, buff=0.08)
 
 
-def make_step_card(
-    step_number: int,
-    title_text: str,
-    body: Mobject,
-    *,
-    accent: str,
-    width: float = 2.40,
-    height: float = 3.05,
-) -> Group:
-    """Create a clean vertical workflow card with a numbered header."""
-    frame = RoundedRectangle(
-        width=width,
-        height=height,
-        corner_radius=0.16,
-        stroke_color=LGREY,
-        stroke_width=1.4,
-    ).set_fill(PANEL, opacity=0.96)
-
-    badge_box = RoundedRectangle(
-        width=0.34,
-        height=0.34,
-        corner_radius=0.08,
-        stroke_width=0,
-    ).set_fill(accent, opacity=1.0)
-    badge_text = Tex(str(step_number), color=WHITE, font_size=16)
-    badge = VGroup(badge_box, badge_text)
-
-    title = Tex(title_text, color=INK, font_size=18)
-    header = VGroup(badge, title).arrange(RIGHT, buff=0.12, aligned_edge=DOWN)
-    header.next_to(frame.get_top(), DOWN, buff=0.18)
-    header.align_to(frame, LEFT).shift(RIGHT * 0.18)
-
-    body_group = body.copy()
-    max_body_width = width - 0.30
-    max_body_height = height - header.height - 0.52
-    if body_group.width > max_body_width:
-        body_group.scale_to_fit_width(max_body_width)
-    if body_group.height > max_body_height:
-        body_group.scale_to_fit_height(max_body_height)
-    body_group.next_to(header, DOWN, buff=0.18)
-    body_group.set_x(frame.get_center()[0])
-
-    return Group(frame, header, body_group)
-
-
-def make_feature_row(
-    values: np.ndarray,
-    *,
-    color: str,
-    cell_w: float = 0.20,
-    cell_h: float = 0.20,
-    gap: float = 0.06,
-) -> VGroup:
-    """Create a compact 1-D feature vector as colored cells."""
-    group = VGroup()
-    mid = (len(values) - 1) / 2
-    for idx, value in enumerate(values):
-        alpha = 0.18 + 0.82 * float(value)
-        cell = Rectangle(
-            width=cell_w,
-            height=cell_h,
-            stroke_color=LGREY,
-            stroke_width=0.8,
-        ).set_fill(
-            interpolate_color(ManimColor(WHITE), ManimColor(color), alpha),
-            opacity=1.0,
-        )
-        cell.move_to(RIGHT * (idx - mid) * (cell_w + gap))
-        group.add(cell)
-    return group
-
-
 def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.0) -> dict[str, Mobject]:
     """Return the Study 2 brain icon with an early-visual-cortex highlight overlay."""
     brain = ImageMobject(str(_BRAIN_ICON_PATH)).scale_to_fit_height(2.85 * scale_factor)
@@ -351,41 +270,6 @@ def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.
         "brain": brain,
         "highlight": VGroup(highlight_fill, highlight_ring),
     }
-
-
-def make_source_block(
-    title_text: str,
-    image_specs: list[tuple[str, int]],
-    failure_text: str,
-) -> Group:
-    """Create a source-of-stimuli block with a red failure note."""
-    title = Tex(title_text, color=INK, font_size=24)
-    underline = Line(LEFT * 1.20, RIGHT * 1.20, color=LGREY, stroke_width=1.6)
-    underline.next_to(title, DOWN, buff=0.10)
-
-    cards = Group(
-        *[
-            make_image_card(
-                stim_path(code, idx),
-                height=0.88,
-                border_color=LGREY,
-                fill_color=WHITE,
-                fill_opacity=1.0,
-                buff=0.035,
-            )
-            for code, idx in image_specs
-        ]
-    )
-    cards.arrange(RIGHT, buff=0.10)
-    cards.next_to(underline, DOWN, buff=0.22)
-
-    fail = Group(
-        MathTex(r"\times", color=RED, font_size=26),
-        Tex(failure_text, color=RED, font_size=16),
-    ).arrange(RIGHT, buff=0.12)
-    fail.next_to(cards, DOWN, buff=0.18)
-
-    return Group(title, underline, cards, fail)
 
 
 class IntroCognitiveProblemA(Scene):
@@ -812,10 +696,7 @@ class IntroResearchQuestions(Scene):
         """Run the animation sequence for this scene."""
         self.camera.background_color = BG
 
-        title = title_block(
-            r"\textbf{The thesis addresses three research questions}",
-            "All three follow from testing sensory recruitment with naturalistic stimuli",
-        )
+        title = title_block(r"\textbf{Three research questions}")
 
         brain = brain_icon_with_evc(highlight_color=BLUE, scale_factor=0.82)
         focus_frame = RoundedRectangle(
@@ -835,7 +716,6 @@ class IntroResearchQuestions(Scene):
         focus_copy.next_to(brain["group"], DOWN, buff=0.20)
         focus_panel = Group(focus_frame, focus_title, brain["group"], focus_copy)
 
-        question_header = Tex("Three open questions", color=MGREY, font_size=20)
         question_cards = VGroup(
             make_info_card(
                 "Representational format",
@@ -859,14 +739,13 @@ class IntroResearchQuestions(Scene):
                 height=1.18,
             ),
         ).arrange(DOWN, buff=0.22)
-        question_stack = VGroup(question_header, question_cards).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
+        question_stack = question_cards
 
         content = Group(focus_panel, question_stack).arrange(RIGHT, buff=0.78, aligned_edge=UP)
         content.next_to(title, DOWN, buff=0.36)
 
         self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
         self.play(FadeIn(focus_panel, shift=UP * 0.05), run_time=0.85)
-        self.play(FadeIn(question_header, shift=UP * 0.04), run_time=0.40)
         self.play(
             LaggedStart(
                 *[FadeIn(card, shift=RIGHT * 0.08) for card in question_cards],
@@ -877,221 +756,6 @@ class IntroResearchQuestions(Scene):
         self.wait(4.00)
 
 
-class IntroStimulusRequirements(Scene):
-    """Show the desired characteristics of the stimulus set."""
-
-    def construct(self) -> None:
-        """Run the animation sequence for this scene."""
-        self.camera.background_color = BG
-
-        title = title_block(
-            r"\textbf{Stimulus design requirements}",
-            "The stimulus set had to satisfy four constraints at once",
-        )
-
-        continuum = Group(
-            *[
-                make_image_card(
-                    stim_path(_EXEMPLAR_CODE, idx),
-                    height=0.92,
-                    border_color=BLUE,
-                    fill_color=WHITE,
-                    fill_opacity=1.0,
-                    buff=0.035,
-                )
-                for idx in (0, 3, 6, 9)
-            ]
-        )
-        continuum.arrange(RIGHT, buff=0.12)
-        continuum_frame = RoundedRectangle(
-            width=9.40,
-            height=2.72,
-            corner_radius=0.18,
-            stroke_color=LGREY,
-            stroke_width=1.4,
-        ).set_fill(PANEL, opacity=0.96)
-        continuum_title = Tex("Desired stimulus space", color=BLUE, font_size=22)
-        continuum_title.next_to(continuum_frame.get_top(), DOWN, buff=0.18)
-        continuum.move_to(continuum_frame.get_center() + UP * 0.05)
-        continuum_caption = Tex(
-            "same semantic identity, controlled perceptual variation",
-            color=MGREY,
-            font_size=17,
-        ).next_to(continuum, DOWN, buff=0.18)
-        continuum_panel = Group(continuum_frame, continuum_title, continuum, continuum_caption)
-
-        requirement_cards = VGroup(
-            VGroup(
-                make_info_card("Naturalistic images", "ecological validity", accent=BLUE),
-                make_info_card("Perceptual control", "fine-grained variation, stable identity", accent=AMBER),
-            ).arrange(RIGHT, buff=0.22),
-            VGroup(
-                make_info_card("One paradigm", "suitable for both WM and LTM", accent=GREEN),
-                make_info_card("Readable neural patterns", "detailed visual features for decoding", accent=BLUE),
-            ).arrange(RIGHT, buff=0.22),
-        ).arrange(DOWN, buff=0.18)
-
-        source_header = Tex("Why existing sources failed", color=MGREY, font_size=18)
-        source_issues = VGroup(
-            make_info_card(
-                "Manual selection",
-                "too ad hoc",
-                accent=RED,
-                width=3.35,
-                height=0.96,
-                title_font_size=18,
-                subtitle_font_size=15,
-                subtitle_color=RED,
-            ),
-            make_info_card(
-                "Web images",
-                "too dissimilar",
-                accent=RED,
-                width=3.35,
-                height=0.96,
-                title_font_size=18,
-                subtitle_font_size=15,
-                subtitle_color=RED,
-            ),
-        ).arrange(RIGHT, buff=0.22)
-        source_strip = VGroup(source_header, source_issues).arrange(DOWN, buff=0.14)
-
-        content = Group(continuum_panel, requirement_cards, source_strip).arrange(DOWN, buff=0.28)
-        content.next_to(title, DOWN, buff=0.28)
-
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(continuum_panel, shift=UP * 0.05), run_time=0.95)
-        self.play(
-            LaggedStart(
-                *[FadeIn(card, shift=UP * 0.06) for row in requirement_cards for card in row],
-                lag_ratio=0.14,
-            ),
-            run_time=1.15,
-        )
-        self.play(FadeIn(source_strip, shift=UP * 0.05), run_time=0.55)
-        self.wait(3.50)
-
-
-class IntroMethodologicalApproach(Scene):
-    """Present the synthesis-validation-fMRI strategy of the thesis."""
-
-    def construct(self) -> None:
-        """Run the animation sequence for this scene."""
-        self.camera.background_color = BG
-
-        title = title_block(
-            r"\textbf{Methodological approach}",
-            "Synthesize the stimulus space, validate it, then test the theory",
-        )
-
-        prompt_body = VGroup(
-            Tex("text prompt", color=MGREY, font_size=14),
-            Tex(r"``observatory''", color=INK, font_size=17),
-            Tex("in a coherent scene", color=MGREY, font_size=14),
-        ).arrange(DOWN, buff=0.06)
-
-        generated_body = Group(
-            Group(
-                *[
-                    make_image_card(
-                        stim_path(_EXEMPLAR_CODE, idx),
-                        height=0.42,
-                        border_color=BLUE,
-                        fill_color=WHITE,
-                        fill_opacity=1.0,
-                        buff=0.025,
-                    )
-                    for idx in (0, 5, 9)
-                ]
-            ).arrange(RIGHT, buff=0.05),
-            Tex("candidate variations", color=MGREY, font_size=14),
-        ).arrange(DOWN, buff=0.08)
-
-        continuum_body = Group(
-            Group(
-                *[
-                    make_image_card(
-                        stim_path(_EXEMPLAR_CODE, idx),
-                        height=0.31,
-                        border_color=BLUE,
-                        fill_color=WHITE,
-                        fill_opacity=1.0,
-                        buff=0.02,
-                    )
-                    for idx in (0, 3, 6, 9)
-                ]
-            ).arrange(RIGHT, buff=0.03),
-            Tex("perceptual continuum", color=MGREY, font_size=14),
-        ).arrange(DOWN, buff=0.08)
-
-        study1_body = Group(
-            Group(
-                *[
-                    make_image_card(
-                        stim_path(_EXEMPLAR_CODE, idx),
-                        height=0.33,
-                        border_color=BLUE if idx == 3 else LGREY,
-                        fill_color=WHITE,
-                        fill_opacity=1.0,
-                        buff=0.02,
-                    )
-                    for idx in (0, 3, 6)
-                ]
-            ).arrange(RIGHT, buff=0.04),
-            Tex("psychophysics + WM", color=INK, font_size=15),
-            Tex("validate scaling", color=MGREY, font_size=14),
-        ).arrange(DOWN, buff=0.08)
-
-        study2_brain = brain_icon_with_evc(highlight_color=BLUE, scale_factor=0.36)
-        study2_body = Group(
-            study2_brain["group"],
-            Tex("fMRI", color=GREEN, font_size=15),
-            Tex("test memory vs perception", color=MGREY, font_size=14),
-        ).arrange(DOWN, buff=0.08)
-
-        cards = Group(
-            make_step_card(1, "Prompt", prompt_body, accent=BLUE),
-            make_step_card(2, "Generate", generated_body, accent=BLUE),
-            make_step_card(3, "Select", continuum_body, accent=BLUE),
-            make_step_card(4, "Study 1", study1_body, accent=BLUE),
-            make_step_card(5, "Study 2", study2_body, accent=GREEN),
-        ).arrange(RIGHT, buff=0.26, aligned_edge=UP)
-        cards.next_to(title, DOWN, buff=0.42)
-
-        arrows = VGroup(
-            *[
-                Arrow(
-                    cards[idx].get_right() + RIGHT * 0.04,
-                    cards[idx + 1].get_left() + LEFT * 0.04,
-                    color=MGREY,
-                    stroke_width=1.6,
-                    buff=0.04,
-                    tip_shape=StealthTip,
-                    tip_length=0.14,
-                )
-                for idx in range(len(cards) - 1)
-            ]
-        )
-
-        callout = make_callout(
-            "Build the stimulus space first. Then use it to test the theory.",
-            GREEN,
-            font_size=21,
-        ).to_edge(DOWN, buff=0.34)
-
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(cards[0], shift=UP * 0.05), run_time=0.50)
-        for idx in range(1, len(cards)):
-            self.play(
-                Create(arrows[idx - 1]),
-                FadeIn(cards[idx], shift=UP * 0.05),
-                run_time=0.52,
-            )
-        self.wait(1.00)
-        self.play(FadeIn(callout, shift=UP * 0.04), run_time=0.55)
-        self.wait(3.50)
-
-
 _PUBLIC_SCENES: tuple[type[Scene], ...] = (
     IntroCognitiveProblemA,
     IntroCognitiveProblemB,
@@ -1099,8 +763,6 @@ _PUBLIC_SCENES: tuple[type[Scene], ...] = (
     IntroClassicalView,
     IntroSensoryRecruitment,
     IntroResearchQuestions,
-    IntroStimulusRequirements,
-    IntroMethodologicalApproach,
 )
 
 for _scene_cls in _PUBLIC_SCENES:
