@@ -9,6 +9,21 @@ import numpy as np
 from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+SECTION_OUTPUT_DIRS: dict[str, str] = {
+    "intro": "01_intro",
+    "methods": "02_methods",
+    "study1": "03_study1",
+    "study2": "04_study2",
+    "conclusion": "05_conclusion",
+}
+SECTION_DISPLAY_NAMES: dict[str, str] = {
+    "intro": "Intro",
+    "methods": "Methods",
+    "study1": "Study 1",
+    "study2": "Study 2",
+    "conclusion": "Conclusion",
+}
+_SECTION_KEYS_BY_OUTPUT_DIR = {value: key for key, value in SECTION_OUTPUT_DIRS.items()}
 
 
 @lru_cache(maxsize=1)
@@ -47,6 +62,22 @@ def env_path(name: str, default: str | Path | None = None) -> Path:
     if not path.is_absolute():
         path = (REPO_ROOT / path).resolve()
     return path
+
+
+def section_output_dir(section_name: str) -> str:
+    """Return the canonical numbered output directory for one presentation section."""
+    return SECTION_OUTPUT_DIRS.get(section_name, section_name)
+
+
+def section_key_from_output_dir(output_dir_name: str) -> str:
+    """Return the logical section key for a numbered output directory name."""
+    return _SECTION_KEYS_BY_OUTPUT_DIR.get(output_dir_name, output_dir_name)
+
+
+def section_display_name(section_name: str) -> str:
+    """Return a human-friendly section label from either a key or output directory."""
+    section_key = section_key_from_output_dir(section_name)
+    return SECTION_DISPLAY_NAMES.get(section_key, section_key.replace("_", " ").title())
 
 
 STIM_DIR = env_path("STIMULI_REORDERED_DIR", REPO_ROOT / "assets" / "images" / "stimuli_reordered")

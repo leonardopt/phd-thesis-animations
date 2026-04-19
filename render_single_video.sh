@@ -43,7 +43,15 @@ while IFS= read -r line; do
 done < <(
     uv run python - <<'PY'
 import ast
+import re
+import sys
 from pathlib import Path
+
+SCENES_DIR = Path("scenes").resolve()
+if str(SCENES_DIR) not in sys.path:
+    sys.path.insert(0, str(SCENES_DIR))
+
+from utils import section_output_dir
 
 
 def load_mapping(path_str: str, variable_name: str):
@@ -58,12 +66,20 @@ def load_mapping(path_str: str, variable_name: str):
     raise SystemExit(f"Could not find {variable_name} in {path_str}")
 
 
+def scene_sort_key(scene_number: str) -> tuple[int, str]:
+    match = re.fullmatch(r"(\d+)([A-Za-z]*)", scene_number)
+    if match is None:
+        raise SystemExit(f"Unsupported scene number: {scene_number}")
+    return int(match.group(1)), match.group(2)
+
+
 def emit_entries(study_slug: str, scene_file: str, order_var: str, overrides_var: str | None = None):
     scene_order = load_mapping(scene_file, order_var)
     output_overrides = load_mapping(scene_file, overrides_var) if overrides_var else {}
-    for class_name, scene_number in sorted(scene_order.items(), key=lambda item: int(item[1])):
+    study_dir = section_output_dir(study_slug)
+    for class_name, scene_number in sorted(scene_order.items(), key=lambda item: scene_sort_key(item[1])):
         output_name = output_overrides.get(class_name, f"{scene_number}_{class_name}")
-        print(f"{study_slug}:{scene_file}:{output_name}:{class_name}")
+        print(f"{study_slug}:{study_dir}:{scene_file}:{output_name}:{class_name}")
 
 
 emit_entries("study1", "scenes/study1.py", "_STUDY1_SCENE_ORDER", "_STUDY1_OUTPUT_NAME_OVERRIDES")
@@ -85,6 +101,8 @@ idx=0
 for entry in "${scene_entries[@]}"; do
     study_slug="${entry%%:*}"
     rest="${entry#*:}"
+    study_dir="${rest%%:*}"
+    rest="${rest#*:}"
     scene_file="${rest%%:*}"
     rest="${rest#*:}"
     output_name="${rest%%:*}"
@@ -94,9 +112,9 @@ for entry in "${scene_entries[@]}"; do
     echo "[$idx/$total] $class_name -> $output_name"
     uv run manim "$scene_file" "$class_name" "$QUALITY" -o "$output_name"
 
-    rendered_path="$(find "media/videos/$study_slug" -type f -name "${output_name}.mp4" | sort | tail -n 1)"
+    rendered_path="$(find "media/videos/$study_dir" -type f -name "${output_name}.mp4" | sort | tail -n 1)"
     if [[ -z "$rendered_path" ]]; then
-        echo "Could not locate rendered output for $output_name in media/videos/$study_slug" >&2
+        echo "Could not locate rendered output for $output_name in media/videos/$study_dir" >&2
         exit 1
     fi
 

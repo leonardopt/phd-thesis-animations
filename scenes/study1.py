@@ -2,7 +2,7 @@
 Study 1 — consolidated, numbered entrypoint.
 
 Render from this file to keep all Study 1 outputs in the same
-`media/videos/study1/...` folder with `NN_ClassName` filenames.
+`media/videos/03_study1/...` folder with `NN_ClassName` filenames.
 
 Main narrative sequence:
     01 Study1Stage1Step1a
@@ -53,7 +53,12 @@ import types
 
 from manim import *
 
-from utils import REPO_ROOT, env_path
+from utils import REPO_ROOT, env_path, section_output_dir
+
+
+_SECTION_OUTPUT_DIR = section_output_dir("study1")
+config.video_dir = f"{{media_dir}}/videos/{_SECTION_OUTPUT_DIR}/{{quality}}"
+config.images_dir = f"{{media_dir}}/images/{_SECTION_OUTPUT_DIR}"
 
 
 

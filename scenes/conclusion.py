@@ -4,24 +4,39 @@ Conclusion.
 Closing scenes for the thesis-defence summary.
 
 Public scenes:
+    ConclusionQuestions
+    ConclusionApproach
     ConclusionResults
-    ConclusionDiscussion
     ConclusionLimitations
 
 Render:
+    uv run manim scenes/conclusion.py ConclusionQuestions -ql
+    uv run manim scenes/conclusion.py ConclusionApproach -ql
     uv run manim scenes/conclusion.py ConclusionResults -ql
-    uv run manim scenes/conclusion.py ConclusionDiscussion -ql
     uv run manim scenes/conclusion.py ConclusionLimitations -ql
 """
 from __future__ import annotations
 
+from pathlib import Path
+import sys
+
 from manim import *
 
+_SCENES_DIR = Path(__file__).resolve().parent
+if str(_SCENES_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCENES_DIR))
+
+from utils import section_output_dir
+
+_SECTION_OUTPUT_DIR = section_output_dir("conclusion")
+config.video_dir = f"{{media_dir}}/videos/{_SECTION_OUTPUT_DIR}/{{quality}}"
+config.images_dir = f"{{media_dir}}/images/{_SECTION_OUTPUT_DIR}"
 
 _CONCLUSION_SCENE_ORDER: dict[str, str] = {
-    "ConclusionResults": "01",
-    "ConclusionDiscussion": "02",
-    "ConclusionLimitations": "03",
+    "ConclusionQuestions": "01",
+    "ConclusionApproach": "02",
+    "ConclusionResults": "03",
+    "ConclusionLimitations": "04",
 }
 
 
@@ -66,107 +81,202 @@ def _section(
     return VGroup(header, body).arrange(DOWN, aligned_edge=LEFT, buff=buff)
 
 
-class ConclusionResults(_ConclusionNumberedScene, Scene):
-    """Summarise the main results using the same clean text style as the study scenes."""
+def _centered_bullets(
+    items: list[str],
+    *,
+    font_size: float = 23,
+    line_width: float | None = None,
+    dot_radius: float = 0.05,
+    row_buff: float = 0.28,
+) -> VGroup:
+    """Build a centered bullet list."""
+    rows = VGroup()
+    for item in items:
+        dot = Dot(radius=dot_radius, color=INK)
+        line = Tex(item, color=INK, font_size=font_size)
+        if line_width is not None and line.width > line_width:
+            line.scale_to_fit_width(line_width)
+        row = VGroup(dot, line).arrange(RIGHT, buff=0.18, aligned_edge=UP)
+        rows.add(row)
+    return rows.arrange(DOWN, buff=row_buff, aligned_edge=LEFT)
+
+
+def _rq_column(
+    heading: str,
+    question_rows: list[str],
+    *,
+    answer_rows: list[str] | None = None,
+) -> VGroup:
+    """Build one RQ column, optionally with a short answer block."""
+    question = _section(
+        heading,
+        question_rows,
+        heading_size=26,
+        line_size=20,
+        buff=0.14,
+    )
+
+    if not answer_rows:
+        return question
+
+    divider = Line(LEFT * 0.95, RIGHT * 0.95, color="#B8B8B8", stroke_width=1.0)
+    answer = _lines(answer_rows, font_size=18, buff=0.07)
+    column = VGroup(question, divider, answer).arrange(DOWN, aligned_edge=LEFT, buff=0.18)
+    divider.align_to(answer, LEFT)
+    return column
+
+
+def _rq_layout(*, with_answers: bool = False) -> VGroup:
+    """Build the shared RQ1 | RQ2 | RQ3 layout."""
+    rq1_answer = [
+        r"\textbf{Result:} no stable sensory copy.",
+        r"EVC retained information,",
+        r"but in a transformed mnemonic format.",
+    ]
+    rq2_answer = [
+        r"\textbf{Result:} yes.",
+        r"Naturalistic scenes were decodable",
+        r"in EVC during perception and delay.",
+    ]
+    rq3_answer = [
+        r"\textbf{Result:} behavioural yes,",
+        r"neural no in EVC.",
+        r"Repetition improved performance,",
+        r"not sensory--memory similarity.",
+    ]
+
+    rq1 = _rq_column(
+        "RQ1",
+        [
+            r"\textbf{Representational format}",
+            r"sensory-like or memory-specific?",
+        ],
+        answer_rows=rq1_answer if with_answers else None,
+    )
+    rq2 = _rq_column(
+        "RQ2",
+        [
+            r"\textbf{Naturalistic stimuli}",
+            r"does sensory recruitment extend",
+            r"beyond simple laboratory stimuli?",
+        ],
+        answer_rows=rq2_answer if with_answers else None,
+    )
+    rq3 = _rq_column(
+        "RQ3",
+        [
+            r"\textbf{Long-term memory}",
+            r"does long-term memory reshape",
+            r"working-memory representations?",
+        ],
+        answer_rows=rq3_answer if with_answers else None,
+    )
+
+    separators = VGroup(
+        Line(UP * (2.35 if with_answers else 1.35), DOWN * (2.35 if with_answers else 1.35), color="#B8B8B8", stroke_width=1.2),
+        Line(UP * (2.35 if with_answers else 1.35), DOWN * (2.35 if with_answers else 1.35), color="#B8B8B8", stroke_width=1.2),
+    )
+
+    layout = VGroup(
+        rq1,
+        separators[0],
+        rq2,
+        separators[1],
+        rq3,
+    ).arrange(RIGHT, buff=0.48, aligned_edge=UP)
+
+    max_width = config.frame_width - 1.1
+    if layout.width > max_width:
+        layout.scale_to_fit_width(max_width)
+    return layout
+
+
+class ConclusionQuestions(_ConclusionNumberedScene, Scene):
+    """Restate the three main questions from the introduction."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
-        title = _title("Results")
+        title = _title("Main questions")
 
-        study1 = _section(
-            "Study 1",
-            [
-                r"Controlled synthesis produced naturalistic object-scenes",
-                r"with graded perceptual variants.",
-                r"Similarity judgements ($N = 1{,}113$) confirmed",
-                r"a perceptual continuum and broadly matched LPIPS ordering",
-                r"($\rho = 0.73$).",
-                r"In delayed match-to-sample ($N = 260$), accuracy tracked",
-                r"target--foil distance, and repetition improved performance.",
-            ],
-            line_size=21,
-        )
-
-        study2 = _section(
-            "Study 2",
-            [
-                r"In fMRI ($N = 42$), early visual cortex carried robust",
-                r"stimulus-specific information for naturalistic scenes.",
-                r"Sensory-trained classifiers generalised to encoding,",
-                r"but not across the full delay period.",
-                r"Within-session decoding still recovered delay-period content,",
-                r"implying an informative but non-sensory-like mnemonic code.",
-                r"Repetition did not change sensory-memory similarity in EVC.",
-            ],
-            line_size=21,
-        )
-
-        blocks = VGroup(study1, study2).arrange(RIGHT, buff=0.92, aligned_edge=UP)
-        max_width = config.frame_width - 1.0
-        if blocks.width > max_width:
-            blocks.scale_to_fit_width(max_width)
-        blocks.next_to(title, DOWN, buff=0.65)
+        questions = _rq_layout(with_answers=False)
+        questions.next_to(title, DOWN, buff=1.0)
+        questions.set_x(0)
 
         self.play(FadeIn(title, shift=UP * 0.08), run_time=0.5)
-        self.play(FadeIn(study1, shift=UP * 0.06), run_time=0.65)
-        self.play(FadeIn(study2, shift=UP * 0.06), run_time=0.65)
+        self.play(FadeIn(questions, shift=UP * 0.06), run_time=0.8)
         self.wait(1.2)
 
 
-class ConclusionDiscussion(_ConclusionNumberedScene, Scene):
-    """Interpret the main findings without extra visual scaffolding."""
+class ConclusionApproach(_ConclusionNumberedScene, Scene):
+    """Show how the thesis design answered the three questions."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
-        title = _title("Discussion")
+        title = _title("How we approached them")
 
-        discussion = _lines(
+        approach = _lines(
             [
-                r"Early visual cortex contributes to working memory maintenance,",
-                r"but delay representations are transformed rather than copied",
-                r"from perception.",
-                r"Naturalistic stimuli therefore support sensory recruitment",
-                r"without implying identical sensory and mnemonic formats.",
-                r"Repeated exposure improved behaviour, but did not produce",
-                r"a more sensory-like code in early visual cortex.",
-                r"Methodologically, generative synthesis makes it possible",
-                r"to combine ecological relevance with experimental control",
-                r"in one unified paradigm.",
+                r"\textbf{Study 1:} build a controlled naturalistic stimulus set",
+                r"with deep generative modelling.",
+                r"Validate perceptual scaling with similarity judgements",
+                r"and memory-task sensitivity with delayed match-to-sample.",
+                r"\textbf{Study 2:} use the validated set in a two-session fMRI design.",
+                r"Cross-session decoding tests sensory-like generalisation;",
+                r"repetition tests long-term memory modulation.",
             ],
             font_size=24,
         )
-        discussion.next_to(title, DOWN, buff=0.9)
+        approach.next_to(title, DOWN, buff=0.9)
+        approach.set_x(0)
 
         self.play(FadeIn(title, shift=UP * 0.08), run_time=0.5)
-        self.play(FadeIn(discussion, shift=UP * 0.06), run_time=0.8)
+        self.play(FadeIn(approach, shift=UP * 0.06), run_time=0.8)
+        self.wait(1.2)
+
+
+class ConclusionResults(_ConclusionNumberedScene, Scene):
+    """Answer the three main questions with the key results."""
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        title = _title("Main questions")
+
+        results = _rq_layout(with_answers=True)
+        results.next_to(title, DOWN, buff=0.82)
+        results.set_x(0)
+
+        self.play(FadeIn(title, shift=UP * 0.08), run_time=0.5)
+        self.play(FadeIn(results, shift=UP * 0.06), run_time=0.8)
         self.wait(1.2)
 
 
 class ConclusionLimitations(_ConclusionNumberedScene, Scene):
-    """State the main limitations in the same minimal study-slide style."""
+    """State the main limitations as a centered bullet list."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
         title = _title("Limitations")
 
-        limitations = _lines(
+        bullets = _centered_bullets(
             [
-                r"Stimulus selection and quality control still involved",
-                r"researcher judgement; the semantic space was broad, not exhaustive.",
-                r"The continua varied along multiple features rather than single",
-                r"controlled dimensions, so feature-specific mechanisms remain unclear.",
-                r"The images were synthetic, object-centred scenes and still contained",
-                r"some artefacts, limiting generalisation to full real-world vision.",
-                r"The long-term memory manipulation was brief, and the design tested",
-                r"similarity to sensory codes rather than changes in memory-specific formats.",
+                r"Stimuli were synthetic, object-centred, and partly selected by researcher judgement;\\"
+                r"semantic coverage is broad, but not exhaustive.",
+                r"The perceptual continua varied along multiple features rather than isolated dimensions,\\"
+                r"which limits feature-specific interpretation.",
+                r"The long-term memory manipulation was brief and tested sensory--memory similarity in EVC,\\"
+                r"not changes in memory-specific representational formats.",
             ],
-            font_size=24,
+            font_size=22,
+            line_width=7.8,
+            row_buff=0.22,
         )
-        limitations.next_to(title, DOWN, buff=0.9)
+        bullets.next_to(title, DOWN, buff=1.0)
+        bullets.set_x(0)
 
         self.play(FadeIn(title, shift=UP * 0.08), run_time=0.5)
-        self.play(FadeIn(limitations, shift=UP * 0.06), run_time=0.8)
+        self.play(FadeIn(bullets, shift=UP * 0.06), run_time=0.8)
         self.wait(1.2)

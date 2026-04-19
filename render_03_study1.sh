@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Render all numbered Study 1 scenes in narrative order with numbered output filenames.
 # Usage:
-#   ./render_study1.sh        # low quality (480p15, fast preview)
-#   ./render_study1.sh -qh    # high quality (1080p60)
-#   ./render_study1.sh -qm    # medium quality
+#   ./render_03_study1.sh        # low quality (480p15, fast preview)
+#   ./render_03_study1.sh -qh    # high quality (1080p60)
+#   ./render_03_study1.sh -qm    # medium quality
 
 set -euo pipefail
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    echo "Usage: ./render_study1.sh [QUALITY]"
+    echo "Usage: ./render_03_study1.sh [QUALITY]"
     echo
     echo "Render all Study 1 scenes in numbered narrative order."
     echo "Defaults to -ql when no quality is provided."
@@ -64,4 +64,4 @@ for entry in "${scenes[@]}"; do
     uv run manim scenes/study1.py "$classname" "$QUALITY" -o "$outname"
 done
 
-echo "Done. Videos saved to media/videos/study1/"
+echo "Done. Videos saved to media/videos/03_study1/"

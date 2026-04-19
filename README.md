@@ -15,7 +15,7 @@ At a glance:
 
 The core of the repository is a set of Manim entrypoints: `scenes/study1.py`, `scenes/study2.py`, and `scenes/intro.py`. `study1.py` and `study2.py` define the numbered public scene sequences used for rendering; `intro.py` is a scaffold for future introduction scenes. Together they provide the stable public rendering interface for the two study pipelines and the surrounding presentation tooling.
 
-Downstream scripts assume that rendered clips follow a consistent numbered naming scheme and live under `media/videos/<study>/<quality>/`. That convention is then reused by the presentation builder, backup generators, preflight checks, and bundle-packaging helpers. Assets follow a similar model: some are tracked directly in the repo, while larger study inputs are synced locally into expected locations under `assets/`.
+Downstream scripts assume that rendered clips follow a consistent numbered naming scheme and live under numbered section folders such as `media/videos/01_intro/<quality>/`, `media/videos/02_methods/<quality>/`, `media/videos/03_study1/<quality>/`, `media/videos/04_study2/<quality>/`, and `media/videos/05_conclusion/<quality>/`. That convention is then reused by the presentation builder, backup generators, preflight checks, and bundle-packaging helpers. Assets follow a similar model: some are tracked directly in the repo, while larger study inputs are synced locally into expected locations under `assets/`.
 
 ## Repository Structure
 
@@ -23,7 +23,7 @@ Downstream scripts assume that rendered clips follow a consistent numbered namin
 |---|---|---|
 | Scene source | Public scene entrypoints and shared scene code | `scenes/study1.py`, `scenes/study2.py`, `scenes/intro.py`, `scenes/utils.py` |
 | Assets | Tracked presentation figures, repo-local sync targets, and presentation manifests | `assets/`, `assets/presentation_deck.toml`, `assets/presentation_frame_overrides.toml` |
-| Tooling | Render helpers, deck assembly, backup generation, preflight, packaging, renumbering | `render_study1.sh`, `render_study2.sh`, `render_all.sh`, `render_single_video.sh`, `scripts/` |
+| Tooling | Render helpers, deck assembly, backup generation, preflight, packaging, renumbering | `render_01_intro.sh`, `render_02_methods.sh`, `render_03_study1.sh`, `render_04_study2.sh`, `render_05_conclusion.sh`, `render_all.sh`, `render_single_video.sh`, `scripts/` |
 | Generated outputs | Rendered videos, stills, PDFs, reports, and Keynote exports | `media/videos/`, `media/images/`, `media/pdfs/`, `media/reports/`, `media/keynote/` |
 
 Supporting configuration lives at the repository root in `pyproject.toml`, `uv.lock`, `manim.cfg`, and `.env.example`.
@@ -77,8 +77,11 @@ Use the same Manim quality flags across the render helpers and the Keynote build
 Use these when you want the numbered study sequences rather than one-off scene renders.
 
 ```bash
-./render_study1.sh -qh
-./render_study2.sh -qh
+./render_01_intro.sh -qh
+./render_02_methods.sh -qh
+./render_03_study1.sh -qh
+./render_04_study2.sh -qh
+./render_05_conclusion.sh -qh
 ./render_all.sh -qh
 ```
 
@@ -113,7 +116,7 @@ Presenter notes for media slides can live in `assets/presenter_notes.md`. The
 builder reads that file through `presenter_notes_path` in the deck manifest and
 matches each `## media-target` section onto the corresponding rendered slide.
 Use a repo-relative templated path such as
-`## media/videos/study1/{{quality_dir}}/01_Study1Scene.mp4` when you want the
+`## media/videos/03_study1/{{quality_dir}}/01_Study1Scene.mp4` when you want the
 same notes to work across qualities.
 
 ### Optional Backup and Recovery Commands
@@ -128,7 +131,7 @@ uv run python scripts/package_emergency_bundle.py --presentation-file /path/to/d
 
 ## Outputs and Conventions
 
-Rendered videos are written under `media/videos/<study>/<quality>/`. Other generated artifacts are grouped alongside them in `media/images/`, `media/pdfs/`, `media/reports/`, and `media/keynote/`.
+Rendered videos are written under numbered section folders such as `media/videos/03_study1/<quality>/`. Other generated artifacts are grouped alongside them in matching numbered directories under `media/images/`, plus `media/pdfs/`, `media/reports/`, and `media/keynote/`.
 
 The numbered output convention is intentional. `scenes/study1.py` and `scenes/study2.py` define the public narrative order, and the render helpers read those mappings to produce filenames such as `01_ClassName.mp4`. Presentation and backup tooling assumes that convention rather than trying to infer order from ad hoc filenames.
 

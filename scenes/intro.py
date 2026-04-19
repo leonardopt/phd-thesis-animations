@@ -2,7 +2,7 @@
 Introduction — consolidated public entrypoint.
 
 Render from this file to keep all introduction outputs in the same
-`media/videos/intro/...` folder.
+`media/videos/01_intro/...` folder.
 
 Public scenes (narrative order, ~5:30 total):
     IntroVisualMemoryHook      — perception → delay → decision hook  (~45 s)
@@ -32,7 +32,12 @@ _SCENES_DIR = Path(__file__).resolve().parent
 if str(_SCENES_DIR) not in sys.path:
     sys.path.insert(0, str(_SCENES_DIR))
 
-from utils import REPO_ROOT, env_path
+from utils import REPO_ROOT, env_path, section_output_dir
+
+
+_SECTION_OUTPUT_DIR = section_output_dir("intro")
+config.video_dir = f"{{media_dir}}/videos/{_SECTION_OUTPUT_DIR}/{{quality}}"
+config.images_dir = f"{{media_dir}}/images/{_SECTION_OUTPUT_DIR}"
 
 
 # Narrative order — drives output filenames via _wrap_scene / _IntroductionNumberedScene.

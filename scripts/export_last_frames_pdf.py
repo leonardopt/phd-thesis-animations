@@ -21,6 +21,12 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SCENES_DIR = REPO_ROOT / "scenes"
+if str(SCENES_DIR) not in sys.path:
+    sys.path.insert(0, str(SCENES_DIR))
+
+from utils import section_output_dir
+
 DEFAULT_VIDEOS_ROOT = REPO_ROOT / "media" / "videos"
 DEFAULT_IMAGES_ROOT = REPO_ROOT / "media" / "images"
 DEFAULT_OUTPUT = REPO_ROOT / "media" / "pdfs" / "study_last_frames_backup.pdf"
@@ -113,7 +119,8 @@ def stem_sort_key(stem: str) -> tuple[object, ...]:
 def discover_videos(videos_root: Path, images_root: Path, studies: list[str]) -> list[VideoEntry]:
     entries: list[VideoEntry] = []
     for study in studies:
-        study_dir = videos_root / study
+        study_dir_name = section_output_dir(study)
+        study_dir = videos_root / study_dir_name
         if not study_dir.exists():
             raise SystemExit(f"Video directory not found for {study}: {study_dir}")
 
@@ -128,7 +135,7 @@ def discover_videos(videos_root: Path, images_root: Path, studies: list[str]) ->
 
         for stem, candidates in grouped.items():
             best_video = max(candidates, key=video_quality_key)
-            still_fallback = images_root / study / f"{stem}.png"
+            still_fallback = images_root / study_dir_name / f"{stem}.png"
             if not still_fallback.exists():
                 still_fallback = None
             entries.append(

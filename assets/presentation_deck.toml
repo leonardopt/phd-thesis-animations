@@ -23,7 +23,7 @@ subtitle = "Core animation sequence"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/study1/{{quality_dir}}/*.mp4"
+glob = "media/videos/03_study1/{{quality_dir}}/*.mp4"
 
 [[slide]]
 type = "section"
@@ -32,7 +32,7 @@ subtitle = "Core animation sequence"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/study2/{{quality_dir}}/*.mp4"
+glob = "media/videos/04_study2/{{quality_dir}}/*.mp4"
 
 [[slide]]
 type = "section"
@@ -57,4 +57,4 @@ subtitle = "Add static slides or backup animations below"
 #
 # [[slide]]
 # type = "video"
-# path = "media/videos/study2/{{quality_dir}}/14_Study2LTMResultsExplainer.mp4"
+# path = "media/videos/04_study2/{{quality_dir}}/14_Study2LTMResultsExplainer.mp4"

@@ -5,20 +5,30 @@ import argparse
 import re
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SCENES_DIR = REPO_ROOT / "scenes"
+if str(SCENES_DIR) not in sys.path:
+    sys.path.insert(0, str(SCENES_DIR))
+
+from utils import section_display_name, section_output_dir
+
 DEFAULT_VIDEOS_ROOT = REPO_ROOT / "media" / "videos"
 DEFAULT_REPORT_DIR = REPO_ROOT / "media" / "reports"
-DEFAULT_EXCLUDED_SECTIONS = ("old", "test_svg")
+DEFAULT_EXCLUDED_SECTIONS = ("old", "test_svg", section_output_dir("methods"))
 SECTION_ORDER_HINTS = (
+    section_output_dir("intro"),
+    section_output_dir("methods"),
+    section_output_dir("study1"),
+    section_output_dir("study2"),
+    section_output_dir("conclusion"),
     "intro_visual_memory",
     "intro_diffusion_explainer",
-    "study1",
-    "study2",
 )
 QUALITY_ALIASES = {
     "-ql": "480p15",
@@ -41,8 +51,6 @@ QUALITY_ALIASES = {
 DISPLAY_SECTION_NAMES = {
     "intro_visual_memory": "Intro Visual Memory",
     "intro_diffusion_explainer": "Intro Diffusion Explainer",
-    "study1": "Study 1",
-    "study2": "Study 2",
 }
 SPLIT_RE = re.compile(r"(\d+)")
 
@@ -139,7 +147,7 @@ def section_sort_key(section_name: str) -> tuple[object, ...]:
 
 
 def section_label(section_name: str) -> str:
-    return DISPLAY_SECTION_NAMES.get(section_name, section_name.replace("_", " ").title())
+    return DISPLAY_SECTION_NAMES.get(section_name, section_display_name(section_name))
 
 
 def available_quality_names(section_dir: Path) -> list[str]:
