@@ -1056,7 +1056,6 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         stim_boxes = [boxes2[0], boxes2[2], boxes2[4]]
         isi_boxes  = [boxes2[1], boxes2[3]]
         stim_rects = [box[0] for box in stim_boxes]
-        stim_icons = [Group(box[1], box[2]) for box in stim_boxes]
         session1_group = Group(
             s1_title, Group(*boxes1), dots1, arrow1, t1, time_lbl1, ph_lb1,
         )
@@ -1110,16 +1109,27 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
 
         # Keep the same coloured frame and let it travel with the image while
         # the grey trial card outline disappears.
-        stacked_highlights = VGroup(*[
-            SurroundingRectangle(
-                icon, color=col, stroke_width=2.4, buff=0.05, corner_radius=0.10,
+        stacked_targets = []
+        for stim_box, stim_spec, col in zip(stim_boxes, _S2[::2], self._COLS):
+            icon, frame = self._make_stack_target(
+                stim_spec["img"],
+                col,
+                image_height=stim_box[1].height,
+                fixation_height=stim_box[2].height,
             )
-            for icon, col in zip(stim_icons, self._COLS)
-        ])
+            icon.move_to(stim_box.get_center())
+            frame.move_to(icon.get_center())
+            stacked_targets.append((icon, frame))
+        stim_icons = [icon for icon, _ in stacked_targets]
+        stacked_highlights = VGroup(*[frame for _, frame in stacked_targets])
         self.play(
             *[
                 rect.animate.set_stroke(opacity=0).set_fill(opacity=0)
                 for rect in stim_rects
+            ],
+            *[
+                ReplacementTransform(Group(box[1], box[2]), icon)
+                for box, icon in zip(stim_boxes, stim_icons)
             ],
             *[
                 Transform(highlight, stacked_highlight)
@@ -1127,6 +1137,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
             ],
             run_time=0.45,
         )
+        self.remove(*stim_boxes)
         self.wait(0.3)
 
         # ── Phase 3: Brain icon is twice the stimulus-icon height ──────────────
