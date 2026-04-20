@@ -122,6 +122,10 @@ def _framed_visual(
     return Group(card, inner)
 
 
+def _interpolate_matrix(a: np.ndarray, b: np.ndarray, alpha: float) -> np.ndarray:
+    return (1.0 - alpha) * a + alpha * b
+
+
 def _vec3(start, end, color, *, sw: float = 2.4, tl: float = 0.18) -> Arrow:
     return Arrow(
         np.asarray(start, dtype=float),
@@ -431,6 +435,9 @@ class IntroRepresentation3DTest(ThreeDScene):
             ),
         )
         axis_labels.set_z_index(15)
+        travel = ValueTracker(0.0)
+        x_past = np.array([-7.2, 0.0, 0.0])
+        x_future = np.array([7.2, 0.0, 0.0])
 
         stim_left = _framed_visual(
             ImageMobject(_preferred_path(_FISH_T00, _FALLBACK_T00)).scale_to_fit_height(1.20)
@@ -452,29 +459,78 @@ class IntroRepresentation3DTest(ThreeDScene):
             rep[0].set_z_index(33)
             rep[1].set_z_index(34)
 
-        pair_gap = 0.38
+        dot_gap = 0.72
+        front_offset = 0.62
 
-        def place_pair(anchor: np.ndarray, head: Mobject, card: Mobject) -> None:
-            head.move_to(
+        def path_anchor(points: list[np.ndarray], t: float) -> np.ndarray:
+            clipped = float(np.clip(t, 0.0, len(points) - 1))
+            idx = min(int(np.floor(clipped)), len(points) - 2)
+            alpha = clipped - idx
+            return interpolate(points[idx], points[idx + 1], alpha)
+
+        def place_card(mob: Mobject, anchor: np.ndarray) -> None:
+            mob.move_to(
                 bottom_aligned_point(
                     anchor,
-                    head,
-                    right=-(pair_gap / 2 + head.width / 2),
-                    front=0.68,
-                )
-            )
-            card.move_to(
-                bottom_aligned_point(
-                    anchor,
-                    card,
-                    right=(pair_gap / 2 + card.width / 2),
-                    front=0.56,
+                    mob,
+                    right=(dot_gap + mob.width / 2),
+                    front=front_offset,
                 )
             )
 
-        place_pair(x1, rep_left, stim_left)
-        place_pair(x2, rep_mid, stim_mid)
-        place_pair(x3, rep_right, stim_right)
+        def place_head(mob: Mobject, anchor: np.ndarray) -> None:
+            mob.move_to(
+                bottom_aligned_point(
+                    anchor,
+                    mob,
+                    right=-(dot_gap + mob.width / 2),
+                    front=front_offset,
+                )
+            )
+
+        left_path = [x2, x1, x_past]
+        mid_path = [x3, x2, x1]
+        right_path = [x_future, x3, x2]
+
+        def left_matrix(t: float) -> np.ndarray:
+            return _interpolate_matrix(_SENSORY_PATTERN_LEFT, _MEMORY_PATTERN, np.clip(t, 0.0, 1.0))
+
+        def mid_matrix(t: float) -> np.ndarray:
+            if t <= 0.8:
+                return _MEMORY_PATTERN
+            return _interpolate_matrix(_MEMORY_PATTERN, _SENSORY_PATTERN_RIGHT, np.clip((t - 0.8) / 1.2, 0.0, 1.0))
+
+        def right_matrix(t: float) -> np.ndarray:
+            return _interpolate_matrix(_MEMORY_PATTERN, _SENSORY_PATTERN_RIGHT, np.clip(t / 1.1, 0.0, 1.0))
+
+        def update_card(mob: Mobject, points: list[np.ndarray]) -> Mobject:
+            place_card(mob, path_anchor(points, travel.get_value()))
+            return mob
+
+        def update_head(mob: Mobject, points: list[np.ndarray], matrix_fn) -> Mobject:
+            place_head(mob, path_anchor(points, travel.get_value()))
+            new_matrix = _mini_matrix(matrix_fn(travel.get_value()), cell=0.11 * 0.72)
+            new_matrix.move_to(
+                mob[0].get_center()
+                + LEFT * (0.055 * mob[0].width)
+                + UP * (0.23 * mob[0].height)
+            )
+            mob[1].become(new_matrix)
+            return mob
+
+        place_card(stim_left, path_anchor(left_path, 0.0))
+        place_card(stim_mid, path_anchor(mid_path, 0.0))
+        place_card(stim_right, path_anchor(right_path, 0.0))
+        place_head(rep_left, path_anchor(left_path, 0.0))
+        place_head(rep_mid, path_anchor(mid_path, 0.0))
+        place_head(rep_right, path_anchor(right_path, 0.0))
+
+        stim_left.add_updater(lambda mob: update_card(mob, left_path))
+        stim_mid.add_updater(lambda mob: update_card(mob, mid_path))
+        stim_right.add_updater(lambda mob: update_card(mob, right_path))
+        rep_left.add_updater(lambda mob: update_head(mob, left_path, left_matrix))
+        rep_mid.add_updater(lambda mob: update_head(mob, mid_path, mid_matrix))
+        rep_right.add_updater(lambda mob: update_head(mob, right_path, right_matrix))
 
         self.add_fixed_orientation_mobjects(
             axis_labels,
@@ -495,7 +551,13 @@ class IntroRepresentation3DTest(ThreeDScene):
             FadeIn(axis_labels, shift=UP * 0.03),
             run_time=1.0,
         )
-        self.play(FadeIn(stim_left, scale=0.97), FadeIn(rep_left, scale=0.97), run_time=0.7)
-        self.play(FadeIn(stim_mid, scale=0.97), FadeIn(rep_mid, scale=0.97), run_time=0.7)
-        self.play(FadeIn(stim_right, scale=0.97), FadeIn(rep_right, scale=0.97), run_time=0.7)
-        self.wait(2.0)
+        self.play(
+            FadeIn(stim_left, scale=0.97),
+            FadeIn(stim_mid, scale=0.97),
+            FadeIn(rep_left, scale=0.97),
+            FadeIn(rep_mid, scale=0.97),
+            FadeIn(rep_right, scale=0.97),
+            run_time=0.9,
+        )
+        self.play(travel.animate.set_value(2.0), run_time=6.5, rate_func=smooth)
+        self.wait(1.2)

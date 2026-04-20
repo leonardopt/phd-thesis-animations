@@ -15,8 +15,12 @@ Legacy standalone renders:
 """
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
+from PIL import Image as PILImage
+import subprocess
 import sys
+import tempfile
 
 from manim import *
 
@@ -42,6 +46,7 @@ _CONCLUSION_SCENE_ORDER: dict[str, str] = {
     "ConclusionApproach": "02",
     "ConclusionResults": "03",
     "ConclusionLimitations": "04",
+    "ConclusionFutureDirections": "05",
 }
 
 
@@ -64,6 +69,8 @@ BLUE = "#3E5C76"
 AMBER = "#8A6642"
 GREEN = "#4F6D5E"
 RED = "#8B5A52"
+_FISH_VIDEO_PATH = _SCENES_DIR.parent / "assets" / "images" / "fish_video.mp4"
+_VIDEO_FRAME_CACHE: dict[tuple[str, int, int, int, int], list[np.ndarray]] = {}
 
 
 def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
@@ -125,6 +132,79 @@ def text_lines(
 def simple_divider(width: float, *, color: str = LGREY, stroke_width: float = 1.2) -> Line:
     """Build a centered divider."""
     return Line(LEFT * width / 2, RIGHT * width / 2, color=color, stroke_width=stroke_width)
+
+
+def load_video_frames(
+    video_path: Path,
+    *,
+    fps: int = 12,
+    frame_width_px: int = 420,
+) -> list[np.ndarray]:
+    """Decode a short mp4 into cached RGBA frames for lightweight playback."""
+    stat = video_path.stat()
+    cache_key = (
+        str(video_path.resolve()),
+        int(stat.st_mtime_ns),
+        int(stat.st_size),
+        fps,
+        frame_width_px,
+    )
+    cached = _VIDEO_FRAME_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    digest = hashlib.sha1(
+        f"{video_path.resolve()}:{stat.st_mtime_ns}:{stat.st_size}:{fps}:{frame_width_px}".encode()
+    ).hexdigest()[:12]
+    frame_dir = Path(tempfile.gettempdir()) / "phd_thesis_conclusion_video_frames" / digest
+    frame_pattern = frame_dir / "frame_%04d.png"
+
+    if not any(frame_dir.glob("frame_*.png")):
+        frame_dir.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(video_path),
+                "-vf",
+                f"fps={fps},scale={frame_width_px}:{frame_width_px}:force_original_aspect_ratio=decrease",
+                str(frame_pattern),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    frame_paths = sorted(frame_dir.glob("frame_*.png"))
+    if not frame_paths:
+        raise RuntimeError(f"No frames extracted from {video_path}")
+
+    frames = [np.asarray(PILImage.open(fp).convert("RGBA")) for fp in frame_paths]
+    _VIDEO_FRAME_CACHE[cache_key] = frames
+    return frames
+
+
+def video_mobject(
+    video_path: Path,
+    *,
+    width: float,
+    fps: int = 12,
+) -> ImageMobject:
+    """Create a looping video mobject from cached frame arrays."""
+    frames = load_video_frames(video_path, fps=fps)
+    mob = ImageMobject(frames[0]).scale_to_fit_width(width)
+    elapsed = {"t": 0.0}
+
+    def _update_frame(m: ImageMobject, dt: float) -> None:
+        elapsed["t"] += dt
+        idx = int(elapsed["t"] * fps) % len(frames)
+        center = m.get_center()
+        next_frame = ImageMobject(frames[idx]).scale_to_fit_width(width).move_to(center)
+        m.become(next_frame)
+
+    mob.add_updater(_update_frame)
+    return mob
 
 
 def split_columns(
@@ -486,17 +566,95 @@ class ConclusionLimitations(_ConclusionNumberedScene, Scene):
         self.wait(3.00)
 
 
+class ConclusionFutureDirections(_ConclusionNumberedScene, Scene):
+    """Chapter 5.5 - argue for generative stimulus synthesis as a general platform."""
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        title = title_block(
+            r"\textbf{Future directions}",
+            "From a single pipeline to a broader standard for controlled naturalistic experiments",
+        )
+
+        left_column = VGroup(
+            make_section_block(
+                "Next methodological steps",
+                (
+                    "extend synthesis beyond static exemplars to dynamic and interactive stimuli",
+                    "increase control over scene clutter, viewpoint, motion, and task relevance",
+                    "pair generation with stronger validation loops across behaviour and neuroimaging",
+                ),
+                accent=BLUE,
+                width=4.55,
+            ),
+            make_section_block(
+                "Wider opportunity",
+                (
+                    "shared generative pipelines could make naturalistic stimulus control reproducible across labs",
+                    "this would reduce the trade-off between ecological realism and experimental precision",
+                ),
+                accent=GREEN,
+                width=4.55,
+            ),
+        ).arrange(DOWN, buff=0.28, aligned_edge=LEFT)
+
+        video_title = Tex(r"\textbf{Dynamic synthetic stimuli}", color=INK, font_size=22)
+        video_clip = video_mobject(_FISH_VIDEO_PATH, width=4.1, fps=12)
+        video_frame = RoundedRectangle(
+            corner_radius=0.14,
+            width=4.42,
+            height=4.42,
+            stroke_color=BLUE,
+            stroke_width=1.6,
+        )
+        video_frame.set_fill(WHITE, opacity=0.0)
+        video_stack = Group(video_frame, video_clip)
+        video_clip.move_to(video_frame.get_center())
+        video_caption = text_lines(
+            (
+                "Dynamic fish render from the same synthesis line of work.",
+                "The same logic can scale from stills to richer, time-varying stimulus sets.",
+            ),
+            font_size=17,
+            color=INK,
+            max_width=4.35,
+        )
+        right_column = Group(video_title, video_stack, video_caption).arrange(
+            DOWN,
+            buff=0.18,
+            aligned_edge=LEFT,
+        )
+
+        content = split_columns(left_column, right_column, buff=0.52)
+        content.next_to(title, DOWN, buff=0.34)
+
+        callout = make_callout(
+            "Generative stimulus synthesis has the potential to become a new standard.",
+            BLUE,
+            font_size=21,
+        ).to_edge(DOWN, buff=0.34)
+
+        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
+        self.play(FadeIn(left_column, shift=UP * 0.05), run_time=0.90)
+        self.play(FadeIn(content[1]), FadeIn(right_column, shift=UP * 0.05), run_time=0.95)
+        self.play(FadeIn(callout, shift=UP * 0.04), run_time=0.55)
+        self.wait(5.00)
+
+
 _CONCLUSION_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
     ConclusionQuestions,
     ConclusionApproach,
     ConclusionResults,
     ConclusionLimitations,
+    ConclusionFutureDirections,
 )
 _CONCLUSION_SECTION_NAMES: tuple[str, ...] = (
     "conclusion_questions",
     "conclusion_summary",
     "conclusion_results",
     "conclusion_limitations",
+    "conclusion_future_directions",
 )
 
 
