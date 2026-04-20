@@ -1286,9 +1286,10 @@ class _Study1Step3Base(Scene):
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step3_BG
         previous_section_group = getattr(self, '_study1_prev_section_group', None)
-        if previous_section_group is None:
+        if self.segment != 'selection' and previous_section_group is None:
             previous_section_group = _s1_step2_showcase_build_final_frame()
-        self.add(previous_section_group)
+        if previous_section_group is not None:
+            self.add(previous_section_group)
         pixels, files = _s1_step3_load_pixels()
         scores_csv, ordered_names = _s1_step3_load_similarity_matrix()
         csv_index_by_name = {name: i for i, name in enumerate(ordered_names)}
@@ -1323,9 +1324,7 @@ class _Study1Step3Base(Scene):
         nn_hidden_nodes = VGroup(*matrix_icon.submobjects[16:19])
         nn_edge_base_width = 1.8
         nn_node_base_width = 1.1
-        nn_input_color = _s1_step3_C_ANCHOR
-        nn_hidden_color = _s1_step3_C_ACCENT
-        nn_output_color = _s1_step3_C_GUIDE
+        nn_shine_color = '#F3F4F6'
         for edge_group in (nn_left_edges, nn_right_edges):
             edge_group.set_stroke(_s1_step3_GREY, width=nn_edge_base_width, opacity=0.42)
         for node_group in (nn_input_nodes, nn_hidden_nodes, nn_output_nodes):
@@ -1375,6 +1374,20 @@ class _Study1Step3Base(Scene):
             score = float(scores[i, j])
             return Tex(f'\\textit{{score}} = {score:.3f}', color=_s1_step3_C_MATRIX, font_size=18)
 
+        def pair_score_arrow(score_mob: Mobject, pair: tuple[int, int]) -> Arrow:
+            """Route the matrix arrow from the displayed score label to the cell."""
+            arrow = Arrow(
+                score_mob.get_bottom() + DOWN * 0.03,
+                cell_center(*pair) + RIGHT * 0.1,
+                buff=0.08,
+                color=_s1_step3_C_FLOW,
+                stroke_width=2.0,
+                tip_length=0.18,
+                max_stroke_width_to_length_ratio=20,
+            )
+            arrow.set_z_index(4)
+            return arrow
+
         def matrix_value_label(i: int, j: int) -> VGroup:
             """
             Build one compact score label positioned on top of a sampled matrix
@@ -1413,10 +1426,12 @@ class _Study1Step3Base(Scene):
         pair_card = Group(pair_title, pair_formula, pair_imgs, pair_score).arrange(DOWN, buff=0.12)
         pair_card.move_to(RIGHT * 5.25 + UP * 2.15)
         pair_card.set_z_index(5)
-        repeat_note = Tex('\\textit{repeat for all exemplar pairs}', color=_s1_step3_GREY, font_size=16).next_to(pair_card, DOWN, buff=0.16)
+        repeat_note = VGroup(
+            Tex('\\textit{repeat for all}', color=_s1_step3_GREY, font_size=16),
+            Tex('\\textit{image pairs}', color=_s1_step3_GREY, font_size=16),
+        ).arrange(DOWN, buff=0.02).next_to(pair_card, DOWN, buff=0.16)
         repeat_note.set_z_index(5)
-        pair_arrow = Arrow(pair_card.get_left() + LEFT * 0.04 + DOWN * 0.1, cell_center(*demo_pairs[0]) + RIGHT * 0.1, buff=0.08, color=_s1_step3_C_FLOW, stroke_width=2.0, tip_length=0.18, max_stroke_width_to_length_ratio=20)
-        pair_arrow.set_z_index(4)
+        pair_arrow = pair_score_arrow(pair_score, demo_pairs[0])
         current_cell = pair_cell(*demo_pairs[0], color=_s1_step3_C_FLOW)
         current_cell.set_z_index(4)
 
@@ -1493,31 +1508,54 @@ class _Study1Step3Base(Scene):
         def nn_node_pulse(node_group: VGroup, color: str, *, peak_opacity: float=1.0) -> AnimationGroup:
             """Pulse one node layer during the LPIPS pair scan."""
             return AnimationGroup(
-                node_group.animate.set_fill(color, opacity=peak_opacity).set_stroke(color, width=nn_node_base_width * 1.9, opacity=peak_opacity * 0.85),
-                run_time=0.2,
+                node_group.animate.set_fill(color, opacity=peak_opacity).set_stroke(color, width=nn_node_base_width * 2.4, opacity=peak_opacity),
+                run_time=0.24,
                 rate_func=there_and_back,
             )
 
         def nn_edge_flash(edge_group: VGroup, color: str) -> AnimationGroup:
             """Flash one bank of network connections to suggest activation flow."""
             flash = edge_group.copy()
-            flash.set_stroke(color, width=nn_edge_base_width * 3.0, opacity=1.0)
+            flash.set_stroke(color, width=nn_edge_base_width * 3.2, opacity=1.0)
             flash.set_z_index(matrix_icon.get_z_index() + 1)
+            traveler_anims = []
+            for line in edge_group:
+                signal_dot = Dot(
+                    point=line.get_start(),
+                    radius=0.055,
+                    fill_color=color,
+                    fill_opacity=1.0,
+                    stroke_color=WHITE,
+                    stroke_width=0.8,
+                )
+                signal_dot.set_z_index(matrix_icon.get_z_index() + 2)
+                traveler_anims.append(
+                    Succession(
+                        FadeIn(signal_dot, scale=0.35, run_time=0.04),
+                        MoveAlongPath(signal_dot, line, rate_func=linear, run_time=0.20),
+                        FadeOut(signal_dot, scale=0.35, run_time=0.04),
+                    )
+                )
             return AnimationGroup(
-                edge_group.animate.set_stroke(color, width=nn_edge_base_width * 2.0, opacity=0.95),
-                ShowPassingFlash(flash, time_width=0.8, run_time=0.2),
-                run_time=0.2,
-                rate_func=there_and_back,
+                AnimationGroup(
+                    edge_group.animate.set_stroke(color, width=nn_edge_base_width * 2.3, opacity=0.98),
+                    run_time=0.28,
+                    rate_func=there_and_back,
+                ),
+                ShowPassingFlash(flash, time_width=1.0, run_time=0.28),
+                LaggedStart(*traveler_anims, lag_ratio=0.06, run_time=0.28),
+                lag_ratio=0.0,
+                run_time=0.28,
             )
 
         def nn_activation_sweep() -> LaggedStart:
-            """Animate a subtle left-to-right activation sweep through the icon."""
+            """Animate a monochrome shine sweep through the network icon."""
             return LaggedStart(
-                AnimationGroup(nn_node_pulse(nn_input_nodes, nn_input_color, peak_opacity=0.95), nn_edge_flash(nn_left_edges, nn_input_color), lag_ratio=0.0),
-                AnimationGroup(nn_node_pulse(nn_hidden_nodes, nn_hidden_color, peak_opacity=1.0), lag_ratio=0.0),
-                AnimationGroup(nn_edge_flash(nn_right_edges, nn_output_color), nn_node_pulse(nn_output_nodes, nn_output_color, peak_opacity=0.95), lag_ratio=0.0),
-                lag_ratio=0.18,
-                run_time=0.42,
+                AnimationGroup(nn_node_pulse(nn_input_nodes, nn_shine_color, peak_opacity=0.95), nn_edge_flash(nn_left_edges, nn_shine_color), lag_ratio=0.0),
+                AnimationGroup(nn_node_pulse(nn_hidden_nodes, nn_shine_color, peak_opacity=1.0), lag_ratio=0.0),
+                AnimationGroup(nn_edge_flash(nn_right_edges, nn_shine_color), nn_node_pulse(nn_output_nodes, nn_shine_color, peak_opacity=0.95), lag_ratio=0.0),
+                lag_ratio=0.16,
+                run_time=0.52,
             )
 
         def play_intro_and_matrix(keep_example_visible: bool=False) -> None:
@@ -1543,7 +1581,7 @@ class _Study1Step3Base(Scene):
                 new_left.move_to(pair_l.get_center())
                 new_right.move_to(pair_r.get_center())
                 new_score = score_label(*next_pair).move_to(pair_score.get_center())
-                new_arrow = Arrow(pair_card.get_left() + LEFT * 0.04 + DOWN * 0.1, cell_center(*next_pair) + RIGHT * 0.1, buff=0.08, color=_s1_step3_C_FLOW, stroke_width=2.0, tip_length=0.18, max_stroke_width_to_length_ratio=20)
+                new_arrow = pair_score_arrow(new_score, next_pair)
                 new_cell = pair_cell(*next_pair, color=_s1_step3_C_FLOW)
                 new_cloud_left = cloud_pair_box(next_pair[0]).set_z_index(4)
                 new_cloud_right = cloud_pair_box(next_pair[1]).set_z_index(4)
@@ -1554,7 +1592,10 @@ class _Study1Step3Base(Scene):
                 self.wait(0.14)
             self.play(Write(repeat_note), run_time=0.45)
             self.wait(0.45)
-            fill_anims = [LaggedStart(*[FadeIn(band, shift=UP * 0.02) for band in band_imgs], lag_ratio=0.14)]
+            fill_anims = [
+                LaggedStart(*[FadeIn(band, shift=UP * 0.02) for band in band_imgs], lag_ratio=0.14),
+                FadeOut(sampled_matrix_values),
+            ]
             if not keep_example_visible:
                 fill_anims.extend([FadeOut(current_cloud_left, current_cloud_right), FadeOut(pair_arrow, current_cell)])
             self.play(*fill_anims, run_time=2.2)
@@ -1600,14 +1641,12 @@ class _Study1Step3Base(Scene):
             repeat_note_final = repeat_note.copy()
             repeat_note_final.next_to(pair_card_final, DOWN, buff=0.16)
             repeat_note_final.set_z_index(5)
-            pair_arrow_final = Arrow(pair_card_final.get_left() + LEFT * 0.04 + DOWN * 0.1, cell_center(*final_pair) + RIGHT * 0.1, buff=0.08, color=_s1_step3_C_FLOW, stroke_width=2.0, tip_length=0.18, max_stroke_width_to_length_ratio=20)
-            pair_arrow_final.set_z_index(4)
+            pair_arrow_final = pair_score_arrow(pair_score_final, final_pair)
             current_cell_final = pair_cell(*final_pair, color=_s1_step3_C_FLOW)
             current_cell_final.set_z_index(4)
             current_cloud_left_final = cloud_pair_box(final_pair[0]).set_z_index(4)
             current_cloud_right_final = cloud_pair_box(final_pair[1]).set_z_index(4)
-            sampled_matrix_values_final = VGroup(*[matrix_value_label(*pair) for pair in demo_pairs])
-            return {'pair_card': pair_card_final, 'repeat_note': repeat_note_final, 'pair_arrow': pair_arrow_final, 'current_cell': current_cell_final, 'current_cloud_left': current_cloud_left_final, 'current_cloud_right': current_cloud_right_final, 'sampled_matrix_values': sampled_matrix_values_final}
+            return {'pair_card': pair_card_final, 'repeat_note': repeat_note_final, 'pair_arrow': pair_arrow_final, 'current_cell': current_cell_final, 'current_cloud_left': current_cloud_left_final, 'current_cloud_right': current_cloud_right_final}
         if self.segment == 'merged':
             self.next_section("05_Step3Part1")
             play_intro_and_matrix(keep_example_visible=True)
@@ -1624,7 +1663,7 @@ class _Study1Step3Base(Scene):
             return
         if self.segment == 'selection':
             part1_final_frame = build_part1_final_frame()
-            self.add(cloud_title, *cloud_imgs, tri_bg, tri_frame, diag_line, matrix_title, axis_x, axis_y, *band_imgs, part1_final_frame['sampled_matrix_values'], part1_final_frame['pair_card'], part1_final_frame['repeat_note'], part1_final_frame['pair_arrow'], part1_final_frame['current_cell'], part1_final_frame['current_cloud_left'], part1_final_frame['current_cloud_right'])
+            self.add(cloud_title, *cloud_imgs, tri_bg, tri_frame, diag_line, matrix_title, axis_x, axis_y, *band_imgs, part1_final_frame['pair_card'], part1_final_frame['repeat_note'], part1_final_frame['pair_arrow'], part1_final_frame['current_cell'], part1_final_frame['current_cloud_left'], part1_final_frame['current_cloud_right'])
             self.wait(0.55)
             self.play(FadeOut(part1_final_frame['current_cloud_left'], part1_final_frame['current_cloud_right']), FadeOut(part1_final_frame['pair_arrow'], part1_final_frame['current_cell']), FadeOut(part1_final_frame['pair_card'], part1_final_frame['repeat_note']), run_time=0.45)
             self.wait(0.25)
@@ -1683,6 +1722,23 @@ def _s1_step4_load_interpolation_pixels() -> tuple[np.ndarray, int]:
         pixels[i] = np.asarray(PILImage.open(fp).convert('RGBA').resize((SZ, SZ), PILImage.LANCZOS))
     return (pixels, N)
 
+
+def _study1_tracking_border(
+    mob: Mobject,
+    *,
+    color: str,
+    stroke_width: float = 2.5,
+    buff: float = 0.03,
+) -> Mobject:
+    """Keep a border visually locked to a fixed-orientation image in 3-D scenes."""
+    return always_redraw(
+        lambda: Square(side_length=max(mob.width, mob.height) + 2 * buff)
+        .set_stroke(color=color, width=stroke_width)
+        .set_fill(opacity=0.0)
+        .move_to(mob.get_center())
+        .set_z_index(mob.z_index + 1)
+    )
+
 class Study1Stage1Step4Detailed(ThreeDScene):
     """Show the full 3-D SLERP interpolation story alongside the generated image preview."""
     def construct(self) -> None:
@@ -1728,9 +1784,9 @@ class Study1Stage1Step4Detailed(ThreeDScene):
         z1_thumb_offset = np.array([THUMB_H / 2, THUMB_H / 2, 0.0]) + Z1_THUMB_OFFSET_EXTRA
         z1_label_offset = np.array([0.0, 0.0, THUMB_H / 2]) + Z1_LABEL_OFFSET_XYZ
         thumb0 = ImageMobject(pixels[0]).scale_to_fit_height(THUMB_H).move_to(tip0 + z0_dir * Z0_THUMB_DIST)
-        border0 = SurroundingRectangle(thumb0, color=_s1_step4_C_Z0, stroke_width=2.5, buff=0.03)
+        border0 = _study1_tracking_border(thumb0, color=_s1_step4_C_Z0)
         thumb1 = ImageMobject(pixels[-1]).scale_to_fit_height(THUMB_H).move_to(tip1 + z1_thumb_offset)
-        border1 = SurroundingRectangle(thumb1, color=_s1_step4_C_Z1, stroke_width=2.5, buff=0.03)
+        border1 = _study1_tracking_border(thumb1, color=_s1_step4_C_Z1)
         lab_z0_3d = MathTex('\\mathbf{z}_0', '\\text{(anchor)}', color=_s1_step4_C_Z0, font_size=30).arrange(DOWN, buff=0.06).move_to(tip0 + z0_dir * z0_label_dist)
         lab_z1_3d = MathTex('\\mathbf{z}_1', '\\text{(guide)}', color=_s1_step4_C_Z1, font_size=30).arrange(DOWN, buff=0.06).move_to(thumb1.get_center() + z1_label_offset)
         alpha = ValueTracker(0.0)
@@ -1800,10 +1856,10 @@ class _Study1Step4CompactBase(ThreeDScene):
         arc_3d = ParametricFunction(lambda t: R * _s1_step4_slerp(z0_dir, z1_dir, t), t_range=[0.0, 1.0, 0.005], color=_s1_step4_C_ARC, stroke_width=4)
         thumb_h = 0.95
         thumb0 = ImageMobject(pixels[0]).scale_to_fit_height(thumb_h).move_to(tip0 + z0_dir * 0.92)
-        border0 = SurroundingRectangle(thumb0, color=_s1_step4_C_Z0, stroke_width=2.5, buff=0.03)
+        border0 = _study1_tracking_border(thumb0, color=_s1_step4_C_Z0)
         thumb1_offset = np.array([thumb_h / 2 + 0.05, thumb_h / 2, 0.16])
         thumb1 = ImageMobject(pixels[-1]).scale_to_fit_height(thumb_h).move_to(tip1 + thumb1_offset)
-        border1 = SurroundingRectangle(thumb1, color=_s1_step4_C_Z1, stroke_width=2.5, buff=0.03)
+        border1 = _study1_tracking_border(thumb1, color=_s1_step4_C_Z1)
         lab_z0 = Tex('\\text{anchor}', color=_s1_step4_C_Z0, font_size=30)
         lab_z0.move_to(thumb0.get_center() + np.array([0.0, 0.0, thumb_h / 2 + 0.26]))
         lab_z0.set_z_index(10)
@@ -1827,7 +1883,7 @@ class _Study1Step4CompactBase(ThreeDScene):
         img_follow = ImageMobject(pixels[0]).scale_to_fit_height(thumb_h)
         img_follow.add_updater(lambda mob: mob.become(ImageMobject(pixels[np.clip(int(round(alpha.get_value() * (N - 1))), 0, N - 1)]).scale_to_fit_height(thumb_h).move_to(follow_center(alpha.get_value()))))
         img_follow.move_to(follow_center(0.0))
-        img_follow_border = always_redraw(lambda: SurroundingRectangle(img_follow, color=_s1_step4_C_ZA, stroke_width=2.5, buff=0.03))
+        img_follow_border = _study1_tracking_border(img_follow, color=_s1_step4_C_ZA)
         scene_title = Tex('\\textit{Noise latent space} ($\\mathbb{R}^n$)', color=_s1_step4_INK, font_size=24).to_corner(UL, buff=0.45).shift(RIGHT * 1.8)
         prompt_bg = RoundedRectangle(corner_radius=0.12, width=3.1, height=2.55, stroke_color=_s1_step4_LGREY, stroke_width=1.5).set_fill(WHITE, opacity=0.95).to_corner(UR, buff=0.22)
         p_title = Tex('\\textbf{Prompt}', color=_s1_step4_INK, font_size=21)
@@ -2157,17 +2213,17 @@ class _Study1Step5Base(ThreeDScene):
         THUMB_H = 0.95
         thumb0 = st['anchor_grp'][0]
         thumb0.scale_to_fit_height(THUMB_H).move_to(tip0 + z0_dir * 0.92)
-        border0 = SurroundingRectangle(thumb0, color=_s1_step5_BLUE, stroke_width=2.5, buff=0.03)
+        border0 = _study1_tracking_border(thumb0, color=_s1_step5_BLUE)
         t1_offset = np.array([THUMB_H / 2 + 0.05, THUMB_H / 2, 0.16])
         thumb1 = st['guide_grp'][0]
         thumb1.scale_to_fit_height(THUMB_H).move_to(tip1 + t1_offset)
-        border1 = SurroundingRectangle(thumb1, color=_s1_step5__C_Z1, stroke_width=2.5, buff=0.03)
+        border1 = _study1_tracking_border(thumb1, color=_s1_step5__C_Z1)
         lab_z0 = Tex('\\text{anchor}', color=_s1_step5_BLUE, font_size=30).set_z_index(10)
         lab_z0.move_to(thumb0.get_center() + np.array([0.0, 0.0, THUMB_H / 2 + 0.26]))
         lab_z1 = Tex('\\text{guide}', color=_s1_step5__C_Z1, font_size=30).set_z_index(10)
         lab_z1.move_to(thumb1.get_center() + np.array([0.0, 0.0, -(THUMB_H / 2 + 0.28)]))
         img_follow = ImageMobject(pixels[-1]).scale_to_fit_height(THUMB_H).move_to(thumb1.get_center())
-        img_follow_border = SurroundingRectangle(img_follow, color=_s1_step5__C_ZA, stroke_width=2.5, buff=0.03)
+        img_follow_border = _study1_tracking_border(img_follow, color=_s1_step5__C_ZA)
         _prompt_lines = ('``award-winning marine photo', 'of a colorful fish in a coral reef,', 'centered in the scene,', 'vibrant underwater scene,', "high detail''")
         scene_title = Tex('\\textit{Noise latent space} ($\\mathbb{R}^n$)', color=_s1_step5_INK, font_size=24).to_corner(UL, buff=0.45).shift(RIGHT * 1.8)
         prompt_bg = RoundedRectangle(corner_radius=0.12, width=3.1, height=2.55, stroke_color=_s1_step5_LGREY, stroke_width=1.5).set_fill(WHITE, opacity=0.95).to_corner(UR, buff=0.22)
@@ -5810,14 +5866,15 @@ def _apply_study1_section_scene_outputs() -> None:
         output_name = f"sections/{index:03}_{section_name}"
         orig_init = scene_cls.__init__
 
-        def _make_init(cls_output_name: str, cls_orig_init):
+        def _make_init(owner_cls: type[Scene], cls_output_name: str, cls_orig_init):
             def __init__(self, *args, **kwargs):
-                config.output_file = cls_output_name
+                if type(self) is owner_cls:
+                    config.output_file = cls_output_name
                 cls_orig_init(self, *args, **kwargs)
 
             return __init__
 
-        scene_cls.__init__ = _make_init(output_name, orig_init)
+        scene_cls.__init__ = _make_init(scene_cls, output_name, orig_init)
 
 
 _apply_study1_section_scene_outputs()
@@ -5872,7 +5929,10 @@ class Study1(
         self.next_section(section_name)
         if carry_previous_frame:
             self._hold_previous_section_frame()
-        self._reset_master_scene_state(clear_scene=False)
+        # Top-level Study 1 sections are authored as standalone scene bodies.
+        # Clear any surviving mobjects here so titles and overlays from the
+        # previous section do not leak into the next replay.
+        self._reset_master_scene_state(clear_scene=True)
         instance_overrides: dict[str, tuple[bool, object | None]] = {}
         for attr_name in self._SCENE_INSTANCE_OVERRIDES:
             if attr_name not in scene_cls.__dict__:

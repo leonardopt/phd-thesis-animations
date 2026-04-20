@@ -12,7 +12,8 @@ Legacy standalone renders:
     uv run manim scenes/methods.py MethodsTraditionalLimits -ql
     uv run manim scenes/methods.py MethodsGANsProofOfConcept -ql
     uv run manim scenes/methods.py MethodsDiffusionOpportunity -ql
-    uv run manim scenes/methods.py MethodsDiffusionExplainer -ql
+    uv run manim scenes/methods.py MethodsDiffusionPromptConditioning -ql
+    uv run manim scenes/methods.py MethodsDiffusionTrainVsGenerate -ql
     uv run manim scenes/methods.py MethodsProjectPlan -ql
 """
 from __future__ import annotations
@@ -46,8 +47,9 @@ _METHODS_SCENE_ORDER: dict[str, str] = {
     "MethodsTraditionalLimits": "02",
     "MethodsGANsProofOfConcept": "03",
     "MethodsDiffusionOpportunity": "04",
-    "MethodsDiffusionExplainer": "05",
-    "MethodsProjectPlan": "06",
+    "MethodsDiffusionPromptConditioning": "05",
+    "MethodsDiffusionTrainVsGenerate": "06",
+    "MethodsProjectPlan": "07",
 }
 
 
@@ -95,6 +97,11 @@ _BRAIN_ICON_PATH = REPO_ROOT / "assets" / "images" / "study2" / "brain_icon_sagi
 _EXEMPLAR_CODE = "building_observatory"
 _DIFFUSION_CODE = "animal_fish"
 _DIFFUSION_PROMPT = r"\textit{prompt: observatory at dusk}"
+_DIFFUSION_PROMPT_LINES: tuple[str, ...] = (
+    r"``award-winning marine photo''",
+    r"``of a colorful fish in a coral reef''",
+    r"``vibrant underwater scene, high detail''",
+)
 _CATEGORY_EXAMPLES: tuple[tuple[str, int, str, str], ...] = (
     ("animal_fish", 5, r"\textit{fish in water}", BLUE),
     ("building_observatory", 5, r"\textit{observatory at dusk}", AMBER),
@@ -324,6 +331,54 @@ def make_image_progression(
         ]
     )
     return cards, arrows
+
+
+def make_schematic_box(
+    title_text: str,
+    body: Mobject,
+    *,
+    accent: str,
+    width: float = 2.7,
+    min_height: float = 1.10,
+    fill_color: str = "#FAFBFC",
+) -> VGroup:
+    """Build a simple boxed module for the diffusion schematics."""
+    body_group = body.copy()
+    max_body_width = max(width - 0.42, 0.6)
+    if body_group.width > max_body_width:
+        body_group.scale_to_fit_width(max_body_width)
+
+    title = Tex(rf"\textbf{{{title_text}}}", color=INK, font_size=20)
+    content = VGroup(title, body_group).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+    box = RoundedRectangle(
+        width=max(width, content.width + 0.36),
+        height=max(min_height, content.height + 0.34),
+        corner_radius=0.14,
+        stroke_color=accent,
+        stroke_width=1.5,
+    ).set_fill(fill_color, opacity=1.0)
+    content.move_to(box.get_center()).align_to(box, LEFT).shift(RIGHT * 0.18)
+    return VGroup(box, content)
+
+
+def make_badge(
+    text: str,
+    *,
+    accent: str,
+    font_size: float = 16,
+    fill_color: str = WHITE,
+) -> VGroup:
+    """Build a compact badge used for seed and timestep labels."""
+    label = Tex(text, color=INK, font_size=font_size)
+    frame = RoundedRectangle(
+        width=label.width + 0.30,
+        height=label.height + 0.18,
+        corner_radius=0.12,
+        stroke_color=accent,
+        stroke_width=1.2,
+    ).set_fill(fill_color, opacity=1.0)
+    label.move_to(frame.get_center())
+    return VGroup(frame, label)
 
 
 def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.0) -> dict[str, Mobject]:
@@ -665,15 +720,194 @@ class MethodsDiffusionOpportunity(Scene):
         self.wait(3.20)
 
 
-class MethodsDiffusionExplainer(Scene):
-    """Chapter 2.5 — explain forward corruption and prompt-conditioned denoising."""
+class MethodsDiffusionPromptConditioning(Scene):
+    """Chapter 2.5 — explain prompt conditioning and controlled variation."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
         title = title_block(
-            r"\textbf{Diffusion model explainer}",
-            "Forward corruption during training; prompt-conditioned reverse denoising at sampling",
+            r"\textbf{Stable Diffusion turns a text concept into many candidate images}",
+            "A fixed prompt sets the semantic target; changing the noise seed yields different exemplars",
+        )
+
+        prompt_box = make_schematic_box(
+            "Prompt",
+            text_lines(
+                _DIFFUSION_PROMPT_LINES,
+                font_size=15,
+                color=INK,
+                max_width=2.70,
+            ),
+            accent=BLUE,
+            width=3.10,
+            min_height=1.85,
+        )
+        encoder_box = make_schematic_box(
+            "Text encoder",
+            text_lines(
+                (
+                    "CLIP-trained mapping",
+                    "from text to semantic features",
+                ),
+                font_size=16,
+                color=INK,
+                max_width=2.35,
+            ),
+            accent=AMBER,
+            width=2.80,
+            min_height=1.38,
+        )
+        embedding_box = make_schematic_box(
+            "Prompt embedding",
+            MathTex(r"c", color=GREEN, font_size=34),
+            accent=GREEN,
+            width=1.95,
+            min_height=1.12,
+        )
+
+        prompt_flow = Group(prompt_box, encoder_box, embedding_box).arrange(
+            RIGHT, buff=0.26, aligned_edge=DOWN
+        )
+        prompt_arrows = VGroup(
+            Arrow(
+                prompt_box.get_right() + RIGHT * 0.03,
+                encoder_box.get_left() + LEFT * 0.03,
+                color=MGREY,
+                stroke_width=1.5,
+                buff=0.04,
+                tip_length=0.12,
+                tip_shape=StealthTip,
+            ),
+            Arrow(
+                encoder_box.get_right() + RIGHT * 0.03,
+                embedding_box.get_left() + LEFT * 0.03,
+                color=MGREY,
+                stroke_width=1.5,
+                buff=0.04,
+                tip_length=0.12,
+                tip_shape=StealthTip,
+            ),
+        )
+
+        left_column = Group(
+            Tex(r"\textbf{Semantic instruction}", color=INK, font_size=24),
+            caption_line(
+                "The prompt specifies what should appear in the image.",
+                color=MGREY,
+                font_size=17,
+                max_width=4.35,
+            ),
+            Group(prompt_flow, prompt_arrows),
+        ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
+
+        noise_box = make_schematic_box(
+            "Random latent / noise seed",
+            MathTex(r"z_T", color=BLUE, font_size=32),
+            accent=BLUE,
+            width=2.10,
+            min_height=1.12,
+        )
+        denoiser_box = make_schematic_box(
+            "Denoising model",
+            text_lines(
+                (
+                    "use the prompt embedding",
+                    "to guide image formation",
+                ),
+                font_size=16,
+                color=INK,
+                max_width=2.25,
+            ),
+            accent=GREEN,
+            width=2.75,
+            min_height=1.35,
+        )
+        model_row = Group(noise_box, denoiser_box).arrange(RIGHT, buff=0.32, aligned_edge=DOWN)
+        model_arrow = Arrow(
+            noise_box.get_right() + RIGHT * 0.03,
+            denoiser_box.get_left() + LEFT * 0.03,
+            color=MGREY,
+            stroke_width=1.5,
+            buff=0.04,
+            tip_length=0.12,
+            tip_shape=StealthTip,
+        )
+        candidates = make_image_strip(_DIFFUSION_CODE, (1, 3, 5, 7), height=0.78, buff=0.08)
+        seed_badges = VGroup(
+            *[make_badge(f"seed {idx + 1}", accent=AMBER, font_size=13) for idx in range(len(candidates))]
+        )
+        for badge, card in zip(seed_badges, candidates):
+            badge.next_to(card, UP, buff=0.08)
+
+        right_column = Group(
+            Tex(r"\textbf{Controlled variation}", color=INK, font_size=24),
+            caption_line(
+                "Keep the prompt fixed, vary the noise seed, and sample multiple plausible exemplars.",
+                color=MGREY,
+                font_size=17,
+                max_width=5.25,
+            ),
+            Group(model_row, model_arrow),
+            Group(seed_badges, candidates),
+            caption_line(
+                "same prompt, different noise seeds $\rightarrow$ different candidate images",
+                color=MGREY,
+                font_size=15,
+                max_width=5.20,
+            ),
+        ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
+
+        content = split_columns(left_column, right_column, buff=0.46)
+        content.next_to(title, DOWN, buff=0.34)
+        content[2].shift(DOWN * 0.06)
+        conditioning_arrow = Arrow(
+            embedding_box.get_bottom() + DOWN * 0.02,
+            denoiser_box.get_top() + UP * 0.04,
+            color=GREEN,
+            stroke_width=1.5,
+            buff=0.04,
+            tip_length=0.12,
+            tip_shape=StealthTip,
+        )
+        output_arrow = Arrow(
+            denoiser_box.get_right() + RIGHT * 0.03,
+            candidates.get_left() + LEFT * 0.04,
+            color=GREEN,
+            stroke_width=1.5,
+            buff=0.04,
+            tip_length=0.12,
+            tip_shape=StealthTip,
+        )
+
+        callout = make_callout(
+            "One semantic description became a controllable stimulus family for Study 1 and Study 2.",
+            BLUE,
+            font_size=20,
+        ).to_edge(DOWN, buff=0.34)
+
+        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
+        self.play(FadeIn(left_column[0:2], shift=UP * 0.04), run_time=0.45)
+        self.play(FadeIn(prompt_box, scale=0.97), run_time=0.35)
+        self.play(Create(prompt_arrows[0]), FadeIn(encoder_box, scale=0.97), run_time=0.35)
+        self.play(Create(prompt_arrows[1]), FadeIn(embedding_box, scale=0.97), run_time=0.32)
+        self.play(FadeIn(right_column[0:2], shift=UP * 0.04), run_time=0.42)
+        self.play(FadeIn(noise_box, scale=0.97), FadeIn(denoiser_box, scale=0.97), Create(model_arrow), run_time=0.38)
+        self.play(Create(conditioning_arrow), run_time=0.28)
+        self.play(Create(output_arrow), FadeIn(seed_badges, shift=UP * 0.03), FadeIn(candidates, shift=UP * 0.03), run_time=0.42)
+        self.play(FadeIn(right_column[-1], shift=UP * 0.03), FadeIn(callout, shift=UP * 0.04), run_time=0.40)
+        self.wait(3.00)
+
+
+class MethodsDiffusionTrainVsGenerate(Scene):
+    """Chapter 2.6 — contrast forward diffusion with reverse denoising."""
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        title = title_block(
+            r"\textbf{Train by adding noise, generate by reversing that process}",
+            "During sampling, the model uses the current noisy latent, the timestep, and the prompt representation",
         )
 
         clean = load_rgb(stim_path(_EXEMPLAR_CODE, 5))
@@ -681,147 +915,190 @@ class MethodsDiffusionExplainer(Scene):
         forward_sources = [blend_with_noise(clean, alpha) for alpha in levels]
         reverse_sources = list(reversed(forward_sources))
 
-        why_block = VGroup(
-            Tex(r"\textbf{Why diffusion here rather than GANs?}", color=BLUE, font_size=20),
-            text_lines(
-                (
-                    "Prompt conditioning let one model specify many heterogeneous object-scene concepts directly.",
-                    "That semantic control was central for this project's high-resolution stimulus pipeline.",
-                ),
-                font_size=17,
-                color=INK,
-                max_width=10.2,
-            ),
-            simple_divider(10.4),
-        ).arrange(DOWN, buff=0.08, aligned_edge=LEFT)
-        why_block.next_to(title, DOWN, buff=0.18)
-
-        def make_state_labels(cards: Group, labels: tuple[str, ...], *, color: str = MGREY) -> VGroup:
-            state_labels = VGroup(*[MathTex(label, color=color, font_size=20) for label in labels])
-            for label, card in zip(state_labels, cards):
+        def make_step_labels(cards: Group, labels: tuple[str, ...], *, color: str = MGREY) -> VGroup:
+            label_group = VGroup(*[Tex(label, color=color, font_size=16) for label in labels])
+            for label, card in zip(label_group, cards):
                 label.next_to(card, DOWN, buff=0.08)
-            return state_labels
+            return label_group
+
+        def make_arrow_tags(arrows: VGroup, text: str, *, color: str) -> VGroup:
+            tags = VGroup(*[Tex(text, color=color, font_size=15) for _ in arrows])
+            for tag, arrow in zip(tags, arrows):
+                tag.next_to(arrow, UP, buff=0.10)
+            return tags
 
         forward_cards, forward_arrows = make_image_progression(
             forward_sources,
-            height=0.80,
+            height=0.70,
             arrow_color=MGREY,
             border_color=LGREY,
+            item_buff=0.15,
         )
-        reverse_cards, reverse_arrows = make_image_progression(
-            reverse_sources,
-            height=0.80,
-            arrow_color=BLUE,
-            border_color=LGREY,
-        )
-
-        forward_labels = make_state_labels(
-            forward_cards,
-            (r"z_0", r"z_t", r"z_{t+\Delta}", r"z_T"),
-        )
-        reverse_labels = make_state_labels(
-            reverse_cards,
-            (r"z_T", r"z_t", r"z_{t-\Delta}", r"z_0"),
-            color=BLUE,
-        )
-
-        forward_row = Group(Group(forward_cards, forward_arrows), forward_labels).arrange(
-            DOWN, buff=0.02
-        )
-        reverse_row = Group(Group(reverse_cards, reverse_arrows), reverse_labels).arrange(
-            DOWN, buff=0.02
-        )
-
-        forward_formula = MathTex(
-            r"z_t = \sqrt{\bar{\alpha}_t}\, z_0 + \sqrt{1-\bar{\alpha}_t}\,\epsilon,"
-            r"\quad \epsilon \sim \mathcal{N}(0, I)",
-            color=MGREY,
-            font_size=22,
-        )
-        if forward_formula.width > 10.0:
-            forward_formula.scale_to_fit_width(10.0)
+        forward_labels = make_step_labels(forward_cards, ("clean", "noisy", "noisier", "noise"))
+        forward_tags = make_arrow_tags(forward_arrows, r"$+$ noise", color=AMBER)
 
         forward_block = Group(
             Group(
-                Tex(r"\textbf{Forward corruption process}", color=INK, font_size=22),
-                caption_line(
-                    "During training, sample a real example and progressively corrupt it with Gaussian noise.",
-                    color=MGREY,
-                    font_size=17,
-                    max_width=10.0,
-                ),
-                forward_formula,
-            ).arrange(DOWN, buff=0.06, aligned_edge=LEFT),
-            forward_row,
-        ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
+                make_badge("training", accent=AMBER, font_size=14),
+                Tex(r"\textbf{Forward diffusion process}", color=INK, font_size=22),
+            ).arrange(RIGHT, buff=0.14),
+            caption_line(
+                "Start from a real image and progressively corrupt it with Gaussian noise.",
+                color=MGREY,
+                font_size=16,
+                max_width=4.85,
+            ),
+            Group(Group(forward_cards, forward_arrows), forward_tags, forward_labels),
+        ).arrange(DOWN, buff=0.16, aligned_edge=LEFT)
 
-        prompt_pipeline = Group(
-            caption_line(_DIFFUSION_PROMPT, color=BLUE, font_size=18, max_width=3.0),
-            MathTex(r"\xrightarrow{\text{text encoder}}", color=AMBER, font_size=21),
-            MathTex(r"c", color=GREEN, font_size=26),
-        ).arrange(RIGHT, buff=0.18, aligned_edge=DOWN)
+        noisy_latent_box = make_schematic_box(
+            "Current noisy latent",
+            MathTex(r"z_t", color=BLUE, font_size=32),
+            accent=BLUE,
+            width=2.05,
+            min_height=1.10,
+        )
+        denoiser_box = make_schematic_box(
+            "Denoising model",
+            text_lines(
+                (
+                    "predict the noise",
+                    "that should be removed",
+                ),
+                font_size=16,
+                color=INK,
+                max_width=2.20,
+            ),
+            accent=GREEN,
+            width=2.70,
+            min_height=1.34,
+        )
+        timestep_badge = make_badge(r"timestep $t$", accent=AMBER, font_size=15)
+        prompt_badge = make_badge(r"prompt embedding $c$", accent=GREEN, font_size=15)
+
+        model_row = Group(noisy_latent_box, denoiser_box).arrange(RIGHT, buff=0.34, aligned_edge=DOWN)
+        model_arrow = Arrow(
+            noisy_latent_box.get_right() + RIGHT * 0.03,
+            denoiser_box.get_left() + LEFT * 0.03,
+            color=MGREY,
+            stroke_width=1.5,
+            buff=0.04,
+            tip_length=0.12,
+            tip_shape=StealthTip,
+        )
+        prompt_badge.next_to(denoiser_box, UP, buff=0.18).shift(LEFT * 0.10)
+        timestep_badge.next_to(prompt_badge, LEFT, buff=0.14)
+        prompt_arrow = Arrow(
+            prompt_badge.get_bottom() + DOWN * 0.02,
+            denoiser_box.get_top() + UP * 0.04,
+            color=GREEN,
+            stroke_width=1.4,
+            buff=0.04,
+            tip_length=0.11,
+            tip_shape=StealthTip,
+        )
+        timestep_arrow = Arrow(
+            timestep_badge.get_bottom() + DOWN * 0.02,
+            denoiser_box.get_top() + UP * 0.04 + LEFT * 0.36,
+            color=AMBER,
+            stroke_width=1.4,
+            buff=0.04,
+            tip_length=0.11,
+            tip_shape=StealthTip,
+        )
+
+        reverse_cards, reverse_arrows = make_image_progression(
+            reverse_sources,
+            height=0.70,
+            arrow_color=BLUE,
+            border_color=LGREY,
+            item_buff=0.15,
+        )
+        reverse_labels = make_step_labels(
+            reverse_cards,
+            ("noise", "less noise", "clearer", "image"),
+            color=BLUE,
+        )
+        reverse_tags = VGroup(
+            Tex(r"predict noise", color=GREEN, font_size=15),
+            Tex(r"remove noise", color=GREEN, font_size=15),
+            Tex(r"repeat", color=GREEN, font_size=15),
+        )
+        for tag, arrow in zip(reverse_tags, reverse_arrows):
+            tag.next_to(arrow, UP, buff=0.10)
 
         reverse_formula = MathTex(
-            r"\hat{\epsilon}_{\theta}(z_t, t, c)"
-            r"\;\Longrightarrow\; p_{\theta}(z_{t-1}\mid z_t, c)",
+            r"\hat{\epsilon}_{\theta}(z_t, t, c)",
             color=BLUE,
-            font_size=22,
+            font_size=24,
         )
-        if reverse_formula.width > 10.0:
-            reverse_formula.scale_to_fit_width(10.0)
 
         reverse_block = Group(
             Group(
-                Tex(r"\textbf{Reverse denoising process}", color=INK, font_size=22),
-                caption_line(
-                    "At sampling time, start from noise and iteratively remove predicted noise under prompt conditioning.",
-                    color=MGREY,
-                    font_size=17,
-                    max_width=10.0,
-                ),
-                prompt_pipeline,
-                reverse_formula,
-            ).arrange(DOWN, buff=0.06, aligned_edge=LEFT),
-            reverse_row,
-        ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
+                make_badge("generation", accent=GREEN, font_size=14),
+                Tex(r"\textbf{Reverse denoising loop}", color=INK, font_size=22),
+            ).arrange(RIGHT, buff=0.14),
+            caption_line(
+                "At each step, the model sees the current noisy latent, the timestep, and the prompt representation.",
+                color=MGREY,
+                font_size=16,
+                max_width=5.05,
+            ),
+            Group(model_row, model_arrow, prompt_badge, timestep_badge, prompt_arrow, timestep_arrow),
+            reverse_formula,
+            Group(Group(reverse_cards, reverse_arrows), reverse_tags, reverse_labels),
+            caption_line(
+                "In Stable Diffusion, this loop runs in compressed latent space rather than directly in pixels.",
+                color=MGREY,
+                font_size=15,
+                max_width=5.05,
+            ),
+        ).arrange(DOWN, buff=0.16, aligned_edge=LEFT)
 
-        content = Group(
-            forward_block,
-            simple_divider(10.2),
-            reverse_block,
-        ).arrange(DOWN, buff=0.28)
+        content = split_columns(forward_block, reverse_block, buff=0.42)
+        content.next_to(title, DOWN, buff=0.32)
 
-        latent_note = caption_line(
-            "Shown in image space for intuition; in Stable Diffusion XL, denoising is performed in a compressed latent space.",
-            color=MGREY,
-            font_size=15,
-            max_width=10.4,
-        )
-
-        content_with_note = Group(content, latent_note).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
-        bottom_limit = -config.frame_y_radius + 0.34
-        available_height = why_block.get_bottom()[1] - bottom_limit - 0.22
-        if content_with_note.height > available_height:
-            content_with_note.scale_to_fit_height(available_height)
-        content_with_note.next_to(why_block, DOWN, buff=0.18)
+        callout = make_callout(
+            "That made controlled sampling and later latent interpolation possible for the stimulus continua.",
+            GREEN,
+            font_size=19,
+        ).to_edge(DOWN, buff=0.33)
 
         self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(why_block, shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(forward_block[0], shift=UP * 0.04), run_time=0.45)
-        self.play(FadeIn(forward_cards[0], scale=0.96), run_time=0.28)
+        self.play(FadeIn(forward_block[0:2], shift=UP * 0.04), run_time=0.42)
+        self.play(FadeIn(forward_cards[0], scale=0.97), run_time=0.24)
         for idx in range(1, len(forward_cards)):
-            self.play(Create(forward_arrows[idx - 1]), FadeIn(forward_cards[idx], scale=0.96), run_time=0.28)
-        self.play(FadeIn(forward_labels), run_time=0.28)
-        self.play(FadeIn(content[1]), FadeIn(reverse_block[0], shift=UP * 0.04), run_time=0.38)
-        self.play(FadeIn(reverse_cards[0], scale=0.96), run_time=0.28)
+            self.play(
+                Create(forward_arrows[idx - 1]),
+                FadeIn(forward_cards[idx], scale=0.97),
+                FadeIn(forward_tags[idx - 1], shift=UP * 0.02),
+                run_time=0.26,
+            )
+        self.play(FadeIn(forward_labels), run_time=0.24)
+        self.play(FadeIn(reverse_block[0:2], shift=UP * 0.04), FadeIn(content[1]), run_time=0.38)
+        self.play(
+            FadeIn(noisy_latent_box, scale=0.97),
+            FadeIn(denoiser_box, scale=0.97),
+            Create(model_arrow),
+            FadeIn(prompt_badge, shift=UP * 0.02),
+            FadeIn(timestep_badge, shift=UP * 0.02),
+            run_time=0.35,
+        )
+        self.play(Create(prompt_arrow), Create(timestep_arrow), FadeIn(reverse_formula, shift=UP * 0.02), run_time=0.28)
+        self.play(FadeIn(reverse_cards[0], scale=0.97), run_time=0.22)
         for idx in range(1, len(reverse_cards)):
-            self.play(Create(reverse_arrows[idx - 1]), FadeIn(reverse_cards[idx], scale=0.96), run_time=0.28)
-        self.play(FadeIn(reverse_labels), FadeIn(latent_note, shift=UP * 0.03), run_time=0.32)
+            self.play(
+                Create(reverse_arrows[idx - 1]),
+                FadeIn(reverse_cards[idx], scale=0.97),
+                FadeIn(reverse_tags[idx - 1], shift=UP * 0.02),
+                run_time=0.26,
+            )
+        self.play(FadeIn(reverse_labels), FadeIn(reverse_block[-1], shift=UP * 0.02), FadeIn(callout, shift=UP * 0.04), run_time=0.32)
         self.wait(3.00)
 
 
 class MethodsProjectPlan(Scene):
-    """Chapter 2.6 — end with the actual thesis plan."""
+    """Chapter 2.7 — end with the actual thesis plan."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
@@ -916,7 +1193,8 @@ _METHODS_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
     MethodsTraditionalLimits,
     MethodsGANsProofOfConcept,
     MethodsDiffusionOpportunity,
-    MethodsDiffusionExplainer,
+    MethodsDiffusionPromptConditioning,
+    MethodsDiffusionTrainVsGenerate,
     MethodsProjectPlan,
 )
 _METHODS_SECTION_NAMES: tuple[str, ...] = (
@@ -924,7 +1202,8 @@ _METHODS_SECTION_NAMES: tuple[str, ...] = (
     "methods_traditional_limits",
     "methods_gans_proof_of_concept",
     "methods_diffusion_opportunity",
-    "methods_diffusion_explainer",
+    "methods_diffusion_prompt_conditioning",
+    "methods_diffusion_train_vs_generate",
     "methods_project_plan",
 )
 

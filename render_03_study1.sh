@@ -23,8 +23,8 @@ export UV_CACHE_DIR="${UV_CACHE_DIR:-$SCRIPT_DIR/.uv-cache}"
 export MPLCONFIGDIR="${MPLCONFIGDIR:-$SCRIPT_DIR/.mplconfig}"
 mkdir -p "$UV_CACHE_DIR" "$MPLCONFIGDIR"
 
-echo "[1/1] Study1 -> study1 (sectioned)"
-uv run manim scenes/study1.py Study1 "$QUALITY" --save_sections
+echo "[1/1] Study1 -> study1 (sectioned, cache disabled)"
+uv run manim scenes/study1.py Study1 "$QUALITY" --save_sections --disable_caching
 
 # Remove combined videos — keep only per-section files.
 find media/videos/03_study1 -maxdepth 2 -name "*.mp4" -not -path "*/sections/*" -delete 2>/dev/null || true

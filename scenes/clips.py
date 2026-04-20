@@ -43,7 +43,8 @@ def _register(chapter_key: str, pairs: list[tuple[type[Scene], str]]) -> None:
             orig = cls.__init__
             def __init__(self, *args, **kwargs):
                 config.video_dir = vdir
-                config.output_file = f"sections/{ofile}"
+                config.output_file = ofile
+                config.partial_movie_dir = f"{{video_dir}}/partial_movie_files/{ofile}"
                 orig(self, *args, **kwargs)
             return __init__
 
@@ -53,7 +54,7 @@ def _register(chapter_key: str, pairs: list[tuple[type[Scene], str]]) -> None:
             {
                 "__init__": _make_init(
                     scene_cls,
-                    f"{{media_dir}}/videos/{output_dir}/{{quality}}",
+                    f"{{media_dir}}/videos/{output_dir}/{{quality}}/sections",
                     output_name,
                 ),
                 "__module__": __name__,

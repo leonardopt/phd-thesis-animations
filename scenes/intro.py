@@ -43,6 +43,12 @@ AMBER = "#D97706"
 GREEN = "#16A34A"
 RED = "#DC2626"
 PANEL = "#F8FAFC"
+EVC_BLUE = "#6E839A"
+EVC_TAUPE = "#9B8D80"
+EVC_GREEN = "#7A9589"
+PATTERN_BLUE = "#4C72B0"
+PATTERN_RED = "#C44E52"
+PATTERN_WHITE = "#F8F8F8"
 
 
 # ── Assets ────────────────────────────────────────────────────────────────────
@@ -51,6 +57,7 @@ _INTRO_STIM_DIR = env_path(
     REPO_ROOT / "assets" / "images" / "stimuli_reordered",
 )
 _BRAIN_ICON_PATH = REPO_ROOT / "assets" / "images" / "study2" / "brain_icon_sagittal.png"
+_HEAD_BRAIN_PATH = REPO_ROOT / "assets" / "images" / "head_brain.png"
 _REFERENCE_DIR = REPO_ROOT / "assets" / "images" / "references" / "working_memory"
 _FUNAHASHI_1989_FIG = str(_REFERENCE_DIR / "funahashi1989_delay_activity.png")
 _JONIDES_1993_FIG = str(_REFERENCE_DIR / "jonides1993_pet.png")
@@ -66,10 +73,42 @@ _ORDER = (5, 3, 7, 1, 8, 2, 6, 4)
 _STRIP = (0, 2, 4, 6, 8)
 _FROZEN_IDX = 4
 _PRIOR_SPECS = ((0.62, 0.28), (0.74, 0.56), (0.86, 0.90))
+_SENSORY_PATTERN_LEFT = np.array(
+    [
+        [0.80, 0.15, -0.20, -0.75],
+        [0.45, 0.10, -0.05, -0.40],
+        [0.05, -0.10, 0.20, 0.55],
+        [-0.55, -0.25, 0.35, 0.78],
+    ]
+)
+_MEMORY_PATTERN = np.array(
+    [
+        [0.55, 0.25, -0.10, -0.35],
+        [0.35, 0.15, 0.05, -0.20],
+        [0.10, 0.00, 0.12, 0.30],
+        [-0.18, -0.08, 0.22, 0.42],
+    ]
+)
+_SENSORY_PATTERN_RIGHT = np.array(
+    [
+        [-0.72, -0.18, 0.22, 0.82],
+        [-0.38, -0.08, 0.12, 0.48],
+        [0.12, 0.02, -0.15, -0.52],
+        [0.62, 0.28, -0.25, -0.78],
+    ]
+)
 
 
 def stim_path(code: str, idx: int) -> str:
     return str(_INTRO_STIM_DIR / f"{code}-{idx:02d}.png")
+
+
+def preferred_path(*candidates: Path | str) -> str:
+    for candidate in candidates:
+        path = Path(candidate)
+        if path.exists():
+            return str(path)
+    return str(Path(candidates[0]))
 
 
 def _img(path: str, height: float) -> ImageMobject:
@@ -188,13 +227,13 @@ def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.
         width=0.18 * brain.width,
         height=0.14 * brain.height,
         stroke_width=0,
-    ).set_fill(highlight_color, opacity=0.22).move_to(highlight_center)
+    ).set_fill(highlight_color, opacity=0.14).move_to(highlight_center)
     highlight_ring = Ellipse(
         width=0.26 * brain.width,
         height=0.20 * brain.height,
         stroke_color=highlight_color,
-        stroke_width=2.4,
-    ).set_fill(highlight_color, opacity=0.0).move_to(highlight_center)
+        stroke_width=1.8,
+    ).set_stroke(opacity=0.82).set_fill(highlight_color, opacity=0.0).move_to(highlight_center)
     highlight_fill.set_z_index(1)
     highlight_ring.set_z_index(2)
     brain.set_z_index(0)
@@ -203,6 +242,44 @@ def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.
         "brain": brain,
         "highlight": VGroup(highlight_fill, highlight_ring),
     }
+
+
+def brain_render(*, scale_factor: float = 1.0) -> ImageMobject:
+    brain = ImageMobject(str(_HEAD_BRAIN_PATH))
+    brain.scale_to_fit_height(2.85 * scale_factor)
+    return brain
+
+
+def _pattern_color(value: float) -> ManimColor:
+    clipped = max(-1.0, min(1.0, float(value)))
+    if clipped < 0:
+        return interpolate_color(ManimColor(PATTERN_WHITE), ManimColor(PATTERN_BLUE), abs(clipped))
+    return interpolate_color(ManimColor(PATTERN_WHITE), ManimColor(PATTERN_RED), clipped)
+
+
+def patterned_head(matrix: np.ndarray, *, scale_factor: float = 1.0) -> Group:
+    head = brain_render(scale_factor=scale_factor)
+    rows, cols = matrix.shape
+    cell_size = 0.060 * head.width
+    cells = VGroup()
+    for row in range(rows):
+        for col in range(cols):
+            cell = Square(
+                side_length=cell_size,
+                stroke_color=LGREY,
+                stroke_width=0.35,
+            ).set_fill(_pattern_color(matrix[row, col]), opacity=1.0)
+            cells.add(cell)
+    cells.arrange_in_grid(rows=rows, cols=cols, buff=0.006)
+
+    cells.move_to(
+        head.get_center()
+        + LEFT * (0.06 * head.width)
+        + UP * (0.24 * head.height)
+    )
+    cells.set_z_index(2)
+    head.set_z_index(0)
+    return Group(head, cells)
 
 
 # ── Layout builders ───────────────────────────────────────────────────────────
@@ -223,132 +300,137 @@ def _build_intro_a_end_state() -> dict[str, Mobject]:
 
 
 def _build_intro_b_layout() -> dict[str, Mobject]:
-    title = title_block(r"Perception $\to$ interruption $\to$ maintenance $\to$ comparison")
-    card_h = 1.05
-    frozen_pos = list(_STRIP).index(_FROZEN_IDX)
-    strip_cards = Group(
+    def _vertical_dotted_line(height: float, *, color: str, radius: float = 0.020, spacing: float = 0.125) -> VGroup:
+        count = max(2, int(height / spacing) + 1)
+        dots = VGroup(
+            *[Dot(radius=radius, color=color, stroke_width=0) for _ in range(count)]
+        ).arrange(DOWN, buff=max(0.02, spacing - 2 * radius))
+        dots.set_opacity(0.72)
+        dots.move_to(ORIGIN)
+        return dots
+
+    image_h = 1.70
+    left_image = _img(
+        preferred_path(
+            REPO_ROOT / "assets" / "images" / "ANI-FIS-T00.jpeg",
+            REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-T00.jpeg",
+            _INTRO_STIM_DIR / "animal_fish-00.png",
+        ),
+        image_h,
+    )
+    right_image = _img(
+        preferred_path(
+            REPO_ROOT / "assets" / "images" / "ANI-FIS-D03.jpeg",
+            REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D03.jpeg",
+            _INTRO_STIM_DIR / "animal_fish-03.png",
+        ),
+        image_h,
+    )
+
+    zone_height = image_h
+    dead_zone = Rectangle(width=2.50, height=zone_height, stroke_width=0).set_fill(
+        LGREY, opacity=0.18
+    )
+    dead_zone.set_stroke(width=0)
+
+    separator_color = MGREY
+    left_cut_line = _vertical_dotted_line(zone_height, color=separator_color)
+    right_cut_line = left_cut_line.copy()
+
+    strip_y = 0.90
+    gap = 0.28
+    separator_width = left_cut_line.width
+    delay_width = dead_zone.width
+    image_width = left_image.width
+    total_width = (2 * image_width) + (2 * separator_width) + delay_width + (4 * gap)
+    left_edge = -total_width / 2
+
+    left_image.move_to(
+        np.array([left_edge + image_width / 2, strip_y, 0.0])
+    )
+    left_cut_line.move_to(
+        np.array([left_image.get_right()[0] + gap + separator_width / 2, strip_y, 0.0])
+    )
+    dead_zone.move_to(
+        np.array([left_cut_line.get_right()[0] + gap + delay_width / 2, strip_y, 0.0])
+    )
+    right_cut_line.move_to(
+        np.array([dead_zone.get_right()[0] + gap + separator_width / 2, strip_y, 0.0])
+    )
+    right_image.move_to(
+        np.array([right_cut_line.get_right()[0] + gap + image_width / 2, strip_y, 0.0])
+    )
+
+    phase_y = strip_y + (zone_height / 2) + 0.46
+    left_phase = Tex("sensory input", color=INK, font_size=18)
+    center_phase = Tex("working memory maintenance", color=INK, font_size=18)
+    right_phase = Tex("sensory input", color=INK, font_size=18)
+    for label, anchor in zip((left_phase, center_phase, right_phase), (left_image, dead_zone, right_image)):
+        label.move_to(np.array([anchor.get_center()[0], phase_y, 0.0]))
+
+    top_rule_y = phase_y + 0.24
+    phase_rule = Arrow(
+        [left_image.get_left()[0] - 0.24, top_rule_y, 0.0],
+        [right_image.get_right()[0] + 0.24, top_rule_y, 0.0],
+        color=LGREY,
+        stroke_width=1.0,
+        buff=0.0,
+        tip_length=0.14,
+        max_tip_length_to_length_ratio=0.06,
+        max_stroke_width_to_length_ratio=1.8,
+    )
+    phase_dots = VGroup(
         *[
-            _img(stim_path(_HOOK_CODE, idx), card_h)
-            for idx in _STRIP
-        ]
-    ).arrange(RIGHT, buff=0.22)
-    strip_cards.next_to(title, DOWN, buff=0.40)
-    strip_cards.shift(LEFT * 1.50)
-
-    time_dots = VGroup(
-        *[
-            Dot(radius=0.05, color=BLUE if idx == _FROZEN_IDX else MGREY)
-            for idx in _STRIP
+            Dot(radius=0.030, color=MGREY, stroke_width=0).move_to([x, top_rule_y, 0.0])
+            for x in (
+                phase_rule.get_left()[0],
+                left_cut_line.get_center()[0],
+                right_cut_line.get_center()[0],
+            )
         ]
     )
-    for dot, card in zip(time_dots, strip_cards):
-        dot.next_to(card, DOWN, buff=0.12)
+    time_label = MathTex("t", color=MGREY, font_size=24)
+    time_label.next_to(phase_rule.get_right(), UP + LEFT, buff=0.10)
 
-    frozen_card = strip_cards[frozen_pos]
-    frozen_ring = SurroundingRectangle(
-        frozen_card,
-        color=BLUE,
-        stroke_width=2.4,
-        buff=0.07,
-        corner_radius=0.07,
-    )
+    left_brain = patterned_head(_SENSORY_PATTERN_LEFT, scale_factor=0.56)
+    center_brain = patterned_head(_MEMORY_PATTERN, scale_factor=0.56)
+    right_brain = patterned_head(_SENSORY_PATTERN_RIGHT, scale_factor=0.56)
+    for brain, anchor in zip((left_brain, center_brain, right_brain), (left_image, dead_zone, right_image)):
+        brain.next_to(anchor, DOWN, buff=0.52)
 
-    cut_x = strip_cards[-1].get_right()[0] + 0.50
-    zone_top = strip_cards.get_top()[1] + 0.22
-    zone_bot = time_dots.get_bottom()[1] - 0.16
-    cut_line = DashedLine(
-        [cut_x, zone_top, 0],
-        [cut_x, zone_bot, 0],
-        color=RED,
-        stroke_width=2.0,
-        dash_length=0.10,
-    )
-    cut_label = Tex(r"\textbf{interruption}", color=RED, font_size=15)
-    cut_label.next_to(cut_line, UP, buff=0.10)
-
-    dead_zone = Rectangle(width=2.40, height=zone_top - zone_bot, stroke_width=0).set_fill(
-        LGREY, opacity=0.16
-    )
-    dead_zone.next_to(cut_line, RIGHT, buff=0.0)
-    dead_zone.align_to([0, zone_bot, 0], DOWN)
-
-    brain_parts = brain_icon_with_evc(highlight_color=AMBER, scale_factor=0.76)
-    brain_group = brain_parts["group"]
-    brain_group.move_to(LEFT * 0.60 + DOWN * 1.20)
-
-    wm_trace = _img(stim_path(_HOOK_CODE, _FROZEN_IDX), 0.76)
-    wm_trace.move_to(brain_group.get_center() + LEFT * 0.18 + UP * 0.10)
-    wm_label = Tex("WM trace", color=AMBER, font_size=14)
-    wm_label.next_to(wm_trace, DOWN, buff=0.08)
-
-    encode_arrow = Arrow(
-        frozen_card.get_bottom() + DOWN * 0.06,
-        brain_group.get_top() + UP * 0.06,
-        color=BLUE,
-        stroke_width=1.8,
-        buff=0.06,
-    )
-
-    probe = _img(stim_path(_HOOK_CODE, _FROZEN_IDX), 0.82)
-    probe.move_to(RIGHT * 4.60 + DOWN * 1.20)
-    probe_label = Tex("probe", color=GREEN, font_size=14)
-    probe_label.next_to(probe, DOWN, buff=0.08)
-
-    compare_arrow = Arrow(
-        probe.get_left() + LEFT * 0.04,
-        brain_group.get_right() + RIGHT * 0.04,
-        color=GREEN,
-        stroke_width=1.8,
-        buff=0.06,
-    )
-    compare_label = Tex("compare", color=GREEN, font_size=14)
-    compare_label.next_to(compare_arrow, UP, buff=0.08)
-
-    phase_bar = VGroup(
-        Tex("perception", color=BLUE, font_size=18),
-        Tex(r"$\to$", color=LGREY, font_size=18),
-        Tex("interruption", color=RED, font_size=18),
-        Tex(r"$\to$", color=LGREY, font_size=18),
-        Tex("maintenance", color=AMBER, font_size=18),
-        Tex(r"$\to$", color=LGREY, font_size=18),
-        Tex("comparison", color=GREEN, font_size=18),
-    ).arrange(RIGHT, buff=0.18).to_edge(DOWN, buff=0.28)
-
+    brain_row = Group(left_brain, center_brain, right_brain)
     final_group = Group(
-        title,
-        strip_cards,
-        time_dots,
-        frozen_ring,
-        cut_line,
-        cut_label,
+        time_label,
+        phase_rule,
+        phase_dots,
+        left_phase,
+        center_phase,
+        right_phase,
+        left_image,
+        left_cut_line,
         dead_zone,
-        brain_group,
-        wm_trace,
-        wm_label,
-        encode_arrow,
-        probe,
-        probe_label,
-        compare_arrow,
-        compare_label,
-        phase_bar,
+        right_cut_line,
+        right_image,
+        left_brain,
+        center_brain,
+        right_brain,
     )
     return {
-        "title": title,
-        "strip_cards": strip_cards,
-        "time_dots": time_dots,
-        "frozen_ring": frozen_ring,
-        "cut_line": cut_line,
-        "cut_label": cut_label,
+        "time_label": time_label,
+        "phase_rule": phase_rule,
+        "phase_dots": phase_dots,
+        "left_phase": left_phase,
+        "center_phase": center_phase,
+        "right_phase": right_phase,
+        "left_image": left_image,
+        "left_cut_line": left_cut_line,
         "dead_zone": dead_zone,
-        "brain_group": brain_group,
-        "wm_trace": wm_trace,
-        "wm_label": wm_label,
-        "encode_arrow": encode_arrow,
-        "probe": probe,
-        "probe_label": probe_label,
-        "compare_arrow": compare_arrow,
-        "compare_label": compare_label,
-        "phase_bar": phase_bar,
+        "right_cut_line": right_cut_line,
+        "right_image": right_image,
+        "left_brain": left_brain,
+        "brain_group": center_brain,
+        "right_brain": right_brain,
+        "brain_row": brain_row,
         "final_group": final_group,
     }
 
@@ -358,7 +440,19 @@ def _build_intro_c_layout() -> dict[str, Mobject]:
         r"\textbf{Long-term memory modulates the maintained trace}",
         r"Prior exposure shapes the WM representation --- without replacing it",
     )
-    brain_parts = brain_icon_with_evc(highlight_color=AMBER, scale_factor=1.00)
+    time_arrow = Arrow(
+        [config.frame_width / 2 - 5.80, config.frame_height / 2 - 0.34, 0.0],
+        [config.frame_width / 2 - 0.88, config.frame_height / 2 - 0.34, 0.0],
+        color=LGREY,
+        stroke_width=1.0,
+        buff=0.0,
+        tip_length=0.14,
+        max_tip_length_to_length_ratio=0.06,
+        max_stroke_width_to_length_ratio=1.8,
+    )
+    time_label = MathTex("t", color=MGREY, font_size=24)
+    time_label.next_to(time_arrow.get_right(), UP + LEFT, buff=0.10)
+    brain_parts = brain_icon_with_evc(highlight_color=EVC_TAUPE, scale_factor=1.00)
     brain_group = brain_parts["group"]
     brain_group.move_to(RIGHT * 0.80 + DOWN * 0.40)
 
@@ -400,6 +494,8 @@ def _build_intro_c_layout() -> dict[str, Mobject]:
     ).to_edge(DOWN, buff=0.34)
 
     final_group = Group(
+        time_arrow,
+        time_label,
         title,
         brain_group,
         wm_trace,
@@ -412,6 +508,8 @@ def _build_intro_c_layout() -> dict[str, Mobject]:
         callout,
     )
     return {
+        "time_arrow": time_arrow,
+        "time_label": time_label,
         "title": title,
         "brain_group": brain_group,
         "wm_trace": wm_trace,
@@ -546,58 +644,84 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     }
 
 
-def _build_intro_f_layout() -> dict[str, Mobject]:
-    title = title_block(r"\textbf{Three research questions}")
-    brain = brain_icon_with_evc(highlight_color=BLUE, scale_factor=0.82)
-    focus_frame = RoundedRectangle(
-        width=4.45,
-        height=4.70,
-        corner_radius=0.18,
-        stroke_color=LGREY,
-        stroke_width=1.4,
-    ).set_fill(PANEL, opacity=0.96)
-    focus_title = Tex("Project focus", color=BLUE, font_size=22)
-    focus_title.next_to(focus_frame.get_top(), DOWN, buff=0.20)
-    brain["group"].move_to(focus_frame.get_center() + UP * 0.30)
+_INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
+    {
+        "kicker": "Research question 1",
+        "title": "Representational format",
+        "subtitle": "Are maintained representations sensory-like or memory-specific?",
+        "accent": BLUE,
+        "tag": "format",
+    },
+    {
+        "kicker": "Research question 2",
+        "title": "Naturalistic stimuli",
+        "subtitle": "Does sensory recruitment extend beyond simple laboratory stimuli?",
+        "accent": AMBER,
+        "tag": "stimuli",
+    },
+    {
+        "kicker": "Research question 3",
+        "title": "Long-term memory",
+        "subtitle": "Does long-term memory reshape working-memory representations?",
+        "accent": GREEN,
+        "tag": "ltm",
+    },
+)
+
+
+def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
+    spec = _INTRO_RESEARCH_QUESTIONS[question_idx]
+    kicker = Tex(spec["kicker"], color=spec["accent"], font_size=20)
+    kicker.to_edge(UP, buff=0.34)
+    header = VGroup(
+        kicker,
+        Line(LEFT * 1.8, RIGHT * 1.8, color=LGREY, stroke_width=1.0),
+    ).arrange(DOWN, buff=0.12, aligned_edge=LEFT)
+    header.to_edge(UP, buff=0.34)
+    header.shift(LEFT * 2.95)
+
+    question_title_row = VGroup(
+        Dot(radius=0.045, color=spec["accent"]),
+        Tex(rf"\textbf{{{spec['title']}}}", color=spec["accent"], font_size=22),
+    ).arrange(RIGHT, buff=0.12)
+    question_claim = VGroup(
+        Tex(spec["subtitle"], color=INK, font_size=26),
+    ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
+    question_divider = Line(LEFT * 2.9, RIGHT * 2.9, color=LGREY, stroke_width=1.0)
+    question_divider.align_to(question_claim, LEFT)
+    question_card = VGroup(
+        question_title_row,
+        question_claim,
+        question_divider,
+    ).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
+
+    focus_title_row = VGroup(
+        Dot(radius=0.040, color=MGREY),
+        Tex(r"\textbf{Project focus}", color=INK, font_size=18),
+    ).arrange(RIGHT, buff=0.12)
     focus_copy = VGroup(
-        Tex("visual cortex", color=INK, font_size=21),
+        Tex("visual cortex", color=INK, font_size=24),
         Tex("perception, working memory, and long-term memory", color=MGREY, font_size=16),
-    ).arrange(DOWN, buff=0.06)
-    focus_copy.next_to(brain["group"], DOWN, buff=0.20)
-    focus_panel = Group(focus_frame, focus_title, brain["group"], focus_copy)
+        Tex(spec["tag"], color=spec["accent"], font_size=18),
+    ).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+    focus_divider = Line(LEFT * 2.5, RIGHT * 2.5, color=LGREY, stroke_width=1.0)
+    focus_divider.align_to(focus_copy, LEFT)
+    focus_panel = VGroup(
+        focus_title_row,
+        focus_copy,
+        focus_divider,
+    ).arrange(DOWN, buff=0.12, aligned_edge=LEFT)
 
-    question_cards = VGroup(
-        make_info_card(
-            "Representational format",
-            "sensory-like or memory-specific?",
-            accent=BLUE,
-            width=5.90,
-            height=1.18,
-        ),
-        make_info_card(
-            "Naturalistic stimuli",
-            "does sensory recruitment extend beyond simple laboratory stimuli?",
-            accent=AMBER,
-            width=5.90,
-            height=1.18,
-        ),
-        make_info_card(
-            "Long-term memory",
-            "does long-term memory reshape working-memory representations?",
-            accent=GREEN,
-            width=5.90,
-            height=1.18,
-        ),
-    ).arrange(DOWN, buff=0.22)
+    content = Group(question_card, focus_panel).arrange(RIGHT, buff=1.00, aligned_edge=UP)
+    content.next_to(header, DOWN, buff=0.42, aligned_edge=LEFT)
+    content.shift(RIGHT * 0.55)
 
-    content = Group(focus_panel, question_cards).arrange(RIGHT, buff=0.78, aligned_edge=UP)
-    content.next_to(title, DOWN, buff=0.36)
     return {
-        "title": title,
+        "header": header,
+        "question_card": question_card,
         "focus_panel": focus_panel,
-        "question_cards": question_cards,
         "content": content,
-        "final_group": Group(title, focus_panel, question_cards),
+        "final_group": Group(header, content),
     }
 
 
@@ -606,25 +730,34 @@ def _build_intro_f_layout() -> dict[str, Mobject]:
 def _transition_b_to_c(scene: Scene, b_state: dict[str, Mobject]) -> None:
     c_state = _build_intro_c_layout()
     scene.play(
-        FadeOut(b_state["title"], shift=UP * 0.04),
-        FadeOut(b_state["strip_cards"], shift=UP * 0.05),
-        FadeOut(b_state["time_dots"], shift=UP * 0.03),
-        FadeOut(b_state["frozen_ring"]),
-        FadeOut(b_state["cut_line"]),
-        FadeOut(b_state["cut_label"], shift=DOWN * 0.03),
+        FadeOut(b_state["time_label"], shift=UP * 0.03),
+        FadeOut(b_state["phase_rule"], shift=UP * 0.03),
+        FadeOut(b_state["phase_dots"], shift=UP * 0.03),
+        FadeOut(b_state["left_phase"], shift=UP * 0.03),
+        FadeOut(b_state["center_phase"], shift=UP * 0.03),
+        FadeOut(b_state["right_phase"], shift=UP * 0.03),
+        FadeOut(b_state["left_image"], shift=UP * 0.05),
+        FadeOut(b_state["left_cut_line"]),
         FadeOut(b_state["dead_zone"]),
-        FadeOut(b_state["encode_arrow"]),
-        FadeOut(b_state["probe"]),
-        FadeOut(b_state["probe_label"]),
-        FadeOut(b_state["compare_arrow"]),
-        FadeOut(b_state["compare_label"], shift=DOWN * 0.03),
-        FadeOut(b_state["phase_bar"], shift=DOWN * 0.04),
-        Transform(b_state["brain_group"], c_state["brain_group"]),
-        Transform(b_state["wm_trace"], c_state["wm_trace"]),
-        Transform(b_state["wm_label"], c_state["wm_label"]),
+        FadeOut(b_state["right_cut_line"]),
+        FadeOut(b_state["right_image"], shift=UP * 0.05),
+        FadeOut(b_state["left_brain"], shift=DOWN * 0.03),
+        FadeOut(b_state["brain_group"], shift=DOWN * 0.03),
+        FadeOut(b_state["right_brain"], shift=DOWN * 0.03),
         run_time=0.90,
     )
-    scene.play(FadeIn(c_state["title"], shift=UP * 0.04), run_time=0.70)
+    scene.play(
+        FadeIn(c_state["time_arrow"], shift=UP * 0.03),
+        FadeIn(c_state["time_label"], shift=UP * 0.03),
+        FadeIn(c_state["title"], shift=UP * 0.04),
+        FadeIn(c_state["brain_group"], scale=0.97),
+        run_time=0.70,
+    )
+    scene.play(
+        FadeIn(c_state["wm_trace"], scale=0.97),
+        FadeIn(c_state["wm_label"], shift=UP * 0.04),
+        run_time=0.55,
+    )
     scene.play(FadeIn(c_state["prior_header"], shift=DOWN * 0.04), run_time=0.40)
     scene.play(
         LaggedStart(
@@ -651,98 +784,121 @@ class IntroCognitiveProblemA(Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
 
-        def _frame(idx: int) -> ImageMobject:
-            img = ImageMobject(stim_path(_HOOK_CODE, idx))
+        def _frame(path: str) -> ImageMobject:
+            img = ImageMobject(path)
             img.height = 5.80
             img.move_to(ORIGIN)
             return img
 
-        first = _frame(_ORDER[0])
-        self.play(FadeIn(first, run_time=0.40))
-        self.wait(0.45)
-
-        current = first
-        for idx in _ORDER[1:]:
-            nxt = _frame(idx)
-            self.remove(current)
-            self.add(nxt)
-            self.wait(0.12)
-            current = nxt
-
-        self.remove(current)
+        target = _frame(
+            preferred_path(
+                REPO_ROOT / "assets" / "images" / "ANI-FIS-T00.jpeg",
+                REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-T00.jpeg",
+                _INTRO_STIM_DIR / "animal_fish-00.png",
+            )
+        )
+        foil = _frame(
+            preferred_path(
+                REPO_ROOT / "assets" / "images" / "ANI-FIS-D03.jpeg",
+                REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D03.jpeg",
+                _INTRO_STIM_DIR / "animal_fish-03.png",
+            )
+        )
 
         fix = VGroup(
             Line(UP * 0.20, DOWN * 0.20, stroke_width=2.4, color=MGREY),
             Line(LEFT * 0.20, RIGHT * 0.20, stroke_width=2.4, color=MGREY),
         )
+
+        self.add(target)
+        self.wait(0.60)
+        self.remove(target)
         self.add(fix)
         self.wait(1.00)
         self.remove(fix)
-        self.wait(0.10)
-
-        state = _build_intro_a_end_state()
-        self.play(FadeIn(state["question"], shift=DOWN * 0.06), run_time=0.50)
-        self.play(
-            LaggedStart(
-                FadeIn(state["probe_target"], scale=0.97),
-                FadeIn(state["probe_foil"], scale=0.97),
-                lag_ratio=0.28,
-            ),
-            run_time=0.70,
-        )
+        self.add(foil)
         self.wait(3.50)
 
 
-class IntroCognitiveProblemB(Scene):
+class IntroSensoryRepresentation(Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_b_layout()
-        self.play(FadeIn(state["title"], shift=UP * 0.04), run_time=0.65)
+        self.play(
+            FadeIn(state["time_label"], shift=UP * 0.03),
+            Create(state["phase_rule"]),
+            FadeIn(state["phase_dots"], scale=0.97),
+            FadeIn(state["left_phase"], shift=UP * 0.03),
+            FadeIn(state["center_phase"], shift=UP * 0.03),
+            FadeIn(state["right_phase"], shift=UP * 0.03),
+            run_time=0.65,
+        )
         self.play(
             LaggedStart(
-                *[FadeIn(card, shift=UP * 0.04) for card in state["strip_cards"]],
-                lag_ratio=0.12,
+                FadeIn(state["left_image"], shift=UP * 0.04),
+                Create(state["left_cut_line"]),
+                FadeIn(state["dead_zone"]),
+                Create(state["right_cut_line"]),
+                FadeIn(state["right_image"], shift=UP * 0.04),
+                lag_ratio=0.10,
             ),
-            FadeIn(state["time_dots"]),
-            run_time=0.80,
-        )
-        self.play(Create(state["frozen_ring"]), run_time=0.45)
-        self.wait(0.40)
-        self.play(
-            Create(state["cut_line"]),
-            FadeIn(state["cut_label"], shift=DOWN * 0.04),
-            FadeIn(state["dead_zone"]),
-            run_time=0.55,
-        )
-        self.wait(0.30)
-        self.play(FadeIn(state["brain_group"], scale=0.97), run_time=0.55)
-        self.play(
-            Create(state["encode_arrow"]),
-            TransformFromCopy(state["strip_cards"][list(_STRIP).index(_FROZEN_IDX)], state["wm_trace"]),
-            FadeIn(state["wm_label"], shift=UP * 0.04),
-            run_time=0.85,
-        )
-        self.wait(0.60)
-        self.play(
-            FadeIn(state["probe"], scale=0.97),
-            FadeIn(state["probe_label"]),
-            run_time=0.50,
+            run_time=0.95,
         )
         self.play(
-            Create(state["compare_arrow"]),
-            FadeIn(state["compare_label"], shift=DOWN * 0.04),
-            run_time=0.50,
+            LaggedStart(
+                FadeIn(state["left_brain"], shift=UP * 0.05),
+                FadeIn(state["brain_group"], shift=UP * 0.05),
+                FadeIn(state["right_brain"], shift=UP * 0.05),
+                lag_ratio=0.18,
+            ),
+            run_time=0.75,
         )
-        self.play(FadeIn(state["phase_bar"], shift=UP * 0.04), run_time=0.55)
         self.wait(3.50)
 
 
-class IntroCognitiveProblemC(Scene):
+class IntroMemoryRepresentation(Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         b_state = _build_intro_b_layout()
         self.add(*b_state["final_group"])
         _transition_b_to_c(self, b_state)
+
+
+class IntroSensoryMemoryRepresentations(Scene):
+    def construct(self) -> None:
+        self.camera.background_color = BG
+        state = _build_intro_b_layout()
+        self.play(
+            FadeIn(state["time_label"], shift=UP * 0.03),
+            Create(state["phase_rule"]),
+            FadeIn(state["phase_dots"], scale=0.97),
+            FadeIn(state["left_phase"], shift=UP * 0.03),
+            FadeIn(state["center_phase"], shift=UP * 0.03),
+            FadeIn(state["right_phase"], shift=UP * 0.03),
+            run_time=0.65,
+        )
+        self.play(
+            LaggedStart(
+                FadeIn(state["left_image"], shift=UP * 0.04),
+                Create(state["left_cut_line"]),
+                FadeIn(state["dead_zone"]),
+                Create(state["right_cut_line"]),
+                FadeIn(state["right_image"], shift=UP * 0.04),
+                lag_ratio=0.10,
+            ),
+            run_time=0.95,
+        )
+        self.play(
+            LaggedStart(
+                FadeIn(state["left_brain"], shift=UP * 0.05),
+                FadeIn(state["brain_group"], shift=UP * 0.05),
+                FadeIn(state["right_brain"], shift=UP * 0.05),
+                lag_ratio=0.18,
+            ),
+            run_time=0.75,
+        )
+        self.wait(0.80)
+        _transition_b_to_c(self, state)
 
 
 class IntroClassicalView(Scene):
@@ -765,31 +921,59 @@ class IntroSensoryRecruitment(Scene):
         self.wait(4.50)
 
 
-class IntroResearchQuestions(Scene):
+class IntroResearchQuestion1(Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
-        state = _build_intro_f_layout()
-        self.play(FadeIn(state["title"], shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(state["focus_panel"], shift=UP * 0.05), run_time=0.85)
-        self.play(
-            LaggedStart(
-                *[FadeIn(card, shift=RIGHT * 0.08) for card in state["question_cards"]],
-                lag_ratio=0.18,
-            ),
-            run_time=1.20,
-        )
+        state = _build_intro_question_layout(0)
+        self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
+        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.70)
+        self.play(FadeIn(state["focus_panel"], shift=UP * 0.05), run_time=0.75)
         self.wait(4.00)
+
+
+class IntroResearchQuestion2(Scene):
+    def construct(self) -> None:
+        self.camera.background_color = BG
+        state = _build_intro_question_layout(1)
+        self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
+        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.70)
+        self.play(FadeIn(state["focus_panel"], shift=UP * 0.05), run_time=0.75)
+        self.wait(4.00)
+
+
+class IntroResearchQuestion3(Scene):
+    def construct(self) -> None:
+        self.camera.background_color = BG
+        state = _build_intro_question_layout(2)
+        self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
+        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.70)
+        self.play(FadeIn(state["focus_panel"], shift=UP * 0.05), run_time=0.75)
+        self.wait(4.00)
+
+
+# Backward-compatible names retained for ad hoc renders.
+class IntroCognitiveProblemB(IntroSensoryRepresentation):
+    pass
+
+
+class IntroCognitiveProblemC(IntroMemoryRepresentation):
+    pass
+
+
+class IntroResearchQuestions(IntroResearchQuestion1):
+    pass
 
 
 # ── Master scene ──────────────────────────────────────────────────────────────
 
 _INTRO_SECTION_SCENES: tuple[tuple[str, type[Scene]], ...] = (
-    ("intro_cognitive_problem_a", IntroCognitiveProblemA),
-    ("intro_cognitive_problem_b", IntroCognitiveProblemB),
-    ("intro_cognitive_problem_c", IntroCognitiveProblemC),
+    ("intro_cognitive_problem", IntroCognitiveProblemA),
+    ("intro_sensory_representation", IntroSensoryRepresentation),
     ("intro_classical_view", IntroClassicalView),
     ("intro_sensory_recruitment", IntroSensoryRecruitment),
-    ("intro_research_questions", IntroResearchQuestions),
+    ("intro_research_question_1", IntroResearchQuestion1),
+    ("intro_research_question_2", IntroResearchQuestion2),
+    ("intro_research_question_3", IntroResearchQuestion3),
 )
 
 
@@ -815,10 +999,15 @@ class Introduction(Scene):
 
 _HIDDEN_INTRO_SCENES = (
     IntroCognitiveProblemA,
+    IntroSensoryRepresentation,
+    IntroMemoryRepresentation,
     IntroCognitiveProblemB,
     IntroCognitiveProblemC,
     IntroClassicalView,
     IntroSensoryRecruitment,
+    IntroResearchQuestion1,
+    IntroResearchQuestion2,
+    IntroResearchQuestion3,
     IntroResearchQuestions,
 )
 for _scene_cls in _HIDDEN_INTRO_SCENES:
