@@ -1,147 +1,73 @@
 """
 Standalone per-clip wrappers for development and iteration.
 
+Each scene class from the production files is re-exported here under its
+original name.  Rendering it writes directly into the chapter's sections
+folder with the production filename, so the result can be used in-place.
+
 Usage:
     uv run manim scenes/clips.py IntroCognitiveProblemA -ql
-    uv run manim scenes/clips.py Study1Clip01 -ql
-    uv run manim scenes/clips.py Study2Clip07 -ql
+    uv run manim scenes/clips.py Study1Stage1Step2 -ql
+    uv run manim scenes/clips.py Study2CrossSessionDecodingSetup -ql
+    uv run manim scenes/clips.py ConclusionResults -ql
 """
 from __future__ import annotations
 
-# ── Introduction ──────────────────────────────────────────────────────────────
+import re
+from pathlib import Path
+import sys
 
-from intro import _IntroductionFlow, BG as _INTRO_BG
+_SCENES_DIR = Path(__file__).resolve().parent
+_SCRIPTS_DIR = _SCENES_DIR.parent / "scripts"
+for _d in (_SCENES_DIR, _SCRIPTS_DIR):
+    if str(_d) not in sys.path:
+        sys.path.insert(0, str(_d))
 
+from manim import Scene, config
+from utils import section_output_dir
 
-class IntroCognitiveProblemA(_IntroductionFlow):
-    def construct(self) -> None:
-        self._play_intro_a_core()
+from intro import _INTRO_SECTION_SCENES
+from study1 import _STUDY1_MASTER_SECTION_ORDER, _STUDY1_SECTION_NAMES
+from study2 import _STUDY2_MASTER_SECTION_ORDER, _STUDY2_SECTION_NAMES
+from conclusion import _CONCLUSION_MASTER_SECTION_ORDER, _CONCLUSION_SECTION_NAMES
 
-
-class IntroCognitiveProblemB(_IntroductionFlow):
-    def construct(self) -> None:
-        self.camera.background_color = _INTRO_BG
-        self._play_intro_b_core()
-
-
-class IntroCognitiveProblemC(_IntroductionFlow):
-    def construct(self) -> None:
-        self.camera.background_color = _INTRO_BG
-        b_state = self._build_intro_b_layout()
-        self.add(*b_state["final_group"])
-        self._transition_b_to_c(b_state)
+__all__: list[str] = []
 
 
-class IntroClassicalView(_IntroductionFlow):
-    def construct(self) -> None:
-        self._play_intro_d_core()
+def _register(chapter_key: str, pairs: list[tuple[type[Scene], str]]) -> None:
+    output_dir = section_output_dir(chapter_key)
+    for index, (scene_cls, section_name) in enumerate(pairs):
+        output_name = f"{index:03}_{section_name}"
+
+        def _make_init(cls: type, vdir: str, ofile: str):
+            orig = cls.__init__
+            def __init__(self, *args, **kwargs):
+                config.video_dir = vdir
+                config.output_file = f"sections/{ofile}"
+                orig(self, *args, **kwargs)
+            return __init__
+
+        wrapper = type(
+            scene_cls.__name__,
+            (scene_cls,),
+            {
+                "__init__": _make_init(
+                    scene_cls,
+                    f"{{media_dir}}/videos/{output_dir}/{{quality}}",
+                    output_name,
+                ),
+                "__module__": __name__,
+            },
+        )
+        globals()[scene_cls.__name__] = wrapper
+        __all__.append(scene_cls.__name__)
 
 
-class IntroSensoryRecruitment(_IntroductionFlow):
-    def construct(self) -> None:
-        self._play_intro_e_core()
+def _snake(name: str) -> str:
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
-class IntroResearchQuestions(_IntroductionFlow):
-    def construct(self) -> None:
-        self._play_intro_f_core()
-
-
-# ── Study 1 ───────────────────────────────────────────────────────────────────
-
-from study1 import (
-    Study1Stage1Step1a,
-    Study1Stage1Step1b,
-    Study1Stage1Step2,
-    Study1Stage1Step2Showcase,
-    Study1Stage1Step3,
-    Study1Stage1Step4,
-    Study1Stage1Step5,
-    Study1StimulusSetShowcase,
-    Study1Stage2TripletTask,
-    Study1Stage2TripletTask2,
-    Study1Stage2SimilarityJudgementsExamples,
-    Study1Stage2EmbeddingResult,
-    Study1Stage2ModelOrderToHeatmap,
-    Study1Stage3MemoryIntroA,
-    Study1Stage3MemoryIntroB,
-    Study1Stage3MemoryIntroC,
-    Study1Stage3MemoryIntroD,
-    Study1Stage3MemoryExpDesign,
-    Study1Stage3MemoryExpResults,
-)
-
-
-class Study1Clip01(Study1Stage1Step1a): pass
-class Study1Clip02(Study1Stage1Step1b): pass
-class Study1Clip03(Study1Stage1Step2): pass
-class Study1Clip04(Study1Stage1Step2Showcase): pass
-class Study1Clip05(Study1Stage1Step3): pass
-class Study1Clip07(Study1Stage1Step4): pass
-class Study1Clip09(Study1Stage1Step5): pass
-class Study1Clip12(Study1StimulusSetShowcase): pass
-class Study1Clip13(Study1Stage2TripletTask): pass
-class Study1Clip14(Study1Stage2TripletTask2): pass
-class Study1Clip15(Study1Stage2SimilarityJudgementsExamples): pass
-class Study1Clip16(Study1Stage2EmbeddingResult): pass
-class Study1Clip17(Study1Stage2ModelOrderToHeatmap): pass
-class Study1Clip18(Study1Stage3MemoryIntroA): pass
-class Study1Clip19(Study1Stage3MemoryIntroB): pass
-class Study1Clip20(Study1Stage3MemoryIntroC): pass
-class Study1Clip21(Study1Stage3MemoryIntroD): pass
-class Study1Clip22(Study1Stage3MemoryExpDesign): pass
-class Study1Clip23(Study1Stage3MemoryExpResults): pass
-
-
-# ── Study 2 ───────────────────────────────────────────────────────────────────
-
-from study2 import (
-    Study2ResearchQuestions,
-    Study2ExperimentalDesign,
-    Study2DecodingOverviewA,
-    Study2DecodingOverviewB,
-    Study2DecodingOverviewC,
-    Study2WithinSession2DecodingSetup,
-    Study2WithinSession2DecodingResults,
-    Study2CrossSessionDecodingSetup,
-    Study2CrossSessionDecodingResultsA,
-    Study2CrossSessionDecodingResultsB,
-    Study2WithinSession1DecodingSetupA,
-    Study2WithinSession1DecodingSetupB,
-    Study2WithinSession1DecodingResultsA,
-    Study2WithinSession1DecodingResultsB,
-    Study2WithinSession1DecodingResultsC,
-    Study2WithinSession1DecodingResultsD,
-    Study2LTMResultsExplainer,
-    Study2SupplementalRoiTimecoursesA,
-    Study2SupplementalRoiTimecoursesB,
-    Study2SupplementalRoiTempGenMats,
-    Study2SearchlightStimulation,
-    Study2SearchlightDelay,
-    Study2DecodingSummary,
-)
-
-
-class Study2Clip00(Study2ResearchQuestions): pass
-class Study2Clip01(Study2ExperimentalDesign): pass
-class Study2Clip02(Study2DecodingOverviewA): pass
-class Study2Clip03(Study2DecodingOverviewB): pass
-class Study2Clip04(Study2DecodingOverviewC): pass
-class Study2Clip05(Study2WithinSession2DecodingSetup): pass
-class Study2Clip06(Study2WithinSession2DecodingResults): pass
-class Study2Clip07(Study2CrossSessionDecodingSetup): pass
-class Study2Clip08(Study2CrossSessionDecodingResultsA): pass
-class Study2Clip09(Study2CrossSessionDecodingResultsB): pass
-class Study2Clip10(Study2WithinSession1DecodingSetupA): pass
-class Study2Clip11(Study2WithinSession1DecodingSetupB): pass
-class Study2Clip12(Study2WithinSession1DecodingResultsA): pass
-class Study2Clip13(Study2WithinSession1DecodingResultsB): pass
-class Study2Clip14(Study2WithinSession1DecodingResultsC): pass
-class Study2Clip15(Study2WithinSession1DecodingResultsD): pass
-class Study2Clip16(Study2LTMResultsExplainer): pass
-class Study2Clip17(Study2SupplementalRoiTimecoursesA): pass
-class Study2Clip18(Study2SupplementalRoiTimecoursesB): pass
-class Study2Clip19(Study2SupplementalRoiTempGenMats): pass
-class Study2Clip20(Study2SearchlightStimulation): pass
-class Study2Clip21(Study2SearchlightDelay): pass
-class Study2Clip22(Study2DecodingSummary): pass
+_register("intro",       [(cls, name) for name, cls in _INTRO_SECTION_SCENES])
+_register("study1",      list(zip(_STUDY1_MASTER_SECTION_ORDER, _STUDY1_SECTION_NAMES, strict=True)))
+_register("study2",      list(zip(_STUDY2_MASTER_SECTION_ORDER, _STUDY2_SECTION_NAMES, strict=True)))
+_register("conclusion",  list(zip(_CONCLUSION_MASTER_SECTION_ORDER, _CONCLUSION_SECTION_NAMES, strict=True)))

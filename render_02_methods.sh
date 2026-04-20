@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render all methods scenes in narrative order with numbered output filenames.
+# Render the unified methods production scene and keep the section clips.
 # Usage:
 #   ./render_02_methods.sh        # low quality (480p15, fast preview)
 #   ./render_02_methods.sh -qh    # high quality (1080p60)
@@ -10,7 +10,7 @@ set -euo pipefail
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     echo "Usage: ./render_02_methods.sh [QUALITY]"
     echo
-    echo "Render all methods scenes in numbered narrative order."
+    echo "Render the unified methods production scene and keep section clips."
     echo "Defaults to -ql when no quality is provided."
     exit 0
 fi
@@ -23,43 +23,13 @@ export UV_CACHE_DIR="${UV_CACHE_DIR:-$SCRIPT_DIR/.uv-cache}"
 export MPLCONFIGDIR="${MPLCONFIGDIR:-$SCRIPT_DIR/.mplconfig}"
 mkdir -p "$UV_CACHE_DIR" "$MPLCONFIGDIR"
 
-scenes=()
-while IFS= read -r line; do
-    scenes+=("$line")
-done < <(
-    uv run python -c '
-import ast
-from pathlib import Path
+# Clear stale section clips from previous narrative layouts before rendering.
+find media/videos/02_methods -path "*/sections/*" -type f -delete 2>/dev/null || true
 
+echo "[1/1] Methods -> methods (sectioned)"
+uv run manim scenes/methods.py Methods "$QUALITY" --save_sections
 
-def load_mapping(path_str: str, variable_name: str):
-    tree = ast.parse(Path(path_str).read_text())
-    for node in tree.body:
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == variable_name:
-            return ast.literal_eval(node.value)
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == variable_name:
-                    return ast.literal_eval(node.value)
-    raise SystemExit(f"Could not find {variable_name} in {path_str}")
+# Remove the combined scene render and keep only per-section files.
+find media/videos/02_methods -maxdepth 2 -name "*.mp4" -not -path "*/sections/*" -delete 2>/dev/null || true
 
-
-scene_order = load_mapping("scenes/methods.py", "_METHODS_SCENE_ORDER")
-
-for class_name, scene_number in sorted(scene_order.items(), key=lambda item: int(item[1])):
-    print(f"{scene_number}_{class_name}:{class_name}")
-'
-)
-
-total=${#scenes[@]}
-idx=0
-
-for entry in "${scenes[@]}"; do
-    outname="${entry%%:*}"
-    classname="${entry##*:}"
-    idx=$((idx + 1))
-    echo "[$idx/$total] $classname -> $outname"
-    uv run manim scenes/methods.py "$classname" "$QUALITY" -o "$outname"
-done
-
-echo "Done. Videos saved to media/videos/02_methods/"
+echo "Done. Section videos saved to media/videos/02_methods/*/sections/"

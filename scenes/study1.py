@@ -10,13 +10,14 @@ Production render:
 from __future__ import annotations
 
 import csv
+from contextlib import contextmanager
 import re
 import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.cm as _mcm
-from PIL import Image as PILImage
+from PIL import Image as PILImage, ImageFilter
 
 _SCENES_DIR = Path(__file__).resolve().parent
 _SCRIPTS_DIR = _SCENES_DIR.parent / "scripts"
@@ -71,6 +72,8 @@ def _study1_cloud_positions(n: int, cx: float, cy: float) -> list[tuple[float, f
     out: list[tuple[float, float]] = []
     total = 0
     for radius, ring_count, offset in _STUDY1_CLOUD_RINGS:
+        # Fill rings in a stable order so image index -> screen position stays
+        # reproducible across scenes and across partial re-renders.
         count = min(ring_count, n - total)
         if count <= 0:
             break
@@ -85,6 +88,8 @@ def _study1_slerp(u: np.ndarray, v: np.ndarray, t: float) -> np.ndarray:
     """Interpolate between two latent directions on the unit sphere."""
     cos_t = float(np.clip(np.dot(u, v), -1.0, 1.0))
     theta = np.arccos(cos_t)
+    # Fall back to linear interpolation when the angle is effectively zero;
+    # the spherical formula becomes numerically unstable as sin(theta) -> 0.
     if abs(np.sin(theta)) < 1e-08:
         return (1 - t) * u + t * v
     return (np.sin((1 - t) * theta) * u + np.sin(t * theta) * v) / np.sin(theta)
@@ -101,6 +106,24 @@ def _study1_vec3(start, end, color, sw: float = 3.5, tl: float = 0.18) -> Arrow:
         buff=0,
         max_stroke_width_to_length_ratio=100,
     )
+
+
+@contextmanager
+def _study1_skip_scene_animations(scene: Scene):
+    """Temporarily fast-forward all play/wait calls on one scene."""
+    renderer = getattr(scene, 'renderer', None)
+    if renderer is None:
+        yield
+        return
+    previous_original = getattr(renderer, '_original_skipping_status', False)
+    previous_skip = getattr(renderer, 'skip_animations', False)
+    try:
+        renderer._original_skipping_status = True
+        renderer.skip_animations = True
+        yield
+    finally:
+        renderer._original_skipping_status = previous_original
+        renderer.skip_animations = previous_skip
 
 
 
@@ -134,6 +157,8 @@ def _s1_step1__wrap_tex_label(text: str, max_chars: int) -> str:
     for split_idx in range(1, len(words)):
         left = ' '.join(words[:split_idx])
         right = ' '.join(words[split_idx:])
+        # Tex does not soft-wrap for us here, so prefer the split whose two
+        # lines are visually closest in length.
         score = abs(len(left) - len(right))
         if best_score is None or score < best_score:
             best_score = score
@@ -294,7 +319,11 @@ class Study1Stage1Step1b(Scene):
         p_r4 = Tex('vibrant underwater scene,', color=_s1_step1_INK, font_size=FS)
         p_r5 = Tex("high detail''", color=_s1_step1_INK, font_size=FS)
         p_lbl_prefix = Tex('Fixed prompt', color=_s1_step1_INK, font_size=FS + 2)
-        p_lbl_func = MathTex('p(\\mathrm{fish})', color=_s1_step1_INK, font_size=FS + 1)
+        p_lbl_func = MathTex(
+            f's(\\mathrm{{{_study1_prompt_label_tex("fish")}}})',
+            color=_s1_step1_INK,
+            font_size=FS + 1,
+        )
         p_lbl_colon = Tex(':', color=_s1_step1_INK, font_size=FS)
         p_lbl = VGroup(p_lbl_prefix, p_lbl_func, p_lbl_colon).arrange(RIGHT, buff=0.08, aligned_edge=DOWN)
         p_body = VGroup(p_r0, p_r1, p_r2, p_r3, p_r4, p_r5).arrange(DOWN, aligned_edge=ORIGIN, buff=0.09)
@@ -353,6 +382,72 @@ def _s1_step2_cloud_positions(n: int, cx: float, cy: float):
     """
     return _study1_cloud_positions(n, cx, cy)
 
+def _s1_step2_select_demo_indices(
+    n: int,
+    *,
+    anchor_idx: int | None,
+    guide_idx: int | None,
+    count: int = 6,
+) -> list[int]:
+    """Pick a small deterministic exemplar subset, reserving anchor and guide."""
+    selected: list[int] = []
+    for idx in (anchor_idx, guide_idx):
+        if idx is None or not (0 <= idx < n) or idx in selected:
+            continue
+        selected.append(idx)
+    for idx in [int(round(v)) for v in np.linspace(0, max(n - 1, 0), count + 4)]:
+        if idx in selected:
+            continue
+        selected.append(idx)
+        if len(selected) == count:
+            return selected
+    for idx in range(n):
+        if idx in selected:
+            continue
+        selected.append(idx)
+        if len(selected) == count:
+            break
+    return selected[:count]
+
+def _s1_step2_build_denoise_stages(
+    final_pixel: np.ndarray,
+    *,
+    seed: int,
+    n_steps: int = 5,
+) -> list[np.ndarray]:
+    """Build illustrative denoising stages from one final exemplar image."""
+    if n_steps < 2:
+        return [final_pixel]
+    target_h, target_w = final_pixel.shape[:2]
+    noise = _s1_step2_noise_magma(seed=seed, sz=max(target_h, target_w))[:target_h, :target_w]
+    final_img = PILImage.fromarray(final_pixel)
+    noise_f = noise.astype(np.float32)
+    final_f = final_pixel.astype(np.float32)
+    max_blur_radius = 9.0
+    stage_progress = np.linspace(0.0, 1.0, n_steps, dtype=np.float32)
+    stages = [noise]
+    for progress in stage_progress[1:-1]:
+        blur_radius = float((1.0 - progress) * max_blur_radius)
+        if blur_radius <= 0.02:
+            softened = final_f
+        else:
+            softened = np.asarray(
+                final_img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+            ).astype(np.float32)
+        noise_weight = float(1.0 - progress)
+        blended = np.clip(
+            (1.0 - noise_weight) * softened + noise_weight * noise_f,
+            0,
+            255,
+        ).astype(np.uint8)
+        stages.append(blended)
+    stages.append(final_pixel)
+    return stages
+
+def _study1_prompt_label_tex(label: str) -> str:
+    """Format a prompt label for use inside \\mathrm{...}."""
+    return label.replace(' ', r'\ ')
+
 class Study1Stage1Step2(Scene):
     """Show how one fixed prompt and varying noise seeds produce a cloud of exemplars."""
     def construct(self) -> None:
@@ -361,88 +456,203 @@ class Study1Stage1Step2(Scene):
         files = sorted(_s1_step2_IMG_DIR.glob('ANI-FIS-*.png'))
         N, SZ = (len(files), 512)
         pixels = [np.asarray(PILImage.open(fp).convert('RGBA').resize((SZ, SZ), PILImage.LANCZOS)) for fp in files]
-        p_label = Tex('Fixed prompt $p$\\,:', color=_s1_step2_INK, font_size=26)
-        p_body = VGroup(*[Tex(ln, color=_s1_step2_INK, font_size=36) for ln in _s1_step2_PROMPT_LINES]).arrange(DOWN, aligned_edge=LEFT, buff=0.14)
-        p_block = VGroup(p_label, p_body).arrange(DOWN, aligned_edge=LEFT, buff=0.24)
-        p_block.move_to(ORIGIN)
-        self.play(FadeIn(p_label, shift=DOWN * 0.06), run_time=0.35)
-        self.play(LaggedStart(*[FadeIn(ln, shift=DOWN * 0.06) for ln in p_body], lag_ratio=0.18), run_time=1.2)
-        self.wait(0.55)
-        b_label = Tex('Fixed prompt $p$\\,:', color=_s1_step2_INK, font_size=22)
-        b_body = VGroup(*[Tex(ln, color=_s1_step2_INK, font_size=25) for ln in _s1_step2_PROMPT_LINES]).arrange(DOWN, aligned_edge=LEFT, buff=0.07)
-        p_banner = VGroup(b_label, b_body).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
-        p_banner.to_corner(UL, buff=0.32)
-        self.play(FadeTransform(p_block, p_banner), run_time=0.65)
-        IMG_H = 2.6
-        CY = -0.55
-        NX, FX = (-3.1, 3.1)
-        arrow_mob = Arrow(LEFT * 0.85, RIGHT * 0.85, buff=0, color=_s1_step2_GREY, stroke_width=2.5, tip_length=0.22, max_stroke_width_to_length_ratio=20)
+        file_index_by_name = {fp.name: i for i, fp in enumerate(files)}
+        anchor_idx = file_index_by_name.get(_s1_step3_ANCHOR_NAME)
+        guide_idx = file_index_by_name.get(_s1_step3_GUIDE_NAME)
+        row_indices = _s1_step2_select_demo_indices(N, anchor_idx=anchor_idx, guide_idx=guide_idx, count=4)
+        row_seeds = [3 + 41 * i for i in range(len(row_indices))]
+
+        p_label = Tex(
+            f'Fixed prompt $s(\\mathrm{{{_study1_prompt_label_tex("fish")}}})$\\,:',
+            color=_s1_step2_INK,
+            font_size=22,
+        )
+        p_body = VGroup(*[Tex(ln, color=_s1_step2_INK, font_size=24) for ln in _s1_step2_PROMPT_LINES]).arrange(DOWN, aligned_edge=LEFT, buff=0.08)
+        p_block = VGroup(p_label, p_body).arrange(DOWN, aligned_edge=LEFT, buff=0.14)
+        left_panel_x = -4.45
+        left_panel_shift_y = 0.45
+        p_block.move_to(np.array([left_panel_x, 2.1 + left_panel_shift_y, 0.0]))
+
+        ACTIVE_TILE_H = 1.02
+        NOISE_H = ACTIVE_TILE_H
+        GRID_COLS = 5
+        GRID_ROWS = len(row_indices)
+        GRID_CENTER_X = 3.32
+        ACTIVE_COL_STEP = 1.08
+        ROW_GAP = 0.14
+        STACK_ROW_STEP = ACTIVE_TILE_H + ROW_GAP
+        BUILD_VISIBLE_ROWS = max(GRID_ROWS - 1, 0)
+        FINAL_VISIBLE_ROWS = GRID_ROWS
+        desired_grid_top_y = p_label.get_top()[1]
+        active_row_y = desired_grid_top_y - ACTIVE_TILE_H / 2 - (FINAL_VISIBLE_ROWS - 1) * STACK_ROW_STEP
+        noise_mob = ImageMobject(_s1_step2_noise_magma(seed=row_seeds[0], sz=512)).scale_to_fit_height(NOISE_H)
+        noise_mob.move_to(np.array([left_panel_x, active_row_y, 0.0]))
+        comp_sym = MathTex('\\oplus', color=_s1_step2_GREY, font_size=52)
+        comp_sym.move_to(
+            np.array(
+                [
+                    left_panel_x,
+                    0.5 * (p_block.get_bottom()[1] + noise_mob.get_top()[1]),
+                    0.0,
+                ]
+            )
+        )
+        noise_id_lab = MathTex('\\mathbf{z}_1', color=_s1_step2_GREY, font_size=20)
+        noise_id_lab.next_to(noise_mob, DOWN, buff=0.10)
+        dist_lab = MathTex('\\sim \\mathcal{N}(\\mathbf{0},\\,\\mathbf{I})', color=_s1_step2_GREY, font_size=18)
+        dist_lab.next_to(noise_id_lab, DOWN, buff=0.06)
+        noise_note = Tex('different starting noise', color=_s1_step2_GREY, font_size=16)
+        noise_note.next_to(dist_lab, DOWN, buff=0.05)
+
+        prompt_link = Line(p_block.get_bottom() + DOWN * 0.08, comp_sym.get_top() + UP * 0.08, color=_s1_step2_LGREY, stroke_width=1.5)
+        noise_link = Line(comp_sym.get_bottom() + DOWN * 0.08, noise_mob.get_top() + UP * 0.08, color=_s1_step2_LGREY, stroke_width=1.5)
+
+        pipeline_y = float(noise_mob.get_center()[1])
+        arrow_mob = Arrow(
+            np.array([-2.35, pipeline_y, 0.0]),
+            np.array([-0.35, pipeline_y, 0.0]),
+            buff=0,
+            color=_s1_step2_GREY,
+            stroke_width=2.8,
+            tip_length=0.22,
+            max_stroke_width_to_length_ratio=20,
+        )
         sdxl_tex = Tex('\\textbf{Stable Diffusion XL}', color=_s1_step2_INK, font_size=22)
         sdxl_tex.next_to(arrow_mob, UP, buff=0.16)
-        sdxl_grp = VGroup(arrow_mob, sdxl_tex).move_to(UP * CY)
-        noise_mob = ImageMobject(_s1_step2_noise_magma(seed=3)).scale_to_fit_height(IMG_H)
-        noise_mob.move_to(RIGHT * NX + UP * CY)
-        seed_lab = MathTex('\\mathbf{z}_1', color=_s1_step2_GREY, font_size=28)
-        seed_lab.next_to(noise_mob, DOWN, buff=0.12)
-        dist_lab = MathTex('\\sim \\mathcal{N}(\\mathbf{0},\\, \\mathbf{I})', color=_s1_step2_GREY, font_size=21)
-        dist_lab.next_to(seed_lab, DOWN, buff=0.06)
-        seq_idx = [int(round(i * (N - 1) / _s1_step2_N_SWAPS)) for i in range(_s1_step2_N_SWAPS + 1)]
-        fish_mob = ImageMobject(pixels[seq_idx[0]]).scale_to_fit_height(IMG_H)
-        fish_mob.move_to(RIGHT * FX + UP * CY)
-        self.play(FadeIn(noise_mob, shift=RIGHT * 0.12), FadeIn(seed_lab), FadeIn(dist_lab), Create(arrow_mob), Write(sdxl_tex), FadeIn(fish_mob, shift=LEFT * 0.12, scale=0.95), run_time=1.0)
-        self.wait(0.65)
-        weights = np.geomspace(1.0, 0.2, _s1_step2_N_SWAPS)
-        swap_times = list(_s1_step2_SWAP_TOTAL_DUR * weights / weights.sum())
-        for i, (rt, idx) in enumerate(zip(swap_times, seq_idx[1:])):
-            new_noise = ImageMobject(_s1_step2_noise_magma(seed=(i + 1) * 41 + 7)).scale_to_fit_height(IMG_H)
-            new_noise.move_to(RIGHT * NX + UP * CY)
-            new_fish = ImageMobject(pixels[idx]).scale_to_fit_height(IMG_H)
-            new_fish.move_to(RIGHT * FX + UP * CY)
-            new_seed = MathTex(f'\\mathbf{{z}}_{{{i + 2}}}', color=_s1_step2_GREY, font_size=28)
-            new_seed.next_to(new_noise, DOWN, buff=0.12)
-            self.play(FadeTransform(noise_mob, new_noise), FadeTransform(fish_mob, new_fish), FadeTransform(seed_lab, new_seed), run_time=rt)
-            noise_mob = new_noise
-            fish_mob = new_fish
-            seed_lab = new_seed
-        self.wait(0.4)
-        IMG_CLOUD_H = 0.45
-        CLOUD_CX, CLOUD_CY = (4.3, -0.1)
-        cpos = _s1_step2_cloud_positions(N, cx=CLOUD_CX, cy=CLOUD_CY)
-        cloud_imgs = [ImageMobject(pixels[i]).scale_to_fit_height(IMG_CLOUD_H).move_to(RIGHT * px + UP * py) for i, (px, py) in enumerate(cpos[:N])]
-        c_title = Tex('\\textbf{60 exemplars} — \\textit{fish}', color=_s1_step2_INK, font_size=24).move_to(RIGHT * CLOUD_CX + UP * 3.2)
-        c_sub = Tex('Same semantic identity $\\cdot$ Perceptually distinct realisations', color=_s1_step2_INK, font_size=19).to_edge(DOWN, buff=0.3)
-        LEFT_CX = -3.8
-        fp_label = Tex('Fixed prompt $p$\\,:', color=_s1_step2_INK, font_size=22)
-        fp_body = VGroup(*[Tex(ln, color=_s1_step2_INK, font_size=25) for ln in _s1_step2_PROMPT_LINES]).arrange(DOWN, aligned_edge=LEFT, buff=0.07)
-        fp_block = VGroup(fp_label, fp_body).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
-        fp_block.move_to(RIGHT * LEFT_CX + UP * 1.7)
-        comp_sym = MathTex('\\oplus', color=_s1_step2_GREY, font_size=52)
-        comp_sym.move_to(RIGHT * LEFT_CX + UP * 0.0)
-        THUMB_H = 0.75
-        thumb_seeds = [3, 44, 85]
-        thumbs = [ImageMobject(_s1_step2_noise_magma(seed=s)).scale_to_fit_height(THUMB_H) for s in thumb_seeds]
-        dots_tex = MathTex('\\ldots', color=_s1_step2_GREY, font_size=36)
-        thumb_row = Group(*thumbs, dots_tex).arrange(RIGHT, buff=0.18)
-        lbrace = MathTex('\\bigl\\{', color=_s1_step2_INK, font_size=52)
-        rbrace = MathTex('\\bigr\\}', color=_s1_step2_INK, font_size=52)
-        set_row = Group(lbrace, thumb_row, rbrace).arrange(RIGHT, buff=0.14)
-        set_row.move_to(RIGHT * LEFT_CX + UP * -1.1)
-        set_brace = Brace(set_row, DOWN, color=_s1_step2_GREY, buff=0.08)
-        set_brace_lab = MathTex('60 \\text{ noise tensors}', color=_s1_step2_GREY, font_size=20).next_to(set_brace, DOWN, buff=0.08)
-        dist_note = MathTex('\\mathbf{z}_i \\sim \\mathcal{N}(\\mathbf{0},\\,\\mathbf{I})', color=_s1_step2_GREY, font_size=20).next_to(set_brace_lab, DOWN, buff=0.14)
-        ARR_START = np.array([-0.85, 0.0, 0.0])
-        ARR_END = np.array([1.4, 0.0, 0.0])
-        new_arrow = Arrow(ARR_START, ARR_END, buff=0, color=_s1_step2_GREY, stroke_width=2.5, tip_length=0.22, max_stroke_width_to_length_ratio=20)
-        new_sdxl = Tex('\\textbf{Stable Diffusion XL}', color=_s1_step2_INK, font_size=22)
-        new_sdxl.next_to(new_arrow, UP, buff=0.16)
-        new_sdxl_grp = VGroup(new_arrow, new_sdxl).move_to(ORIGIN)
-        self.play(FadeOut(noise_mob, seed_lab, dist_lab, fish_mob), FadeTransform(p_banner, fp_block), FadeTransform(sdxl_grp, new_sdxl_grp), run_time=0.65)
-        self.play(FadeIn(comp_sym, shift=DOWN * 0.06), FadeIn(lbrace), FadeIn(rbrace), LaggedStart(*[FadeIn(t, scale=0.9) for t in thumbs], lag_ratio=0.15), Write(dots_tex), run_time=0.9)
-        self.play(FadeIn(set_brace, set_brace_lab, dist_note, shift=DOWN * 0.04), run_time=0.6)
-        self.wait(0.3)
-        self.play(Write(c_title), LaggedStart(*[FadeIn(m, shift=UP * 0.04) for m in cloud_imgs], lag_ratio=0.02), run_time=2.6)
-        self.play(Write(c_sub), run_time=0.55)
-        self.wait(1.5)
+        sdxl_pipeline_ref = ImageMobject(
+            str(REPO_ROOT / 'assets' / 'images' / 'references' / 'sdxl_pipeline_podell_2023_pipeline_only.png')
+        )
+        sdxl_pipeline_ref.scale_to_fit_width(sdxl_tex.width)
+        sdxl_pipeline_ref.next_to(arrow_mob, DOWN, buff=0.42)
+        sdxl_pipeline_ref.set_x(sdxl_tex.get_center()[0])
+
+        ACTIVE_ROW_Y = pipeline_y
+        active_row_positions = [
+            np.array([GRID_CENTER_X + (col - (GRID_COLS - 1) / 2) * ACTIVE_COL_STEP, ACTIVE_ROW_Y, 0.0])
+            for col in range(GRID_COLS)
+        ]
+        build_stack_positions = [
+            [
+                np.array([active_row_positions[col][0], ACTIVE_ROW_Y + (BUILD_VISIBLE_ROWS - row) * STACK_ROW_STEP, 0.0])
+                for col in range(GRID_COLS)
+            ]
+            for row in range(BUILD_VISIBLE_ROWS)
+        ]
+        final_stack_positions = [
+            [
+                np.array([active_row_positions[col][0], ACTIVE_ROW_Y + (FINAL_VISIBLE_ROWS - 1 - row) * STACK_ROW_STEP, 0.0])
+                for col in range(GRID_COLS)
+            ]
+            for row in range(FINAL_VISIBLE_ROWS)
+        ]
+        final_bottom_y = final_stack_positions[-1][0][1] if final_stack_positions else ACTIVE_ROW_Y
+        final_vdots = MathTex('\\vdots', color=_s1_step2_GREY, font_size=30).move_to(
+            np.array([GRID_CENTER_X, final_bottom_y - ACTIVE_TILE_H / 2 - 0.32, 0.0])
+        )
+
+        def _stack_rows(
+            visible_rows: list[list[ImageMobject]],
+            target_rows: list[list[np.ndarray]],
+            *,
+            run_time: float,
+            lag_ratio: float,
+            path_arc: float,
+        ) -> AnimationGroup:
+            anims = []
+            for row, target_positions in zip(visible_rows, target_rows):
+                for tile, target_position in zip(row, target_positions):
+                    tile.generate_target()
+                    tile.target.set_opacity(1.0)
+                    tile.target.move_to(target_position)
+                    anims.append(MoveToTarget(tile, path_arc=path_arc))
+            return AnimationGroup(*anims, lag_ratio=lag_ratio, run_time=run_time, rate_func=smooth)
+
+        self.play(FadeIn(p_label, shift=DOWN * 0.04), run_time=0.25)
+        self.play(LaggedStart(*[FadeIn(ln, shift=DOWN * 0.04) for ln in p_body], lag_ratio=0.16), run_time=0.85)
+        self.play(Create(prompt_link), FadeIn(comp_sym, shift=DOWN * 0.04), Create(noise_link), FadeIn(noise_mob, scale=0.95), FadeIn(noise_id_lab), FadeIn(dist_lab), FadeIn(noise_note), run_time=0.75)
+        self.wait(0.2)
+
+        completed_rows: list[list[ImageMobject]] = []
+        arrow_revealed = False
+        for row_i, (img_idx, seed) in enumerate(zip(row_indices, row_seeds)):
+            if row_i > 0:
+                new_noise = ImageMobject(_s1_step2_noise_magma(seed=seed, sz=512)).scale_to_fit_height(NOISE_H)
+                new_noise.move_to(noise_mob.get_center())
+                new_noise_id_lab = MathTex(f'\\mathbf{{z}}_{{{row_i + 1}}}', color=_s1_step2_GREY, font_size=20)
+                new_noise_id_lab.next_to(new_noise, DOWN, buff=0.10)
+                self.play(FadeTransform(noise_mob, new_noise), FadeTransform(noise_id_lab, new_noise_id_lab), run_time=0.42)
+                noise_mob = new_noise
+                noise_id_lab = new_noise_id_lab
+
+            self.play(Indicate(noise_mob, color=_s1_step2_GREY, scale_factor=1.06), run_time=0.4)
+            if not arrow_revealed:
+                self.play(
+                    GrowArrow(arrow_mob),
+                    FadeIn(sdxl_tex, shift=UP * 0.04),
+                    FadeIn(sdxl_pipeline_ref, shift=DOWN * 0.03),
+                    run_time=0.85,
+                )
+                arrow_revealed = True
+            else:
+                self.play(
+                    ShowPassingFlash(arrow_mob.copy().set_stroke(color=_s1_step2_GREY, width=5.0), time_width=0.7),
+                    run_time=0.42,
+                )
+
+            stages = _s1_step2_build_denoise_stages(pixels[img_idx], seed=seed, n_steps=GRID_COLS)
+            row_cells: list[ImageMobject] = []
+            for col_i, stage_pixel in enumerate(stages):
+                tile_img = ImageMobject(stage_pixel).scale_to_fit_height(ACTIVE_TILE_H)
+                tile_img.move_to(active_row_positions[col_i])
+                row_cells.append(tile_img)
+                shift_vec = RIGHT * 0.05 if col_i > 0 else RIGHT * 0.03
+                self.play(FadeIn(tile_img, shift=shift_vec, scale=0.98), run_time=0.2 if col_i > 0 else 0.26)
+            self.wait(0.28)
+            completed_rows.append(row_cells)
+            if row_i < GRID_ROWS - 1:
+                visible_rows = completed_rows[-BUILD_VISIBLE_ROWS:] if BUILD_VISIBLE_ROWS > 0 else []
+                target_rows = build_stack_positions[-len(visible_rows):] if visible_rows else []
+                self.play(
+                    _stack_rows(
+                        visible_rows,
+                        target_rows,
+                        run_time=0.7,
+                        lag_ratio=0.03,
+                        path_arc=12 * DEGREES,
+                    ),
+                )
+                self.wait(0.12)
+
+        self.wait(0.35)
+        final_visible_rows = completed_rows[-FINAL_VISIBLE_ROWS:] if FINAL_VISIBLE_ROWS > 0 else []
+        final_target_rows = final_stack_positions[-len(final_visible_rows):] if final_visible_rows else []
+        self.play(
+            _stack_rows(
+                final_visible_rows,
+                final_target_rows,
+                run_time=0.78,
+                lag_ratio=0.02,
+                path_arc=-8 * DEGREES,
+            ),
+        )
+        self.play(FadeIn(final_vdots, shift=DOWN * 0.02), run_time=0.55)
+        self._s1_step2_end_state = dict(
+            p_block=p_block,
+            prompt_link=prompt_link,
+            comp_sym=comp_sym,
+            noise_link=noise_link,
+            noise_mob=noise_mob,
+            noise_id_lab=noise_id_lab,
+            dist_lab=dist_lab,
+            noise_note=noise_note,
+            arrow_mob=arrow_mob,
+            sdxl_tex=sdxl_tex,
+            sdxl_pipeline_ref=sdxl_pipeline_ref,
+            completed_rows=completed_rows,
+            final_vdots=final_vdots,
+            row_indices=row_indices,
+        )
+        self.wait(1.1)
 
 
 # --- inlined from study1_step2_showcase.py ---
@@ -451,14 +661,99 @@ _s1_step2_showcase_BG = WHITE
 _s1_step2_showcase_INK = '#1C1C1E'
 _s1_step2_showcase_GREY = '#6B7280'
 _s1_step2_showcase_LGREY = '#D1D5DB'
-_s1_step2_showcase_BASE = env_path('EXEMPLAR_IMAGES_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'exemplar_images')
-_s1_step2_showcase_SHOWCASE = [dict(category='plant', folder='sequoia', glob='PLA-SEQ-*.png', label='sequoia', prompt_lines=['``film shot of a majestic Sequoia tree in the centre,', 'forest and mountains in the background,', 'high resolution photography,', "crisp clear sky''"]), dict(category='landscape_element', folder='lake_island', glob='LAN-LAK-*.png', label='lake island', prompt_lines=['``film shot of a towering rocky lake island in the center,', 'hilly meadows on the horizon,', 'high resolution photography,', "vibrant natural light''"]), dict(category='building', folder='observatory', glob='BUI-OBS-*.png', label='observatory', prompt_lines=['``film shot of an observatory', 'on a remote hilly landscape,', 'high resolution photography,', "exploratory, cinematic''"]), dict(category='vehicle', folder='campervan', glob='VEH-CAM-*.png', label='camper van', prompt_lines=['``photo of a solitary vintage camper van', 'in a countryside camping spot,', 'mountains in the background,', "high resolution photography, cinematic''"]), dict(category='item', folder='sofa', glob='ITE-SOF-*.png', label='sofa', prompt_lines=['``film shot of an art deco sofa,', 'minimalistic background,', "high resolution photography''"])]
+# Keep the multi-category showcase pinned to the repo-local curated clouds.
+# Using the broad external EXEMPLAR_IMAGES_DIR can silently drift scene content.
+_s1_step2_showcase_BASE = REPO_ROOT / 'assets' / 'images' / 'study1' / 'exemplar_images'
+_s1_step2_showcase_SHOWCASE = [
+    dict(
+        category='animal',
+        folder='fish',
+        glob='ANI-FIS-*.png',
+        label='fish',
+        prompt_lines=[
+            '``award-winning marine photo',
+            'of a colorful fish',
+            'in a coral reef, centered',
+            'in the scene, vibrant',
+            "underwater scene, high detail''",
+        ],
+    ),
+    dict(
+        category='plant',
+        folder='bristlecone',
+        label='bristlecone',
+        glob='PLA-BRI-*.png',
+        prompt_lines=[
+            '``film shot of an ancient',
+            'bristlecone pine tree',
+            'in the centre, rocky',
+            'mountain landscape,',
+            "high resolution photography''",
+        ],
+    ),
+    dict(
+        category='landscape_element',
+        folder='lake_island',
+        glob='LAN-LAK-*.png',
+        label='lake island',
+        prompt_lines=[
+            '``film shot of a towering',
+            'rocky lake island',
+            'in the center, hilly',
+            'meadows on the horizon,',
+            "high resolution photography''",
+        ],
+    ),
+    dict(
+        category='building',
+        folder='observatory',
+        glob='BUI-OBS-*.png',
+        label='observatory',
+        prompt_lines=[
+            '``film shot of an',
+            'observatory on a remote',
+            'hilly landscape,',
+            'high resolution photography,',
+            "exploratory, cinematic''",
+        ],
+    ),
+    dict(
+        category='vehicle',
+        folder='campervan',
+        glob='VEH-CAM-*.png',
+        label='camper van',
+        prompt_lines=[
+            '``photo of a solitary',
+            'vintage camper van',
+            'in a countryside camping spot,',
+            'mountains in the background,',
+            "high resolution photography''",
+        ],
+    ),
+    dict(
+        category='item',
+        folder='sofa',
+        glob='ITE-SOF-*.png',
+        label='sofa',
+        prompt_lines=[
+            '``film shot of an',
+            'art deco sofa,',
+            'minimalistic background,',
+            'high resolution',
+            "photography''",
+        ],
+    ),
+]
 _s1_step2_showcase_IMG_CLOUD_H = 0.45
-_s1_step2_showcase_CLOUD_CX = 4.3
+_s1_step2_showcase_CLOUD_CX = 4.85
 _s1_step2_showcase_CLOUD_CY = -0.1
 _s1_step2_showcase_LEFT_CX = -3.8
 _s1_step2_showcase_THUMB_H = 0.75
 _s1_step2_showcase_HOLD_TIME = 1.6
+_s1_step2_showcase_PROMPT_BODY_W = 3.95
+_s1_step2_showcase_CLOUD_TEX_SZ = 128
+_s1_step2_showcase_CLOUD_DENOISE_STEPS = 30
+_s1_step2_showcase_CLOUD_DENOISE_TIME = 2.0
 
 def _s1_step2_showcase_noise_magma(seed: int, sz: int=128) -> np.ndarray:
     """Generate a deterministic showcase noise image for one seed."""
@@ -471,37 +766,133 @@ _s1_step2_showcase_SZ = 512
 
 def _s1_step2_showcase_load_pixels(img_dir: Path, glob: str) -> list[np.ndarray]:
     """Load and resize all exemplar images for one showcase entry."""
-    return [np.asarray(PILImage.open(fp).convert('RGBA').resize((_s1_step2_showcase_SZ, _s1_step2_showcase_SZ), PILImage.LANCZOS)) for fp in sorted(img_dir.glob(glob))]
+    files = sorted(img_dir.glob(glob))
+    if not files:
+        raise FileNotFoundError(f'No showcase exemplars matched {glob} in {img_dir}')
+    return [
+        np.asarray(
+            PILImage.open(fp).convert('RGBA').resize(
+                (_s1_step2_showcase_SZ, _s1_step2_showcase_SZ),
+                PILImage.LANCZOS,
+            )
+        )
+        for fp in files
+    ]
 
-def _s1_step2_showcase_make_prompt_block(prompt_lines: list[str], label: str) -> VGroup:
-    """Prompt block with labelled subscript: Fixed prompt p(label) :"""
-    p_label = Tex(f'Fixed prompt $p(\\text{{{label}}})$\\,:', color=_s1_step2_showcase_INK, font_size=22)
+def _s1_step2_showcase_image_dir(entry: dict) -> Path:
+    """Resolve the image directory for one showcase entry."""
+    return _s1_step2_showcase_BASE / entry['category'] / entry['folder']
+
+def _s1_step2_showcase_cloud_left_offset(n: int) -> float:
+    """Return the left-edge offset of the leftmost cloud tile from the cloud centre."""
+    if n <= 0:
+        return -_s1_step2_showcase_IMG_CLOUD_H / 2
+    cpos = _s1_step2_showcase_cloud_positions(n, cx=0.0, cy=_s1_step2_showcase_CLOUD_CY)
+    return min(px - _s1_step2_showcase_IMG_CLOUD_H / 2 for px, _ in cpos[:n])
+
+def _s1_step2_showcase_layout_x(rbrace: MathTex, sdxl_group: Group, n_cloud: int) -> tuple[float, float]:
+    """Place the SDXL block with equal edge padding to brace and cloud."""
+    brace_right = rbrace.get_right()[0]
+    slide_right = config.frame_width / 2
+    cloud_left_offset = _s1_step2_showcase_cloud_left_offset(n_cloud)
+    group_center_x = sdxl_group.get_center()[0]
+    block_left_offset = sdxl_group.get_left()[0] - group_center_x
+    block_right_offset = sdxl_group.get_right()[0] - group_center_x
+    sdxl_center_x = (
+        slide_right
+        - block_right_offset
+        + 2 * cloud_left_offset
+        - 2 * block_left_offset
+        + 2 * brace_right
+    ) / 3
+    block_right = sdxl_center_x + block_right_offset
+    cloud_cx = 0.5 * (block_right + slide_right)
+    return sdxl_center_x, cloud_cx
+
+def _s1_step2_showcase_make_prompt_block(prompt_lines: list[str], label: str, left_cx: float) -> VGroup:
+    """Prompt block for a fixed raw-text prompt variable."""
+    p_label = Tex(
+        f'Fixed prompt $s(\\mathrm{{{_study1_prompt_label_tex(label)}}})$\\,:',
+        color=_s1_step2_showcase_INK,
+        font_size=22,
+    )
     p_body = VGroup(*[Tex(ln, color=_s1_step2_showcase_INK, font_size=25) for ln in prompt_lines]).arrange(DOWN, aligned_edge=LEFT, buff=0.07)
-    block = VGroup(p_label, p_body).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
-    block.move_to(RIGHT * _s1_step2_showcase_LEFT_CX + UP * 1.7)
+    body_width_box = Rectangle(
+        width=_s1_step2_showcase_PROMPT_BODY_W,
+        height=max(p_body.height, 0.01),
+        stroke_opacity=0,
+        fill_opacity=0,
+    )
+    body_width_box.move_to(p_body.get_center())
+    body_width_box.align_to(p_body, LEFT)
+    p_body_frame = VGroup(body_width_box, p_body)
+    block = VGroup(p_label, p_body_frame).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
+    block.move_to(RIGHT * left_cx + UP * 1.95)
     return block
 
-def _s1_step2_showcase_make_cloud(pixels: list[np.ndarray]) -> Group:
+def _s1_step2_showcase_make_cloud(pixels: list[np.ndarray], cx: float) -> Group:
     """Build the exemplar cloud for one showcase entry."""
     N = len(pixels)
-    cpos = _s1_step2_showcase_cloud_positions(N, cx=_s1_step2_showcase_CLOUD_CX, cy=_s1_step2_showcase_CLOUD_CY)
-    return Group(*[ImageMobject(pixels[i]).scale_to_fit_height(_s1_step2_showcase_IMG_CLOUD_H).move_to(RIGHT * px + UP * py) for i, (px, py) in enumerate(cpos[:N])])
+    cpos = _s1_step2_showcase_cloud_positions(N, cx=cx, cy=_s1_step2_showcase_CLOUD_CY)
+    return Group(*[
+        ImageMobject(
+            np.asarray(
+                PILImage.fromarray(pixels[i]).resize(
+                    (_s1_step2_showcase_CLOUD_TEX_SZ, _s1_step2_showcase_CLOUD_TEX_SZ),
+                    PILImage.LANCZOS,
+                )
+            )
+        ).scale_to_fit_height(_s1_step2_showcase_IMG_CLOUD_H).move_to(RIGHT * px + UP * py)
+        for i, (px, py) in enumerate(cpos[:N])
+    ])
 
-def _s1_step2_showcase_make_title(label: str) -> Tex:
+def _s1_step2_showcase_make_title(label: str, cx: float) -> Tex:
     """Build the exemplar-cloud title for one showcase entry."""
-    return Tex(f'\\textbf{{60 exemplars}} — \\textit{{{label}}}', color=_s1_step2_showcase_INK, font_size=24).move_to(RIGHT * _s1_step2_showcase_CLOUD_CX + UP * 3.2)
+    return Tex(f'\\textbf{{60 exemplars}} — \\textit{{{label}}}', color=_s1_step2_showcase_INK, font_size=24).move_to(RIGHT * cx + UP * 3.2)
 
 def _s1_step2_showcase_make_thumbs(entry_idx: int, positions: list) -> list:
     """Three noise ImageMobjects at pre-computed fixed positions."""
     base = entry_idx * 97 + 3
     return [ImageMobject(_s1_step2_showcase_noise_magma(seed=base + k * 41)).scale_to_fit_height(_s1_step2_showcase_THUMB_H).move_to(pos) for k, pos in enumerate(positions)]
 
-def _s1_step2_showcase_build_static_frame(scene: Scene) -> list:
-    """
-    Add the structural frame that never changes (⊕, braces, SDXL arrow, subtitle)
-    directly to the scene with no animation.  Returns the list of fixed thumbnail
-    slot positions so callers can place ImageMobjects there.
-    """
+def _s1_step2_showcase_cloud_seed(entry_idx: int, exemplar_idx: int) -> int:
+    """Return one deterministic noise seed for one exemplar tile."""
+    return 211 + entry_idx * 1009 + exemplar_idx * 53
+
+def _s1_step2_showcase_cloud_reveal(
+    pixels: list[np.ndarray],
+    entry_idx: int,
+    cx: float,
+) -> tuple[Group, Animation | None]:
+    """Build one cloud that starts as noise and denoises in place."""
+    final_cloud = _s1_step2_showcase_make_cloud(pixels, cx=cx)
+    if len(final_cloud) == 0:
+        return Group(), None
+
+    cloud_grp = Group()
+    stage_anims: list[list[Animation]] = [
+        [] for _ in range(_s1_step2_showcase_CLOUD_DENOISE_STEPS - 1)
+    ]
+    for exemplar_idx, final_tile in enumerate(final_cloud):
+        stages = _s1_step2_build_denoise_stages(
+            np.asarray(final_tile.pixel_array),
+            seed=_s1_step2_showcase_cloud_seed(entry_idx, exemplar_idx),
+            n_steps=_s1_step2_showcase_CLOUD_DENOISE_STEPS,
+        )
+        current_tile = ImageMobject(stages[0]).scale_to_fit_height(_s1_step2_showcase_IMG_CLOUD_H)
+        current_tile.move_to(final_tile.get_center())
+        cloud_grp.add(current_tile)
+
+        for stage_idx, stage_pixels in enumerate(stages[1:]):
+            stage_target = ImageMobject(stage_pixels).scale_to_fit_height(_s1_step2_showcase_IMG_CLOUD_H)
+            stage_target.move_to(final_tile.get_center())
+            stage_anims[stage_idx].append(Transform(current_tile, stage_target))
+
+    reveal_stages = [AnimationGroup(*stage_group, lag_ratio=0.0) for stage_group in stage_anims]
+    return cloud_grp, Succession(*reveal_stages)
+
+def _s1_step2_showcase_make_static_frame(n_cloud: int) -> dict:
+    """Build the structural frame that stays fixed across showcase entries."""
     comp_sym = MathTex('\\oplus', color=_s1_step2_showcase_GREY, font_size=52)
     comp_sym.move_to(RIGHT * _s1_step2_showcase_LEFT_CX)
     _dummy = [ImageMobject(_s1_step2_showcase_noise_magma(seed=0)).scale_to_fit_height(_s1_step2_showcase_THUMB_H) for _ in range(3)]
@@ -511,17 +902,125 @@ def _s1_step2_showcase_build_static_frame(scene: Scene) -> list:
     rbrace = MathTex('\\bigr\\}', color=_s1_step2_showcase_INK, font_size=52)
     set_row = Group(lbrace, thumb_row, rbrace).arrange(RIGHT, buff=0.14)
     set_row.move_to(RIGHT * _s1_step2_showcase_LEFT_CX + UP * -1.1)
+    pipeline_y = 0.28
+    sdxl_arrow = Arrow(
+        np.array([-0.55, pipeline_y, 0.0]),
+        np.array([1.75, pipeline_y, 0.0]),
+        buff=0,
+        color=_s1_step2_showcase_GREY,
+        stroke_width=2.5,
+        tip_length=0.22,
+        max_stroke_width_to_length_ratio=20,
+    )
+    sdxl_tex = Tex('\\textbf{Stable Diffusion XL}', color=_s1_step2_showcase_INK, font_size=22)
+    sdxl_tex.next_to(sdxl_arrow, UP, buff=0.16)
+    sdxl_pipeline_ref = ImageMobject(
+        str(REPO_ROOT / 'assets' / 'images' / 'references' / 'sdxl_pipeline_podell_2023_pipeline_only.png')
+    )
+    sdxl_pipeline_ref.scale_to_fit_width(sdxl_tex.width)
+    sdxl_pipeline_ref.next_to(sdxl_arrow, DOWN, buff=0.28)
+    sdxl_pipeline_ref.set_x(sdxl_tex.get_center()[0])
+    sdxl_group = Group(sdxl_arrow, sdxl_tex, sdxl_pipeline_ref)
+    base_sdxl_center_x, _ = _s1_step2_showcase_layout_x(rbrace, sdxl_group, n_cloud)
+    base_group_center_x = sdxl_group.get_center()[0]
+    base_block_left = base_sdxl_center_x + (sdxl_group.get_left()[0] - base_group_center_x)
+    base_gap = base_block_left - rbrace.get_right()[0]
+    left_cluster_shift = 2 * base_gap
+    comp_sym.shift(LEFT * left_cluster_shift)
+    set_row.shift(LEFT * left_cluster_shift)
     thumb_positions = [d.get_center().copy() for d in _dummy]
     set_brace = Brace(set_row, DOWN, color=_s1_step2_showcase_GREY, buff=0.08)
     set_brace_lab = MathTex('60 \\text{ noise tensors}', color=_s1_step2_showcase_GREY, font_size=20).next_to(set_brace, DOWN, buff=0.08)
     dist_note = MathTex('\\mathbf{z}_i \\sim \\mathcal{N}(\\mathbf{0},\\,\\mathbf{I})', color=_s1_step2_showcase_GREY, font_size=20).next_to(set_brace_lab, DOWN, buff=0.14)
-    sdxl_arrow = Arrow(np.array([-0.85, 0.0, 0.0]), np.array([1.4, 0.0, 0.0]), buff=0, color=_s1_step2_showcase_GREY, stroke_width=2.5, tip_length=0.22, max_stroke_width_to_length_ratio=20)
-    sdxl_tex = Tex('\\textbf{Stable Diffusion XL}', color=_s1_step2_showcase_INK, font_size=22)
-    sdxl_tex.next_to(sdxl_arrow, UP, buff=0.16)
-    sdxl_grp = VGroup(sdxl_arrow, sdxl_tex).move_to(ORIGIN)
+    sdxl_center_x, cloud_cx = _s1_step2_showcase_layout_x(rbrace, sdxl_group, n_cloud)
+    sdxl_group.shift(RIGHT * (sdxl_center_x - sdxl_group.get_center()[0]))
     c_sub = Tex('Same semantic identity $\\cdot$ Perceptually distinct realisations', color=_s1_step2_showcase_INK, font_size=19).to_edge(DOWN, buff=0.3)
-    scene.add(comp_sym, lbrace, dots_tex, rbrace, set_brace, set_brace_lab, dist_note, sdxl_grp, c_sub)
-    return thumb_positions
+    return dict(
+        comp_sym=comp_sym,
+        lbrace=lbrace,
+        dots_tex=dots_tex,
+        rbrace=rbrace,
+        set_brace=set_brace,
+        set_brace_lab=set_brace_lab,
+        dist_note=dist_note,
+        sdxl_arrow=sdxl_arrow,
+        sdxl_tex=sdxl_tex,
+        sdxl_pipeline_ref=sdxl_pipeline_ref,
+        c_sub=c_sub,
+        thumb_positions=thumb_positions,
+        cloud_cx=cloud_cx,
+        left_cx=_s1_step2_showcase_LEFT_CX - left_cluster_shift,
+    )
+
+def _s1_step2_showcase_build_static_frame(scene: Scene, n_cloud: int) -> list:
+    """
+    Add the structural frame that never changes (⊕, braces, SDXL arrow, subtitle)
+    directly to the scene with no animation.  Returns the list of fixed thumbnail
+    slot positions so callers can place ImageMobjects there.
+    """
+    frame = _s1_step2_showcase_make_static_frame(n_cloud)
+    scene.add(
+        frame['comp_sym'],
+        frame['lbrace'],
+        frame['dots_tex'],
+        frame['rbrace'],
+        frame['set_brace'],
+        frame['set_brace_lab'],
+        frame['dist_note'],
+        frame['sdxl_arrow'],
+        frame['sdxl_tex'],
+        frame['sdxl_pipeline_ref'],
+        frame['c_sub'],
+    )
+    return frame['thumb_positions']
+
+def _s1_step2_showcase_animate_from_step2(scene: Scene, step2_state: dict, entry: dict, pixels: list[np.ndarray], entry_idx: int) -> dict:
+    """Morph the final fish-strip demo into the first showcase entry."""
+    frame = _s1_step2_showcase_make_static_frame(len(pixels))
+    cloud_cx = frame['cloud_cx']
+    thumb_positions = frame['thumb_positions']
+    fp_block = _s1_step2_showcase_make_prompt_block(entry['prompt_lines'], entry['label'], left_cx=frame['left_cx'])
+    thumbs = _s1_step2_showcase_make_thumbs(entry_idx, thumb_positions)
+    c_title = _s1_step2_showcase_make_title(entry['label'], cx=cloud_cx)
+    cloud_grp, cloud_denoise = _s1_step2_showcase_cloud_reveal(
+        pixels,
+        entry_idx,
+        cx=cloud_cx,
+    )
+
+    scene.play(
+        FadeTransform(step2_state['p_block'], fp_block),
+        FadeOut(step2_state['prompt_link']),
+        ReplacementTransform(step2_state['comp_sym'], frame['comp_sym']),
+        FadeOut(step2_state['noise_link']),
+        FadeTransform(step2_state['noise_mob'], thumbs[0]),
+        FadeOut(step2_state['noise_id_lab']),
+        FadeTransform(step2_state['dist_lab'], frame['dist_note']),
+        FadeOut(step2_state['noise_note']),
+        ReplacementTransform(step2_state['arrow_mob'], frame['sdxl_arrow']),
+        FadeTransform(step2_state['sdxl_tex'], frame['sdxl_tex']),
+        FadeTransform(step2_state['sdxl_pipeline_ref'], frame['sdxl_pipeline_ref']),
+        FadeIn(frame['lbrace'], shift=RIGHT * 0.03),
+        FadeIn(frame['dots_tex'], shift=RIGHT * 0.03),
+        FadeIn(frame['rbrace'], shift=LEFT * 0.03),
+        GrowFromCenter(frame['set_brace']),
+        FadeIn(frame['set_brace_lab'], shift=UP * 0.03),
+        FadeIn(thumbs[1], scale=0.9),
+        FadeIn(thumbs[2], scale=0.9),
+        FadeOut(step2_state['final_vdots']),
+        *[FadeOut(tile, shift=RIGHT * 0.08) for row in step2_state['completed_rows'] for tile in row],
+        run_time=1.05,
+    )
+    scene.play(
+        FadeIn(frame['c_sub'], shift=UP * 0.04),
+        FadeIn(c_title, shift=UP * 0.05),
+        FadeIn(cloud_grp),
+        run_time=0.35,
+    )
+    if cloud_denoise is not None:
+        scene.play(cloud_denoise, run_time=_s1_step2_showcase_CLOUD_DENOISE_TIME, rate_func=linear)
+    scene.wait(_s1_step2_showcase_HOLD_TIME)
+    return dict(fp_block=fp_block, thumbs=thumbs, cloud_grp=cloud_grp, c_title=c_title, thumb_positions=thumb_positions)
 
 def _s1_step2_showcase_animate_entry(scene: Scene, entry: dict, pixels: list, thumb_positions: list, entry_idx: int, prev_state: dict | None) -> dict:
     """
@@ -529,16 +1028,24 @@ def _s1_step2_showcase_animate_entry(scene: Scene, entry: dict, pixels: list, th
     (fade in).  Otherwise swap out the previous mobjects.
     Returns the current state dict for the next call.
     """
-    fp_block = _s1_step2_showcase_make_prompt_block(entry['prompt_lines'], entry['label'])
+    frame = _s1_step2_showcase_make_static_frame(len(pixels))
+    cloud_cx = frame['cloud_cx']
+    fp_block = _s1_step2_showcase_make_prompt_block(entry['prompt_lines'], entry['label'], left_cx=frame['left_cx'])
     thumbs = _s1_step2_showcase_make_thumbs(entry_idx, thumb_positions)
-    cloud_grp = _s1_step2_showcase_make_cloud(pixels)
-    c_title = _s1_step2_showcase_make_title(entry['label'])
+    c_title = _s1_step2_showcase_make_title(entry['label'], cx=cloud_cx)
+    cloud_grp, cloud_denoise = _s1_step2_showcase_cloud_reveal(
+        pixels,
+        entry_idx,
+        cx=cloud_cx,
+    )
     if prev_state is None:
         scene.play(FadeIn(fp_block, shift=DOWN * 0.06), *[FadeIn(t, scale=0.9) for t in thumbs], run_time=0.5)
-        scene.play(Write(c_title), LaggedStart(*[FadeIn(m, shift=UP * 0.04) for m in cloud_grp], lag_ratio=0.02), run_time=2.0)
+        scene.play(Write(c_title), FadeIn(cloud_grp), run_time=0.35)
     else:
         scene.play(FadeTransform(prev_state['fp_block'], fp_block), FadeTransform(prev_state['c_title'], c_title), *[FadeOut(t) for t in prev_state['thumbs']], FadeOut(prev_state['cloud_grp']), run_time=0.5)
-        scene.play(*[FadeIn(t, scale=0.9) for t in thumbs], LaggedStart(*[FadeIn(m, shift=UP * 0.04) for m in cloud_grp], lag_ratio=0.02), run_time=1.8)
+        scene.play(*[FadeIn(t, scale=0.9) for t in thumbs], FadeIn(cloud_grp), run_time=0.35)
+    if cloud_denoise is not None:
+        scene.play(cloud_denoise, run_time=_s1_step2_showcase_CLOUD_DENOISE_TIME, rate_func=linear)
     scene.wait(_s1_step2_showcase_HOLD_TIME)
     return dict(fp_block=fp_block, thumbs=thumbs, cloud_grp=cloud_grp, c_title=c_title)
 
@@ -551,26 +1058,77 @@ def _s1_step2_showcase__make_single_scene(idx: int) -> type:
         def construct(self_):
             """Run the animation sequence for this scene."""
             self_.camera.background_color = _s1_step2_showcase_BG
-            pixels = _s1_step2_showcase_load_pixels(_s1_step2_showcase_BASE / entry['category'] / entry['folder'], entry['glob'])
-            thumb_pos = _s1_step2_showcase_build_static_frame(self_)
+            pixels = _s1_step2_showcase_load_pixels(_s1_step2_showcase_image_dir(entry), entry['glob'])
+            thumb_pos = _s1_step2_showcase_build_static_frame(self_, len(pixels))
             _s1_step2_showcase_animate_entry(self_, entry, pixels, thumb_pos, idx, None)
-    name = f"Showcase_{entry['folder']}"
+    scene_id = entry.get('folder', entry['label'].replace(' ', '_'))
+    name = f"Showcase_{scene_id}"
     _S.__name__ = name
     _S.__qualname__ = name
     return _S
 for _i, _e in enumerate(_s1_step2_showcase_SHOWCASE):
-    globals()[f"Showcase_{_e['folder']}"] = _s1_step2_showcase__make_single_scene(_i)
+    _scene_id = _e.get('folder', _e['label'].replace(' ', '_'))
+    globals()[f"Showcase_{_scene_id}"] = _s1_step2_showcase__make_single_scene(_i)
 
 class Study1Stage1Step2Showcase(Scene):
     """Cycle through several object-scene prompts and exemplar clouds in a shared frame."""
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step2_showcase_BG
-        all_pixels = [_s1_step2_showcase_load_pixels(_s1_step2_showcase_BASE / e['category'] / e['folder'], e['glob']) for e in _s1_step2_showcase_SHOWCASE]
-        thumb_pos = _s1_step2_showcase_build_static_frame(self)
+        if not hasattr(self, '_s1_step2_end_state'):
+            # When rendered standalone, fast-forward Step 2 so the showcase can
+            # start from its terminal frame instead of replaying the build-up.
+            with _study1_skip_scene_animations(self):
+                Study1Stage1Step2.construct(self)
+        all_pixels = [_s1_step2_showcase_load_pixels(_s1_step2_showcase_image_dir(e), e['glob']) for e in _s1_step2_showcase_SHOWCASE]
         state = None
+        start_idx = 0
+        if hasattr(self, '_s1_step2_end_state'):
+            state = _s1_step2_showcase_animate_from_step2(self, self._s1_step2_end_state, _s1_step2_showcase_SHOWCASE[0], all_pixels[0], 0)
+            thumb_pos = state['thumb_positions']
+            del self._s1_step2_end_state
+            start_idx = 1
+        else:
+            thumb_pos = _s1_step2_showcase_build_static_frame(self, len(all_pixels[0]))
         for i, (entry, pixels) in enumerate(zip(_s1_step2_showcase_SHOWCASE, all_pixels)):
+            if i < start_idx:
+                continue
             state = _s1_step2_showcase_animate_entry(self, entry, pixels, thumb_pos, i, state)
+
+def _s1_step2_showcase_build_final_frame() -> Group:
+    """Rebuild the held end-state of the showcase for explicit section handoffs."""
+    entry_idx = len(_s1_step2_showcase_SHOWCASE) - 1
+    entry = _s1_step2_showcase_SHOWCASE[entry_idx]
+    pixels = _s1_step2_showcase_load_pixels(
+        _s1_step2_showcase_image_dir(entry),
+        entry['glob'],
+    )
+    frame = _s1_step2_showcase_make_static_frame(len(pixels))
+    fp_block = _s1_step2_showcase_make_prompt_block(
+        entry['prompt_lines'],
+        entry['label'],
+        left_cx=frame['left_cx'],
+    )
+    thumbs = Group(*_s1_step2_showcase_make_thumbs(entry_idx, frame['thumb_positions']))
+    cloud_grp = _s1_step2_showcase_make_cloud(pixels, cx=frame['cloud_cx'])
+    c_title = _s1_step2_showcase_make_title(entry['label'], cx=frame['cloud_cx'])
+    return Group(
+        fp_block,
+        frame['comp_sym'],
+        frame['lbrace'],
+        frame['dots_tex'],
+        frame['rbrace'],
+        frame['set_brace'],
+        frame['set_brace_lab'],
+        frame['dist_note'],
+        frame['sdxl_arrow'],
+        frame['sdxl_tex'],
+        frame['sdxl_pipeline_ref'],
+        frame['c_sub'],
+        thumbs,
+        c_title,
+        cloud_grp,
+    )
 
 
 # --- inlined from study1_step3.py ---
@@ -604,6 +1162,8 @@ def _s1_step3_choose_demo_pairs(cloud_pts: list[tuple[float, float]], cx: float,
     """
     target_offsets = [(-1.1, 0.7), (-0.1, 1.55), (1.75, 1.0), (1.45, -0.9), (0.1, -1.85), (-1.15, -0.75), (-1.0, 0.15), (0.95, 0.45)]
     n = len(cloud_pts)
+    # Avoid exemplar pairs too close to the first/last matrix rows so the later
+    # row/column highlight choreography has enough space to read cleanly.
     edge_margin = max(8, n // 7)
     distance_target = 1.95
     candidates: list[tuple[tuple[int, int], np.ndarray, float]] = []
@@ -627,6 +1187,8 @@ def _s1_step3_choose_demo_pairs(cloud_pts: list[tuple[float, float]], cx: float,
     chosen: list[tuple[int, int]] = []
     used_indices = set(excluded_indices)
     for dx, dy in target_offsets:
+        # Seed the examples from hand-picked cloud regions first, then backfill
+        # from the remaining candidates by target distance only.
         target = np.array([cx + dx, cy + dy])
         best_pair = None
         best_score = None
@@ -671,6 +1233,8 @@ def _s1_step3_load_similarity_matrix() -> tuple[np.ndarray, list[str]]:
         rows = list(csv.reader(f))
     ordered_names = rows[0][1:]
     row_names = [row[0] for row in rows[1:]]
+    # Later we permute by image-file order, so the CSV must be a square matrix
+    # with identical row/column label order.
     if row_names != ordered_names:
         raise ValueError('Similarity CSV row/column ordering mismatch')
     scores = np.asarray([[float(value) for value in row[1:]] for row in rows[1:]], dtype=np.float32)
@@ -691,6 +1255,8 @@ def _s1_step3_score_heatmap_rgba(scores: np.ndarray, row_start: int=0, row_end: 
     row_mask = np.zeros(n, dtype=bool)
     row_mask[row_start:row_end] = True
     lower_mask = np.tril(np.ones((n, n), dtype=bool), k=-1)
+    # Keep the upper triangle transparent so the scene can reveal the matrix
+    # progressively without layering a second mask object on top.
     keep_mask = lower_mask & row_mask[:, None]
     rgba[keep_mask] = colored[keep_mask]
     diag_idx = np.arange(n)
@@ -719,9 +1285,15 @@ class _Study1Step3Base(Scene):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step3_BG
+        previous_section_group = getattr(self, '_study1_prev_section_group', None)
+        if previous_section_group is None:
+            previous_section_group = _s1_step2_showcase_build_final_frame()
+        self.add(previous_section_group)
         pixels, files = _s1_step3_load_pixels()
         scores_csv, ordered_names = _s1_step3_load_similarity_matrix()
         csv_index_by_name = {name: i for i, name in enumerate(ordered_names)}
+        # The LPIPS CSV ships in its own deterministic order; remap it once to
+        # the sorted exemplar-file order used for every image object below.
         perm = [csv_index_by_name[fp.name] for fp in files]
         scores = scores_csv[np.ix_(perm, perm)]
         n = len(pixels)
@@ -744,6 +1316,21 @@ class _Study1Step3Base(Scene):
             Tex('\\textbf{LPIPS} (Zhang et al., 2018)', color=_s1_step3_INK, font_size=20),
         ).arrange(DOWN, buff=0.05)
         matrix_icon = _s1_step3_nn_icon()
+        nn_left_edges = VGroup(*matrix_icon.submobjects[:6])
+        nn_right_edges = VGroup(*matrix_icon.submobjects[6:12])
+        nn_input_nodes = VGroup(*matrix_icon.submobjects[12:14])
+        nn_output_nodes = VGroup(*matrix_icon.submobjects[14:16])
+        nn_hidden_nodes = VGroup(*matrix_icon.submobjects[16:19])
+        nn_edge_base_width = 1.8
+        nn_node_base_width = 1.1
+        nn_input_color = _s1_step3_C_ANCHOR
+        nn_hidden_color = _s1_step3_C_ACCENT
+        nn_output_color = _s1_step3_C_GUIDE
+        for edge_group in (nn_left_edges, nn_right_edges):
+            edge_group.set_stroke(_s1_step3_GREY, width=nn_edge_base_width, opacity=0.42)
+        for node_group in (nn_input_nodes, nn_hidden_nodes, nn_output_nodes):
+            node_group.set_fill(_s1_step3_GREY, opacity=0.58)
+            node_group.set_stroke(_s1_step3_GREY, width=nn_node_base_width, opacity=0.18)
         matrix_title = VGroup(matrix_title_text, matrix_icon).arrange(DOWN, buff=0.15).move_to(RIGHT * MATRIX_C[0] + UP * 3.05)
         half = MATRIX_SIDE / 2
         mat_ul = MATRIX_C + np.array([-half, half, 0.0])
@@ -787,7 +1374,33 @@ class _Study1Step3Base(Scene):
             """Build the LPIPS score label for one exemplar pair."""
             score = float(scores[i, j])
             return Tex(f'\\textit{{score}} = {score:.3f}', color=_s1_step3_C_MATRIX, font_size=18)
-        pair_title = Tex('\\textbf{Example pairwise similarity}', color=_s1_step3_INK, font_size=20)
+
+        def matrix_value_label(i: int, j: int) -> VGroup:
+            """
+            Build one compact score label positioned on top of a sampled matrix
+            cell so the manually demonstrated entries remain visible.
+            """
+            score = float(scores[i, j])
+            label = DecimalNumber(
+                score,
+                num_decimal_places=2,
+                include_sign=False,
+                group_with_commas=False,
+                color=_s1_step3_C_MATRIX,
+                font_size=18,
+            )
+            label.scale_to_fit_width(0.42)
+            bg = RoundedRectangle(
+                width=label.width + 0.08,
+                height=label.height + 0.05,
+                corner_radius=0.035,
+                stroke_width=0,
+            ).set_fill(WHITE, opacity=0.94)
+            bg.move_to(label)
+            value_group = VGroup(bg, label).move_to(cell_center(i, j))
+            value_group.set_z_index(3.8)
+            return value_group
+        pair_title = Tex('\\textbf{Pair similarity}', color=_s1_step3_INK, font_size=20)
         pair_l = _s1_step3_thumb(pixels[demo_pairs[0][0]], h=0.9)
         pair_r = _s1_step3_thumb(pixels[demo_pairs[0][1]], h=0.9)
         pair_formula = MathTex('\\mathrm{LPIPS}(x_i,x_j)', color=_s1_step3_C_MATRIX, font_size=24)
@@ -877,11 +1490,42 @@ class _Study1Step3Base(Scene):
             return arrow
         algo_scan_arrow = always_redraw(make_algo_scan_arrow)
 
+        def nn_node_pulse(node_group: VGroup, color: str, *, peak_opacity: float=1.0) -> AnimationGroup:
+            """Pulse one node layer during the LPIPS pair scan."""
+            return AnimationGroup(
+                node_group.animate.set_fill(color, opacity=peak_opacity).set_stroke(color, width=nn_node_base_width * 1.9, opacity=peak_opacity * 0.85),
+                run_time=0.2,
+                rate_func=there_and_back,
+            )
+
+        def nn_edge_flash(edge_group: VGroup, color: str) -> AnimationGroup:
+            """Flash one bank of network connections to suggest activation flow."""
+            flash = edge_group.copy()
+            flash.set_stroke(color, width=nn_edge_base_width * 3.0, opacity=1.0)
+            flash.set_z_index(matrix_icon.get_z_index() + 1)
+            return AnimationGroup(
+                edge_group.animate.set_stroke(color, width=nn_edge_base_width * 2.0, opacity=0.95),
+                ShowPassingFlash(flash, time_width=0.8, run_time=0.2),
+                run_time=0.2,
+                rate_func=there_and_back,
+            )
+
+        def nn_activation_sweep() -> LaggedStart:
+            """Animate a subtle left-to-right activation sweep through the icon."""
+            return LaggedStart(
+                AnimationGroup(nn_node_pulse(nn_input_nodes, nn_input_color, peak_opacity=0.95), nn_edge_flash(nn_left_edges, nn_input_color), lag_ratio=0.0),
+                AnimationGroup(nn_node_pulse(nn_hidden_nodes, nn_hidden_color, peak_opacity=1.0), lag_ratio=0.0),
+                AnimationGroup(nn_edge_flash(nn_right_edges, nn_output_color), nn_node_pulse(nn_output_nodes, nn_output_color, peak_opacity=0.95), lag_ratio=0.0),
+                lag_ratio=0.18,
+                run_time=0.42,
+            )
+
         def play_intro_and_matrix(keep_example_visible: bool=False) -> None:
             """Animate the LPIPS matrix construction sequence."""
             nonlocal pair_score
-            self.play(Write(cloud_title), LaggedStart(*[FadeIn(m, shift=UP * 0.03) for m in cloud_imgs], lag_ratio=0.01), run_time=1.45)
-            self.wait(0.45)
+            sampled_matrix_values = VGroup()
+            self.play(Write(cloud_title), LaggedStart(*[FadeIn(m, shift=UP * 0.03) for m in cloud_imgs], lag_ratio=0.008), run_time=0.95)
+            self.wait(0.15)
             self.play(FadeIn(tri_bg), Create(tri_frame), Create(diag_line), run_time=0.65)
             self.add(matrix_icon)
             self.play(Write(matrix_title_text), run_time=0.6)
@@ -889,7 +1533,9 @@ class _Study1Step3Base(Scene):
             self.play(FadeIn(axis_x, axis_y), run_time=0.4)
             first_left = cloud_imgs[demo_pairs[0][0]]
             first_right = cloud_imgs[demo_pairs[0][1]]
-            self.play(FadeIn(pair_title, pair_formula, pair_score, shift=DOWN * 0.04), TransformFromCopy(first_left, pair_l[0]), FadeIn(pair_l[1]), TransformFromCopy(first_right, pair_r[0]), FadeIn(pair_r[1]), FadeIn(current_cloud_left, current_cloud_right), Create(pair_arrow), FadeIn(current_cell), run_time=1.05)
+            first_matrix_value = matrix_value_label(*demo_pairs[0])
+            sampled_matrix_values.add(first_matrix_value)
+            self.play(FadeIn(pair_title, pair_formula, pair_score, shift=DOWN * 0.04), TransformFromCopy(first_left, pair_l[0]), FadeIn(pair_l[1]), TransformFromCopy(first_right, pair_r[0]), FadeIn(pair_r[1]), FadeIn(current_cloud_left, current_cloud_right), Create(pair_arrow), FadeIn(current_cell), FadeIn(first_matrix_value, scale=0.92), run_time=1.05)
             self.wait(0.45)
             for next_pair in demo_pairs[1:]:
                 new_left = _s1_step3_thumb(pixels[next_pair[0]], h=0.9)
@@ -901,7 +1547,9 @@ class _Study1Step3Base(Scene):
                 new_cell = pair_cell(*next_pair, color=_s1_step3_C_FLOW)
                 new_cloud_left = cloud_pair_box(next_pair[0]).set_z_index(4)
                 new_cloud_right = cloud_pair_box(next_pair[1]).set_z_index(4)
-                self.play(Transform(pair_l, new_left), Transform(pair_r, new_right), FadeTransform(pair_score, new_score), Transform(pair_arrow, new_arrow), Transform(current_cell, new_cell), Transform(current_cloud_left, new_cloud_left), Transform(current_cloud_right, new_cloud_right), run_time=0.65)
+                new_matrix_value = matrix_value_label(*next_pair)
+                sampled_matrix_values.add(new_matrix_value)
+                self.play(Transform(pair_l, new_left), Transform(pair_r, new_right), FadeTransform(pair_score, new_score), Transform(pair_arrow, new_arrow), Transform(current_cell, new_cell), Transform(current_cloud_left, new_cloud_left), Transform(current_cloud_right, new_cloud_right), FadeIn(new_matrix_value, scale=0.92), run_time=0.65)
                 pair_score = new_score
                 self.wait(0.14)
             self.play(Write(repeat_note), run_time=0.45)
@@ -915,15 +1563,21 @@ class _Study1Step3Base(Scene):
                 self.play(FadeOut(pair_card, pair_score, repeat_note), run_time=0.45)
                 self.wait(0.25)
 
+        if previous_section_group is not None:
+            self.play(FadeOut(previous_section_group, shift=DOWN * 0.04), run_time=0.25)
+            self.remove(previous_section_group)
+            if hasattr(self, '_study1_prev_section_group'):
+                del self._study1_prev_section_group
+
         def play_selection_sequence() -> None:
             """Animate the anchor-guide selection sequence."""
             self.play(FadeIn(algo_panel, shift=UP * 0.04), run_time=0.95)
             self.wait(0.45)
-            self.play(FadeIn(search_cell), FadeIn(algo_scan_arrow), run_time=0.45)
+            self.play(FadeIn(search_cell), FadeIn(algo_scan_arrow), nn_activation_sweep(), run_time=0.45)
             self.wait(0.2)
             for pair in search_path[1:]:
-                self.play(Transform(search_cell, pair_cell(*pair, color=YELLOW).set_z_index(4)), run_time=0.34)
-            self.play(Transform(search_cell, selected_cell), FadeOut(algo_scan_arrow), run_time=0.45)
+                self.play(Transform(search_cell, pair_cell(*pair, color=YELLOW).set_z_index(4)), nn_activation_sweep(), run_time=0.34)
+            self.play(Transform(search_cell, selected_cell), FadeOut(algo_scan_arrow), nn_activation_sweep(), run_time=0.45)
             self.wait(0.35)
             self.play(AnimationGroup(GrowFromCenter(selected_row_band), GrowFromCenter(selected_col_band), lag_ratio=0.18), FadeIn(cloud_anchor_box, cloud_guide_box), run_time=0.9)
             self.wait(0.35)
@@ -952,7 +1606,8 @@ class _Study1Step3Base(Scene):
             current_cell_final.set_z_index(4)
             current_cloud_left_final = cloud_pair_box(final_pair[0]).set_z_index(4)
             current_cloud_right_final = cloud_pair_box(final_pair[1]).set_z_index(4)
-            return {'pair_card': pair_card_final, 'repeat_note': repeat_note_final, 'pair_arrow': pair_arrow_final, 'current_cell': current_cell_final, 'current_cloud_left': current_cloud_left_final, 'current_cloud_right': current_cloud_right_final}
+            sampled_matrix_values_final = VGroup(*[matrix_value_label(*pair) for pair in demo_pairs])
+            return {'pair_card': pair_card_final, 'repeat_note': repeat_note_final, 'pair_arrow': pair_arrow_final, 'current_cell': current_cell_final, 'current_cloud_left': current_cloud_left_final, 'current_cloud_right': current_cloud_right_final, 'sampled_matrix_values': sampled_matrix_values_final}
         if self.segment == 'merged':
             self.next_section("05_Step3Part1")
             play_intro_and_matrix(keep_example_visible=True)
@@ -969,7 +1624,7 @@ class _Study1Step3Base(Scene):
             return
         if self.segment == 'selection':
             part1_final_frame = build_part1_final_frame()
-            self.add(cloud_title, *cloud_imgs, tri_bg, tri_frame, diag_line, matrix_title, axis_x, axis_y, *band_imgs, part1_final_frame['pair_card'], part1_final_frame['repeat_note'], part1_final_frame['pair_arrow'], part1_final_frame['current_cell'], part1_final_frame['current_cloud_left'], part1_final_frame['current_cloud_right'])
+            self.add(cloud_title, *cloud_imgs, tri_bg, tri_frame, diag_line, matrix_title, axis_x, axis_y, *band_imgs, part1_final_frame['sampled_matrix_values'], part1_final_frame['pair_card'], part1_final_frame['repeat_note'], part1_final_frame['pair_arrow'], part1_final_frame['current_cell'], part1_final_frame['current_cloud_left'], part1_final_frame['current_cloud_right'])
             self.wait(0.55)
             self.play(FadeOut(part1_final_frame['current_cloud_left'], part1_final_frame['current_cloud_right']), FadeOut(part1_final_frame['pair_arrow'], part1_final_frame['current_cell']), FadeOut(part1_final_frame['pair_card'], part1_final_frame['repeat_note']), run_time=0.45)
             self.wait(0.25)
@@ -1164,6 +1819,8 @@ class _Study1Step4CompactBase(ThreeDScene):
 
         def follow_center(t: float) -> np.ndarray:
             """Return the moving image centre for the current interpolation value."""
+            # Interpolate the thumbnail offset as well as the latent tip so the
+            # moving image stays visually attached to the labeled endpoints.
             tip = R * _s1_step4_slerp(z0_dir, z1_dir, t)
             offset = (1 - t) * follow_start_offset + t * follow_end_offset
             return tip + offset
@@ -1273,6 +1930,8 @@ def _s1_step5_build_deck(images_dir: Path, image_names: list[str], n_visible: in
     """Build the compressed interpolation deck and reserve a placeholder slot near the centre."""
     total = len(image_names)
     sample = np.linspace(0, total - 1, n_visible).round().astype(int).tolist()
+    # Endpoint cards are rendered separately as anchor/guide panels, so the
+    # deck only needs intermediate steps.
     endpoint_indices = {0, total - 1}
     selected_set = set(selected_indices)
     visible = sorted((set(sample) | {i for i in selected_indices if i not in endpoint_indices}) - endpoint_indices)
@@ -1281,6 +1940,8 @@ def _s1_step5_build_deck(images_dir: Path, image_names: list[str], n_visible: in
     candidate_ranks = [rank for rank, img_idx in enumerate(visible) if img_idx not in selected_set]
     if candidate_ranks:
         center = (n - 1) / 2
+        # Reserve the most central non-selected slot for the ellipsis card so
+        # omitted steps read as a deliberate compression, not a missing asset.
         placeholder_rank = min(candidate_ranks, key=lambda rank: abs(rank - center))
     thumbs = Group()
     for rank, img_idx in enumerate(visible):
@@ -1400,6 +2061,8 @@ class _Study1Step5Base(ThreeDScene):
         slot_opacities = []
         for idx in range(total_slots):
             t = idx / max(total_slots - 1, 1)
+            # Lift the middle of the strip slightly so the selected cards read
+            # as one continuous interpolation arc between anchor and guide.
             x = start_x + idx * step_x
             y = deck_target_y + 0.58 * np.sin(np.pi * t)
             recede = np.sin(np.pi * t)
@@ -2417,6 +3080,8 @@ def _s1_stage3_recolor_svg(svg: SVGMobject, color_map: dict[str, ParsableManimCo
 
 def _s1_stage3_restore_agg_nonrepeated_dashes(svg: SVGMobject) -> None:
     """Manim drops SVG dash arrays here, so restore them after loading."""
+    # Recover the dashed "non-repeated" series by geometry because the original
+    # dash metadata is not preserved by Manim's SVG importer.
     candidates = [submob for submob in svg.submobjects if submob.get_fill_opacity() == 0 and abs(submob.get_stroke_width() - 1.71) < 0.1 and (abs(submob.get_stroke_opacity() - 0.6) < 0.1)]
     line_groups = {'series': [submob for submob in candidates if submob.get_center()[0] < 0], 'legend': [submob for submob in candidates if submob.get_center()[0] > 0]}
     for group in line_groups.values():
@@ -2488,6 +3153,8 @@ def _s1_stage3_load_visible_svg(path: str | Path, *, height: float) -> SVGMobjec
     """Load an SVG and drop any full-canvas white background rect."""
     svg = SVGMobject(str(path), use_svg_cache=False)
     for submob in list(svg.submobjects):
+        # Figure exports often include a page-sized white rectangle that would
+        # otherwise occlude the scene background and our overlay labels.
         if _s1_stage3__get_hex(submob.get_stroke_color()) == '#FFFFFF' and _s1_stage3__get_hex(submob.get_fill_color()) == '#FFFFFF' and (submob.width > 0.9 * svg.width) and (submob.height > 0.9 * svg.height):
             svg.remove(submob)
             break
@@ -2992,118 +3659,7 @@ class Study1Stage3MemoryExpResults(Scene):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage3_BG
-
-        def build_expdesignb_final_frame() -> Group:
-            """Build the held design-summary frame reused before the results reveal."""
-            title = Tex('Memory validation task', color=_s1_stage3_INK, font_size=40).to_edge(UP, buff=0.28)
-            question = VGroup(Tex('Does proximity along the perceptual continua', color=_s1_stage3_INK, font_size=26), Tex('of our image sets predict memory performance?', color=_s1_stage3_INK, font_size=26)).arrange(DOWN, buff=0.1).next_to(title, DOWN, buff=0.24)
-            lookup = _s1_stage3_load_stimulus_lookup()
-            set_specs = [('plant', 'pine_med'), ('landscape_element', 'lake_island'), ('building', 'observatory'), ('item', 'sofa')]
-            question_bottom_y = question.get_bottom()[1]
-            row_spacing = 1.05
-            bottom_margin_y = -config.frame_height / 2 + 0.55
-            row_block_center_y = 0.5 * (question_bottom_y + bottom_margin_y)
-            row_y_positions = [row_block_center_y + row_spacing * o for o in (1.5, 0.5, -0.5, -1.5)]
-            left_column_center_x = -config.frame_width / 4
-            selected_spacing = 1.05
-            selected_xs = [left_column_center_x + selected_spacing * o for o in (-1.5, -0.5, 0.5, 1.5)]
-            collapsed_cards: list[Mobject] = []
-            bottom_continuation_marks: list[Mobject] = []
-            for (category, obj), row_y in zip(set_specs, row_y_positions):
-                row = lookup[category, obj]
-                prefix = f'{category}_{obj}'
-                selected_indices = [int(row['target_position']), int(row['distractor_1_position']), int(row['distractor_2_position']), int(row['distractor_3_position'])]
-                for col_idx, stim_idx in enumerate(selected_indices):
-                    card = _s1_stage3_stimulus_image(prefix, stim_idx, 0.56, (selected_xs[col_idx], row_y, 0.0))
-                    card.scale(1.45)
-                    card.set_z_index(5)
-                    collapsed_cards.append(card)
-                    if obj == 'sofa':
-                        dot = MathTex('\\vdots', color=_s1_stage3_MGREY, font_size=24).next_to(card, DOWN, buff=0.19)
-                        dot.set_z_index(5)
-                        bottom_continuation_marks.append(dot)
-            target_cards = Group(*collapsed_cards[0::4])
-            foil_cards = Group(*[collapsed_cards[i] for i in range(len(collapsed_cards)) if i % 4 != 0])
-            continuation_marks = VGroup(*bottom_continuation_marks)
-            target_rect = SurroundingRectangle(Group(target_cards, continuation_marks[0]), color=_s1_stage3_MGREY, stroke_width=1.5, buff=0.1, corner_radius=0.06)
-            foil_rect = SurroundingRectangle(Group(foil_cards, *continuation_marks[1:]), color=_s1_stage3_MGREY, stroke_width=1.5, buff=0.1, corner_radius=0.06)
-            target_label = Tex('Targets', color=_s1_stage3_INK, font_size=24).next_to(target_rect, UP, buff=0.12)
-            foil_label = Tex('Foils', color=_s1_stage3_INK, font_size=24).next_to(foil_rect, UP, buff=0.12)
-            arrow_y = min(target_rect.get_bottom()[1], foil_rect.get_bottom()[1]) - 0.34
-            dissimilar_arrow = Arrow(start=np.array([target_rect.get_center()[0] - 0.2, arrow_y, 0.0]), end=np.array([foil_rect.get_right()[0] - 0.1, arrow_y, 0.0]), buff=0.0, stroke_width=2.0, color=_s1_stage3_MGREY, tip_length=0.18, max_stroke_width_to_length_ratio=8, max_tip_length_to_length_ratio=0.1)
-            dissimilar_text = Tex('More dissimilar', color=_s1_stage3_INK, font_size=22).next_to(dissimilar_arrow, DOWN, buff=0.1)
-            frame_side = 1.75
-            right_margin_x = config.frame_width / 2 - 0.35
-            stage_center_x = 0.5 * (foil_rect.get_right()[0] + right_margin_x)
-            stage_center_y = 0.5 * (row_y_positions[1] + row_y_positions[2])
-            right_center = np.array([stage_center_x, stage_center_y, 0.0])
-            lake_prefix = 'landscape_element_lake_island'
-            lake_row = lookup['landscape_element', 'lake_island']
-            target_idx = int(lake_row['target_position'])
-            probe1_idx = int(lake_row['distractor_3_position'])
-            probe2_idx = target_idx
-
-            def stage_content(kind: str, center: np.ndarray) -> Group:
-                """Return the stage content."""
-                image_height = 0.44
-                fixation_height = 0.06
-                if kind == 'target':
-                    img = _s1_stage3_stimulus_image(lake_prefix, target_idx, image_height, center)
-                    img.set_z_index(6)
-                    return Group(img, _s1_stage3_fixation_on(img, height=fixation_height))
-                if kind == 'probe1':
-                    img = _s1_stage3_stimulus_image(lake_prefix, probe1_idx, image_height, center)
-                    img.set_z_index(6)
-                    return Group(img, _s1_stage3_fixation_on(img, height=fixation_height))
-                if kind == 'probe2':
-                    img = _s1_stage3_stimulus_image(lake_prefix, probe2_idx, image_height, center)
-                    img.set_z_index(6)
-                    return Group(img, _s1_stage3_fixation_on(img, height=fixation_height))
-                if kind in {'delay', 'buffer', 'iti'}:
-                    return Group(_s1_stage3_fixation_on(center, height=fixation_height))
-                fix = _s1_stage3_fixation_on(center, height=fixation_height)
-                left_text = Tex('TWO', color=_s1_stage3_INK, font_size=8).next_to(fix, LEFT, buff=0.04)
-                right_text = Tex('ONE', color=_s1_stage3_INK, font_size=8).next_to(fix, RIGHT, buff=0.04)
-                arr = Arrow(start=left_text.get_center() + RIGHT * 0.1, end=left_text.get_center() + LEFT * 0.1, color=_s1_stage3_INK, stroke_width=4, buff=0, tip_length=0.1)
-                arr.next_to(left_text, DOWN, buff=0.035)
-                for mob in (fix, left_text, right_text, arr):
-                    mob.set_z_index(6)
-                return Group(left_text, fix, right_text, arr)
-            stage_specs = [('2s', 'Target', 'target'), ('8s', 'Delay', 'delay'), ('1s', 'Probe 1', 'probe1'), ('0.5s', 'Buffer', 'buffer'), ('1s', 'Probe 2', 'probe2'), ('2s', 'Response', 'response'), ('(M=4s)', 'ITI', 'iti')]
-            strip_side = 0.82
-            strip_gap = 0.1
-            strip_total_width = len(stage_specs) * strip_side + (len(stage_specs) - 1) * strip_gap
-            strip_final_y = right_center[1] - 0.12
-            strip_final_centers = [np.array([right_center[0] - strip_total_width / 2 + strip_side / 2 + i * (strip_side + strip_gap), strip_final_y, 0.0]) for i in range(len(stage_specs))]
-            parked_cards = []
-            for (_, _, kind), center in zip(stage_specs, strip_final_centers):
-                pf = RoundedRectangle(corner_radius=0.08, width=strip_side, height=strip_side, stroke_color=_s1_stage3_MGREY, stroke_width=1.2).move_to(center)
-                pf.set_fill(WHITE, opacity=1.0)
-                pg = Group(pf, stage_content(kind, center))
-                pg.set_z_index(6)
-                parked_cards.append(pg)
-            final_duration_labels = VGroup(*[Tex(dur, color=_s1_stage3_INK, font_size=16).next_to(card, UP, buff=0.1) for (dur, _, _), card in zip(stage_specs, parked_cards)])
-            final_stage_labels = VGroup(*[Tex(lbl, color=_s1_stage3_INK, font_size=16).next_to(card, DOWN, buff=0.1) for (_, lbl, _), card in zip(stage_specs, parked_cards)])
-            final_arrow_y = min(strip_final_y - strip_side * 1.12 / 2 - 0.2, right_center[1] - 1.15)
-            strip_arrow_start_x = right_center[0] - strip_total_width / 2
-            progress_arrow = Arrow(start=np.array([strip_arrow_start_x, final_arrow_y, 0.0]), end=np.array([right_center[0] + strip_total_width / 2, final_arrow_y, 0.0]), color=_s1_stage3_LGREY, stroke_width=1.3, buff=0.0, tip_length=0.14)
-            time_label = MathTex('t', color=_s1_stage3_INK, font_size=24).next_to(progress_arrow, RIGHT, buff=0.1)
-            left_panel = Group(*collapsed_cards, continuation_marks, target_rect, foil_rect, target_label, foil_label, dissimilar_arrow, dissimilar_text)
-            left_panel.scale(0.8)
-            dissimilar_arrow.shift(DOWN * 0.38)
-            dissimilar_text.shift(DOWN * 0.38)
-            foil_cols = [Group(*[collapsed_cards[4 * r + c] for r in range(4)], continuation_marks[c]) for c in (1, 2, 3)]
-            diff_groups = []
-            for diff_label, color, col_group in [('Hard', '#C94040', foil_cols[0]), ('Medium', '#C87137', foil_cols[1]), ('Easy', '#3A7EC8', foil_cols[2])]:
-                col_rect = SurroundingRectangle(col_group, color=color, stroke_width=1.8, buff=0.08, corner_radius=0.06)
-                lbl = Tex(diff_label, color=color, font_size=22).next_to(col_group, DOWN, buff=0.18)
-                diff_groups.append(Group(col_rect, lbl))
-            stats_block = VGroup(Tex('$N = 240$', color=_s1_stage3_INK, font_size=22), Tex('6 blocks $\\cdot$ half repeated, half new targets per block', color=_s1_stage3_INK, font_size=20)).arrange(DOWN, buff=0.12)
-            timeline_bottom = min(final_stage_labels.get_bottom()[1], time_label.get_bottom()[1], progress_arrow.get_bottom()[1])
-            stats_block.align_to(final_stage_labels, LEFT)
-            stats_block.set_y(timeline_bottom - stats_block.height / 2 - 0.32)
-            return Group(title, question, *collapsed_cards, continuation_marks, target_rect, target_label, foil_label, dissimilar_arrow, dissimilar_text, *parked_cards, final_duration_labels, final_stage_labels, progress_arrow, time_label, *diff_groups, stats_block)
-        previous_scene = build_expdesignb_final_frame()
+        previous_scene = _build_memory_exp_design_final_frame()
         self.add(previous_scene)
         self.wait(0.2)
         title = Tex('Memory validation results', color=_s1_stage3_INK, font_size=40).to_edge(UP, buff=0.28)
@@ -3157,7 +3713,6 @@ class Study1Stage1_2D(Scene):
         self.clear()
         Study1Stage1Step2.construct(self)
         self.next_section("04_Step2Showcase")
-        self.clear()
         Study1Stage1Step2Showcase.construct(self)
         self.clear()
         self.segment = "merged"
@@ -4160,11 +4715,16 @@ def _build_memory_exp_stats_block(
 ) -> VGroup:
     """Return the participant/block summary aligned beneath the final stage strip."""
     stats_block = VGroup(
-        Tex(r"$N = 240$", color=INK, font_size=22),
+        Tex(r"$N = 240$", color=INK, font_size=24),
         Tex(
-            r"6 blocks $\cdot$ half repeated, half new targets per block",
+            r"6 blocks $\cdot$ 50\% repeated, 50\% non-repeated targets",
             color=INK,
-            font_size=20,
+            font_size=21,
+        ),
+        Tex(
+            r"Threshold-level perceptual discrimination task",
+            color=INK,
+            font_size=19,
         ),
     ).arrange(DOWN, buff=0.12)
     timeline_bottom = min(
@@ -4173,8 +4733,237 @@ def _build_memory_exp_stats_block(
         progress_arrow.get_bottom()[1],
     )
     stats_block.align_to(final_stage_labels, LEFT)
-    stats_block.set_y(timeline_bottom - stats_block.height / 2 - 0.32)
+    stats_block.set_y(timeline_bottom - stats_block.height / 2 - 0.24)
     return stats_block
+
+
+_MEMORY_EXP_STAGE_SPECS: tuple[tuple[str, str, str], ...] = (
+    ("2s", "Target", "target"),
+    ("8s", "Delay", "delay"),
+    ("1s", "Probe 1", "probe1"),
+    ("0.5s", "Buffer", "buffer"),
+    ("1s", "Probe 2", "probe2"),
+    ("2s", "Response", "response"),
+    ("(M=4s)", "ITI", "iti"),
+)
+
+
+def _build_memory_exp_stage_content(
+    kind: str,
+    center: np.ndarray,
+    *,
+    lake_prefix: str,
+    target_idx: int,
+    probe1_idx: int,
+    probe2_idx: int,
+    large: bool,
+) -> Group:
+    """Return the large or parked visual payload for one trial phase."""
+    image_height = 0.95 if large else 0.44
+    fixation_height = 0.18 if large else 0.06
+
+    if kind == "target":
+        image = stimulus_image(lake_prefix, target_idx, image_height, center)
+        image.set_z_index(8 if large else 6)
+        return Group(image, fixation_on(image, height=fixation_height))
+
+    if kind == "probe1":
+        image = stimulus_image(lake_prefix, probe1_idx, image_height, center)
+        image.set_z_index(8 if large else 6)
+        return Group(image, fixation_on(image, height=fixation_height))
+
+    if kind == "probe2":
+        image = stimulus_image(lake_prefix, probe2_idx, image_height, center)
+        image.set_z_index(8 if large else 6)
+        return Group(image, fixation_on(image, height=fixation_height))
+
+    if kind in {"delay", "buffer", "iti"}:
+        return Group(fixation_on(center, height=fixation_height))
+
+    response_size = 18 if large else 8
+    response_buff = 0.14 if large else 0.04
+    fix = fixation_on(center, height=fixation_height)
+    left_text = Tex(
+        r"TWO",
+        color=INK,
+        font_size=response_size,
+    ).next_to(fix, LEFT, buff=response_buff)
+    right_text = Tex(
+        r"ONE",
+        color=INK,
+        font_size=response_size,
+    ).next_to(fix, RIGHT, buff=response_buff)
+    arrow_length = 0.40 if large else 0.20
+    arrow = Arrow(
+        start=left_text.get_center() + RIGHT * (arrow_length / 2),
+        end=left_text.get_center() + LEFT * (arrow_length / 2),
+        color=INK,
+        stroke_width=10 if large else 4,
+        buff=0,
+        tip_length=0.3 if large else 0.10,
+    )
+    arrow.next_to(left_text, DOWN, buff=0.06 if large else 0.035)
+    fix.set_z_index(8 if large else 6)
+    left_text.set_z_index(8 if large else 6)
+    right_text.set_z_index(8 if large else 6)
+    arrow.set_z_index(8 if large else 6)
+    return Group(left_text, fix, right_text, arrow)
+
+
+def _build_memory_exp_design_final_frame() -> Group:
+    """Build the exact held end-state for the design scene and 021 -> 022 handoff."""
+    end_state = _build_memory_intro_c_end_state()
+    ctx = end_state["ctx"]
+    overlay = end_state["overlay"]
+
+    difficulty_annotations = _build_memory_foil_difficulty_annotations(
+        overlay["collapsed_cards"],
+        overlay["continuation_marks"],
+    )
+    overlay["foil_rect"].set_opacity(0.0)
+    dissimilar_shift = _memory_dissimilarity_shift_below_difficulty(
+        overlay["dissimilar_arrow"],
+        overlay["dissimilar_text"],
+        difficulty_annotations["annotations"],
+    )
+    overlay["dissimilar_arrow"].shift(dissimilar_shift)
+    overlay["dissimilar_text"].shift(dissimilar_shift)
+
+    collapsed_cards = overlay["collapsed_cards"]
+    continuation_marks = overlay["continuation_marks"]
+    target_rect = overlay["target_rect"]
+    foil_rect = overlay["foil_rect"]
+    target_label = overlay["target_label"]
+    foil_label = overlay["foil_label"]
+    dissimilar_arrow = overlay["dissimilar_arrow"]
+    dissimilar_text = overlay["dissimilar_text"]
+
+    left_panel = Group(
+        *collapsed_cards,
+        continuation_marks,
+        target_rect,
+        foil_rect,
+        target_label,
+        foil_label,
+        dissimilar_arrow,
+        dissimilar_text,
+        difficulty_annotations["annotations"],
+    )
+    left_panel.scale(0.80)
+    left_half_center_x = -config.frame_width / 4
+    left_panel.shift(
+        np.array([left_half_center_x - left_panel.get_center()[0], 0.0, 0.0])
+    )
+
+    right_margin_x = config.frame_width / 2 - 0.35
+    stage_center_x = 0.5 * (foil_rect.get_right()[0] + right_margin_x)
+    stage_center_y = 0.5 * (ctx["row_y_positions"][1] + ctx["row_y_positions"][2])
+    right_center = np.array([stage_center_x, stage_center_y, 0.0])
+
+    lake_prefix = "landscape_element_lake_island"
+    lake_row = ctx["lookup"][("landscape_element", "lake_island")]
+    target_idx = int(lake_row["target_position"])
+    probe1_idx = int(lake_row["distractor_3_position"])
+    probe2_idx = target_idx
+
+    strip_side = 0.82
+    strip_gap = 0.10
+    strip_vertical_offset = 0.16
+    strip_total_width = (
+        len(_MEMORY_EXP_STAGE_SPECS) * strip_side
+        + (len(_MEMORY_EXP_STAGE_SPECS) - 1) * strip_gap
+    )
+    strip_final_y = right_center[1] - 0.12 - strip_vertical_offset
+    strip_final_centers = [
+        np.array(
+            [
+                right_center[0] - strip_total_width / 2 + strip_side / 2 + idx * (strip_side + strip_gap),
+                strip_final_y,
+                0.0,
+            ]
+        )
+        for idx in range(len(_MEMORY_EXP_STAGE_SPECS))
+    ]
+
+    parked_cards = []
+    for (_, _, kind), center in zip(_MEMORY_EXP_STAGE_SPECS, strip_final_centers):
+        parked_frame = RoundedRectangle(
+            corner_radius=0.08,
+            width=strip_side,
+            height=strip_side,
+            stroke_color=MGREY,
+            stroke_width=1.2,
+        ).move_to(center)
+        parked_frame.set_fill(BG, opacity=1.0)
+        parked_content = _build_memory_exp_stage_content(
+            kind,
+            center,
+            lake_prefix=lake_prefix,
+            target_idx=target_idx,
+            probe1_idx=probe1_idx,
+            probe2_idx=probe2_idx,
+            large=False,
+        )
+        parked_group = Group(parked_frame, parked_content)
+        parked_group.set_z_index(6)
+        parked_cards.append(parked_group)
+
+    final_arrow_y = min(
+        strip_final_y - (strip_side * 1.12) / 2 - 0.20,
+        right_center[1] - 1.15,
+    )
+    strip_arrow_start_x = right_center[0] - strip_total_width / 2
+    progress_arrow = Arrow(
+        start=np.array([strip_arrow_start_x, final_arrow_y, 0.0]),
+        end=np.array([right_center[0] + strip_total_width / 2, final_arrow_y, 0.0]),
+        color=LGREY,
+        stroke_width=1.3,
+        buff=0.0,
+        tip_length=0.14,
+    )
+
+    final_duration_labels = VGroup(
+        *[
+            Tex(duration, color=INK, font_size=16).next_to(card, UP, buff=0.10)
+            for (duration, _, _), card in zip(_MEMORY_EXP_STAGE_SPECS, parked_cards)
+        ]
+    )
+    final_stage_labels = VGroup(
+        *[
+            Tex(label, color=INK, font_size=16).next_to(card, DOWN, buff=0.10)
+            for (_, label, _), card in zip(_MEMORY_EXP_STAGE_SPECS, parked_cards)
+        ]
+    )
+    time_label = MathTex("t", color=INK, font_size=24).next_to(
+        progress_arrow,
+        RIGHT,
+        buff=0.10,
+    )
+    stats_block = _build_memory_exp_stats_block(
+        final_stage_labels,
+        progress_arrow,
+        time_label,
+    )
+
+    return Group(
+        ctx["title"],
+        ctx["question"],
+        *collapsed_cards,
+        continuation_marks,
+        target_rect,
+        foil_rect,
+        target_label,
+        foil_label,
+        dissimilar_arrow,
+        dissimilar_text,
+        difficulty_annotations["annotations"],
+        *parked_cards,
+        final_duration_labels,
+        final_stage_labels,
+        progress_arrow,
+        time_label,
+        stats_block,
+    )
 
 
 def _memory_dissimilarity_shift_below_difficulty(
@@ -4716,75 +5505,7 @@ class Study1Stage3MemoryExpDesign(Scene):
         probe1_idx = int(lake_row["distractor_3_position"])
         probe2_idx = target_idx
 
-        def stage_content(
-            kind: str,
-            center: np.ndarray,
-            large: bool,
-        ) -> Group:
-            """Return the large or parked visual payload for one trial phase."""
-            image_height = 0.95 if large else 0.44
-            fixation_height = 0.18 if large else 0.06
-
-            if kind == "target":
-                img = stimulus_image(lake_prefix, target_idx, image_height, center)
-                img.set_z_index(8 if large else 6)
-                fix = fixation_on(img, height=fixation_height)
-                return Group(img, fix)
-
-            if kind == "probe1":
-                img = stimulus_image(lake_prefix, probe1_idx, image_height, center)
-                img.set_z_index(8 if large else 6)
-                fix = fixation_on(img, height=fixation_height)
-                return Group(img, fix)
-
-            if kind == "probe2":
-                img = stimulus_image(lake_prefix, probe2_idx, image_height, center)
-                img.set_z_index(8 if large else 6)
-                fix = fixation_on(img, height=fixation_height)
-                return Group(img, fix)
-
-            if kind in {"delay", "buffer", "iti"}:
-                fix = fixation_on(center, height=fixation_height)
-                return Group(fix)
-
-            response_size = 18 if large else 8
-            response_buff = 0.14 if large else 0.04
-            fix = fixation_on(center, height=fixation_height)
-            left_text = Tex(
-                r"TWO",
-                color=INK,
-                font_size=response_size,
-            ).next_to(fix, LEFT, buff=response_buff)
-            right_text = Tex(
-                r"ONE",
-                color=INK,
-                font_size=response_size,
-            ).next_to(fix, RIGHT, buff=response_buff)
-            arrow_length = 0.40 if large else 0.20
-            arrow = Arrow(
-                start=left_text.get_center() + RIGHT * (arrow_length / 2),
-                end=left_text.get_center() + LEFT * (arrow_length / 2),
-                color=INK,
-                stroke_width=10 if large else 4,
-                buff=0,
-                tip_length=0.3 if large else 0.10,
-            )
-            arrow.next_to(left_text, DOWN, buff=0.06 if large else 0.035)
-            fix.set_z_index(8 if large else 6)
-            left_text.set_z_index(8 if large else 6)
-            right_text.set_z_index(8 if large else 6)
-            arrow.set_z_index(8 if large else 6)
-            return Group(left_text, fix, right_text, arrow)
-
-        stage_specs = [
-            ("2s", "Target", "target"),
-            ("8s", "Delay", "delay"),
-            ("1s", "Probe 1", "probe1"),
-            ("0.5s", "Buffer", "buffer"),
-            ("1s", "Probe 2", "probe2"),
-            ("2s", "Response", "response"),
-            ("(M=4s)", "ITI", "iti"),
-        ]
+        stage_specs = _MEMORY_EXP_STAGE_SPECS
 
         stage_frame = RoundedRectangle(
             corner_radius=0.12,
@@ -4835,7 +5556,15 @@ class Study1Stage3MemoryExpDesign(Scene):
                 stroke_width=1.2,
             ).move_to(center)
             parked_frame.set_fill(BG, opacity=1.0)
-            parked_content = stage_content(kind, center, large=False)
+            parked_content = _build_memory_exp_stage_content(
+                kind,
+                center,
+                lake_prefix=lake_prefix,
+                target_idx=target_idx,
+                probe1_idx=probe1_idx,
+                probe2_idx=probe2_idx,
+                large=False,
+            )
             parked_group = Group(parked_frame, parked_content)
             parked_group.set_z_index(6)
             parked_cards.append(parked_group)
@@ -4937,7 +5666,15 @@ class Study1Stage3MemoryExpDesign(Scene):
                     run_time=0.90,
                 )
             else:
-                next_content = stage_content(next_kind, right_center, large=True)
+                next_content = _build_memory_exp_stage_content(
+                    next_kind,
+                    right_center,
+                    lake_prefix=lake_prefix,
+                    target_idx=target_idx,
+                    probe1_idx=probe1_idx,
+                    probe2_idx=probe2_idx,
+                    large=True,
+                )
                 self.play(
                     FadeOut(active_content, shift=DOWN * 0.06),
                     FadeIn(next_content, shift=UP * 0.06),
@@ -4998,8 +5735,7 @@ class Study1Stage3MemoryExpDesign(Scene):
         )
         self.play(
             LaggedStart(
-                FadeIn(stats_block[0], shift=UP * 0.08),
-                FadeIn(stats_block[1], shift=UP * 0.08),
+                *[FadeIn(line, shift=UP * 0.08) for line in stats_block],
                 lag_ratio=0.35,
             ),
             run_time=0.80,
@@ -5063,6 +5799,30 @@ _STUDY1_SECTION_NAMES: tuple[str, ...] = (
 )
 
 
+def _apply_study1_section_scene_outputs() -> None:
+    """Route direct section-scene renders into numbered `sections/` outputs."""
+    for index, (scene_cls, section_name) in enumerate(
+        zip(_STUDY1_MASTER_SECTION_ORDER, _STUDY1_SECTION_NAMES, strict=True)
+    ):
+        if "__init__" in scene_cls.__dict__:
+            continue
+
+        output_name = f"sections/{index:03}_{section_name}"
+        orig_init = scene_cls.__init__
+
+        def _make_init(cls_output_name: str, cls_orig_init):
+            def __init__(self, *args, **kwargs):
+                config.output_file = cls_output_name
+                cls_orig_init(self, *args, **kwargs)
+
+            return __init__
+
+        scene_cls.__init__ = _make_init(output_name, orig_init)
+
+
+_apply_study1_section_scene_outputs()
+
+
 class Study1(
     Study1Stage1Step5,
     Study1Stage1Step4,
@@ -5082,9 +5842,10 @@ class Study1(
     )
     _SCENE_INSTANCE_OVERRIDES: tuple[str, ...] = ("segment",)
 
-    def _reset_master_scene_state(self) -> None:
-        """Reset mobjects and camera placement before replaying one legacy scene."""
-        self.clear()
+    def _reset_master_scene_state(self, *, clear_scene: bool = True) -> None:
+        """Reset camera placement, optionally preserving prior section mobjects."""
+        if clear_scene:
+            self.clear()
         self.camera.background_color = WHITE
         if hasattr(self.camera, "frame_center"):
             self.camera.frame_center = ORIGIN.copy()
@@ -5111,11 +5872,14 @@ class Study1(
         self.next_section(section_name)
         if carry_previous_frame:
             self._hold_previous_section_frame()
-        self._reset_master_scene_state()
+        self._reset_master_scene_state(clear_scene=False)
         instance_overrides: dict[str, tuple[bool, object | None]] = {}
         for attr_name in self._SCENE_INSTANCE_OVERRIDES:
             if attr_name not in scene_cls.__dict__:
                 continue
+            # Some legacy scene bodies expect a class-level instance attribute on
+            # `self` (for example `segment` in split renders). Rebind it only
+            # for the duration of the replayed section.
             had_instance_value = attr_name in self.__dict__
             instance_overrides[attr_name] = (had_instance_value, self.__dict__.get(attr_name))
             setattr(self, attr_name, scene_cls.__dict__[attr_name])
@@ -5131,7 +5895,7 @@ class Study1(
     def construct(self) -> None:
         """Render the full Study 1 narrative as one sectioned scene."""
         _ensure_study1_output_dirs(str(getattr(config, "output_file", self.__class__.__name__)))
-        self._reset_master_scene_state()
+        self._reset_master_scene_state(clear_scene=True)
         for idx, (section_name, scene_cls) in enumerate(self._SECTION_SCENES):
             self._render_section(
                 section_name,
@@ -5152,6 +5916,7 @@ _HIDDEN_STUDY1_SCENES: tuple[type[Scene], ...] = tuple(
 
 for _scene_cls in _HIDDEN_STUDY1_SCENES:
     _scene_cls.__module__ = "_study1_internal"
+del _scene_cls
 
 Study1.__module__ = __name__
 __all__ = ["Study1"]

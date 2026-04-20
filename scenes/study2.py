@@ -9,6 +9,7 @@ Production render:
 """
 from __future__ import annotations
 import base64
+import gc
 from io import BytesIO
 import sys
 import matplotlib as mpl
@@ -52,6 +53,54 @@ class _Study2NumberedScene:
     def __init__(self, *args, **kwargs):
         """Forward to the regular Scene initialization."""
         super().__init__(*args, **kwargs)
+
+
+def _study2_lookup_color(
+    image_path: str,
+    color_map: dict[str, str],
+    label: str,
+) -> str:
+    """Return one registered color from the provided image-to-color map."""
+    # Keep the label text caller-specific so helper reuse does not flatten the
+    # public KeyError surface that the scene-specific wrappers already expose.
+    if image_path not in color_map:
+        raise KeyError(f"No {label} registered for {image_path}")
+    return color_map[image_path]
+
+
+def _study2_vector_layout(
+    col_ys: tuple[float, float, float] | list[float],
+    vector_center_x: float,
+    count: int,
+) -> list[np.ndarray]:
+    """Return evenly spaced vector centres across the shared Study 2 column."""
+    # Only the top and bottom y positions matter here; the centre is derived so
+    # all three overview variants stay vertically aligned.
+    ys = np.linspace(col_ys[0], col_ys[2], count)
+    return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
+
+
+def _study2_synced_source_pulse(t: float) -> float:
+    """Return the synchronized source pulse animation."""
+    if t <= 0.12:
+        return 0.0
+    return there_and_back((t - 0.12) / 0.88)
+
+
+def _study2_color_hex(color) -> str | None:
+    """Return the normalized uppercase hex representation for a color."""
+    if color is None:
+        return None
+    if isinstance(color, str):
+        return ManimColor(color).to_hex().upper()
+    return color.to_hex().upper()
+
+
+def _study2_clear_camera_context_cache(camera: object) -> None:
+    """Drop cached Cairo contexts after changing the camera frame transform."""
+    cache = getattr(camera, "pixel_array_to_cairo_context", None)
+    if isinstance(cache, dict):
+        cache.clear()
 
 
 # ── Palette ───────────────────────────────────────────────────────────────────
@@ -98,22 +147,27 @@ def _box(img_path: str | None, resp: bool = False) -> Group:
         stroke_color=GREY,
         stroke_width=1.8,
     ).set_fill(WHITE, opacity=1.0)
+    rect.set_z_index(0)
 
     parts: list = [rect]
 
     if img_path is not None:
         img = ImageMobject(img_path).scale_to_fit_height(IMG_H)
         img.move_to(rect.get_center())
+        img.set_z_index(1)
         parts.append(img)
 
     # Fixation dot on every box
     fix = ImageMobject(FIX).scale_to_fit_height(FIX_H)
     fix.move_to(rect.get_center())
+    fix.set_z_index(2)
     parts.append(fix)
 
     if resp:
         two = Tex("TWO", color=INK, font_size=13).move_to(rect.get_center() + LEFT  * 0.30)
         one = Tex("ONE", color=INK, font_size=13).move_to(rect.get_center() + RIGHT * 0.30)
+        two.set_z_index(3)
+        one.set_z_index(3)
         parts.extend([two, one])
 
     return Group(*parts)
@@ -465,9 +519,11 @@ _OVERVIEW_ID_COLOR_BY_IMAGE: dict[str, str] = {
 
 def _overview_identity_color(image_path: str) -> str:
     """Return the overview-scene accent color for one stimulus identity."""
-    if image_path not in _OVERVIEW_ID_COLOR_BY_IMAGE:
-        raise KeyError(f"No overview identity color registered for {image_path}")
-    return _OVERVIEW_ID_COLOR_BY_IMAGE[image_path]
+    return _study2_lookup_color(
+        image_path,
+        _OVERVIEW_ID_COLOR_BY_IMAGE,
+        "overview identity color",
+    )
 
 # ── Image identity palette ───────────────────────────────────────────────────
 _ID_COLOR_BY_IMAGE: dict[str, str] = {
@@ -485,9 +541,7 @@ _ID_COLOR_BY_IMAGE: dict[str, str] = {
 
 def _identity_color(image_path: str) -> str:
     """Return the shared accent color for one stimulus identity."""
-    if image_path not in _ID_COLOR_BY_IMAGE:
-        raise KeyError(f"No identity color registered for {image_path}")
-    return _ID_COLOR_BY_IMAGE[image_path]
+    return _study2_lookup_color(image_path, _ID_COLOR_BY_IMAGE, "identity color")
 
 
 def _identity_colors(image_paths: list[str]) -> list[str]:
@@ -530,6 +584,8 @@ def _make_v1v2v3_viewing_brain(
     viewing_brain.scale_to_fit_height(
         target_brain_height / (_V1V2V3_VIEWING_BRAIN_H / _V1V2V3_VIEWING_ASSET_H)
     )
+    # The PNG is cropped around the full beam+brain composition, not around the
+    # brain alone, so positioning must go through the measured brain sub-bounds.
     brain_center_offset = np.array([
         ((_V1V2V3_VIEWING_BRAIN_CENTER_X / _V1V2V3_VIEWING_ASSET_W) - 0.5) * viewing_brain.width,
         (0.5 - (_V1V2V3_VIEWING_BRAIN_CENTER_Y / _V1V2V3_VIEWING_ASSET_H)) * viewing_brain.height,
@@ -616,6 +672,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
     def _set_overview_camera_frame(self) -> None:
         """Shift the overview scenes downward as one rigid block."""
         self.camera.frame_center = self._OVERVIEW_CAMERA_CENTER.copy()
+        _study2_clear_camera_context_cache(self.camera)
 
     def _pattern_for_index(self, idx: int) -> np.ndarray:
         """Return the permuted activity pattern for one overview stimulus."""
@@ -694,8 +751,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
 
     def _vector_layout(self, vector_center_x: float, count: int) -> list[np.ndarray]:
         """Return the vector layout."""
-        ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
-        return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
+        return _study2_vector_layout(self._COL_YS, vector_center_x, count)
 
     def _make_overview_title(self, tex: str) -> Tex:
         """Build the overview title anchored close to the top edge."""
@@ -1201,16 +1257,6 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
         source_frame_base_width = source_frame.get_stroke_width()
         source_frame_pulse_width = source_frame_base_width * 1.8
         current_grid: VGroup | None = None
-        def synced_source_pulse(t: float) -> float:
-            """Return the synchronized source pulse animation."""
-            if t <= 0.12:
-                return 0.0
-            return there_and_back((t - 0.12) / 0.88)
-
-        def vector_layout(count: int) -> list[np.ndarray]:
-            """Return the vector-layout centres for the current scene."""
-            ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
-            return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
 
         vector_label = Tex("Feature vectors", color=INK, font_size=24).move_to(
             np.array([vector_center_x, self._COL_YS[0] + 0.52, 0.0])
@@ -1246,7 +1292,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
                 current_grid = new_grid
             else:
                 self.play(
-                    source_frame.animate(rate_func=synced_source_pulse).set_stroke(
+                    source_frame.animate(rate_func=_study2_synced_source_pulse).set_stroke(
                         width=source_frame_pulse_width
                     ),
                     ReplacementTransform(current_grid, new_grid),
@@ -1303,7 +1349,10 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
             new_frame.move_to(new_icon.get_center())
             self.add(new_icon, new_frame)
 
-            future_vector_centers = vector_layout(len(visible_vectors) + 1)
+            future_vector_centers = self._vector_layout(
+                vector_center_x,
+                len(visible_vectors) + 1,
+            )
             old_top_icon = visible_icons[0]
             old_top_frame = visible_frames[0]
             roll_anims = [
@@ -1347,7 +1396,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
 
             new_grid = self._make_grid(matrix_center, col, pattern)
             self.play(
-                source_frame.animate(rate_func=synced_source_pulse).set_stroke(
+                source_frame.animate(rate_func=_study2_synced_source_pulse).set_stroke(
                     width=source_frame_pulse_width
                 ),
                 ReplacementTransform(current_grid, new_grid),
@@ -1740,6 +1789,13 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
             FadeIn(design_group),
             run_time=0.7,
         )
+        # The master Study 2 render can accumulate hidden duplicate image
+        # mobjects across section replays during this cross-fade. Rebinding the
+        # scene to the freshly rebuilt design layout keeps later frames clean.
+        self.clear()
+        self.camera.background_color = BG
+        self._set_overview_camera_frame()
+        self.add(design_group)
         self.wait(0.2)
 
         s1_delay_highlight = SurroundingRectangle(
@@ -1869,19 +1925,7 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
         source_frame_base_width = source_frame.get_stroke_width()
         source_frame_pulse_width = source_frame_base_width * 1.8
         current_grid: VGroup | None = None
-
-        def synced_source_pulse(t: float) -> float:
-            """Return the synchronized source pulse animation."""
-            if t <= 0.12:
-                return 0.0
-            return there_and_back((t - 0.12) / 0.88)
-
-        def vector_layout(count: int) -> list[np.ndarray]:
-            """Return the vector-layout centres for the current scene."""
-            ys = np.linspace(self._COL_YS[0], self._COL_YS[2], count)
-            return [np.array([vector_center_x, float(y), 0.0]) for y in ys]
-
-        vector_centers = vector_layout(len(memory_targets))
+        vector_centers = self._vector_layout(vector_center_x, len(memory_targets))
         visible_vectors: list[VGroup] = []
         vector_label = Tex(
             "Feature vectors",
@@ -1919,7 +1963,7 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
                 current_grid = new_grid
             else:
                 self.play(
-                    source_frame.animate(rate_func=synced_source_pulse).set_stroke(
+                    source_frame.animate(rate_func=_study2_synced_source_pulse).set_stroke(
                         width=source_frame_pulse_width
                     ),
                     ReplacementTransform(current_grid, new_grid),
@@ -2965,12 +3009,16 @@ def _make_feature_row(
     for i, v in enumerate(values):
         value = float(np.clip(v, 0.0, 1.0))
         if mid_color is None:
+            # Sequential mode: interpolate directly from low -> high while
+            # keeping a small floor so zero-valued cells are still visible.
             fill_color = interpolate_color(
                 ManimColor(low_color),
                 ManimColor(high_color),
                 0.10 + 0.90 * value,
             )
         else:
+            # Diverging mode: first map values into the narrower range used by
+            # the manuscript plots, then split interpolation around the midpoint.
             value = (
                 _DIVERGING_MATRIX_VALUE_MIN
                 + (_DIVERGING_MATRIX_VALUE_MAX - _DIVERGING_MATRIX_VALUE_MIN) * value
@@ -3439,6 +3487,9 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             12 * len(fold_error_counts)
         )
 
+        # Model the class regions as Voronoi cells around the moving class
+        # centres. Clipping against pairwise bisectors keeps the synthetic
+        # decision boundary stable as the fold-specific point clouds shift.
         def _decision_shift(fold_idx: int) -> tuple[float, float]:
             """Return the decision shift."""
             return 0.13 * np.sin(0.72 * fold_idx), 0.09 * np.cos(0.86 * fold_idx)
@@ -3557,6 +3608,8 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 if other_label == label:
                     continue
                 c_j = np.array(other_center, dtype=float)
+                # The Voronoi boundary between class i and j is the perpendicular
+                # bisector of their centres, expressed here as a half-plane.
                 normal = c_j - c_i
                 offset = 0.5 * (float(np.dot(c_j, c_j)) - float(np.dot(c_i, c_i)))
                 poly = _clip_polygon_halfplane(poly, normal, offset)
@@ -4088,6 +4141,8 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             12 * len(fold_error_counts)
         )
 
+        # Same Voronoi construction as the setup scene above; keep the
+        # explanation local because this block is edited independently.
         def _decision_shift(fold_idx: int) -> tuple[float, float]:
             """Return the decision shift."""
             return 0.13 * np.sin(0.72 * fold_idx), 0.09 * np.cos(0.86 * fold_idx)
@@ -4156,6 +4211,8 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 if other_label == label:
                     continue
                 c_j = np.array(other_center, dtype=float)
+                # Intersect the current polygon with each pairwise Voronoi
+                # half-plane to recover one class region.
                 normal = c_j - c_i
                 offset = 0.5 * (float(np.dot(c_j, c_j)) - float(np.dot(c_i, c_i)))
                 poly = _clip_polygon_halfplane(poly, normal, offset)
@@ -4493,14 +4550,6 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 deck.add(item)
             return deck, deck[-1]
 
-        def _hex(color) -> str | None:
-            """Return the hex."""
-            if color is None:
-                return None
-            if isinstance(color, str):
-                return ManimColor(color).to_hex().upper()
-            return color.to_hex().upper()
-
         def make_results_plot() -> Group:
             """Build the current results plot."""
             svg = (
@@ -4511,8 +4560,8 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
 
             for submob in svg.submobjects:
                 if (
-                    _hex(submob.get_fill_color()) == "#FFFFFF"
-                    and _hex(submob.get_stroke_color()) == "#FFFFFF"
+                    _study2_color_hex(submob.get_fill_color()) == "#FFFFFF"
+                    and _study2_color_hex(submob.get_stroke_color()) == "#FFFFFF"
                     and submob.width > 0.9 * svg.width
                     and submob.height > 0.9 * svg.height
                 ):
@@ -4523,7 +4572,8 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             plot_frame = VGroup(*[
                 submob
                 for submob in svg.submobjects
-                if _hex(submob.get_stroke_color()) == "#262626" and len(submob.get_all_points()) == 4
+                if _study2_color_hex(submob.get_stroke_color()) == "#262626"
+                and len(submob.get_all_points()) == 4
             ])
             plot_top = plot_frame.get_top()[1]
             plot_bottom = plot_frame.get_bottom()[1]
@@ -4533,7 +4583,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 submob
                 for submob in svg.submobjects
                 if (
-                    _hex(submob.get_fill_color()) == "#000000"
+                    _study2_color_hex(submob.get_fill_color()) == "#000000"
                     and submob.get_center()[1] < plot_bottom - 0.02
                     and plot_left <= submob.get_center()[0] <= plot_right
                 )
@@ -4545,7 +4595,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                     submob
                     for submob in svg.submobjects
                     if (
-                        _hex(submob.get_stroke_color()) == "#808080"
+                        _study2_color_hex(submob.get_stroke_color()) == "#808080"
                         and len(submob.get_all_points()) == 4
                     )
                 ],
@@ -4557,7 +4607,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 submob
                 for submob in svg.submobjects
                 if (
-                    _hex(submob.get_fill_color()) == "#000000"
+                    _study2_color_hex(submob.get_fill_color()) == "#000000"
                     and 0.1 < submob.get_fill_opacity() < 0.5
                     and len(submob.get_all_points()) == 32
                     and plot_bottom <= submob.get_center()[1] <= plot_top
@@ -4572,7 +4622,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 submob
                 for submob in svg.submobjects
                 if (
-                    _hex(submob.get_fill_color()) == "#000000"
+                    _study2_color_hex(submob.get_fill_color()) == "#000000"
                     and submob.get_fill_opacity() > 0.9
                     and len(submob.get_all_points()) <= 20
                     and plot_bottom <= submob.get_center()[1] <= plot_top
@@ -4582,7 +4632,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 submob
                 for submob in svg.submobjects
                 if (
-                    _hex(submob.get_stroke_color()) == "#000000"
+                    _study2_color_hex(submob.get_stroke_color()) == "#000000"
                     and submob.get_fill_opacity() == 0.0
                     and len(submob.get_all_points()) <= 20
                     and plot_bottom <= submob.get_center()[1] <= plot_top
@@ -4598,7 +4648,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 submob
                 for submob in svg.submobjects
                 if (
-                    _hex(submob.get_fill_color()) == "#000000"
+                    _study2_color_hex(submob.get_fill_color()) == "#000000"
                     and submob.get_fill_opacity() > 0.9
                     and submob.get_center()[1] > plot_top
                 )
@@ -5418,6 +5468,8 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
             trace_template.point_from_proportion(float(prop))[0]
             for prop in sample_props
         ])
+        # The curve parameter is not linear in x, so sample densely once and
+        # snap each evenly spaced x target to the nearest path proportion.
         target_xs = np.linspace(sample_xs[0], sample_xs[-1], step_count)
 
         step_props: list[float] = []
@@ -5431,14 +5483,12 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
 
     def _glm_svg_hex(self, color) -> str | None:
         """Return the GLM SVG hex."""
-        if color is None:
-            return None
-        if isinstance(color, str):
-            return ManimColor(color).to_hex().upper()
-        return color.to_hex().upper()
+        return _study2_color_hex(color)
 
     def _glm_svg_plot_frame(self, svg: SVGMobject) -> VGroup:
         """Return the GLM SVG plot frame."""
+        # The imported SVG contains many stroked objects. The outer frame is the
+        # pair of longest horizontal lines plus the pair of longest verticals.
         candidates = [
             submob
             for submob in svg.submobjects
@@ -5465,6 +5515,8 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         """Return the GLM SVG group."""
         frame_center_x = self._glm_svg_plot_frame(svg).get_center()[0]
         color_hex = color_hex.upper()
+        # The cross-session result SVG is a two-panel figure, so split matching
+        # marks by panel side after filtering by stroke/fill color.
         return VGroup(*[
             submob
             for submob in svg.submobjects
@@ -7652,6 +7704,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         root = tree.getroot()
         parent_map = {child: parent for parent in root.iter() for child in parent}
         for elem in list(root.iter()):
+            # Some export pipelines emit empty <path> elements that svgelements
+            # treats inconsistently; strip them once and cache the cleaned file.
             if elem.tag.endswith("path") and elem.get("d") is None:
                 parent = parent_map.get(elem)
                 if parent is not None:
@@ -7682,6 +7736,8 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
 
         gradient_bytes = base64.b64decode(href.split(",", 1)[1].strip())
         with Image.open(BytesIO(gradient_bytes)) as image:
+            # The embedded raster uses SVG image coordinates, so flip it once to
+            # match the plot's Cartesian y-direction before caching.
             image = image.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
             image.save(png_path)
         return png_path
@@ -12728,6 +12784,14 @@ _SEARCHLIGHT_ASSET_DIR = Path(__file__).resolve().parent.parent / "assets" / "im
 _SEARCHLIGHT_LILAC = "#66023C"
 _SEARCHLIGHT_CUT_COORDS_Z = (-12, 0, 10, 21, 32, 46, 61)
 _SEARCHLIGHT_DELAY_BRAIN_PNG = _SEARCHLIGHT_ASSET_DIR / "searchlight_delay_ses01.png"
+_SEARCHLIGHT_STIM_PNGS = (
+    _SEARCHLIGHT_ASSET_DIR / "searchlight_stim_01.png",
+    _SEARCHLIGHT_ASSET_DIR / "searchlight_stim_02.png",
+    _SEARCHLIGHT_ASSET_DIR / "searchlight_stim_03.png",
+)
+_SEARCHLIGHT_DELAY_PNGS = (
+    _SEARCHLIGHT_ASSET_DIR / "searchlight_delay_01.png",
+)
 
 _SEARCHLIGHT_MINI_S2_VALUES = np.array([0.88, 0.26, 0.74, 0.34, 0.94, 0.42, 0.68, 0.20, 0.82])
 _SEARCHLIGHT_MINI_S1_VALUES = np.array([0.22, 0.84, 0.28, 0.78, 0.18, 0.90, 0.36, 0.72, 0.24])
@@ -12736,6 +12800,7 @@ _SEARCHLIGHT_MINI_DELAY_VALUES = np.array([0.20, 0.74, 0.34, 0.58, 0.26, 0.80, 0
 _SEARCHLIGHT_STIMULATION_SPECS = [
     {
         "path": _SEARCHLIGHT_ASSET_DIR / "spm_fwec_k-09_p-001_session02.nii",
+        "image_path": _SEARCHLIGHT_STIM_PNGS[0],
         "cluster_info": r"FPR $< .001$, clusters $> 9$ voxels",
         "mini_specs": [
             {
@@ -12756,6 +12821,7 @@ _SEARCHLIGHT_STIMULATION_SPECS = [
     },
     {
         "path": _SEARCHLIGHT_ASSET_DIR / "spm_fwec_k-27_p-001_ses02-01_encoding.nii",
+        "image_path": _SEARCHLIGHT_STIM_PNGS[1],
         "cluster_info": r"FPR $< .001$, clusters $> 27$ voxels",
         "mini_specs": [
             {
@@ -12776,6 +12842,7 @@ _SEARCHLIGHT_STIMULATION_SPECS = [
     },
     {
         "path": _SEARCHLIGHT_ASSET_DIR / "searchlight_spm_fwec_k-13_p-001_within-ses01_encoding.nii",
+        "image_path": _SEARCHLIGHT_STIM_PNGS[2],
         "cluster_info": r"FPR $< .001$, clusters $> 13$ voxels",
         "mini_specs": [
             {
@@ -12799,6 +12866,7 @@ _SEARCHLIGHT_STIMULATION_SPECS = [
 _SEARCHLIGHT_DELAY_SPECS = [
     {
         "path": _SEARCHLIGHT_ASSET_DIR / "spm_fwec_k-13_p-001_delay.nii",
+        "image_path": _SEARCHLIGHT_DELAY_PNGS[0],
         "cluster_info": r"FPR $< .001$, clusters $> 13$ voxels",
         "mini_specs": [
             {
@@ -12946,16 +13014,27 @@ class _Study2SearchlightSceneBase(_Study2NumberedScene, Scene):
             return Group(matrices, arrow)
         return Group(matrices)
 
-    def _row_group(self, *, path: Path, cluster_info: str, mini_specs: list[dict]) -> Group:
+    def _row_group(
+        self,
+        *,
+        path: Path,
+        cluster_info: str,
+        mini_specs: list[dict],
+        image_path: Path | None = None,
+    ) -> Group:
         """Return the row group."""
         matrix_stack = self._matrix_stack(mini_specs)
-        plot_image = ImageMobject(
-            _study2_build_plot_stat_map_rgba(
-                path,
-                figure_size=(8.6, 1.65),
-                colorbar=False,
+        if image_path is None:
+            plot_image = ImageMobject(
+                _study2_build_plot_stat_map_rgba(
+                    path,
+                    figure_size=(8.6, 1.65),
+                    colorbar=False,
+                )
             )
-        ).scale_to_fit_width(9.9)
+        else:
+            plot_image = ImageMobject(str(image_path))
+        plot_image.scale_to_fit_width(9.9)
         cluster_caption = Tex(cluster_info, color=INK, font_size=18)
         plot_group = Group(plot_image, cluster_caption).arrange(DOWN, buff=0.05)
         return Group(matrix_stack, plot_group).arrange(RIGHT, buff=1.12, aligned_edge=UP)
@@ -13087,16 +13166,36 @@ class Study2(
 
     def _legacy_scene_proxy(self, scene_cls: type[Scene]) -> Scene:
         """Return a scene-typed proxy sharing this scene's live state."""
+        # Replayed legacy scene bodies mutate `self` heavily; use a typed proxy
+        # so MRO-dependent helper lookups still resolve against the original class.
         proxy = scene_cls.__new__(scene_cls)
         proxy.__dict__ = self.__dict__
         return proxy
 
     def _reset_master_scene_state(self) -> None:
         """Reset mobjects and camera placement before replaying one legacy scene."""
+        plt.close("all")
+        gc.collect()
         self.clear()
+        # ``Scene.clear()`` only empties ``mobjects`` / ``foreground_mobjects``.
+        # The master Study 2 render replays many legacy sections through one live
+        # Scene instance, so stale per-animation bookkeeping from earlier sections
+        # must also be cleared before the next scene starts adding new mobjects.
+        self.animations = None
+        self.stop_condition = None
+        self.moving_mobjects = []
+        self.static_mobjects = []
+        self.duration = 0.0
+        self.last_t = 0.0
+        if hasattr(self.renderer, "static_image"):
+            self.renderer.static_image = None
+        if hasattr(self.camera, "reset"):
+            self.camera.reset()
         self.camera.background_color = BG
         if hasattr(self.camera, "frame_center"):
             self.camera.frame_center = ORIGIN.copy()
+            _study2_clear_camera_context_cache(self.camera)
+        gc.collect()
 
     def _hold_previous_section_frame(self) -> None:
         """Pin the previous section's last frame into the next section."""
@@ -13161,5 +13260,6 @@ _HIDDEN_STUDY2_SCENES: tuple[type[Scene], ...] = (
 
 for _scene_cls in _HIDDEN_STUDY2_SCENES:
     _scene_cls.__module__ = "_study2_internal"
+del _scene_cls
 Study2.__module__ = __name__
 __all__ = ["Study2"]

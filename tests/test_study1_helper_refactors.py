@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -96,6 +98,69 @@ class Study1HelperCharacterizationTests(unittest.TestCase):
         self.assertEqual(step5.max_stroke_width_to_length_ratio, 100)
         self.assertEqual(step4.get_color().to_hex().upper(), "#123456")
         self.assertEqual(step5.get_color().to_hex().upper(), "#123456")
+
+    def test_step2_showcase_bootstraps_step2_in_skip_mode(self) -> None:
+        scene = SimpleNamespace(
+            camera=SimpleNamespace(background_color=None),
+            renderer=SimpleNamespace(
+                _original_skipping_status=False,
+                skip_animations=False,
+            ),
+        )
+        showcase_entries = [
+            {"label": "alpha", "folder": "alpha", "glob": "*.png", "prompt_lines": ["alpha"]},
+            {"label": "beta", "folder": "beta", "glob": "*.png", "prompt_lines": ["beta"]},
+        ]
+        bootstrap_renderer_states: list[tuple[bool, bool]] = []
+        animate_from_step2_calls: list[tuple[dict[str, str], str, int, int]] = []
+        animate_entry_calls: list[tuple[str, list[str], int, list[str]]] = []
+
+        def fake_step2_construct(self) -> None:
+            bootstrap_renderer_states.append(
+                (
+                    self.renderer._original_skipping_status,
+                    self.renderer.skip_animations,
+                )
+            )
+            self._s1_step2_end_state = {"sentinel": "end-state"}
+
+        def fake_load_pixels(_img_dir, _glob):
+            return [np.zeros((1, 1, 4), dtype=np.uint8)]
+
+        def fake_animate_from_step2(self, step2_state, entry, pixels, entry_idx):
+            animate_from_step2_calls.append(
+                (step2_state, entry["label"], entry_idx, len(pixels))
+            )
+            return {"thumb_positions": ["slot"]}
+
+        def fake_animate_entry(self, entry, pixels, thumb_positions, entry_idx, prev_state):
+            animate_entry_calls.append(
+                (entry["label"], thumb_positions, entry_idx, prev_state["thumb_positions"])
+            )
+            return prev_state
+
+        with (
+            mock.patch.object(study1.Study1Stage1Step2, "construct", new=fake_step2_construct),
+            mock.patch.object(study1, "_s1_step2_showcase_SHOWCASE", showcase_entries),
+            mock.patch.object(study1, "_s1_step2_showcase_image_dir", side_effect=lambda entry: entry["folder"]),
+            mock.patch.object(study1, "_s1_step2_showcase_load_pixels", side_effect=fake_load_pixels),
+            mock.patch.object(study1, "_s1_step2_showcase_animate_from_step2", side_effect=fake_animate_from_step2),
+            mock.patch.object(study1, "_s1_step2_showcase_animate_entry", side_effect=fake_animate_entry),
+        ):
+            study1.Study1Stage1Step2Showcase.construct(scene)
+
+        self.assertEqual(bootstrap_renderer_states, [(True, True)])
+        self.assertEqual(scene.renderer._original_skipping_status, False)
+        self.assertEqual(scene.renderer.skip_animations, False)
+        self.assertEqual(
+            animate_from_step2_calls,
+            [({"sentinel": "end-state"}, "alpha", 0, 1)],
+        )
+        self.assertEqual(
+            animate_entry_calls,
+            [("beta", ["slot"], 1, ["slot"])],
+        )
+        self.assertFalse(hasattr(scene, "_s1_step2_end_state"))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render all conclusion scenes in narrative order with numbered output filenames.
+# Render the unified conclusion production scene and keep the section clips.
 # Usage:
 #   ./render_05_conclusion.sh        # low quality (480p15, fast preview)
 #   ./render_05_conclusion.sh -qh    # high quality (1080p60)
@@ -10,7 +10,7 @@ set -euo pipefail
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     echo "Usage: ./render_05_conclusion.sh [QUALITY]"
     echo
-    echo "Render all conclusion scenes in numbered narrative order."
+    echo "Render the unified conclusion production scene and keep section clips."
     echo "Defaults to -ql when no quality is provided."
     exit 0
 fi
@@ -23,43 +23,13 @@ export UV_CACHE_DIR="${UV_CACHE_DIR:-$SCRIPT_DIR/.uv-cache}"
 export MPLCONFIGDIR="${MPLCONFIGDIR:-$SCRIPT_DIR/.mplconfig}"
 mkdir -p "$UV_CACHE_DIR" "$MPLCONFIGDIR"
 
-scenes=()
-while IFS= read -r line; do
-    scenes+=("$line")
-done < <(
-    uv run python -c '
-import ast
-from pathlib import Path
+# Clear stale section clips from previous conclusion layouts before rendering.
+find media/videos/05_conclusion -path "*/sections/*" -type f -delete 2>/dev/null || true
 
+echo "[1/1] Conclusion -> conclusion (sectioned)"
+uv run manim scenes/conclusion.py Conclusion "$QUALITY" --save_sections
 
-def load_mapping(path_str: str, variable_name: str):
-    tree = ast.parse(Path(path_str).read_text())
-    for node in tree.body:
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == variable_name:
-            return ast.literal_eval(node.value)
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == variable_name:
-                    return ast.literal_eval(node.value)
-    raise SystemExit(f"Could not find {variable_name} in {path_str}")
+# Remove the combined scene render and keep only per-section files.
+find media/videos/05_conclusion -maxdepth 2 -name "*.mp4" -not -path "*/sections/*" -delete 2>/dev/null || true
 
-
-scene_order = load_mapping("scenes/conclusion.py", "_CONCLUSION_SCENE_ORDER")
-
-for class_name, scene_number in sorted(scene_order.items(), key=lambda item: int(item[1])):
-    print(f"{scene_number}_{class_name}:{class_name}")
-' 
-)
-
-total=${#scenes[@]}
-idx=0
-
-for entry in "${scenes[@]}"; do
-    outname="${entry%%:*}"
-    classname="${entry##*:}"
-    idx=$((idx + 1))
-    echo "[$idx/$total] $classname -> $outname"
-    uv run manim scenes/conclusion.py "$classname" "$QUALITY" -o "$outname"
-done
-
-echo "Done. Videos saved to media/videos/05_conclusion/"
+echo "Done. Section videos saved to media/videos/05_conclusion/*/sections/"
