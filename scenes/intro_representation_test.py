@@ -33,6 +33,7 @@ EDGE = "#AEB8C2"
 PATTERN_BLUE = "#4C72B0"
 PATTERN_RED = "#C44E52"
 PATTERN_WHITE = "#F8F8F8"
+_MATRIX_CELL = 0.16
 
 _FISH_T00 = REPO_ROOT / "assets" / "images" / "ANI-FIS-T00.jpeg"
 _FISH_D03 = REPO_ROOT / "assets" / "images" / "ANI-FIS-D03.jpeg"
@@ -40,30 +41,14 @@ _FALLBACK_T00 = REPO_ROOT / "assets" / "images" / "stimuli_reordered" / "animal_
 _FALLBACK_D03 = REPO_ROOT / "assets" / "images" / "stimuli_reordered" / "animal_fish-03.png"
 _HEAD_BRAIN = REPO_ROOT / "assets" / "images" / "head_brain.png"
 
-_SENSORY_PATTERN_LEFT = np.array(
-    [
-        [0.80, 0.15, -0.20, -0.75],
-        [0.45, 0.10, -0.05, -0.40],
-        [0.05, -0.10, 0.20, 0.55],
-        [-0.55, -0.25, 0.35, 0.78],
-    ]
-)
-_MEMORY_PATTERN = np.array(
-    [
-        [0.55, 0.25, -0.10, -0.35],
-        [0.35, 0.15, 0.05, -0.20],
-        [0.10, 0.00, 0.12, 0.30],
-        [-0.18, -0.08, 0.22, 0.42],
-    ]
-)
-_SENSORY_PATTERN_RIGHT = np.array(
-    [
-        [-0.72, -0.18, 0.22, 0.82],
-        [-0.38, -0.08, 0.12, 0.48],
-        [0.12, 0.02, -0.15, -0.52],
-        [0.62, 0.28, -0.25, -0.78],
-    ]
-)
+def _seeded_pattern(seed: int) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    return rng.uniform(-1.0, 1.0, size=(4, 4))
+
+
+_SENSORY_PATTERN_LEFT = _seeded_pattern(11)
+_MEMORY_PATTERN = _seeded_pattern(12)
+_SENSORY_PATTERN_RIGHT = _seeded_pattern(13)
 
 
 def _preferred_path(primary: Path, fallback: Path) -> str:
@@ -95,11 +80,12 @@ def _mini_matrix(matrix: np.ndarray, *, cell: float = 0.12) -> VGroup:
 def _head_with_matrix(matrix: np.ndarray, *, scale: float = 0.90) -> Group:
     head = ImageMobject(str(_HEAD_BRAIN))
     head.scale_to_fit_height(2.55 * scale)
-    mini = _mini_matrix(matrix, cell=0.11 * scale)
+    head.set_opacity(1.0)
+    mini = _mini_matrix(matrix, cell=_MATRIX_CELL * scale)
     mini.move_to(
         head.get_center()
-        + LEFT * (0.055 * head.width)
-        + UP * (0.23 * head.height)
+        + LEFT * (0.035 * head.width)
+        + UP * (0.18 * head.height)
     )
     return Group(head, mini)
 
@@ -333,23 +319,24 @@ class IntroRepresentation3DTest(ThreeDScene):
         self.set_camera_orientation(
             phi=62 * DEGREES,
             theta=-42 * DEGREES,
-            frame_center=np.array([0.0, 0.0, 0.0]),
+            frame_center=np.array([-0.3, 0.3, 0.0]),
             zoom=1.0,
         )
 
-        x0 = np.array([-5.0, 0.0, 0.0])
-        x1 = np.array([-3.6, 0.0, 0.0])
+        x_step = 3.6
+        x0 = np.array([-8.6, 0.0, 0.0])
+        x1 = np.array([-x_step, 0.0, 0.0])
         x2 = np.array([0.0, 0.0, 0.0])
-        x3 = np.array([3.6, 0.0, 0.0])
-        x4 = np.array([5.0, 0.0, 0.0])
+        x3 = np.array([x_step, 0.0, 0.0])
+        x4 = np.array([4, 0.0, 0.0])
 
         step = 0.5
-        grid_x_min, grid_x_max = -5.6, 5.6
-        grid_y_radius = 3.9
+        grid_x_min, grid_x_max = -8.0, 5
+        grid_y_min, grid_y_max = -7.0, 5
         grid = VGroup(
             *[
                 line
-                for k in np.arange(-grid_y_radius, grid_y_radius + step * 0.5, step)
+                for k in np.arange(grid_y_min, grid_y_max + step * 0.5, step)
                 for line in (
                     Line(
                         np.array([grid_x_min, k, 0.0]),
@@ -358,8 +345,8 @@ class IntroRepresentation3DTest(ThreeDScene):
                         stroke_width=0.9,
                     ),
                     Line(
-                        np.array([k, -grid_y_radius, 0.0]),
-                        np.array([k, grid_y_radius, 0.0]),
+                        np.array([k, grid_y_min, 0.0]),
+                        np.array([k, grid_y_max, 0.0]),
                         color=LGREY,
                         stroke_width=0.9,
                     ),
@@ -385,12 +372,6 @@ class IntroRepresentation3DTest(ThreeDScene):
             ]
         )
         ticks.set_z_index(-5)
-        nodes = VGroup(
-            Dot(point=x1, radius=0.08, color=MGREY, fill_opacity=1.0, stroke_width=0.0),
-            Dot(point=x2, radius=0.08, color=MGREY, fill_opacity=1.0, stroke_width=0.0),
-            Dot(point=x3, radius=0.08, color=MGREY, fill_opacity=1.0, stroke_width=0.0),
-        )
-        nodes.set_z_index(40)
 
         rotation = self.camera.generate_rotation_matrix()
         screen_right = rotation.T @ np.array([1.0, 0.0, 0.0])
@@ -436,8 +417,8 @@ class IntroRepresentation3DTest(ThreeDScene):
         )
         axis_labels.set_z_index(15)
         travel = ValueTracker(0.0)
-        x_past = np.array([-7.2, 0.0, 0.0])
-        x_future = np.array([7.2, 0.0, 0.0])
+        x_past = np.array([-2 * x_step, 0.0, 0.0])
+        x_future = np.array([2 * x_step, 0.0, 0.0])
 
         stim_left = _framed_visual(
             ImageMobject(_preferred_path(_FISH_T00, _FALLBACK_T00)).scale_to_fit_height(1.20)
@@ -451,13 +432,10 @@ class IntroRepresentation3DTest(ThreeDScene):
         for stim in (stim_left, stim_mid, stim_right):
             stim.set_z_index(30)
 
-        rep_left = _head_with_matrix(_SENSORY_PATTERN_LEFT, scale=0.72)
-        rep_mid = _head_with_matrix(_MEMORY_PATTERN, scale=0.72)
-        rep_right = _head_with_matrix(_SENSORY_PATTERN_RIGHT, scale=0.72)
-        for rep in (rep_left, rep_mid, rep_right):
-            rep.set_z_index(32)
-            rep[0].set_z_index(33)
-            rep[1].set_z_index(34)
+        fixed_head = _head_with_matrix(_SENSORY_PATTERN_LEFT, scale=0.72)
+        fixed_head.set_z_index(70)
+        fixed_head[0].set_z_index(71)
+        fixed_head[1].set_z_index(72)
 
         dot_gap = 0.72
         front_offset = 0.62
@@ -492,24 +470,28 @@ class IntroRepresentation3DTest(ThreeDScene):
         mid_path = [x3, x2, x1]
         right_path = [x_future, x3, x2]
 
-        def left_matrix(t: float) -> np.ndarray:
-            return _interpolate_matrix(_SENSORY_PATTERN_LEFT, _MEMORY_PATTERN, np.clip(t, 0.0, 1.0))
+        node_left = Dot(radius=0.08, color=MGREY, fill_opacity=1.0, stroke_width=0.0)
+        node_mid = Dot(radius=0.08, color=MGREY, fill_opacity=1.0, stroke_width=0.0)
+        node_right = Dot(radius=0.08, color=MGREY, fill_opacity=1.0, stroke_width=0.0)
+        nodes = VGroup(node_left, node_mid, node_right)
+        nodes.set_z_index(40)
 
-        def mid_matrix(t: float) -> np.ndarray:
-            if t <= 0.8:
-                return _MEMORY_PATTERN
-            return _interpolate_matrix(_MEMORY_PATTERN, _SENSORY_PATTERN_RIGHT, np.clip((t - 0.8) / 1.2, 0.0, 1.0))
-
-        def right_matrix(t: float) -> np.ndarray:
-            return _interpolate_matrix(_MEMORY_PATTERN, _SENSORY_PATTERN_RIGHT, np.clip(t / 1.1, 0.0, 1.0))
+        def current_matrix(t: float) -> np.ndarray:
+            if t <= 1.0:
+                return _interpolate_matrix(_SENSORY_PATTERN_LEFT, _MEMORY_PATTERN, np.clip(t, 0.0, 1.0))
+            return _interpolate_matrix(_MEMORY_PATTERN, _SENSORY_PATTERN_RIGHT, np.clip(t - 1.0, 0.0, 1.0))
 
         def update_card(mob: Mobject, points: list[np.ndarray]) -> Mobject:
             place_card(mob, path_anchor(points, travel.get_value()))
             return mob
 
-        def update_head(mob: Mobject, points: list[np.ndarray], matrix_fn) -> Mobject:
-            place_head(mob, path_anchor(points, travel.get_value()))
-            new_matrix = _mini_matrix(matrix_fn(travel.get_value()), cell=0.11 * 0.72)
+        def update_dot(mob: Mobject, points: list[np.ndarray]) -> Mobject:
+            mob.move_to(path_anchor(points, travel.get_value()))
+            return mob
+
+        def update_fixed_head(mob: Mobject) -> Mobject:
+            place_fixed_head(mob)
+            new_matrix = _mini_matrix(current_matrix(travel.get_value()), cell=_MATRIX_CELL * 0.72)
             new_matrix.move_to(
                 mob[0].get_center()
                 + LEFT * (0.055 * mob[0].width)
@@ -518,28 +500,33 @@ class IntroRepresentation3DTest(ThreeDScene):
             mob[1].become(new_matrix)
             return mob
 
+        fixed_head_anchor = path_anchor(left_path, 0.0)
+
+        def place_fixed_head(mob: Mobject) -> None:
+            place_head(mob, fixed_head_anchor)
+
         place_card(stim_left, path_anchor(left_path, 0.0))
         place_card(stim_mid, path_anchor(mid_path, 0.0))
         place_card(stim_right, path_anchor(right_path, 0.0))
-        place_head(rep_left, path_anchor(left_path, 0.0))
-        place_head(rep_mid, path_anchor(mid_path, 0.0))
-        place_head(rep_right, path_anchor(right_path, 0.0))
+        place_fixed_head(fixed_head)
+        update_dot(node_left, left_path)
+        update_dot(node_mid, mid_path)
+        update_dot(node_right, right_path)
 
         stim_left.add_updater(lambda mob: update_card(mob, left_path))
         stim_mid.add_updater(lambda mob: update_card(mob, mid_path))
         stim_right.add_updater(lambda mob: update_card(mob, right_path))
-        rep_left.add_updater(lambda mob: update_head(mob, left_path, left_matrix))
-        rep_mid.add_updater(lambda mob: update_head(mob, mid_path, mid_matrix))
-        rep_right.add_updater(lambda mob: update_head(mob, right_path, right_matrix))
+        node_left.add_updater(lambda mob: update_dot(mob, left_path))
+        node_mid.add_updater(lambda mob: update_dot(mob, mid_path))
+        node_right.add_updater(lambda mob: update_dot(mob, right_path))
+        fixed_head.add_updater(update_fixed_head)
 
         self.add_fixed_orientation_mobjects(
             axis_labels,
+            fixed_head,
             stim_left,
             stim_mid,
             stim_right,
-            rep_left,
-            rep_mid,
-            rep_right,
         )
 
         self.play(Create(grid), run_time=0.7)
@@ -551,13 +538,8 @@ class IntroRepresentation3DTest(ThreeDScene):
             FadeIn(axis_labels, shift=UP * 0.03),
             run_time=1.0,
         )
-        self.play(
-            FadeIn(stim_left, scale=0.97),
-            FadeIn(stim_mid, scale=0.97),
-            FadeIn(rep_left, scale=0.97),
-            FadeIn(rep_mid, scale=0.97),
-            FadeIn(rep_right, scale=0.97),
-            run_time=0.9,
-        )
-        self.play(travel.animate.set_value(2.0), run_time=6.5, rate_func=smooth)
-        self.wait(1.2)
+        self.wait(0.5)
+        self.play(travel.animate.set_value(1.0), run_time=2.3, rate_func=smooth)
+        self.wait(0.55)
+        self.play(travel.animate.set_value(2.0), run_time=2.3, rate_func=smooth)
+        self.wait(1.0)
