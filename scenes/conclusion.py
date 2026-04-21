@@ -56,7 +56,7 @@ class _ConclusionNumberedScene:
     def __init__(self, *args, **kwargs):
         scene_name = self.__class__.__name__
         number = _CONCLUSION_SCENE_ORDER.get(scene_name, "")
-        if number:
+        if number and config.output_file == "conclusion":
             config.output_file = f"{number}_{scene_name}"
         super().__init__(*args, **kwargs)
 

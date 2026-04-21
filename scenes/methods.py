@@ -62,7 +62,8 @@ class _MethodsNumberedScene:
     def __init__(self, *args, **kwargs):
         scene_name = self.__class__.__name__
         number = _METHODS_SCENE_ORDER.get(scene_name, "")
-        config.output_file = f"{number}_{scene_name}" if number else scene_name
+        if config.output_file == "methods":
+            config.output_file = f"{number}_{scene_name}" if number else scene_name
         super().__init__(*args, **kwargs)
 
 

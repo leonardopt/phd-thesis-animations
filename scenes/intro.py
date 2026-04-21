@@ -10,6 +10,8 @@ Production render:
 from __future__ import annotations
 
 from pathlib import Path
+from queue import Queue
+import random
 import sys
 
 import numpy as np
@@ -32,6 +34,28 @@ simplify_manim_section_video_names(
     lambda _output_name, index, name, ext: f"{index:03}_{name}{ext}"
 )
 
+_INTRO_SCENE_ORDER: dict[str, str] = {
+    "IntroCognitiveProblemA": "00",
+    "IntroSensoryMemoryRepresentationA": "01",
+    "IntroSensoryMemoryRepresentationB": "02",
+    "IntroClassicalView": "03",
+    "IntroSensoryRecruitment": "04",
+    "IntroResearchQuestion1": "05",
+    "IntroResearchQuestion2": "06",
+    "IntroResearchQuestion3": "07",
+}
+
+
+class _IntroNumberedScene:
+    """Prefix standalone intro renders with their section order."""
+
+    def __init__(self, *args, **kwargs):
+        scene_name = self.__class__.__name__
+        number = _INTRO_SCENE_ORDER.get(scene_name, "")
+        if number and config.output_file == "intro":
+            config.output_file = f"{number}_{scene_name}"
+        super().__init__(*args, **kwargs)
+
 
 # ── Palette ───────────────────────────────────────────────────────────────────
 BG = WHITE
@@ -42,6 +66,10 @@ BLUE = "#2563EB"
 AMBER = "#D97706"
 GREEN = "#16A34A"
 RED = "#DC2626"
+RQ_BLUE = "#264C73"
+RQ_RED = "#7A2E3A"
+RQ_GREEN = "#2F5D50"
+RQ_MUTED = "#6B7280"
 PANEL = "#F8FAFC"
 EVC_BLUE = "#6E839A"
 EVC_TAUPE = "#9B8D80"
@@ -64,7 +92,12 @@ _REFERENCE_DIR = REPO_ROOT / "assets" / "images" / "references" / "working_memor
 _FUNAHASHI_1989_FIG = str(_INTRO_FIG_DIR / "funahashi1989a.png")
 _JONIDES_1993_FIG = str(_INTRO_FIG_DIR / "jonides1993.png")
 _AWH_JONIDES_2001_FIG = str(_REFERENCE_DIR / "awhjonides2001_spatial_wm.png")
-_HARRISON_TONG_2009_FIG = str(_REFERENCE_DIR / "harrisontong2009_decoding.png")
+_HARRISON_TONG_2009_FIG = str(_INTRO_FIG_DIR / "harrisontong2009.png")
+_HARRISON_TONG_2009_PARADIGM_FIG = str(_INTRO_FIG_DIR / "harrisontong2009paradigm.png")
+_CHRISTOPHEL_2012_FIG = str(_INTRO_FIG_DIR / "christophel2012.png")
+_VISUAL_CORTEX_FIG = str(REPO_ROOT / "assets" / "images" / "visual_cortex_white.png")
+_INTRO_HOOK_TARGET_FISH = str(_INTRO_STIM_DIR / "animal_fish-00.png")
+_INTRO_HOOK_FOIL_FISH = str(_INTRO_STIM_DIR / "animal_fish-05.png")
 
 _EXEMPLAR_CODE = "building_observatory"
 _HOOK_CODE = "animal_fish"
@@ -82,9 +115,35 @@ def _seeded_pattern(seed: int) -> np.ndarray:
     return rng.uniform(-1.0, 1.0, size=(4, 4))
 
 
-_SENSORY_PATTERN_LEFT = _seeded_pattern(11)
-_MEMORY_PATTERN = _seeded_pattern(12)
-_SENSORY_PATTERN_RIGHT = _seeded_pattern(13)
+_PLOT_SENSORY_PATTERN_LEFT = _seeded_pattern(11)
+_PLOT_MEMORY_PATTERN = _seeded_pattern(12)
+_PLOT_SENSORY_PATTERN_RIGHT = _seeded_pattern(13)
+
+
+_REPRESENTATION_SENSORY_PATTERN_LEFT = np.array(
+    [
+        [-0.78, -0.26, 0.10, -0.72],
+        [-0.56, 0.68, -0.40, -0.60],
+        [0.64, 0.18, -0.10, 0.16],
+        [-0.18, 0.04, -0.48, 0.54],
+    ]
+)
+_REPRESENTATION_MEMORY_PATTERN = np.array(
+    [
+        [0.58, -0.68, 0.64, -0.10],
+        [-0.14, 0.74, -0.56, 0.62],
+        [0.70, -0.28, 0.18, -0.74],
+        [-0.60, 0.52, -0.22, 0.68],
+    ]
+)
+_REPRESENTATION_SENSORY_PATTERN_RIGHT = np.array(
+    [
+        [-0.62, -0.04, 0.26, -0.54],
+        [-0.34, 0.80, -0.18, -0.38],
+        [0.80, 0.10, 0.14, 0.08],
+        [0.04, 0.24, -0.26, 0.68],
+    ]
+)
 
 
 def stim_path(code: str, idx: int) -> str:
@@ -109,7 +168,7 @@ def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
     title = Tex(title_text, color=INK, font_size=34).to_edge(UP, buff=0.34)
     parts = [title]
     if subtitle_text is not None:
-        subtitle = Tex(subtitle_text, color=MGREY, font_size=21)
+        subtitle = Tex(subtitle_text, color=INK, font_size=21)
         subtitle.next_to(title, DOWN, buff=0.14)
         parts.append(subtitle)
     return VGroup(*parts)
@@ -136,7 +195,7 @@ def make_info_card(
     height: float = 1.28,
     title_font_size: float = 20,
     subtitle_font_size: float = 16,
-    subtitle_color: str = MGREY,
+    subtitle_color: str = INK,
 ) -> VGroup:
     frame = RoundedRectangle(
         width=width,
@@ -165,6 +224,56 @@ def make_info_card(
     return VGroup(frame, accent_bar, text_block)
 
 
+def make_summary_panel(
+    headline_lines: tuple[str, ...],
+    body_lines: tuple[str, ...],
+    ref_lines: tuple[str, ...],
+    *,
+    accent: str,
+    width: float = 6.0,
+    height: float = 3.36,
+    headline_font_size: float = 20,
+    body_font_size: float = 18,
+    ref_font_size: float = 15,
+) -> VGroup:
+    frame = RoundedRectangle(
+        width=width,
+        height=height,
+        corner_radius=0.16,
+        stroke_color=LGREY,
+        stroke_width=1.4,
+    ).set_fill(PANEL, opacity=0.96)
+    accent_bar = RoundedRectangle(
+        width=0.12,
+        height=height - 0.24,
+        corner_radius=0.06,
+        stroke_width=0,
+    ).set_fill(accent, opacity=1.0)
+    accent_bar.move_to(np.array([frame.get_left()[0] + 0.22, frame.get_center()[1], 0.0]))
+
+    headline = VGroup(
+        *[Tex(line, color=INK, font_size=headline_font_size) for line in headline_lines]
+    ).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
+    body = VGroup(
+        *[Tex(line, color=INK, font_size=body_font_size) for line in body_lines]
+    ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
+    refs = VGroup(
+        *[Tex(line, color=MGREY, font_size=ref_font_size) for line in ref_lines]
+    ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+
+    text_block = VGroup(headline, body, refs).arrange(DOWN, buff=0.12, aligned_edge=LEFT)
+    max_text_width = width - 0.74
+    max_text_height = height - 0.32
+    if text_block.width > max_text_width:
+        text_block.scale_to_fit_width(max_text_width)
+    if text_block.height > max_text_height:
+        text_block.scale_to_fit_height(max_text_height)
+    text_block.move_to(frame.get_center())
+    text_block.align_to(frame, LEFT).shift(RIGHT * 0.48)
+
+    return VGroup(frame, accent_bar, text_block)
+
+
 def make_literature_entry(
     title_text: str,
     claim_lines: tuple[str, ...],
@@ -181,7 +290,7 @@ def make_literature_entry(
         *[Tex(line, color=INK, font_size=18) for line in claim_lines]
     ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
     refs = VGroup(
-        *[Tex(line, color=MGREY, font_size=14) for line in ref_lines]
+        *[Tex(line, color=INK, font_size=14) for line in ref_lines]
     ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
     divider = Line(LEFT * divider_width / 2, RIGHT * divider_width / 2, color=LGREY, stroke_width=1.0)
     group = VGroup(title_row, claim, refs, divider).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
@@ -209,7 +318,7 @@ def make_paper_snapshot(
     image.move_to(image_card.get_center())
     image_frame = Group(image_card, image)
     label = Tex(label_text, color=accent, font_size=18)
-    refs = Tex(ref_text, color=MGREY, font_size=14)
+    refs = Tex(ref_text, color=INK, font_size=14)
     return Group(image_frame, label, refs).arrange(DOWN, buff=0.10)
 
 
@@ -297,6 +406,12 @@ def framed_visual(
         stroke_color=LGREY,
         stroke_width=1.5,
     ).set_fill(WHITE, opacity=1.0)
+    max_inner_width = width - 0.18
+    max_inner_height = height - 0.18
+    if inner.width > max_inner_width:
+        inner.scale_to_fit_width(max_inner_width)
+    if inner.height > max_inner_height:
+        inner.scale_to_fit_height(max_inner_height)
     inner.move_to(card.get_center())
     return Group(card, inner)
 
@@ -333,22 +448,8 @@ def _build_intro_b_layout() -> dict[str, Mobject]:
         return dots
 
     image_h = 1.70
-    left_image = _img(
-        preferred_path(
-            REPO_ROOT / "assets" / "images" / "ANI-FIS-T00.jpeg",
-            REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-T00.jpeg",
-            _INTRO_STIM_DIR / "animal_fish-00.png",
-        ),
-        image_h,
-    )
-    right_image = _img(
-        preferred_path(
-            REPO_ROOT / "assets" / "images" / "ANI-FIS-D01.jpeg",
-            REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D01.jpeg",
-            _INTRO_STIM_DIR / "animal_fish-01.png",
-        ),
-        image_h,
-    )
+    left_image = _img(_INTRO_HOOK_TARGET_FISH, image_h)
+    right_image = _img(_INTRO_HOOK_FOIL_FISH, image_h)
 
     zone_height = image_h
     dead_zone = Rectangle(width=2.50, height=zone_height, stroke_width=0).set_fill(
@@ -412,12 +513,12 @@ def _build_intro_b_layout() -> dict[str, Mobject]:
             )
         ]
     )
-    time_label = MathTex("t", color=MGREY, font_size=24)
+    time_label = MathTex("t", color=INK, font_size=24)
     time_label.next_to(phase_rule.get_right(), UP + LEFT, buff=0.10)
 
-    left_brain = patterned_head(_SENSORY_PATTERN_LEFT, scale_factor=0.56)
-    center_brain = patterned_head(_MEMORY_PATTERN, scale_factor=0.56)
-    right_brain = patterned_head(_SENSORY_PATTERN_RIGHT, scale_factor=0.56)
+    left_brain = patterned_head(_PLOT_SENSORY_PATTERN_LEFT, scale_factor=0.56)
+    center_brain = patterned_head(_PLOT_MEMORY_PATTERN, scale_factor=0.56)
+    right_brain = patterned_head(_PLOT_SENSORY_PATTERN_RIGHT, scale_factor=0.56)
     for brain, anchor in zip((left_brain, center_brain, right_brain), (left_image, dead_zone, right_image)):
         brain.next_to(anchor, DOWN, buff=0.52)
 
@@ -473,7 +574,7 @@ def _build_intro_c_layout() -> dict[str, Mobject]:
         max_tip_length_to_length_ratio=0.06,
         max_stroke_width_to_length_ratio=1.8,
     )
-    time_label = MathTex("t", color=MGREY, font_size=24)
+    time_label = MathTex("t", color=INK, font_size=24)
     time_label.next_to(time_arrow.get_right(), UP + LEFT, buff=0.10)
     brain_parts = brain_icon_with_evc(highlight_color=EVC_TAUPE, scale_factor=1.00)
     brain_group = brain_parts["group"]
@@ -551,7 +652,7 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
     title = title_block(
         r"\textbf{Classical view on the neural substrates of working memory}",
     )
-    max_col_width = 2.95
+    max_col_width = 3.48
 
     def _fit_width(mob: Mobject, width: float) -> Mobject:
         if mob.width > width:
@@ -561,13 +662,14 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
     def _classical_column(
         title_text: str,
         claim_lines: tuple[str, ...],
-        ref_lines: tuple[str, ...],
+        ref_lines: tuple[str, ...] = (),
         *,
         image_path: str | None = None,
         image_height: float = 1.56,
+        image_ref_lines: tuple[str, ...] = (),
     ) -> Group:
         heading = _fit_width(
-            Tex(rf"\textbf{{{title_text}}}", color=AMBER, font_size=20),
+            Tex(rf"\textbf{{{title_text}}}", color=AMBER, font_size=18),
             max_col_width,
         )
         parts: list[Mobject] = [heading]
@@ -577,44 +679,72 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
             if image.width > max_col_width:
                 image.scale_to_fit_width(max_col_width)
             parts.append(image)
+        if image_ref_lines:
+            image_refs = VGroup(
+                *[_fit_width(Tex(line, color=INK, font_size=12), max_col_width) for line in image_ref_lines]
+            ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+            parts.append(image_refs)
         claim = VGroup(
-            *[_fit_width(Tex(line, color=INK, font_size=17), max_col_width) for line in claim_lines]
+            *[_fit_width(Tex(line, color=INK, font_size=15), max_col_width) for line in claim_lines]
         ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
-        refs = VGroup(
-            *[_fit_width(Tex(line, color=MGREY, font_size=13), max_col_width) for line in ref_lines]
-        ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
         divider = Line(ORIGIN, RIGHT * max_col_width, color=LGREY, stroke_width=0.9)
         divider.set_opacity(0.7)
-        parts.extend([claim, refs, divider])
-        return Group(*parts).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+        parts.append(claim)
+        if ref_lines:
+            refs = VGroup(
+                *[_fit_width(Tex(line, color=INK, font_size=12), max_col_width) for line in ref_lines]
+            ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+            parts.append(refs)
+        parts.append(divider)
+        column = Group(*parts).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+        anchor_x = column.get_center()[0]
+        for mob in parts:
+            mob.set_x(anchor_x)
+        return column
 
     columns = Group(
         _classical_column(
-            "Monkey lesions",
-            ("Prefrontal damage impaired", "delayed-response performance"),
-            ("Jacobsen (1936)", "Harlow (1952)"),
+            "Monkey lesion studies",
+            (
+                "Delayed-response deficits after",
+                "prefrontal lesions in monkeys",
+            ),
+            ("Jacobsen (1936)",),
         ),
         _classical_column(
-            "Persistent firing",
-            ("Delay-period firing in dorsolateral PFC", "became the canonical maintenance signal"),
-            (r"Fuster \& Alexander (1971)", "Funahashi et al. (1989, 1993)"),
+            "Sustained activation",
+            (
+                "Persistent delay-period firing in dorsolateral PFC",
+                "as neural signature of active maintenance",
+            ),
+            ("Goldman-Rakic (1995)", r"Constantinidis \& Procyk (2004)"),
             image_path=_FUNAHASHI_1989_FIG,
-            image_height=1.42,
+            image_height=2.20,
+            image_ref_lines=("Funahashi et al. (1989)",),
         ),
         _classical_column(
-            "Human imaging",
-            ("PET and fMRI reinforced a broader", "association-cortex account"),
-            (r"Jonides et al. (1993); D'Esposito et al. (1995)", "Courtney et al. (1997, 1998)"),
+            "Early human neuroimaging",
+            (
+                "Early PET and fMRI studies reported",
+                "activations in frontal and parietal",
+                "regions",
+            ),
+            (
+                r"D'Esposito et al. (1995)",
+                "Doyon et al. (1996)",
+                "Courtney et al. (1997)",
+            ),
             image_path=_JONIDES_1993_FIG,
-            image_height=1.30,
+            image_height=1.82,
+            image_ref_lines=("Jonides et al. (1993)",),
         ),
     )
 
-    dot_xs = (-4.15, 0.0, 4.15)
+    dot_xs = (-4.70, 0.0, 4.70)
     timeline_y = title.get_bottom()[1] - 0.72
     timeline_line = Line(
-        np.array([dot_xs[0] - 1.05, timeline_y, 0.0]),
-        np.array([dot_xs[-1] + 1.05, timeline_y, 0.0]),
+        np.array([dot_xs[0] - 1.20, timeline_y, 0.0]),
+        np.array([dot_xs[-1] + 1.20, timeline_y, 0.0]),
         color=LGREY,
         stroke_width=1.5,
     )
@@ -630,15 +760,19 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
         column.next_to(dot, DOWN, buff=0.20)
 
     content = Group(timeline_line, dots, columns)
-    takeaway = make_callout(
-        "Early sensory cortex was not treated as the primary substrate of maintenance.",
-        AMBER,
+    takeaway = Tex(
+        r"\textbf{Focus} on \textbf{association areas} as primary neural substrates of working memory",
+        color=INK,
         font_size=22,
     )
+    takeaway.scale_to_fit_width(min(takeaway.width, content.width + 0.15))
     takeaway.next_to(columns, DOWN, buff=0.34)
-    takeaway.align_to(timeline_line, LEFT)
+    takeaway.set_x(content.get_center()[0])
     return {
         "title": title,
+        "timeline_line": timeline_line,
+        "dots": dots,
+        "columns": columns,
         "content": content,
         "takeaway": takeaway,
         "final_group": Group(title, content, takeaway),
@@ -647,70 +781,146 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
 
 def _build_intro_e_layout() -> dict[str, Mobject]:
     title = title_block(
-        r"\textbf{Sensory recruitment account}",
-        "Theory papers and MVPA studies argued that maintained content can be represented in visual cortex",
+        r"\textbf{Sensory recruitment model}",
     )
-    paper_gallery = Group(
-        make_paper_snapshot(
-            _AWH_JONIDES_2001_FIG,
-            "theory shift",
-            r"Awh \& Jonides (2001)",
-            accent=BLUE,
-            height=1.84,
-        ),
-        make_paper_snapshot(
-            _HARRISON_TONG_2009_FIG,
-            "orientation decoding",
-            r"Harrison \& Tong (2009)",
-            accent=BLUE,
-            height=1.84,
-        ),
-    ).arrange(RIGHT, buff=0.28, aligned_edge=UP)
-    paper_stack = paper_gallery
+    sensory_accent = "#18324D"
 
-    evidence = VGroup(
-        make_literature_entry(
-            "Theory shift",
-            ("Working memory may reuse the same sensory", "circuits engaged during perception"),
-            (r"Awh \& Jonides (2001); Pasternak \& Greenlee (2005)", "Postle (2006)"),
-            accent=BLUE,
-        ),
-        make_literature_entry(
-            "MVPA turning point",
-            ("Multivoxel patterns can reveal feature", "information that mean activation can miss"),
-            (r"Haynes \& Rees (2006); Norman et al. (2006)",),
-            accent=BLUE,
-        ),
-        make_literature_entry(
-            "Seminal delay decoding",
-            ("Remembered visual features were decoded from", "early visual cortex during the delay"),
-            (r"Harrison \& Tong (2009); Serences et al. (2009)",),
-            accent=BLUE,
-        ),
-        make_literature_entry(
-            "Open question",
-            ("Decodable delay activity did not by itself", "prove a sensory-like or necessary code"),
-            (r"Christophel et al. (2017)", r"Curtis \& Sprague (2021)"),
-            accent=RED,
-        ),
-    ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
+    def _fit_width(mob: Mobject, width: float) -> Mobject:
+        if mob.width > width:
+            mob.scale_to_fit_width(width)
+        return mob
 
-    content = Group(paper_stack, evidence).arrange(RIGHT, buff=0.92, aligned_edge=UP)
-    content.scale(1.04)
-    content.next_to(title, DOWN, buff=0.30)
-    content.shift(DOWN * 0.18)
-    takeaway = make_callout(
-        "Delay-period information is decodable from early visual cortex, but its format remains open.",
-        BLUE,
-        font_size=21,
+    def _sensory_text_entry(
+        heading_lines: tuple[str, ...],
+        body_lines: tuple[str, ...],
+        ref_lines: tuple[str, ...],
+        *,
+        width: float = 4.95,
+    ) -> Group:
+        heading = VGroup(
+            *[_fit_width(Tex(line, color=sensory_accent, font_size=20), width) for line in heading_lines]
+        ).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
+        body = VGroup(
+            *[_fit_width(Tex(line, color=INK, font_size=16), width) for line in body_lines]
+        ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
+        refs = VGroup(
+            *[_fit_width(Tex(line, color=MGREY, font_size=13), width) for line in ref_lines]
+        ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+        return Group(heading, body, refs).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+
+    def _study_figure(
+        image_path: str,
+        ref_text: str | None,
+        *,
+        height: float = 2.24,
+    ) -> Group:
+        image = ImageMobject(image_path)
+        image.height = height
+        if ref_text is None:
+            return Group(image)
+        refs = Tex(ref_text, color=MGREY, font_size=14)
+        return Group(image, refs).arrange(DOWN, buff=0.10)
+
+    what_it_does = _sensory_text_entry(
+        (
+            r"\textbf{Sensory areas are actively recruited}",
+        ),
+        (
+            "for working memory maintenance.",
+        ),
+        (
+            r"Awh \& Jonides (2001); Pasternak \& Greenlee (2005)",
+            r"Postle (2006)",
+        ),
     )
-    takeaway.next_to(content, DOWN, buff=0.44)
-    takeaway.align_to(content, LEFT)
+    evidence_source = _sensory_text_entry(
+        (
+            r"\textbf{Multivariate Pattern Analysis studies}",
+        ),
+        (
+            "show that remembered visual information can be decoded",
+            "from visual cortex during maintenance.",
+        ),
+        (
+            r"Harrison \& Tong (2009); Serences et al. (2009)",
+            r"Christophel et al. (2012)",
+        ),
+    )
+    entries = Group(what_it_does, evidence_source).arrange(DOWN, buff=1, aligned_edge=LEFT)
+    dot_anchor_ys = [
+        Group(entry[0], entry[1]).get_center()[1] + 0.16
+        for entry in entries
+    ]
+    timeline_x = entries.get_left()[0] - 0.88
+    line_margin = 0.72
+    top_y = max(dot_anchor_ys) + line_margin
+    bottom_y = min(dot_anchor_ys) - line_margin
+    timeline_line = Line(
+        np.array([timeline_x, top_y, 0.0]),
+        np.array([timeline_x, bottom_y, 0.0]),
+        color=MGREY,
+        stroke_width=1.5,
+    )
+    timeline_line.set_opacity(0.78)
+    dots = VGroup(
+        *[
+            Dot(radius=0.055, color=sensory_accent, stroke_width=0).move_to(
+                np.array([timeline_x, dot_y, 0.0])
+            )
+            for dot_y in dot_anchor_ys
+        ]
+    )
+    hero_figure = _study_figure(
+        _VISUAL_CORTEX_FIG,
+        None,
+        height=0.78,
+    )
+    hero_figure.next_to(title, DOWN, buff=0.18)
+    hero_figure.match_x(title)
+    paradigm_figure = _study_figure(
+        _HARRISON_TONG_2009_PARADIGM_FIG,
+        None,
+        height=2,
+    )
+    harrison_figure = _study_figure(
+        _HARRISON_TONG_2009_FIG,
+        r"Harrison \& Tong (2009)",
+        height=2,
+    )
+    christophel_figure = _study_figure(
+        _CHRISTOPHEL_2012_FIG,
+        r"Christophel et al. (2012)",
+        height=1.8,
+    )
+    top_row = Group(harrison_figure, paradigm_figure).arrange(RIGHT, buff=0.28, aligned_edge=UP)
+    separator = Line(ORIGIN, RIGHT * (top_row.width * 0.88), color=LGREY, stroke_width=1.0)
+    separator.set_opacity(0.42)
+    separator.next_to(top_row, DOWN, buff=0.12)
+    separator.set_x(top_row.get_center()[0])
+    christophel_figure.next_to(separator, DOWN, buff=0.16)
+    christophel_figure.set_x(top_row.get_center()[0])
+    figure_column = Group(top_row, separator, christophel_figure)
+    figure_column.next_to(entries, RIGHT, buff=1.02, aligned_edge=UP)
+    figure_column.shift(UP * 0.22)
+    left_column_shift = LEFT * 0.34
+    timeline_line.shift(left_column_shift)
+    dots.shift(left_column_shift)
+    entries.shift(left_column_shift)
+
+    content = Group(timeline_line, dots, entries, figure_column)
+    content.next_to(hero_figure, DOWN, buff=0.24)
+    content.set_x(-0.26)
+    dot_mid_y = 0.5 * (dots[0].get_center()[1] + dots[1].get_center()[1])
+    content.shift(DOWN * dot_mid_y)
     return {
         "title": title,
+        "hero_figure": hero_figure,
+        "timeline_line": timeline_line,
+        "dots": dots,
+        "entries": entries,
+        "figure_column": figure_column,
         "content": content,
-        "takeaway": takeaway,
-        "final_group": Group(title, content, takeaway),
+        "final_group": Group(title, hero_figure, content),
     }
 
 
@@ -718,117 +928,300 @@ _INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
     {
         "kicker": "Research question 1",
         "title": "Representational format",
-        "subtitle": "Sensory-like or memory-specific?",
-        "bullet_1": "Cross-decoding suggests a shared sensory code.",
-        "bullet_2": "But delay codes may be transformed or dynamic.",
-        "bullet_3": "We test this with an independent perception session.",
-        "focus_primary": "cross-session decoding",
-        "focus_secondary": "perception -> memory",
-        "focus_tag": "format test",
-        "accent": BLUE,
+        "subtitle": "Is the maintained code still sensory-like?",
+        "bullet_1": "Early cross-decoding suggested shared sensory codes.",
+        "bullet_2": "Recent work finds weaker generalization and dynamic delay codes.",
+        "bullet_3": "A separate perception session enables direct format comparison.",
+        "accent": RQ_BLUE,
     },
     {
         "kicker": "Research question 2",
-        "title": "Naturalistic stimuli",
-        "subtitle": "Beyond simple laboratory stimuli?",
-        "bullet_1": "Most evidence comes from gratings, colors, or locations.",
-        "bullet_2": "Naturalistic sensory recruitment is still largely untested.",
-        "bullet_3": "We use fine-grained object-scenes with perceptual demands.",
-        "focus_primary": "naturalistic object-scenes",
-        "focus_secondary": "fine-grained discrimination",
-        "focus_tag": "ecological test",
-        "accent": AMBER,
+        "title": "Ecological validity",
+        "subtitle": "Does it generalize beyond simple lab stimuli?",
+        "bullet_1": "Most evidence comes from orientations, colors, or locations.",
+        "bullet_2": "Stimulus properties may change how sensory and memory codes align.",
+        "bullet_3": "Naturalistic WM evidence remains limited and hard to obtain.",
+        "accent": RQ_RED,
     },
     {
         "kicker": "Research question 3",
         "title": "Long-term memory",
-        "subtitle": "Does long-term memory reshape WM representations?",
-        "bullet_1": "Familiarity and meaning often improve working memory.",
-        "bullet_2": "WM and LTM may rely on partially overlapping codes.",
-        "bullet_3": "We test whether repetition reshapes EVC memory signals.",
-        "focus_primary": "repeated vs novel items",
-        "focus_secondary": "LTM-strength manipulation",
-        "focus_tag": "modulation test",
-        "accent": GREEN,
+        "subtitle": "Do LTM traces modulate the WM code?",
+        "bullet_1": "Familiarity and meaning can improve working-memory performance.",
+        "bullet_2": "WM and LTM retrieval may share sensory-like codes in EVC.",
+        "bullet_3": "LTM may make WM more sensory-like or shift processing elsewhere.",
+        "accent": RQ_GREEN,
     },
 )
 
 
+def _intro_question_context_block(spec: dict[str, str]) -> VGroup:
+    cue_lines = VGroup(
+        *[
+            Tex(text, color=INK, font_size=17)
+            for text in (spec["bullet_1"], spec["bullet_2"], spec["bullet_3"])
+        ]
+    ).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+    for line in cue_lines:
+        if line.width > 4.90:
+            line.scale_to_fit_width(4.90)
+
+    cue_rule = Line(UP * 0.5, DOWN * 0.5, color=spec["accent"], stroke_width=1.4)
+    cue_rule.set(height=max(0.92, cue_lines.height - 0.04))
+    cue_rule.set_stroke(opacity=0.52)
+    cue_dot = Dot(radius=0.028, color=spec["accent"], stroke_width=0)
+    cue_dot.move_to(cue_rule.get_top() + UP * 0.11)
+    cue_anchor = VGroup(cue_rule, cue_dot)
+    return VGroup(cue_anchor, cue_lines).arrange(RIGHT, buff=0.20, aligned_edge=UP)
+
+
+def _intro_question_matrix(matrix: np.ndarray, label_text: str) -> VGroup:
+    cells = _mini_matrix(matrix, cell=0.15)
+    cells.scale(1.60)
+    cells.set_opacity(0.95)
+    label = Tex(label_text, color=INK, font_size=15)
+    if label.width > max(1.90, cells.width * 1.50):
+        label.scale_to_fit_width(max(1.90, cells.width * 1.50))
+    label.next_to(cells, DOWN, buff=0.10)
+    return VGroup(cells, label)
+
+
+def _build_intro_question_visual_format(spec: dict[str, str]) -> VGroup:
+    source = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT, "perception")
+    top_target = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT, "sensory-like")
+    bottom_target = _intro_question_matrix(_REPRESENTATION_MEMORY_PATTERN, "transformed")
+
+    source.move_to(LEFT * 1.65)
+    top_target.move_to(RIGHT * 1.45 + UP * 0.92)
+    bottom_target.move_to(RIGHT * 1.45 + DOWN * 0.92)
+
+    branch = Dot(radius=0.038, color=spec["accent"], stroke_width=0).move_to(LEFT * 0.12)
+    branch_lines = VGroup(
+        Line(
+            source[0].get_right() + RIGHT * 0.16,
+            branch.get_center(),
+            color=LGREY,
+            stroke_width=1.0,
+        ),
+        Line(
+            branch.get_center(),
+            top_target[0].get_left() + LEFT * 0.14,
+            color=spec["accent"],
+            stroke_width=1.15,
+        ).set_stroke(opacity=0.74),
+        Line(
+            branch.get_center(),
+            bottom_target[0].get_left() + LEFT * 0.14,
+            color=LGREY,
+            stroke_width=1.0,
+        ).set_stroke(opacity=0.82),
+    )
+
+    caption = Tex(r"\textbf{Two plausible mappings}", color=INK, font_size=15)
+    caption.move_to(np.array([0.02, 1.78, 0.0]))
+    return VGroup(caption, branch_lines, branch, source, top_target, bottom_target)
+
+
+def _build_intro_question_visual_ecology(spec: dict[str, str]) -> VGroup:
+    orientation = Line(LEFT * 0.24, RIGHT * 0.24, color=spec["accent"], stroke_width=2.4)
+    orientation.rotate(PI / 5)
+    color_dot = Dot(radius=0.11, color=spec["accent"], stroke_width=0).set_opacity(0.82)
+    location = VGroup(
+        Circle(radius=0.17, color=spec["accent"], stroke_width=1.2).set_fill(opacity=0.0),
+        Line(UP * 0.08, DOWN * 0.08, color=spec["accent"], stroke_width=1.0),
+        Line(LEFT * 0.08, RIGHT * 0.08, color=spec["accent"], stroke_width=1.0),
+    )
+    simple_glyphs = VGroup(orientation, color_dot, location).arrange(RIGHT, buff=0.28)
+    simple_label = Tex("simple tasks", color=INK, font_size=15)
+    simple = VGroup(simple_label, simple_glyphs).arrange(DOWN, buff=0.14)
+    simple.move_to(LEFT * 1.92)
+
+    cloud_points = (
+        (-0.72, 0.34),
+        (-0.48, 0.72),
+        (-0.12, 0.46),
+        (0.18, 0.78),
+        (0.56, 0.44),
+        (-0.58, -0.02),
+        (-0.18, -0.20),
+        (0.22, 0.02),
+        (0.66, -0.16),
+        (-0.30, -0.58),
+        (0.14, -0.50),
+        (0.50, -0.72),
+    )
+    accent_ids = {1, 3, 7, 10}
+    radii = (0.06, 0.075, 0.05, 0.068, 0.058, 0.05, 0.055, 0.062, 0.048, 0.052, 0.06, 0.05)
+    cloud_dots = VGroup(
+        *[
+            Dot(
+                radius=radii[idx],
+                color=spec["accent"] if idx in accent_ids else RQ_MUTED,
+                stroke_width=0,
+            ).move_to(np.array([x, y, 0.0]))
+            for idx, (x, y) in enumerate(cloud_points)
+        ]
+    )
+    cloud_lines = VGroup(
+        *[
+            Line(
+                cloud_dots[i].get_center(),
+                cloud_dots[j].get_center(),
+                color=LGREY,
+                stroke_width=0.9,
+            ).set_stroke(opacity=0.45)
+            for i, j in ((0, 5), (1, 2), (2, 7), (5, 9), (6, 10), (7, 8), (10, 11))
+        ]
+    )
+    natural_cluster = VGroup(cloud_lines, cloud_dots)
+    natural_label = Tex("natural scenes", color=INK, font_size=15)
+    natural = Group(natural_label, natural_cluster).arrange(DOWN, buff=0.14)
+    natural.move_to(RIGHT * 1.56)
+
+    bridge = Line(
+        simple_glyphs.get_right() + RIGHT * 0.22,
+        natural_cluster.get_left() + LEFT * 0.22,
+        color=LGREY,
+        stroke_width=1.0,
+    ).set_stroke(opacity=0.7)
+    bridge_dots = VGroup(
+        *[
+            Dot(radius=0.022, color=LGREY, stroke_width=0).move_to(
+                bridge.point_from_proportion(alpha)
+            )
+            for alpha in (0.34, 0.68)
+        ]
+    )
+    caption = Tex(r"\textbf{From canonical stimuli to rich scenes}", color=INK, font_size=15)
+    caption.move_to(np.array([0.0, 1.72, 0.0]))
+    return Group(caption, bridge, bridge_dots, simple, natural)
+
+
+def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
+    brain_parts = brain_icon_with_evc(highlight_color=spec["accent"], scale_factor=0.72)
+    brain = brain_parts["group"]
+    brain.move_to(RIGHT * 1.55 + DOWN * 0.08)
+
+    wm_cluster = VGroup(
+        Dot(radius=0.055, color=spec["accent"], stroke_width=0),
+        Dot(radius=0.040, color=RQ_MUTED, stroke_width=0),
+        Dot(radius=0.048, color=RQ_MUTED, stroke_width=0),
+        Dot(radius=0.036, color=RQ_MUTED, stroke_width=0),
+    )
+    wm_cluster[0].move_to(np.array([-1.10, 0.88, 0.0]))
+    wm_cluster[1].move_to(np.array([-0.80, 1.05, 0.0]))
+    wm_cluster[2].move_to(np.array([-0.62, 0.74, 0.0]))
+    wm_cluster[3].move_to(np.array([-0.92, 0.54, 0.0]))
+    wm_label = Tex("working memory", color=INK, font_size=15)
+    wm_label.next_to(wm_cluster, UP, buff=0.14)
+
+    ltm_cluster = VGroup(
+        Dot(radius=0.050, color=RQ_MUTED, stroke_width=0),
+        Dot(radius=0.062, color=spec["accent"], stroke_width=0),
+        Dot(radius=0.046, color=RQ_MUTED, stroke_width=0),
+        Dot(radius=0.040, color=RQ_MUTED, stroke_width=0),
+        Dot(radius=0.056, color=RQ_MUTED, stroke_width=0),
+        Dot(radius=0.042, color=RQ_MUTED, stroke_width=0),
+    )
+    ltm_positions = (
+        (-1.14, -0.56),
+        (-0.90, -0.88),
+        (-0.56, -0.72),
+        (-0.68, -1.14),
+        (-0.34, -0.96),
+        (-0.18, -0.60),
+    )
+    for dot, (x, y) in zip(ltm_cluster, ltm_positions):
+        dot.move_to(np.array([x, y, 0.0]))
+    ltm_label = Tex("long-term memory", color=INK, font_size=15)
+    ltm_label.next_to(ltm_cluster, DOWN, buff=0.14)
+
+    wm_line = Line(
+        wm_cluster.get_right() + RIGHT * 0.18,
+        brain.get_left() + LEFT * 0.08 + UP * 0.24,
+        color=LGREY,
+        stroke_width=1.0,
+    ).set_stroke(opacity=0.78)
+    ltm_line = DashedLine(
+        ltm_cluster.get_right() + RIGHT * 0.16,
+        brain.get_left() + LEFT * 0.08 + DOWN * 0.18,
+        dash_length=0.09,
+        color=LGREY,
+        stroke_width=1.0,
+    ).set_stroke(opacity=0.72)
+
+    convergence = Dot(radius=0.040, color=spec["accent"], stroke_width=0)
+    convergence.move_to(brain.get_left() + LEFT * 0.10 + DOWN * 0.02)
+    convergence_halo = Circle(radius=0.14, color=spec["accent"], stroke_width=1.0)
+    convergence_halo.move_to(convergence.get_center())
+    convergence_halo.set_stroke(opacity=0.46)
+
+    caption = Tex(r"\textbf{Prior traces may bias the maintained code}", color=INK, font_size=15)
+    caption.move_to(np.array([0.05, 1.72, 0.0]))
+    return Group(
+        caption,
+        wm_line,
+        ltm_line,
+        convergence_halo,
+        convergence,
+        brain,
+        wm_cluster,
+        wm_label,
+        ltm_cluster,
+        ltm_label,
+    )
+
+
+def _build_intro_question_visual(question_idx: int, spec: dict[str, str]) -> VGroup:
+    if question_idx == 0:
+        return _build_intro_question_visual_format(spec)
+    if question_idx == 1:
+        return _build_intro_question_visual_ecology(spec)
+    return _build_intro_question_visual_ltm(spec)
+
+
 def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
     spec = _INTRO_RESEARCH_QUESTIONS[question_idx]
-    kicker = Tex(spec["kicker"], color=spec["accent"], font_size=20)
-    kicker.to_edge(UP, buff=0.34)
-    header = VGroup(
-        kicker,
-        Line(LEFT * 1.8, RIGHT * 1.8, color=LGREY, stroke_width=1.0),
-    ).arrange(DOWN, buff=0.12, aligned_edge=LEFT)
-    header.to_edge(UP, buff=0.34)
-    header.shift(LEFT * 2.95)
-
-    question_title_row = VGroup(
-        Dot(radius=0.045, color=spec["accent"]),
-        Tex(rf"\textbf{{{spec['title']}}}", color=spec["accent"], font_size=22),
+    kicker = VGroup(
+        Dot(radius=0.042, color=spec["accent"], stroke_width=0),
+        Tex(spec["kicker"], color=INK, font_size=18),
     ).arrange(RIGHT, buff=0.12)
+    header_rule = Line(ORIGIN, RIGHT * 4.90, color=LGREY, stroke_width=1.0)
+    header_rule.set_stroke(opacity=0.72)
+    header = VGroup(kicker, header_rule).arrange(RIGHT, buff=0.22, aligned_edge=DOWN)
 
-    question_claim = Tex(spec["subtitle"], color=INK, font_size=24)
+    question_title = Tex(rf"\textbf{{{spec['title']}}}", color=spec["accent"], font_size=19)
+    if question_title.width > 5.05:
+        question_title.scale_to_fit_width(5.05)
 
-    def _question_bullet(text: str) -> VGroup:
-        dot = Dot(radius=0.034, color=spec["accent"], stroke_width=0)
-        line = Tex(text, color=INK, font_size=18)
-        if line.width > 5.45:
-            line.scale_to_fit_width(5.45)
-        return VGroup(dot, line).arrange(RIGHT, buff=0.14, aligned_edge=UP)
+    question_claim = Tex(spec["subtitle"], color=INK, font_size=31)
+    if question_claim.width > 5.35:
+        question_claim.scale_to_fit_width(5.35)
 
-    question_bullets = VGroup(
-        _question_bullet(spec["bullet_1"]),
-        _question_bullet(spec["bullet_2"]),
-        _question_bullet(spec["bullet_3"]),
-    ).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
-
-    question_divider = Line(
-        ORIGIN,
-        RIGHT * max(5.2, question_claim.width, question_bullets.width),
-        color=LGREY,
-        stroke_width=1.0,
+    context_block = _intro_question_context_block(spec)
+    text_column = VGroup(question_title, question_claim, context_block).arrange(
+        DOWN,
+        buff=0.24,
+        aligned_edge=LEFT,
     )
-    question_card = VGroup(
-        question_title_row,
-        question_claim,
-        question_bullets,
-        question_divider,
-    ).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
+    text_group = text_column
 
-    focus_title_row = VGroup(
-        Dot(radius=0.040, color=MGREY),
-        Tex(r"\textbf{Study 2 test}", color=INK, font_size=18),
-    ).arrange(RIGHT, buff=0.12)
-    focus_copy = VGroup(
-        Tex(spec["focus_primary"], color=INK, font_size=22),
-        Tex(spec["focus_secondary"], color=MGREY, font_size=16),
-        Tex(spec["focus_tag"], color=spec["accent"], font_size=18),
-    ).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
-    focus_divider = Line(
-        ORIGIN,
-        RIGHT * max(3.4, focus_copy.width),
-        color=LGREY,
-        stroke_width=1.0,
-    )
-    focus_panel = VGroup(
-        focus_title_row,
-        focus_copy,
-        focus_divider,
-    ).arrange(DOWN, buff=0.12, aligned_edge=LEFT)
+    visual = _build_intro_question_visual(question_idx, spec)
+    visual.scale(1.07)
+    visual.shift(DOWN * 0.08)
 
-    content = Group(question_card, focus_panel).arrange(RIGHT, buff=1.00, aligned_edge=UP)
-    content.next_to(header, DOWN, buff=0.42, aligned_edge=LEFT)
-    content.shift(RIGHT * 0.55)
+    question_card = Group(text_group, visual).arrange(RIGHT, buff=0.92, aligned_edge=UP)
+    max_width = config.frame_width - 0.90
+    if question_card.width > max_width:
+        question_card.scale_to_fit_width(max_width)
+    question_card.move_to(DOWN * 0.44)
+    header.next_to(question_card, UP, buff=0.46, aligned_edge=LEFT)
 
     return {
         "header": header,
         "question_card": question_card,
-        "focus_panel": focus_panel,
-        "content": content,
-        "final_group": Group(header, content),
+        "content": question_card,
+        "final_group": Group(header, question_card),
     }
 
 
@@ -887,7 +1280,7 @@ def _transition_b_to_c(scene: Scene, b_state: dict[str, Mobject]) -> None:
 
 # ── Standalone scenes ─────────────────────────────────────────────────────────
 
-class IntroCognitiveProblemA(Scene):
+class IntroCognitiveProblemA(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
 
@@ -897,20 +1290,8 @@ class IntroCognitiveProblemA(Scene):
             img.move_to(ORIGIN)
             return img
 
-        target = _frame(
-            preferred_path(
-                REPO_ROOT / "assets" / "images" / "ANI-FIS-T00.jpeg",
-                REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-T00.jpeg",
-                _INTRO_STIM_DIR / "animal_fish-00.png",
-            )
-        )
-        foil = _frame(
-            preferred_path(
-                REPO_ROOT / "assets" / "images" / "ANI-FIS-D01.jpeg",
-                REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D01.jpeg",
-                _INTRO_STIM_DIR / "animal_fish-01.png",
-            )
-        )
+        target = _frame(_INTRO_HOOK_TARGET_FISH)
+        foil = _frame(_INTRO_HOOK_FOIL_FISH)
 
         fix = VGroup(
             Line(UP * 0.20, DOWN * 0.20, stroke_width=2.4, color=MGREY),
@@ -927,7 +1308,7 @@ class IntroCognitiveProblemA(Scene):
         self.wait(3.50)
 
 
-class IntroSensoryRepresentation(ThreeDScene):
+class IntroSensoryMemoryRepresentationA(_IntroNumberedScene, ThreeDScene):
     def construct(self) -> None:
         self.camera.background_color = BG
         self.set_camera_orientation(
@@ -1035,7 +1416,7 @@ class IntroSensoryRepresentation(ThreeDScene):
                 front=front,
             )
 
-        axis_label = MathTex("t", color=MGREY, font_size=28).move_to(
+        axis_label = MathTex("t", color=INK, font_size=28).move_to(
             screen_aligned_point(x4, right=0.38, up=0.10)
         )
         axis_label.set_z_index(15)
@@ -1044,27 +1425,9 @@ class IntroSensoryRepresentation(ThreeDScene):
         x_past = np.array([-2 * x_step, 0.0, 0.0])
         x_future = np.array([2 * x_step, 0.0, 0.0])
 
-        stim_left = framed_visual(
-            _img(
-                preferred_path(
-                    REPO_ROOT / "assets" / "images" / "ANI-FIS-T00.jpeg",
-                    REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-T00.jpeg",
-                    _INTRO_STIM_DIR / "animal_fish-00.png",
-                ),
-                1.20,
-            )
-        )
-        stim_mid = framed_visual(MathTex("+", color=MGREY, font_size=40))
-        stim_right = framed_visual(
-            _img(
-                preferred_path(
-                    REPO_ROOT / "assets" / "images" / "ANI-FIS-D01.jpeg",
-                    REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D01.jpeg",
-                    _INTRO_STIM_DIR / "animal_fish-01.png",
-                ),
-                1.20,
-            )
-        )
+        stim_left = framed_visual(_img(_INTRO_HOOK_TARGET_FISH, 1.20))
+        stim_mid = framed_visual(MathTex("+", color=INK, font_size=40))
+        stim_right = framed_visual(_img(_INTRO_HOOK_FOIL_FISH, 1.20))
         for stim in (stim_left, stim_mid, stim_right):
             stim.set_z_index(30)
 
@@ -1080,7 +1443,7 @@ class IntroSensoryRepresentation(ThreeDScene):
             )
             return Group(head, cells)
 
-        fixed_head = build_fixed_head(_SENSORY_PATTERN_LEFT)
+        fixed_head = build_fixed_head(_PLOT_SENSORY_PATTERN_LEFT)
         fixed_head.set_z_index(70)
         fixed_head[0].set_z_index(71)
         fixed_head[1].set_z_index(72)
@@ -1100,46 +1463,38 @@ class IntroSensoryRepresentation(ThreeDScene):
         delay_fish[1].set_z_index(85)
 
         snapshot_scale = 2.1
-        snapshot_targets = VGroup(
-            *[
-                Square(
-                    side_length=fixed_head[1].width * snapshot_scale,
-                    stroke_opacity=0.0,
-                    fill_opacity=0.0,
-                )
-                for _ in range(3)
-            ]
-        ).arrange(RIGHT, buff=0.62, aligned_edge=DOWN)
-        snapshot_targets.to_corner(DL, buff=0.52)
-        snapshot_targets.shift(UP * 0.18)
+        snapshot_matrices = VGroup(
+            _mini_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT, cell=_MATRIX_CELL * 0.72),
+            _mini_matrix(_REPRESENTATION_MEMORY_PATTERN, cell=_MATRIX_CELL * 0.72),
+            _mini_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT, cell=_MATRIX_CELL * 0.72),
+        )
+        for matrix in snapshot_matrices:
+            matrix.scale(snapshot_scale)
+            matrix.set_z_index(91)
+        snapshot_matrices.arrange(RIGHT, buff=0.62, aligned_edge=DOWN)
 
-        snapshot_label_texts = ("perception", "maintenance", "perception")
+        snapshot_label_texts = ("perception", "memory", "perception")
         snapshot_labels = VGroup()
         for label_text in snapshot_label_texts:
             label = Tex(label_text, color=BLACK, font_size=20)
             snapshot_labels.add(label)
-        for placeholder, label in zip(snapshot_targets, snapshot_labels):
-            if label.width > placeholder.width * 1.08:
-                label.scale_to_fit_width(placeholder.width * 1.08)
-        label_center_y = snapshot_targets[0].get_top()[1] + max(label.height for label in snapshot_labels) / 2 + 0.08
-        for placeholder, label in zip(snapshot_targets, snapshot_labels):
-            label.move_to(
-                np.array(
-                    [
-                        placeholder.get_center()[0],
-                        label_center_y,
-                        0.0,
-                    ]
-                )
-            )
+        for matrix, label in zip(snapshot_matrices, snapshot_labels):
+            if label.width > matrix.width * 1.08:
+                label.scale_to_fit_width(matrix.width * 1.08)
+        for matrix, label in zip(snapshot_matrices, snapshot_labels):
+            label.next_to(matrix, UP, buff=0.08)
+            label.set_x(matrix.get_center()[0])
+        label_top_y = max(label.get_top()[1] for label in snapshot_labels)
+        for label in snapshot_labels:
+            label.shift(UP * (label_top_y - label.get_top()[1]))
 
         left_set_brace = MathTex(r"\Bigg\{", color=BLACK, font_size=58)
-        left_set_brace.next_to(snapshot_targets[0], LEFT, buff=0.08)
+        left_set_brace.next_to(snapshot_matrices[0], LEFT, buff=0.08)
         left_set_brace.move_to(
             np.array(
                 [
                     left_set_brace.get_center()[0],
-                    snapshot_targets.get_center()[1] - 0.02,
+                    snapshot_matrices.get_center()[1] - 0.02,
                     0.0,
                 ]
             )
@@ -1159,31 +1514,31 @@ class IntroSensoryRepresentation(ThreeDScene):
             np.array(
                 [
                     snapshot_prefix_group.get_center()[0],
-                    snapshot_targets.get_center()[1] - 0.02,
+                    snapshot_matrices.get_center()[1] - 0.02,
                     0.0,
                 ]
             )
         )
 
         snapshot_commas = VGroup()
-        for left_target, right_target in zip(snapshot_targets[:-1], snapshot_targets[1:]):
+        for left_target, right_target in zip(snapshot_matrices[:-1], snapshot_matrices[1:]):
             comma = Tex(",", color=BLACK, font_size=28)
             comma.move_to(midpoint(left_target.get_right(), right_target.get_left()))
             comma.shift(DOWN * 0.08)
             snapshot_commas.add(comma)
         snapshot_trailing_comma = Tex(",", color=BLACK, font_size=28)
-        snapshot_trailing_comma.next_to(snapshot_targets[-1], RIGHT, buff=0.16)
+        snapshot_trailing_comma.next_to(snapshot_matrices[-1], RIGHT, buff=0.08)
         snapshot_trailing_comma.align_to(snapshot_commas[0], DOWN)
-        snapshot_ellipsis = MathTex(r"\cdots", color=BLACK, font_size=24)
-        snapshot_ellipsis.next_to(snapshot_trailing_comma, RIGHT, buff=0.12)
+        snapshot_ellipsis = MathTex(r"\cdots", color=BLACK, font_size=20)
+        snapshot_ellipsis.next_to(snapshot_trailing_comma, RIGHT, buff=0.05)
         snapshot_ellipsis.align_to(snapshot_trailing_comma, DOWN)
         snapshot_ellipsis.shift(UP * 0.03)
-        right_set_brace.next_to(snapshot_ellipsis, RIGHT, buff=0.14)
+        right_set_brace.next_to(snapshot_ellipsis, RIGHT, buff=0.05)
         right_set_brace.move_to(
             np.array(
                 [
                     right_set_brace.get_center()[0],
-                    snapshot_targets.get_center()[1] - 0.02,
+                    snapshot_matrices.get_center()[1] - 0.02,
                     0.0,
                 ]
             )
@@ -1198,13 +1553,9 @@ class IntroSensoryRepresentation(ThreeDScene):
             snapshot_ellipsis,
             right_set_brace,
         )
-        snapshot_equation = VGroup(snapshot_targets, snapshot_scaffold)
-        left_safe = -config.frame_width / 2 + 0.20
-        right_safe = config.frame_width / 2 - 0.20
-        if snapshot_equation.get_left()[0] < left_safe:
-            snapshot_equation.shift(RIGHT * (left_safe - snapshot_equation.get_left()[0]))
-        if snapshot_equation.get_right()[0] > right_safe:
-            snapshot_equation.shift(LEFT * (snapshot_equation.get_right()[0] - right_safe))
+        snapshot_equation = VGroup(snapshot_matrices, snapshot_scaffold)
+        snapshot_equation.to_corner(DL, buff=0.34)
+        snapshot_equation.shift(RIGHT * 0.14 + UP * 0.52)
 
         for mob in (
             snapshot_prefix_group,
@@ -1251,8 +1602,16 @@ class IntroSensoryRepresentation(ThreeDScene):
 
         def current_matrix(t: float) -> np.ndarray:
             if t <= 1.0:
-                return interpolate_matrix(_SENSORY_PATTERN_LEFT, _MEMORY_PATTERN, np.clip(t, 0.0, 1.0))
-            return interpolate_matrix(_MEMORY_PATTERN, _SENSORY_PATTERN_RIGHT, np.clip(t - 1.0, 0.0, 1.0))
+                return interpolate_matrix(
+                    _PLOT_SENSORY_PATTERN_LEFT,
+                    _PLOT_MEMORY_PATTERN,
+                    np.clip(t, 0.0, 1.0),
+                )
+            return interpolate_matrix(
+                _PLOT_MEMORY_PATTERN,
+                _PLOT_SENSORY_PATTERN_RIGHT,
+                np.clip(t - 1.0, 0.0, 1.0),
+            )
 
         def update_card(mob: Mobject, points: list[np.ndarray]) -> Mobject:
             place_card(mob, path_anchor(points, travel.get_value()))
@@ -1262,7 +1621,7 @@ class IntroSensoryRepresentation(ThreeDScene):
             mob.move_to(path_anchor(points, travel.get_value()))
             return mob
 
-        fixed_head_anchor = path_anchor(left_path, 0.0)
+        fixed_head_anchor = x2
 
         def place_fixed_head(mob: Mobject) -> None:
             mob.move_to(
@@ -1316,12 +1675,22 @@ class IntroSensoryRepresentation(ThreeDScene):
                 center = center_func()
                 moving_copy.shift(self.camera.project_point(center) - center)
             moving_copy.set_z_index(120)
+            morph_run_time = min(0.22, move_run_time * 0.2)
+            travel_run_time = max(0.0, move_run_time - morph_run_time)
             animations: list[Animation] = [
-                moving_copy.animate(run_time=move_run_time, rate_func=smooth).scale(snapshot_scale).move_to(
-                    target.get_center()
+                Succession(
+                    moving_copy.animate(run_time=travel_run_time, rate_func=smooth).scale(snapshot_scale).move_to(
+                        target.get_center()
+                    ),
+                    ReplacementTransform(
+                        moving_copy,
+                        target,
+                        run_time=morph_run_time,
+                        rate_func=smooth,
+                    ),
                 )
             ]
-            self.add_fixed_in_frame_mobjects(moving_copy)
+            self.add_fixed_in_frame_mobjects(moving_copy, target)
             if reveal_items:
                 animations.append(
                     Succession(
@@ -1349,6 +1718,7 @@ class IntroSensoryRepresentation(ThreeDScene):
             fixed_head,
         )
         self.add_fixed_in_frame_mobjects(
+            *snapshot_matrices,
             snapshot_prefix_group,
             left_set_brace,
             right_set_brace,
@@ -1401,7 +1771,7 @@ class IntroSensoryRepresentation(ThreeDScene):
             travel.animate.set_value(1.0),
             snapshot_animation(
                 fixed_head[1],
-                snapshot_targets[0],
+                snapshot_matrices[0],
                 move_run_time=2.0,
                 reveal_items=(snapshot_labels[0], snapshot_commas[0]),
             ),
@@ -1418,7 +1788,7 @@ class IntroSensoryRepresentation(ThreeDScene):
             travel.animate.set_value(2.0),
             snapshot_animation(
                 fixed_head[1],
-                snapshot_targets[1],
+                snapshot_matrices[1],
                 move_run_time=2.0,
                 reveal_items=(snapshot_labels[1], snapshot_commas[1]),
             ),
@@ -1429,19 +1799,686 @@ class IntroSensoryRepresentation(ThreeDScene):
         self.play(
             snapshot_animation(
                 fixed_head[1],
-                snapshot_targets[2],
+                snapshot_matrices[2],
                 reveal_items=(snapshot_labels[2], snapshot_trailing_comma, snapshot_ellipsis, right_set_brace),
             )
         )
         self.wait(1.0)
 
 
-class IntroMemoryRepresentation(Scene):
+def _build_intro_sensmem_equation(
+    *,
+    labels_below: bool,
+    anchor_corner: bool,
+    matrix_buff: float = 0.62,
+) -> dict[str, Mobject]:
+    snapshot_scale = 2.1
+    base_cell = _MATRIX_CELL * 0.72
+    matrices = VGroup(
+        _mini_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT, cell=base_cell),
+        _mini_matrix(_REPRESENTATION_MEMORY_PATTERN, cell=base_cell),
+        _mini_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT, cell=base_cell),
+    )
+    for matrix in matrices:
+        matrix.scale(snapshot_scale)
+    matrices.arrange(RIGHT, buff=matrix_buff, aligned_edge=DOWN)
+
+    label_texts = ("perception", "memory", "perception")
+    labels = VGroup(*[Tex(text, color=BLACK, font_size=20) for text in label_texts])
+    for matrix, label in zip(matrices, labels):
+        if label.width > matrix.width * 1.08:
+            label.scale_to_fit_width(matrix.width * 1.08)
+        label.next_to(matrix, DOWN if labels_below else UP, buff=0.08)
+        label.set_x(matrix.get_center()[0])
+    if labels_below:
+        label_top_y = max(label.get_top()[1] for label in labels)
+        for label in labels:
+            label.shift(UP * (label_top_y - label.get_top()[1]))
+    else:
+        label_top_y = max(label.get_top()[1] for label in labels)
+        for label in labels:
+            label.shift(UP * (label_top_y - label.get_top()[1]))
+
+    left_set_brace = MathTex(r"\Bigg\{", color=BLACK, font_size=58)
+    left_set_brace.next_to(matrices[0], LEFT, buff=0.08)
+    left_set_brace.move_to(
+        np.array(
+            [
+                left_set_brace.get_center()[0],
+                matrices.get_center()[1] - 0.02,
+                0.0,
+            ]
+        )
+    )
+    right_set_brace = MathTex(r"\Bigg\}", color=BLACK, font_size=58)
+
+    prefix = VGroup(
+        MathTex(r"\mathit{Neural}", color=BLACK, font_size=18),
+        MathTex(r"\mathit{Representations}", color=BLACK, font_size=18),
+    ).arrange(DOWN, buff=0.03)
+    equals = MathTex("=", color=BLACK, font_size=24)
+    equals.next_to(prefix, RIGHT, buff=0.08)
+    equals.align_to(prefix, ORIGIN)
+    prefix_group = VGroup(prefix, equals)
+    prefix_group.next_to(left_set_brace, LEFT, buff=0.10)
+    prefix_group.move_to(
+        np.array(
+            [
+                prefix_group.get_center()[0],
+                matrices.get_center()[1] - 0.02,
+                0.0,
+            ]
+        )
+    )
+
+    commas = VGroup()
+    for left_matrix, right_matrix in zip(matrices[:-1], matrices[1:]):
+        comma = Tex(",", color=BLACK, font_size=28)
+        comma.move_to(midpoint(left_matrix.get_right(), right_matrix.get_left()))
+        comma.shift(DOWN * 0.08)
+        commas.add(comma)
+    trailing_comma = Tex(",", color=BLACK, font_size=28)
+    trailing_comma.next_to(matrices[-1], RIGHT, buff=0.08)
+    trailing_comma.align_to(commas[0], DOWN)
+    ellipsis = MathTex(r"\cdots", color=BLACK, font_size=20)
+    ellipsis.next_to(trailing_comma, RIGHT, buff=0.05)
+    ellipsis.align_to(trailing_comma, DOWN)
+    ellipsis.shift(UP * 0.03)
+    right_set_brace.next_to(ellipsis, RIGHT, buff=0.05)
+    right_set_brace.move_to(
+        np.array(
+            [
+                right_set_brace.get_center()[0],
+                matrices.get_center()[1] - 0.02,
+                0.0,
+            ]
+        )
+    )
+
+    equation = VGroup(
+        prefix_group,
+        left_set_brace,
+        matrices,
+        labels,
+        commas,
+        trailing_comma,
+        ellipsis,
+        right_set_brace,
+    )
+    if anchor_corner:
+        equation.to_corner(DL, buff=0.34)
+        equation.shift(RIGHT * 0.14 + UP * 0.52)
+
+    return {
+        "equation": equation,
+        "prefix_group": prefix_group,
+        "left_set_brace": left_set_brace,
+        "matrices": matrices,
+        "labels": labels,
+        "commas": commas,
+        "trailing_comma": trailing_comma,
+        "ellipsis": ellipsis,
+        "right_set_brace": right_set_brace,
+    }
+
+
+def _build_intro_sensmem_b_center_state() -> dict[str, Mobject]:
+    equation_state = _build_intro_sensmem_equation(
+        labels_below=True,
+        anchor_corner=False,
+        matrix_buff=1.16,
+    )
+    target_row = Group(equation_state["matrices"], equation_state["labels"])
+    target_row.move_to(np.array([0.0, -0.02, 0.0]))
+
+    cards = Group(
+        framed_visual(_img(_INTRO_HOOK_TARGET_FISH, 1.20)),
+        framed_visual(MathTex("+", color=INK, font_size=40)),
+        framed_visual(_img(_INTRO_HOOK_FOIL_FISH, 1.20)),
+    )
+    for card, matrix in zip(cards, equation_state["matrices"]):
+        card.next_to(matrix, UP, buff=0.22)
+        card.set_x(matrix.get_center()[0])
+        card.set_z_index(110)
+        card[0].set_z_index(110)
+        card[1].set_z_index(111)
+
+    return {
+        "equation_state": equation_state,
+        "cards": cards,
+        "final_group": Group(cards, equation_state["matrices"], equation_state["labels"]),
+    }
+
+
+def _build_intro_sensmem_b_end_state() -> dict[str, Mobject]:
+    def _build_matrix(matrix: np.ndarray) -> VGroup:
+        cells = _mini_matrix(matrix, cell=_MATRIX_CELL * 0.72)
+        cells.scale(2.85)
+        cells.set_z_index(100)
+        return cells
+
+    def _row_label(title_text: str, subtitle_text: str, accent: str) -> VGroup:
+        title_row = VGroup(
+            Dot(radius=0.045, color=accent, stroke_width=0),
+            Tex(rf"\textbf{{{title_text}}}", color=accent, font_size=20),
+        ).arrange(RIGHT, buff=0.12)
+        subtitle = Tex(subtitle_text, color=INK, font_size=16)
+        if subtitle.width > 2.70:
+            subtitle.scale_to_fit_width(2.70)
+        group = VGroup(title_row, subtitle).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
+        group.set_z_index(110)
+        return group
+
+    title = Tex(r"\textbf{Two possibilities for the WM code}", color=INK, font_size=30)
+    title.to_edge(UP, buff=0.44)
+    title_rule = Line(
+        LEFT * max(2.10, title.width * 0.22),
+        RIGHT * max(2.10, title.width * 0.22),
+        color=LGREY,
+        stroke_width=1.1,
+    )
+    title_rule.next_to(title, DOWN, buff=0.14)
+    title_group = VGroup(title, title_rule)
+    title_group.set_z_index(110)
+
+    top_left = _build_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT)
+    top_right = _build_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT)
+    bottom_left = _build_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT)
+    bottom_right = _build_matrix(_REPRESENTATION_MEMORY_PATTERN)
+
+    top_row = VGroup(top_left, top_right).arrange(RIGHT, buff=1.02, aligned_edge=DOWN)
+    bottom_row = VGroup(bottom_left, bottom_right).arrange(RIGHT, buff=1.02, aligned_edge=DOWN)
+    VGroup(top_row, bottom_row).arrange(DOWN, buff=0.84, aligned_edge=LEFT).move_to(
+        np.array([1.30, -0.22, 0.0])
+    )
+
+    sensory_header = Tex(r"\textbf{Sensory code}", color=INK, font_size=22)
+    wm_header = Tex(r"\textbf{WM code}", color=INK, font_size=22)
+    sensory_header.next_to(top_left, UP, buff=0.24)
+    sensory_header.set_x(top_left.get_center()[0])
+    wm_header.next_to(top_right, UP, buff=0.24)
+    wm_header.set_x(top_right.get_center()[0])
+    column_headers = VGroup(sensory_header, wm_header)
+    column_headers.set_z_index(110)
+
+    row_labels = VGroup(
+        _row_label("sensory-like", "case", BLUE),
+        _row_label("memory-specific", "format case", AMBER),
+    )
+    for label, row in zip(row_labels, (top_row, bottom_row)):
+        label.next_to(row, LEFT, buff=0.62)
+        label.move_to(np.array([label.get_center()[0], row.get_center()[1], 0.0]))
+
+    row_panels = VGroup()
+    for accent, label, row in zip((BLUE, AMBER), row_labels, (top_row, bottom_row)):
+        row_group = VGroup(label, row)
+        panel = RoundedRectangle(
+            width=row_group.width + 0.44,
+            height=max(row.height + 0.42, row_group.height + 0.26),
+            corner_radius=0.18,
+            stroke_color=accent,
+            stroke_width=1.4,
+        ).set_fill(PANEL, opacity=0.98)
+        panel.move_to(row_group.get_center())
+        row_panels.add(panel)
+    row_panels.set_z_index(85)
+
+    matrices = VGroup(top_left, top_right, bottom_left, bottom_right)
+    final_group = Group(title_group, row_panels, column_headers, row_labels, matrices)
+    return {
+        "title_group": title_group,
+        "row_panels": row_panels,
+        "column_headers": column_headers,
+        "row_labels": row_labels,
+        "top_row": top_row,
+        "bottom_row": bottom_row,
+        "matrices": matrices,
+        "final_group": final_group,
+    }
+
+
+def _build_intro_sensmem_b_hook_state() -> dict[str, Mobject]:
+    def _build_matrix(matrix: np.ndarray) -> VGroup:
+        cells = _mini_matrix(matrix, cell=_MATRIX_CELL * 0.72)
+        cells.scale(3.35)
+        cells.set_z_index(100)
+        return cells
+
+    def _row_label(title_text: str, subtitle_text: str, accent: str) -> VGroup:
+        title_row = VGroup(
+            Dot(radius=0.045, color=accent, stroke_width=0),
+            Tex(rf"\textbf{{{title_text}}}", color=accent, font_size=20),
+        ).arrange(RIGHT, buff=0.12)
+        subtitle = Tex(subtitle_text, color=INK, font_size=16)
+        if subtitle.width > 2.70:
+            subtitle.scale_to_fit_width(2.70)
+        group = VGroup(title_row, subtitle).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
+        group.set_z_index(110)
+        return group
+
+    title = Tex(r"\textbf{Two possibilities for the WM code}", color=INK, font_size=30)
+    title.to_edge(UP, buff=0.44)
+    title_rule = Line(
+        LEFT * max(2.10, title.width * 0.22),
+        RIGHT * max(2.10, title.width * 0.22),
+        color=LGREY,
+        stroke_width=1.1,
+    )
+    title_rule.next_to(title, DOWN, buff=0.14)
+    title_group = VGroup(title, title_rule)
+    title_group.set_z_index(110)
+
+    top_left = _build_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT)
+    top_right = _build_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT)
+    bottom_left = _build_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT)
+    bottom_right = _build_matrix(_REPRESENTATION_MEMORY_PATTERN)
+
+    top_row = VGroup(top_left, top_right).arrange(RIGHT, buff=1.02, aligned_edge=DOWN)
+    bottom_row = VGroup(bottom_left, bottom_right).arrange(RIGHT, buff=1.02, aligned_edge=DOWN)
+    VGroup(top_row, bottom_row).arrange(DOWN, buff=0.76, aligned_edge=LEFT).move_to(
+        np.array([1.28, -0.12, 0.0])
+    )
+
+    sensory_header = Tex(r"\textbf{Sensory code}", color=INK, font_size=24)
+    wm_header = Tex(r"\textbf{WM code}", color=INK, font_size=24)
+    sensory_header.next_to(top_left, UP, buff=0.24)
+    sensory_header.set_x(top_left.get_center()[0])
+    wm_header.next_to(top_right, UP, buff=0.24)
+    wm_header.set_x(top_right.get_center()[0])
+    column_headers = VGroup(sensory_header, wm_header)
+    column_headers.set_z_index(110)
+
+    row_labels = VGroup(
+        _row_label("sensory-like", "case", BLUE),
+        _row_label("memory-specific", "format case", AMBER),
+    )
+    for label, row in zip(row_labels, (top_row, bottom_row)):
+        label.next_to(row, LEFT, buff=0.62)
+        label.move_to(np.array([label.get_center()[0], row.get_center()[1], 0.0]))
+
+    row_panels = VGroup()
+    for accent, label, row in zip((BLUE, AMBER), row_labels, (top_row, bottom_row)):
+        row_group = VGroup(label, row)
+        panel = RoundedRectangle(
+            width=row_group.width + 0.44,
+            height=max(row.height + 0.42, row_group.height + 0.26),
+            corner_radius=0.18,
+            stroke_color=accent,
+            stroke_width=1.4,
+        ).set_fill(PANEL, opacity=0.98)
+        panel.move_to(row_group.get_center())
+        row_panels.add(panel)
+    row_panels.set_z_index(85)
+
+    matrices = VGroup(top_left, top_right, bottom_left, bottom_right)
+    final_group = Group(title_group, row_panels, column_headers, row_labels, matrices)
+    return {
+        "title_group": title_group,
+        "row_panels": row_panels,
+        "column_headers": column_headers,
+        "row_labels": row_labels,
+        "top_row": top_row,
+        "bottom_row": bottom_row,
+        "matrices": matrices,
+        "final_group": final_group,
+    }
+
+
+def _build_intro_sensmem_a_plot_state(scene: ThreeDScene) -> dict[str, Mobject]:
+    x_step = 3.35
+    x0 = np.array([-8.6, 0.0, 0.0])
+    x1 = np.array([-x_step, 0.0, 0.0])
+    x2 = np.array([0.0, 0.0, 0.0])
+    x3 = np.array([x_step, 0.0, 0.0])
+    x4 = np.array([4.0, 0.0, 0.0])
+    x_past = np.array([-2 * x_step, 0.0, 0.0])
+
+    step = 0.5
+    grid_x_min, grid_x_max = -8.0, 5.0
+    grid_y_min, grid_y_max = -7.0, 5.0
+    grid = VGroup(
+        *[
+            line
+            for k in np.arange(grid_y_min, grid_y_max + step * 0.5, step)
+            for line in (
+                Line(
+                    np.array([grid_x_min, k, 0.0]),
+                    np.array([grid_x_max, k, 0.0]),
+                    color=LGREY,
+                    stroke_width=0.9,
+                ),
+                Line(
+                    np.array([k, grid_y_min, 0.0]),
+                    np.array([k, grid_y_max, 0.0]),
+                    color=LGREY,
+                    stroke_width=0.9,
+                ),
+            )
+        ]
+    )
+    grid.set_z_index(-20)
+
+    axis_x = Arrow(
+        x0,
+        x4,
+        color=MGREY,
+        stroke_width=2.4,
+        tip_length=0.24,
+        buff=0.0,
+        max_stroke_width_to_length_ratio=100,
+    )
+    axis_x.set_z_index(-10)
+    ticks = VGroup(
+        *[
+            Line(
+                point + np.array([0.0, -0.13, 0.0]),
+                point + np.array([0.0, 0.13, 0.0]),
+                color=LGREY,
+                stroke_width=2.0,
+            )
+            for point in (x1, x2, x3)
+        ]
+    )
+    ticks.set_z_index(-5)
+
+    rotation = scene.camera.generate_rotation_matrix()
+    screen_right = rotation.T @ np.array([1.0, 0.0, 0.0])
+    screen_up = rotation.T @ np.array([0.0, 1.0, 0.0])
+    screen_out = rotation.T @ np.array([0.0, 0.0, 1.0])
+    screen_right /= np.linalg.norm(screen_right)
+    screen_up /= np.linalg.norm(screen_up)
+    screen_out /= np.linalg.norm(screen_out)
+
+    def screen_aligned_point(
+        anchor: np.ndarray,
+        *,
+        right: float = 0.0,
+        up: float = 0.0,
+        front: float = 0.0,
+    ) -> np.ndarray:
+        return anchor + right * screen_right + up * screen_up + front * screen_out
+
+    def bottom_aligned_point(
+        anchor: np.ndarray,
+        mob: Mobject,
+        *,
+        right: float = 0.0,
+        front: float = 0.0,
+        gap: float = 0.0,
+    ) -> np.ndarray:
+        return screen_aligned_point(
+            anchor,
+            right=right,
+            up=mob.height / 2 + gap,
+            front=front,
+        )
+
+    axis_label = MathTex("t", color=INK, font_size=28).move_to(
+        screen_aligned_point(x4, right=0.38, up=0.10)
+    )
+    axis_label.set_z_index(15)
+
+    stim_left = framed_visual(_img(_INTRO_HOOK_TARGET_FISH, 1.20))
+    stim_mid = framed_visual(MathTex("+", color=INK, font_size=40))
+    stim_right = framed_visual(_img(_INTRO_HOOK_FOIL_FISH, 1.20))
+    for stim in (stim_left, stim_mid, stim_right):
+        stim.set_z_index(30)
+
+    def build_fixed_head(matrix: np.ndarray) -> Group:
+        head = ImageMobject(str(_HEAD_BRAIN_PATH))
+        head.scale_to_fit_height(2.55 * 0.72)
+        head.set_opacity(1.0)
+        cells = _mini_matrix(matrix, cell=_MATRIX_CELL * 0.72)
+        cells.move_to(
+            head.get_center()
+            + LEFT * (0.085 * head.width)
+            + UP * (0.24 * head.height)
+        )
+        return Group(head, cells)
+
+    fixed_head = build_fixed_head(_PLOT_SENSORY_PATTERN_RIGHT)
+    fixed_head.set_z_index(70)
+    fixed_head[0].set_z_index(71)
+    fixed_head[1].set_z_index(72)
+    fixed_head[1].set_opacity(1.0)
+
+    dot_gap = 0.72
+    front_offset = 0.62
+
+    def place_card(mob: Mobject, anchor: np.ndarray) -> None:
+        mob.move_to(
+            bottom_aligned_point(
+                anchor,
+                mob,
+                right=(dot_gap + mob.width / 2),
+                front=front_offset,
+            )
+        )
+
+    def place_fixed_head(mob: Mobject) -> None:
+        mob.move_to(
+            bottom_aligned_point(
+                x2,
+                mob,
+                right=-(dot_gap + mob.width / 2),
+                front=front_offset,
+            )
+        )
+
+    place_card(stim_left, x_past)
+    place_card(stim_mid, x1)
+    place_card(stim_right, x2)
+    place_fixed_head(fixed_head)
+
+    node_left = Dot(radius=0.08, color=MGREY, fill_opacity=1.0, stroke_width=0.0).move_to(x_past)
+    node_mid = Dot(radius=0.08, color=MGREY, fill_opacity=1.0, stroke_width=0.0).move_to(x1)
+    node_right = Dot(radius=0.08, color=MGREY, fill_opacity=1.0, stroke_width=0.0).move_to(x2)
+    nodes = VGroup(node_left, node_mid, node_right)
+    nodes.set_z_index(40)
+
+    return {
+        "grid": grid,
+        "axis_x": axis_x,
+        "ticks": ticks,
+        "axis_label": axis_label,
+        "stim_left": stim_left,
+        "stim_mid": stim_mid,
+        "stim_right": stim_right,
+        "fixed_head": fixed_head,
+        "nodes": nodes,
+    }
+
+
+def _project_fixed_orientation_copy(scene: ThreeDScene, source: Mobject) -> Mobject:
+    projected = source.copy()
+    center_func = None
+    for submob in source.get_family():
+        if submob in scene.renderer.camera.fixed_orientation_mobjects:
+            center_func = scene.renderer.camera.fixed_orientation_mobjects[submob]
+            break
+    if center_func is None:
+        projected.move_to(scene.camera.project_point(source.get_center()))
+    else:
+        center = center_func()
+        projected.shift(scene.camera.project_point(center) - center)
+    return projected
+
+
+class IntroSensoryMemoryRepresentationB(_IntroNumberedScene, ThreeDScene):
     def construct(self) -> None:
         self.camera.background_color = BG
-        b_state = _build_intro_b_layout()
-        self.add(*b_state["final_group"])
-        _transition_b_to_c(self, b_state)
+        self.set_camera_orientation(
+            phi=62 * DEGREES,
+            theta=-42 * DEGREES,
+            frame_center=np.array([-0.3, 0.3, 0.0]),
+            zoom=1.0,
+        )
+
+        plot_state = _build_intro_sensmem_a_plot_state(self)
+        equation_state = _build_intro_sensmem_equation(labels_below=False, anchor_corner=True)
+        equation_group = equation_state["equation"]
+        equation_group.set_z_index(90)
+
+        self.add(plot_state["grid"], plot_state["axis_x"], plot_state["ticks"], plot_state["nodes"])
+        self.add_fixed_orientation_mobjects(
+            plot_state["axis_label"],
+            plot_state["fixed_head"],
+            plot_state["stim_left"],
+            plot_state["stim_mid"],
+            plot_state["stim_right"],
+        )
+        self.add(
+            plot_state["stim_left"],
+            plot_state["stim_mid"],
+            plot_state["stim_right"],
+            plot_state["fixed_head"],
+            plot_state["axis_label"],
+        )
+        self.add_fixed_in_frame_mobjects(*equation_group)
+        self.add(equation_group)
+
+        center_state = _build_intro_sensmem_b_center_state()
+        target_state = center_state["equation_state"]
+        target_cards = center_state["cards"]
+        target_card_centers = [card.get_center().copy() for card in target_cards]
+        source_cards = (plot_state["stim_left"], plot_state["stim_mid"], plot_state["stim_right"])
+        for source_card, target_card in zip(source_cards, target_cards):
+            projected = _project_fixed_orientation_copy(self, source_card)
+            target_card.move_to(projected.get_center())
+            target_card[0].set_fill(opacity=0.0)
+            target_card[0].set_stroke(opacity=0.0)
+            target_card[1].set_opacity(0.0)
+        self.add_fixed_in_frame_mobjects(*target_cards)
+        self.add(*target_cards)
+
+        def transport_card(
+            source: Group,
+            card: Group,
+            target_center: np.ndarray,
+            *,
+            run_time: float,
+        ) -> list[Animation]:
+            start_center = card.get_center().copy()
+
+            def update_card(mob: Group, alpha: float) -> None:
+                reveal_alpha = np.clip(alpha / 0.06, 0.0, 1.0)
+                move_alpha = smooth(np.clip((alpha - 0.06) / 0.94, 0.0, 1.0))
+                center = interpolate(start_center, target_center, move_alpha)
+                mob[0].move_to(center)
+                mob[1].move_to(center)
+                mob[0].set_fill(opacity=reveal_alpha)
+                mob[0].set_stroke(opacity=reveal_alpha)
+                mob[1].set_opacity(reveal_alpha)
+
+            return [
+                FadeOut(
+                    source,
+                    run_time=0.06,
+                ),
+                UpdateFromAlphaFunc(card, update_card, run_time=run_time),
+            ]
+
+        dissolve_group = Group(
+            plot_state["grid"],
+            plot_state["axis_x"],
+            plot_state["ticks"],
+            plot_state["nodes"],
+            plot_state["fixed_head"],
+            plot_state["axis_label"],
+        )
+
+        self.wait(0.10)
+        self.play(
+            FadeOut(dissolve_group, run_time=1.7),
+            FadeOut(equation_state["prefix_group"], run_time=1.1),
+            FadeOut(equation_state["left_set_brace"], run_time=1.1),
+            FadeOut(equation_state["commas"], run_time=1.1),
+            FadeOut(equation_state["trailing_comma"], run_time=1.1),
+            FadeOut(equation_state["ellipsis"], run_time=1.1),
+            FadeOut(equation_state["right_set_brace"], run_time=1.1),
+            *[
+                animation
+                for source, card, target_center in zip(
+                    source_cards,
+                    target_cards,
+                    target_card_centers,
+                )
+                for animation in transport_card(
+                    source,
+                    card,
+                    target_center,
+                    run_time=1.7,
+                )
+            ],
+            *[
+                matrix.animate(run_time=1.7).move_to(target_matrix.get_center())
+                for matrix, target_matrix in zip(
+                    equation_state["matrices"],
+                    target_state["matrices"],
+                )
+            ],
+            *[
+                label.animate(run_time=1.7).move_to(target_label.get_center())
+                for label, target_label in zip(
+                    equation_state["labels"],
+                    target_state["labels"],
+                )
+            ],
+            rate_func=smooth,
+        )
+
+        def similar_cell_ids(threshold: float = 0.18) -> list[int]:
+            left_vals = _REPRESENTATION_SENSORY_PATTERN_LEFT.flatten()
+            memory_vals = _REPRESENTATION_MEMORY_PATTERN.flatten()
+            right_vals = _REPRESENTATION_SENSORY_PATTERN_RIGHT.flatten()
+            return [
+                index
+                for index, (left_value, memory_value, right_value) in enumerate(
+                    zip(left_vals, memory_vals, right_vals)
+                )
+                if max(
+                    abs(left_value - memory_value),
+                    abs(memory_value - right_value),
+                    abs(left_value - right_value),
+                )
+                < threshold
+            ]
+
+        contour_cells = VGroup(
+            *[
+                equation_state["matrices"][matrix_index][cell_index]
+                for matrix_index in range(3)
+                for cell_index in similar_cell_ids()
+            ]
+        )
+        contour_group = VGroup(
+            *[
+                SurroundingRectangle(
+                    cell,
+                    color=BLACK,
+                    buff=0.02,
+                    stroke_width=1.8,
+                )
+                for cell in contour_cells
+            ]
+        )
+        contour_group.set_z_index(120)
+        self.add_fixed_in_frame_mobjects(*contour_group)
+        self.play(
+            LaggedStart(
+                *[Create(contour) for contour in contour_group],
+                lag_ratio=0.04,
+            ),
+            run_time=3.0,
+        )
+        self.wait(2.0)
+        self.play(FadeOut(contour_group, run_time=0.25))
+        self._intro_sensmem_b_transition_group = Group(
+            target_cards.copy(),
+            equation_state["matrices"].copy(),
+            equation_state["labels"].copy(),
+        )
+        self.wait(0.75)
 
 
 class IntroSensoryMemoryRepresentations(Scene):
@@ -1459,11 +2496,11 @@ class IntroSensoryMemoryRepresentations(Scene):
         )
         self.play(
             LaggedStart(
-                FadeIn(state["left_image"], shift=UP * 0.04),
+                FadeIn(state["left_image"]),
                 Create(state["left_cut_line"]),
                 FadeIn(state["dead_zone"]),
                 Create(state["right_cut_line"]),
-                FadeIn(state["right_image"], shift=UP * 0.04),
+                FadeIn(state["right_image"]),
                 lag_ratio=0.10,
             ),
             run_time=0.95,
@@ -1481,62 +2518,143 @@ class IntroSensoryMemoryRepresentations(Scene):
         _transition_b_to_c(self, state)
 
 
-class IntroClassicalView(Scene):
+class IntroClassicalView(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_d_layout()
-        self.play(FadeIn(state["title"], shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(state["content"], shift=UP * 0.05), run_time=0.95)
+        prior_group = getattr(self, "_intro_sensmem_b_transition_group", None)
+        if prior_group is None:
+            prior_group = _build_intro_sensmem_b_center_state()["final_group"]
+        self.add(prior_group)
+        self.wait(0.12)
+        self.play(
+            FadeOut(prior_group, shift=UP * 0.12),
+            FadeIn(state["title"], shift=UP * 0.04),
+            run_time=0.75,
+        )
+        self.play(Create(state["timeline_line"]), run_time=0.55)
+        for dot, column in zip(state["dots"], state["columns"]):
+            self.play(
+                FadeIn(dot, scale=0.92),
+                FadeIn(column, shift=UP * 0.04),
+                run_time=0.72,
+            )
         self.play(FadeIn(state["takeaway"], shift=UP * 0.04), run_time=0.55)
+        self._intro_classical_state = state
         self.wait(4.00)
 
 
-class IntroSensoryRecruitment(Scene):
+class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_e_layout()
-        self.play(FadeIn(state["title"], shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(state["content"], shift=UP * 0.05), run_time=0.95)
-        self.play(FadeIn(state["takeaway"], shift=UP * 0.04), run_time=0.55)
+        previous_state = getattr(self, "_intro_classical_state", None)
+        if previous_state is not None:
+            classical_fade_group = Group(
+                previous_state["title"],
+                previous_state["dots"],
+                previous_state["columns"],
+                previous_state["takeaway"],
+            )
+            self.play(
+                FadeIn(state["title"], shift=UP * 0.04),
+                FadeIn(state["hero_figure"], shift=UP * 0.03),
+                FadeOut(classical_fade_group, run_time=0.45),
+            )
+            self.play(
+                Transform(previous_state["timeline_line"], state["timeline_line"]),
+                run_time=0.85,
+            )
+            self.play(
+                FadeIn(state["dots"], scale=0.92),
+                FadeIn(state["entries"], shift=RIGHT * 0.10),
+                FadeIn(state["figure_column"], shift=RIGHT * 0.10),
+                run_time=0.85,
+            )
+        else:
+            self.play(
+                FadeIn(state["title"], shift=UP * 0.04),
+                FadeIn(state["hero_figure"], shift=UP * 0.03),
+                run_time=0.75,
+            )
+            self.play(
+                Create(state["timeline_line"]),
+                FadeIn(state["dots"], scale=0.92),
+                FadeIn(state["entries"], shift=RIGHT * 0.05),
+                FadeIn(state["figure_column"], shift=RIGHT * 0.05),
+                run_time=0.95,
+            )
         self.wait(4.50)
 
 
-class IntroResearchQuestion1(Scene):
+class IntroResearchQuestion1(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(0)
+        comparison_state = _build_intro_sensmem_b_hook_state()
         self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["focus_panel"], shift=UP * 0.05), run_time=0.75)
-        self.wait(4.00)
+        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.90)
+        self.wait(0.90)
+        self.play(
+            FadeOut(state["header"], shift=UP * 0.04, run_time=0.45),
+            FadeOut(state["question_card"], shift=UP * 0.04, run_time=0.55),
+            FadeIn(comparison_state["title_group"], shift=UP * 0.03, run_time=0.60),
+            FadeIn(comparison_state["column_headers"], shift=UP * 0.03, run_time=0.60),
+            FadeIn(comparison_state["row_panels"][0], scale=0.98, run_time=0.60),
+            FadeIn(comparison_state["row_labels"][0], shift=RIGHT * 0.04, run_time=0.60),
+            LaggedStart(
+                FadeIn(comparison_state["top_row"][0], shift=UP * 0.04),
+                FadeIn(comparison_state["top_row"][1], shift=UP * 0.04),
+                lag_ratio=0.12,
+                run_time=0.72,
+            ),
+        )
+        self.wait(0.65)
+        self.play(
+            FadeIn(comparison_state["row_panels"][1], scale=0.98, run_time=0.55),
+            FadeIn(comparison_state["row_labels"][1], shift=RIGHT * 0.04, run_time=0.55),
+            LaggedStart(
+                FadeIn(comparison_state["bottom_row"][0], shift=UP * 0.04),
+                FadeIn(comparison_state["bottom_row"][1], shift=UP * 0.04),
+                lag_ratio=0.12,
+                run_time=0.68,
+            ),
+        )
+        self.wait(3.15)
 
 
-class IntroResearchQuestion2(Scene):
+class IntroResearchQuestion2(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(1)
         self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["focus_panel"], shift=UP * 0.05), run_time=0.75)
-        self.wait(4.00)
+        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.90)
+        self.wait(4.25)
 
 
-class IntroResearchQuestion3(Scene):
+class IntroResearchQuestion3(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(2)
         self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["focus_panel"], shift=UP * 0.05), run_time=0.75)
-        self.wait(4.00)
+        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.90)
+        self.wait(4.25)
 
 
 # Backward-compatible names retained for ad hoc renders.
-class IntroCognitiveProblemB(IntroSensoryRepresentation):
+class IntroSensoryRepresentation(IntroSensoryMemoryRepresentationA):
     pass
 
 
-class IntroCognitiveProblemC(IntroMemoryRepresentation):
+class IntroMemoryRepresentation(IntroSensoryMemoryRepresentationB):
+    pass
+
+
+class IntroCognitiveProblemB(IntroSensoryMemoryRepresentationA):
+    pass
+
+
+class IntroCognitiveProblemC(IntroSensoryMemoryRepresentationB):
     pass
 
 
@@ -1548,7 +2666,8 @@ class IntroResearchQuestions(IntroResearchQuestion1):
 
 _INTRO_SECTION_SCENES: tuple[tuple[str, type[Scene]], ...] = (
     ("intro_cognitive_problem", IntroCognitiveProblemA),
-    ("sens-mem-representations", IntroSensoryRepresentation),
+    ("sens-mem-representations_a", IntroSensoryMemoryRepresentationA),
+    ("sens-mem-representations_b", IntroSensoryMemoryRepresentationB),
     ("intro_classical_view", IntroClassicalView),
     ("intro_sensory_recruitment", IntroSensoryRecruitment),
     ("intro_research_question_1", IntroResearchQuestion1),
@@ -1558,7 +2677,34 @@ _INTRO_SECTION_SCENES: tuple[tuple[str, type[Scene]], ...] = (
 
 
 class Introduction(ThreeDScene):
+    def _reset_section_scene_state(self, *, preserve_mobjects: bool = False) -> None:
+        self.animations = None
+        self.stop_condition = None
+        self.moving_mobjects = []
+        self.static_mobjects = []
+        self.time_progression = None
+        self.duration = 0.0
+        self.last_t = 0.0
+        self.queue = Queue()
+        self.skip_animation_preview = False
+        self.meshes = []
+        self.camera_target = ORIGIN
+        self.widgets = []
+        self.updaters = []
+        self.key_to_function_map = {}
+        self.mouse_press_callbacks = []
+        self.interactive_mode = False
+        if not preserve_mobjects:
+            self.mobjects = []
+            self.foreground_mobjects = []
+
+        random.seed(self.random_seed)
+        np.random.seed(self.random_seed)
+
+        self.renderer.static_image = None
+
     def _reset_section_camera(self) -> None:
+        self.renderer.camera = self.camera_class()
         self.set_camera_orientation(
             phi=0 * DEGREES,
             theta=-90 * DEGREES,
@@ -1566,11 +2712,6 @@ class Introduction(ThreeDScene):
             zoom=1.0,
             frame_center=ORIGIN,
         )
-        camera = self.renderer.camera
-        if hasattr(camera, "fixed_orientation_mobjects"):
-            camera.fixed_orientation_mobjects.clear()
-        if hasattr(camera, "fixed_in_frame_mobjects"):
-            camera.fixed_in_frame_mobjects.clear()
 
     def _render_section(
         self,
@@ -1579,12 +2720,16 @@ class Introduction(ThreeDScene):
         *,
         carry_previous_frame: bool,
     ) -> None:
-        self.next_section(section_name)
-        if carry_previous_frame:
+        if carry_previous_frame and not config.save_sections:
             self.wait(_SECTION_HOLD)
-        self.clear()
+        preserve_mobjects = scene_cls is IntroSensoryRecruitment
+        if not preserve_mobjects:
+            self.clear()
+        self._reset_section_scene_state(preserve_mobjects=preserve_mobjects)
+        if scene_cls is not IntroSensoryRecruitment:
+            self._reset_section_camera()
         self.camera.background_color = BG
-        self._reset_section_camera()
+        self.next_section(section_name)
         scene_cls.construct(self)
 
     def construct(self) -> None:
@@ -1593,20 +2738,25 @@ class Introduction(ThreeDScene):
 
 
 _HIDDEN_INTRO_SCENES = (
-    IntroCognitiveProblemA,
     IntroSensoryRepresentation,
     IntroMemoryRepresentation,
     IntroCognitiveProblemB,
     IntroCognitiveProblemC,
-    IntroClassicalView,
-    IntroSensoryRecruitment,
-    IntroResearchQuestion1,
-    IntroResearchQuestion2,
-    IntroResearchQuestion3,
     IntroResearchQuestions,
 )
 for _scene_cls in _HIDDEN_INTRO_SCENES:
     _scene_cls.__module__ = "_intro_internal"
 del _scene_cls
 Introduction.__module__ = __name__
-__all__ = ["Introduction"]
+__all__ = [
+    "IntroCognitiveProblemA",
+    "IntroSensoryMemoryRepresentationA",
+    "IntroSensoryMemoryRepresentationB",
+    "IntroSensoryMemoryRepresentations",
+    "IntroClassicalView",
+    "IntroSensoryRecruitment",
+    "IntroResearchQuestion1",
+    "IntroResearchQuestion2",
+    "IntroResearchQuestion3",
+    "Introduction",
+]
