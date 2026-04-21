@@ -846,13 +846,13 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
             r"Christophel et al. (2012)",
         ),
     )
-    entries = Group(what_it_does, evidence_source).arrange(DOWN, buff=1, aligned_edge=LEFT)
+    entries = Group(what_it_does, evidence_source).arrange(DOWN, buff=1.28, aligned_edge=LEFT)
     dot_anchor_ys = [
         Group(entry[0], entry[1]).get_center()[1] + 0.16
         for entry in entries
     ]
     timeline_x = entries.get_left()[0] - 0.88
-    line_margin = 0.72
+    line_margin = 0.82
     top_y = max(dot_anchor_ys) + line_margin
     bottom_y = min(dot_anchor_ys) - line_margin
     timeline_line = Line(
@@ -880,28 +880,35 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     paradigm_figure = _study_figure(
         _HARRISON_TONG_2009_PARADIGM_FIG,
         None,
-        height=2,
+        height=2.18,
     )
     harrison_figure = _study_figure(
         _HARRISON_TONG_2009_FIG,
-        r"Harrison \& Tong (2009)",
-        height=2,
+        None,
+        height=2.22,
     )
     christophel_figure = _study_figure(
         _CHRISTOPHEL_2012_FIG,
         r"Christophel et al. (2012)",
-        height=1.8,
+        height=1.98,
     )
-    top_row = Group(harrison_figure, paradigm_figure).arrange(RIGHT, buff=0.28, aligned_edge=UP)
+    top_row = Group(harrison_figure, paradigm_figure).arrange(RIGHT, buff=0.22, aligned_edge=UP)
+    harrison_ref = Tex(r"Harrison \& Tong (2009)", color=MGREY, font_size=14)
+    harrison_ref.next_to(top_row, DOWN, buff=0.12)
+    harrison_ref.set_x(top_row.get_center()[0])
     separator = Line(ORIGIN, RIGHT * (top_row.width * 0.88), color=LGREY, stroke_width=1.0)
     separator.set_opacity(0.42)
-    separator.next_to(top_row, DOWN, buff=0.12)
+    separator.next_to(harrison_ref, DOWN, buff=0.12)
     separator.set_x(top_row.get_center()[0])
     christophel_figure.next_to(separator, DOWN, buff=0.16)
     christophel_figure.set_x(top_row.get_center()[0])
-    figure_column = Group(top_row, separator, christophel_figure)
+    upper_row_shift = DOWN * (top_row.height * 0.10)
+    top_row.shift(upper_row_shift)
+    harrison_ref.shift(upper_row_shift)
+    separator.shift(upper_row_shift)
+    figure_column = Group(top_row, harrison_ref, separator, christophel_figure)
     figure_column.next_to(entries, RIGHT, buff=1.02, aligned_edge=UP)
-    figure_column.shift(UP * 0.22)
+    figure_column.set_y(entries.get_center()[1])
     left_column_shift = LEFT * 0.34
     timeline_line.shift(left_column_shift)
     dots.shift(left_column_shift)
@@ -2548,42 +2555,40 @@ class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_e_layout()
+        first_dot, second_dot = state["dots"]
+        first_entry, second_entry = state["entries"]
         previous_state = getattr(self, "_intro_classical_state", None)
-        if previous_state is not None:
-            classical_fade_group = Group(
-                previous_state["title"],
-                previous_state["dots"],
-                previous_state["columns"],
-                previous_state["takeaway"],
-            )
-            self.play(
-                FadeIn(state["title"], shift=UP * 0.04),
-                FadeIn(state["hero_figure"], shift=UP * 0.03),
-                FadeOut(classical_fade_group, run_time=0.45),
-            )
-            self.play(
-                Transform(previous_state["timeline_line"], state["timeline_line"]),
-                run_time=0.85,
-            )
-            self.play(
-                FadeIn(state["dots"], scale=0.92),
-                FadeIn(state["entries"], shift=RIGHT * 0.10),
-                FadeIn(state["figure_column"], shift=RIGHT * 0.10),
-                run_time=0.85,
-            )
-        else:
-            self.play(
-                FadeIn(state["title"], shift=UP * 0.04),
-                FadeIn(state["hero_figure"], shift=UP * 0.03),
-                run_time=0.75,
-            )
-            self.play(
-                Create(state["timeline_line"]),
-                FadeIn(state["dots"], scale=0.92),
-                FadeIn(state["entries"], shift=RIGHT * 0.05),
-                FadeIn(state["figure_column"], shift=RIGHT * 0.05),
-                run_time=0.95,
-            )
+        if previous_state is None:
+            previous_state = _build_intro_d_layout()
+            self.add(previous_state["final_group"])
+            self.wait(0.12)
+        classical_fade_group = Group(
+            previous_state["title"],
+            previous_state["dots"],
+            previous_state["columns"],
+            previous_state["takeaway"],
+        )
+        self.play(
+            FadeIn(state["title"], shift=UP * 0.04),
+            FadeOut(classical_fade_group, run_time=0.45),
+        )
+        self.play(
+            Transform(previous_state["timeline_line"], state["timeline_line"]),
+            run_time=0.85,
+        )
+        self.play(
+            FadeIn(state["hero_figure"], shift=UP * 0.03),
+            FadeIn(first_dot, scale=0.92),
+            FadeIn(first_entry, shift=RIGHT * 0.08),
+            run_time=0.75,
+        )
+        self.wait(4.00)
+        self.play(
+            FadeIn(second_dot, scale=0.92),
+            FadeIn(second_entry, shift=RIGHT * 0.08),
+            FadeIn(state["figure_column"], shift=RIGHT * 0.10),
+            run_time=0.90,
+        )
         self.wait(4.50)
 
 
