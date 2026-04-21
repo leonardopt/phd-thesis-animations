@@ -57,11 +57,12 @@ _INTRO_STIM_DIR = env_path(
     "STIMULI_REORDERED_DIR",
     REPO_ROOT / "assets" / "images" / "stimuli_reordered",
 )
+_INTRO_FIG_DIR = REPO_ROOT / "assets" / "images" / "intro"
 _BRAIN_ICON_PATH = REPO_ROOT / "assets" / "images" / "study2" / "brain_icon_sagittal.png"
 _HEAD_BRAIN_PATH = REPO_ROOT / "assets" / "images" / "head_brain.png"
 _REFERENCE_DIR = REPO_ROOT / "assets" / "images" / "references" / "working_memory"
-_FUNAHASHI_1989_FIG = str(_REFERENCE_DIR / "funahashi1989_delay_activity.png")
-_JONIDES_1993_FIG = str(_REFERENCE_DIR / "jonides1993_pet.png")
+_FUNAHASHI_1989_FIG = str(_INTRO_FIG_DIR / "funahashi1989a.png")
+_JONIDES_1993_FIG = str(_INTRO_FIG_DIR / "jonides1993.png")
 _AWH_JONIDES_2001_FIG = str(_REFERENCE_DIR / "awhjonides2001_spatial_wm.png")
 _HARRISON_TONG_2009_FIG = str(_REFERENCE_DIR / "harrisontong2009_decoding.png")
 
@@ -198,9 +199,18 @@ def make_paper_snapshot(
 ) -> Group:
     image = ImageMobject(image_path)
     image.height = height
+    image_card = RoundedRectangle(
+        width=image.width + 0.26,
+        height=image.height + 0.26,
+        corner_radius=0.08,
+        stroke_color=LGREY,
+        stroke_width=1.2,
+    ).set_fill(PANEL, opacity=1.0)
+    image.move_to(image_card.get_center())
+    image_frame = Group(image_card, image)
     label = Tex(label_text, color=accent, font_size=18)
     refs = Tex(ref_text, color=MGREY, font_size=14)
-    return Group(image, label, refs).arrange(DOWN, buff=0.08)
+    return Group(image_frame, label, refs).arrange(DOWN, buff=0.10)
 
 
 def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.0) -> dict[str, Mobject]:
@@ -333,9 +343,9 @@ def _build_intro_b_layout() -> dict[str, Mobject]:
     )
     right_image = _img(
         preferred_path(
-            REPO_ROOT / "assets" / "images" / "ANI-FIS-D03.jpeg",
-            REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D03.jpeg",
-            _INTRO_STIM_DIR / "animal_fish-03.png",
+            REPO_ROOT / "assets" / "images" / "ANI-FIS-D01.jpeg",
+            REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D01.jpeg",
+            _INTRO_STIM_DIR / "animal_fish-01.png",
         ),
         image_h,
     )
@@ -539,56 +549,94 @@ def _build_intro_c_layout() -> dict[str, Mobject]:
 
 def _build_intro_d_layout() -> dict[str, Mobject]:
     title = title_block(
-        r"\textbf{Classical view of working memory}",
-        "Lesions, persistent firing, and early human imaging converged on association cortex",
+        r"\textbf{Classical view on the neural substrates of working memory}",
     )
-    paper_column = Group(
-        make_paper_snapshot(
-            _FUNAHASHI_1989_FIG,
-            "delay-period firing",
-            "Funahashi et al. (1989)",
-            accent=AMBER,
-            height=1.74,
-        ),
-        make_paper_snapshot(
-            _JONIDES_1993_FIG,
-            "PET evidence",
-            "Jonides et al. (1993)",
-            accent=AMBER,
-            height=1.55,
-        ),
-    ).arrange(DOWN, buff=0.24)
-    paper_header = Tex("Seminal evidence", color=MGREY, font_size=20)
-    paper_stack = Group(paper_header, paper_column).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
+    max_col_width = 2.95
 
-    evidence = VGroup(
-        make_literature_entry(
-            "Lesion evidence",
-            ("PFC damage impaired delayed-response behaviour",),
-            ("Jacobsen (1936); Harlow (1952)",),
-            accent=AMBER,
+    def _fit_width(mob: Mobject, width: float) -> Mobject:
+        if mob.width > width:
+            mob.scale_to_fit_width(width)
+        return mob
+
+    def _classical_column(
+        title_text: str,
+        claim_lines: tuple[str, ...],
+        ref_lines: tuple[str, ...],
+        *,
+        image_path: str | None = None,
+        image_height: float = 1.56,
+    ) -> Group:
+        heading = _fit_width(
+            Tex(rf"\textbf{{{title_text}}}", color=AMBER, font_size=20),
+            max_col_width,
+        )
+        parts: list[Mobject] = [heading]
+        if image_path is not None:
+            image = ImageMobject(image_path)
+            image.height = image_height
+            if image.width > max_col_width:
+                image.scale_to_fit_width(max_col_width)
+            parts.append(image)
+        claim = VGroup(
+            *[_fit_width(Tex(line, color=INK, font_size=17), max_col_width) for line in claim_lines]
+        ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
+        refs = VGroup(
+            *[_fit_width(Tex(line, color=MGREY, font_size=13), max_col_width) for line in ref_lines]
+        ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+        divider = Line(ORIGIN, RIGHT * max_col_width, color=LGREY, stroke_width=0.9)
+        divider.set_opacity(0.7)
+        parts.extend([claim, refs, divider])
+        return Group(*parts).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+
+    columns = Group(
+        _classical_column(
+            "Monkey lesions",
+            ("Prefrontal damage impaired", "delayed-response performance"),
+            ("Jacobsen (1936)", "Harlow (1952)"),
         ),
-        make_literature_entry(
+        _classical_column(
             "Persistent firing",
-            ("Sustained activity in monkey PFC", "looked like the memory trace itself"),
-            (r"Fuster \& Alexander (1971); Kubota \& Niki (1971)", "Funahashi et al. (1989, 1993)"),
-            accent=AMBER,
+            ("Delay-period firing in dorsolateral PFC", "became the canonical maintenance signal"),
+            (r"Fuster \& Alexander (1971)", "Funahashi et al. (1989, 1993)"),
+            image_path=_FUNAHASHI_1989_FIG,
+            image_height=1.42,
         ),
-        make_literature_entry(
+        _classical_column(
             "Human imaging",
-            ("PET and fMRI reinforced a frontal-parietal", "maintenance network"),
+            ("PET and fMRI reinforced a broader", "association-cortex account"),
             (r"Jonides et al. (1993); D'Esposito et al. (1995)", "Courtney et al. (1997, 1998)"),
-            accent=AMBER,
+            image_path=_JONIDES_1993_FIG,
+            image_height=1.30,
         ),
-    ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
+    )
 
-    content = Group(paper_stack, evidence).arrange(RIGHT, buff=0.86, aligned_edge=UP)
-    content.next_to(title, DOWN, buff=0.34)
+    dot_xs = (-4.15, 0.0, 4.15)
+    timeline_y = title.get_bottom()[1] - 0.72
+    timeline_line = Line(
+        np.array([dot_xs[0] - 1.05, timeline_y, 0.0]),
+        np.array([dot_xs[-1] + 1.05, timeline_y, 0.0]),
+        color=LGREY,
+        stroke_width=1.5,
+    )
+    timeline_line.set_opacity(0.78)
+    dots = VGroup(
+        *[
+            Dot(radius=0.055, color=AMBER, stroke_width=0).move_to(np.array([x, timeline_y, 0.0]))
+            for x in dot_xs
+        ]
+    )
+
+    for column, dot in zip(columns, dots):
+        column.next_to(dot, DOWN, buff=0.20)
+
+    content = Group(timeline_line, dots, columns)
     takeaway = make_callout(
-        "Working memory was mainly localized to prefrontal and association cortex.",
+        "Early sensory cortex was not treated as the primary substrate of maintenance.",
         AMBER,
         font_size=22,
-    ).to_edge(DOWN, buff=0.34)
+    )
+    takeaway.next_to(columns, DOWN, buff=0.34)
+    takeaway.align_to(timeline_line, LEFT)
     return {
         "title": title,
         "content": content,
@@ -599,56 +647,65 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
 
 def _build_intro_e_layout() -> dict[str, Mobject]:
     title = title_block(
-        r"\textbf{Sensory recruitment model}",
-        "Theory papers and MVPA studies suggested that visual cortex also carries maintained content",
+        r"\textbf{Sensory recruitment account}",
+        "Theory papers and MVPA studies argued that maintained content can be represented in visual cortex",
     )
-    paper_column = Group(
+    paper_gallery = Group(
         make_paper_snapshot(
             _AWH_JONIDES_2001_FIG,
             "theory shift",
             r"Awh \& Jonides (2001)",
             accent=BLUE,
-            height=1.62,
+            height=1.84,
         ),
         make_paper_snapshot(
             _HARRISON_TONG_2009_FIG,
             "orientation decoding",
             r"Harrison \& Tong (2009)",
             accent=BLUE,
-            height=1.62,
+            height=1.84,
         ),
-    ).arrange(DOWN, buff=0.24)
-    paper_header = Tex("Seminal evidence", color=MGREY, font_size=20)
-    paper_stack = Group(paper_header, paper_column).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
+    ).arrange(RIGHT, buff=0.28, aligned_edge=UP)
+    paper_stack = paper_gallery
 
     evidence = VGroup(
         make_literature_entry(
             "Theory shift",
-            ("Perception and memory may reuse", "the same sensory circuits"),
+            ("Working memory may reuse the same sensory", "circuits engaged during perception"),
             (r"Awh \& Jonides (2001); Pasternak \& Greenlee (2005)", "Postle (2006)"),
             accent=BLUE,
         ),
         make_literature_entry(
-            "Seminal MVPA",
-            ("Remembered orientation decoded from V1--V4", "during the delay, with no stimulus present"),
+            "MVPA turning point",
+            ("Multivoxel patterns can reveal feature", "information that mean activation can miss"),
+            (r"Haynes \& Rees (2006); Norman et al. (2006)",),
+            accent=BLUE,
+        ),
+        make_literature_entry(
+            "Seminal delay decoding",
+            ("Remembered visual features were decoded from", "early visual cortex during the delay"),
             (r"Harrison \& Tong (2009); Serences et al. (2009)",),
             accent=BLUE,
         ),
         make_literature_entry(
-            "Open debate",
-            ("Human fMRI shows sustained delay activity;", "monkey electrophysiology rarely does"),
-            (r"Leavitt et al. (2017); Curtis \& Sprague (2021)",),
+            "Open question",
+            ("Decodable delay activity did not by itself", "prove a sensory-like or necessary code"),
+            (r"Christophel et al. (2017)", r"Curtis \& Sprague (2021)"),
             accent=RED,
         ),
     ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
 
-    content = Group(paper_stack, evidence).arrange(RIGHT, buff=0.86, aligned_edge=UP)
-    content.next_to(title, DOWN, buff=0.34)
+    content = Group(paper_stack, evidence).arrange(RIGHT, buff=0.92, aligned_edge=UP)
+    content.scale(1.04)
+    content.next_to(title, DOWN, buff=0.30)
+    content.shift(DOWN * 0.18)
     takeaway = make_callout(
-        r"The key claim: early visual cortex may actively carry WM content --- but the debate continues.",
+        "Delay-period information is decodable from early visual cortex, but its format remains open.",
         BLUE,
         font_size=21,
-    ).to_edge(DOWN, buff=0.34)
+    )
+    takeaway.next_to(content, DOWN, buff=0.44)
+    takeaway.align_to(content, LEFT)
     return {
         "title": title,
         "content": content,
@@ -661,23 +718,38 @@ _INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
     {
         "kicker": "Research question 1",
         "title": "Representational format",
-        "subtitle": "Are maintained representations sensory-like or memory-specific?",
+        "subtitle": "Sensory-like or memory-specific?",
+        "bullet_1": "Cross-decoding suggests a shared sensory code.",
+        "bullet_2": "But delay codes may be transformed or dynamic.",
+        "bullet_3": "We test this with an independent perception session.",
+        "focus_primary": "cross-session decoding",
+        "focus_secondary": "perception -> memory",
+        "focus_tag": "format test",
         "accent": BLUE,
-        "tag": "format",
     },
     {
         "kicker": "Research question 2",
         "title": "Naturalistic stimuli",
-        "subtitle": "Does sensory recruitment extend beyond simple laboratory stimuli?",
+        "subtitle": "Beyond simple laboratory stimuli?",
+        "bullet_1": "Most evidence comes from gratings, colors, or locations.",
+        "bullet_2": "Naturalistic sensory recruitment is still largely untested.",
+        "bullet_3": "We use fine-grained object-scenes with perceptual demands.",
+        "focus_primary": "naturalistic object-scenes",
+        "focus_secondary": "fine-grained discrimination",
+        "focus_tag": "ecological test",
         "accent": AMBER,
-        "tag": "stimuli",
     },
     {
         "kicker": "Research question 3",
         "title": "Long-term memory",
-        "subtitle": "Does long-term memory reshape working-memory representations?",
+        "subtitle": "Does long-term memory reshape WM representations?",
+        "bullet_1": "Familiarity and meaning often improve working memory.",
+        "bullet_2": "WM and LTM may rely on partially overlapping codes.",
+        "bullet_3": "We test whether repetition reshapes EVC memory signals.",
+        "focus_primary": "repeated vs novel items",
+        "focus_secondary": "LTM-strength manipulation",
+        "focus_tag": "modulation test",
         "accent": GREEN,
-        "tag": "ltm",
     },
 )
 
@@ -697,28 +769,50 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
         Dot(radius=0.045, color=spec["accent"]),
         Tex(rf"\textbf{{{spec['title']}}}", color=spec["accent"], font_size=22),
     ).arrange(RIGHT, buff=0.12)
-    question_claim = VGroup(
-        Tex(spec["subtitle"], color=INK, font_size=26),
-    ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
-    question_divider = Line(LEFT * 2.9, RIGHT * 2.9, color=LGREY, stroke_width=1.0)
-    question_divider.align_to(question_claim, LEFT)
+
+    question_claim = Tex(spec["subtitle"], color=INK, font_size=24)
+
+    def _question_bullet(text: str) -> VGroup:
+        dot = Dot(radius=0.034, color=spec["accent"], stroke_width=0)
+        line = Tex(text, color=INK, font_size=18)
+        if line.width > 5.45:
+            line.scale_to_fit_width(5.45)
+        return VGroup(dot, line).arrange(RIGHT, buff=0.14, aligned_edge=UP)
+
+    question_bullets = VGroup(
+        _question_bullet(spec["bullet_1"]),
+        _question_bullet(spec["bullet_2"]),
+        _question_bullet(spec["bullet_3"]),
+    ).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
+
+    question_divider = Line(
+        ORIGIN,
+        RIGHT * max(5.2, question_claim.width, question_bullets.width),
+        color=LGREY,
+        stroke_width=1.0,
+    )
     question_card = VGroup(
         question_title_row,
         question_claim,
+        question_bullets,
         question_divider,
     ).arrange(DOWN, buff=0.14, aligned_edge=LEFT)
 
     focus_title_row = VGroup(
         Dot(radius=0.040, color=MGREY),
-        Tex(r"\textbf{Project focus}", color=INK, font_size=18),
+        Tex(r"\textbf{Study 2 test}", color=INK, font_size=18),
     ).arrange(RIGHT, buff=0.12)
     focus_copy = VGroup(
-        Tex("visual cortex", color=INK, font_size=24),
-        Tex("perception, working memory, and long-term memory", color=MGREY, font_size=16),
-        Tex(spec["tag"], color=spec["accent"], font_size=18),
+        Tex(spec["focus_primary"], color=INK, font_size=22),
+        Tex(spec["focus_secondary"], color=MGREY, font_size=16),
+        Tex(spec["focus_tag"], color=spec["accent"], font_size=18),
     ).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
-    focus_divider = Line(LEFT * 2.5, RIGHT * 2.5, color=LGREY, stroke_width=1.0)
-    focus_divider.align_to(focus_copy, LEFT)
+    focus_divider = Line(
+        ORIGIN,
+        RIGHT * max(3.4, focus_copy.width),
+        color=LGREY,
+        stroke_width=1.0,
+    )
     focus_panel = VGroup(
         focus_title_row,
         focus_copy,
@@ -812,9 +906,9 @@ class IntroCognitiveProblemA(Scene):
         )
         foil = _frame(
             preferred_path(
-                REPO_ROOT / "assets" / "images" / "ANI-FIS-D03.jpeg",
-                REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D03.jpeg",
-                _INTRO_STIM_DIR / "animal_fish-03.png",
+                REPO_ROOT / "assets" / "images" / "ANI-FIS-D01.jpeg",
+                REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D01.jpeg",
+                _INTRO_STIM_DIR / "animal_fish-01.png",
             )
         )
 
@@ -827,7 +921,7 @@ class IntroCognitiveProblemA(Scene):
         self.wait(0.60)
         self.remove(target)
         self.add(fix)
-        self.wait(1.00)
+        self.wait(3.00)
         self.remove(fix)
         self.add(foil)
         self.wait(3.50)
@@ -964,9 +1058,9 @@ class IntroSensoryRepresentation(ThreeDScene):
         stim_right = framed_visual(
             _img(
                 preferred_path(
-                    REPO_ROOT / "assets" / "images" / "ANI-FIS-D03.jpeg",
-                    REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D03.jpeg",
-                    _INTRO_STIM_DIR / "animal_fish-03.png",
+                    REPO_ROOT / "assets" / "images" / "ANI-FIS-D01.jpeg",
+                    REPO_ROOT / "assets" / "images" / "study1_stage3" / "ANI-FIS-D01.jpeg",
+                    _INTRO_STIM_DIR / "animal_fish-01.png",
                 ),
                 1.20,
             )
@@ -990,6 +1084,141 @@ class IntroSensoryRepresentation(ThreeDScene):
         fixed_head.set_z_index(70)
         fixed_head[0].set_z_index(71)
         fixed_head[1].set_z_index(72)
+        fixed_head[1].set_opacity(0.0)
+        delay_fish_side = fixed_head[1].height + 0.08
+        delay_fish_inner = stim_left[1].copy()
+        delay_fish_inner.scale_to_fit_height(delay_fish_side * 0.74)
+        delay_fish_inner.set_opacity(0.5)
+        delay_fish = framed_visual(
+            delay_fish_inner,
+            width=delay_fish_side,
+            height=delay_fish_side,
+            corner_radius=0.0,
+        )
+        delay_fish.set_z_index(84)
+        delay_fish[0].set_z_index(84)
+        delay_fish[1].set_z_index(85)
+
+        snapshot_scale = 2.1
+        snapshot_targets = VGroup(
+            *[
+                Square(
+                    side_length=fixed_head[1].width * snapshot_scale,
+                    stroke_opacity=0.0,
+                    fill_opacity=0.0,
+                )
+                for _ in range(3)
+            ]
+        ).arrange(RIGHT, buff=0.62, aligned_edge=DOWN)
+        snapshot_targets.to_corner(DL, buff=0.52)
+        snapshot_targets.shift(UP * 0.18)
+
+        snapshot_label_texts = ("perception", "maintenance", "perception")
+        snapshot_labels = VGroup()
+        for label_text in snapshot_label_texts:
+            label = Tex(label_text, color=BLACK, font_size=20)
+            snapshot_labels.add(label)
+        for placeholder, label in zip(snapshot_targets, snapshot_labels):
+            if label.width > placeholder.width * 1.08:
+                label.scale_to_fit_width(placeholder.width * 1.08)
+        label_center_y = snapshot_targets[0].get_top()[1] + max(label.height for label in snapshot_labels) / 2 + 0.08
+        for placeholder, label in zip(snapshot_targets, snapshot_labels):
+            label.move_to(
+                np.array(
+                    [
+                        placeholder.get_center()[0],
+                        label_center_y,
+                        0.0,
+                    ]
+                )
+            )
+
+        left_set_brace = MathTex(r"\Bigg\{", color=BLACK, font_size=58)
+        left_set_brace.next_to(snapshot_targets[0], LEFT, buff=0.08)
+        left_set_brace.move_to(
+            np.array(
+                [
+                    left_set_brace.get_center()[0],
+                    snapshot_targets.get_center()[1] - 0.02,
+                    0.0,
+                ]
+            )
+        )
+        right_set_brace = MathTex(r"\Bigg\}", color=BLACK, font_size=58)
+
+        snapshot_prefix = VGroup(
+            MathTex(r"\mathit{Neural}", color=BLACK, font_size=18),
+            MathTex(r"\mathit{Representations}", color=BLACK, font_size=18),
+        ).arrange(DOWN, buff=0.03)
+        snapshot_equals = MathTex("=", color=BLACK, font_size=24)
+        snapshot_equals.next_to(snapshot_prefix, RIGHT, buff=0.08)
+        snapshot_equals.align_to(snapshot_prefix, ORIGIN)
+        snapshot_prefix_group = VGroup(snapshot_prefix, snapshot_equals)
+        snapshot_prefix_group.next_to(left_set_brace, LEFT, buff=0.10)
+        snapshot_prefix_group.move_to(
+            np.array(
+                [
+                    snapshot_prefix_group.get_center()[0],
+                    snapshot_targets.get_center()[1] - 0.02,
+                    0.0,
+                ]
+            )
+        )
+
+        snapshot_commas = VGroup()
+        for left_target, right_target in zip(snapshot_targets[:-1], snapshot_targets[1:]):
+            comma = Tex(",", color=BLACK, font_size=28)
+            comma.move_to(midpoint(left_target.get_right(), right_target.get_left()))
+            comma.shift(DOWN * 0.08)
+            snapshot_commas.add(comma)
+        snapshot_trailing_comma = Tex(",", color=BLACK, font_size=28)
+        snapshot_trailing_comma.next_to(snapshot_targets[-1], RIGHT, buff=0.16)
+        snapshot_trailing_comma.align_to(snapshot_commas[0], DOWN)
+        snapshot_ellipsis = MathTex(r"\cdots", color=BLACK, font_size=24)
+        snapshot_ellipsis.next_to(snapshot_trailing_comma, RIGHT, buff=0.12)
+        snapshot_ellipsis.align_to(snapshot_trailing_comma, DOWN)
+        snapshot_ellipsis.shift(UP * 0.03)
+        right_set_brace.next_to(snapshot_ellipsis, RIGHT, buff=0.14)
+        right_set_brace.move_to(
+            np.array(
+                [
+                    right_set_brace.get_center()[0],
+                    snapshot_targets.get_center()[1] - 0.02,
+                    0.0,
+                ]
+            )
+        )
+
+        snapshot_scaffold = VGroup(
+            snapshot_prefix_group,
+            snapshot_labels,
+            left_set_brace,
+            snapshot_commas,
+            snapshot_trailing_comma,
+            snapshot_ellipsis,
+            right_set_brace,
+        )
+        snapshot_equation = VGroup(snapshot_targets, snapshot_scaffold)
+        left_safe = -config.frame_width / 2 + 0.20
+        right_safe = config.frame_width / 2 - 0.20
+        if snapshot_equation.get_left()[0] < left_safe:
+            snapshot_equation.shift(RIGHT * (left_safe - snapshot_equation.get_left()[0]))
+        if snapshot_equation.get_right()[0] > right_safe:
+            snapshot_equation.shift(LEFT * (snapshot_equation.get_right()[0] - right_safe))
+
+        for mob in (
+            snapshot_prefix_group,
+            left_set_brace,
+            right_set_brace,
+            snapshot_trailing_comma,
+            snapshot_ellipsis,
+            *snapshot_labels,
+            *snapshot_commas,
+        ):
+            mob.save_state()
+            mob.shift(DOWN * 0.03)
+            mob.set_opacity(0.0)
+        snapshot_scaffold.set_z_index(92)
 
         dot_gap = 0.72
         front_offset = 0.62
@@ -1045,6 +1274,17 @@ class IntroSensoryRepresentation(ThreeDScene):
                 )
             )
 
+        def place_delay_fish(mob: Mobject) -> None:
+            mob.move_to(
+                bottom_aligned_point(
+                    fixed_head_anchor,
+                    mob,
+                    right=-(dot_gap + fixed_head.width + 0.28 + mob.width / 2),
+                    front=front_offset + 0.24,
+                    gap=0.30 * mob.height,
+                )
+            )
+
         def update_fixed_head(mob: Mobject) -> Mobject:
             place_fixed_head(mob)
             new_matrix = _mini_matrix(current_matrix(travel.get_value()), cell=_MATRIX_CELL * 0.72)
@@ -1057,28 +1297,65 @@ class IntroSensoryRepresentation(ThreeDScene):
             mob[1].become(new_matrix)
             return mob
 
+        def snapshot_animation(
+            source: Mobject,
+            target: Mobject,
+            *,
+            move_run_time: float = 0.95,
+            reveal_items: tuple[Mobject, ...] = (),
+        ) -> AnimationGroup:
+            moving_copy = source.copy()
+            center_func = None
+            for submob in source.get_family():
+                if submob in self.renderer.camera.fixed_orientation_mobjects:
+                    center_func = self.renderer.camera.fixed_orientation_mobjects[submob]
+                    break
+            if center_func is None:
+                moving_copy.move_to(self.camera.project_point(source.get_center()))
+            else:
+                center = center_func()
+                moving_copy.shift(self.camera.project_point(center) - center)
+            moving_copy.set_z_index(120)
+            animations: list[Animation] = [
+                moving_copy.animate(run_time=move_run_time, rate_func=smooth).scale(snapshot_scale).move_to(
+                    target.get_center()
+                )
+            ]
+            self.add_fixed_in_frame_mobjects(moving_copy)
+            if reveal_items:
+                animations.append(
+                    Succession(
+                        Wait(0.68 * move_run_time),
+                        AnimationGroup(
+                            *[Restore(mob, run_time=0.24) for mob in reveal_items],
+                            lag_ratio=0.08,
+                        ),
+                    )
+                )
+            return AnimationGroup(*animations, lag_ratio=0.0)
+
         place_card(stim_left, path_anchor(left_path, 0.0))
         place_card(stim_mid, path_anchor(mid_path, 0.0))
         place_card(stim_right, path_anchor(right_path, 0.0))
         place_fixed_head(fixed_head)
+        place_delay_fish(delay_fish)
+        delay_fish.set(opacity=0.0)
         update_dot(node_left, left_path)
         update_dot(node_mid, mid_path)
         update_dot(node_right, right_path)
 
-        stim_left.add_updater(lambda mob: update_card(mob, left_path))
-        stim_mid.add_updater(lambda mob: update_card(mob, mid_path))
-        stim_right.add_updater(lambda mob: update_card(mob, right_path))
-        node_left.add_updater(lambda mob: update_dot(mob, left_path))
-        node_mid.add_updater(lambda mob: update_dot(mob, mid_path))
-        node_right.add_updater(lambda mob: update_dot(mob, right_path))
-        fixed_head.add_updater(update_fixed_head)
-
         self.add_fixed_orientation_mobjects(
             axis_label,
             fixed_head,
-            stim_left,
-            stim_mid,
-            stim_right,
+        )
+        self.add_fixed_in_frame_mobjects(
+            snapshot_prefix_group,
+            left_set_brace,
+            right_set_brace,
+            snapshot_trailing_comma,
+            snapshot_ellipsis,
+            *snapshot_labels,
+            *snapshot_commas,
         )
 
         self.play(Create(grid), run_time=0.7)
@@ -1086,14 +1363,76 @@ class IntroSensoryRepresentation(ThreeDScene):
             Create(axis_x),
             Create(axis_y),
             Create(ticks),
-            FadeIn(nodes),
             FadeIn(axis_label, shift=UP * 0.03),
             run_time=1.0,
         )
-        self.wait(0.5)
-        self.play(travel.animate.set_value(1.0), run_time=2.3, rate_func=smooth)
-        self.wait(0.55)
-        self.play(travel.animate.set_value(2.0), run_time=2.3, rate_func=smooth)
+        self.add_fixed_orientation_mobjects(stim_left)
+        self.play(
+            FadeIn(stim_left, scale=0.97),
+            FadeIn(node_left),
+            run_time=0.45,
+        )
+        self.play(
+            FadeIn(fixed_head[1], scale=0.97),
+            run_time=0.50,
+        )
+        self.wait(0.80)
+        self.add_fixed_orientation_mobjects(stim_mid, stim_right)
+        stim_left.add_updater(lambda mob: update_card(mob, left_path))
+        stim_mid.add_updater(lambda mob: update_card(mob, mid_path))
+        stim_right.add_updater(lambda mob: update_card(mob, right_path))
+        node_left.add_updater(lambda mob: update_dot(mob, left_path))
+        node_mid.add_updater(lambda mob: update_dot(mob, mid_path))
+        node_right.add_updater(lambda mob: update_dot(mob, right_path))
+        fixed_head.add_updater(update_fixed_head)
+        self.play(
+            FadeIn(VGroup(node_mid, node_right)),
+            FadeIn(stim_mid, scale=0.97),
+            FadeIn(stim_right, scale=0.97),
+            run_time=0.35,
+        )
+        self.wait(0.35)
+        self.play(
+            Restore(snapshot_prefix_group),
+            Restore(left_set_brace),
+            run_time=0.35,
+        )
+        self.play(
+            travel.animate.set_value(1.0),
+            snapshot_animation(
+                fixed_head[1],
+                snapshot_targets[0],
+                move_run_time=2.0,
+                reveal_items=(snapshot_labels[0], snapshot_commas[0]),
+            ),
+            run_time=2.3,
+            rate_func=smooth,
+        )
+        self.add_fixed_orientation_mobjects(delay_fish)
+        delay_fish.set(opacity=0.0)
+        self.play(FadeIn(delay_fish, shift=LEFT * 0.04), run_time=0.25)
+        self.wait(1.00)
+        self.play(FadeOut(delay_fish, shift=LEFT * 0.04), run_time=0.25)
+        self.remove(delay_fish)
+        self.play(
+            travel.animate.set_value(2.0),
+            snapshot_animation(
+                fixed_head[1],
+                snapshot_targets[1],
+                move_run_time=2.0,
+                reveal_items=(snapshot_labels[1], snapshot_commas[1]),
+            ),
+            run_time=2.3,
+            rate_func=smooth,
+        )
+        self.wait(0.65)
+        self.play(
+            snapshot_animation(
+                fixed_head[1],
+                snapshot_targets[2],
+                reveal_items=(snapshot_labels[2], snapshot_trailing_comma, snapshot_ellipsis, right_set_brace),
+            )
+        )
         self.wait(1.0)
 
 
@@ -1209,7 +1548,7 @@ class IntroResearchQuestions(IntroResearchQuestion1):
 
 _INTRO_SECTION_SCENES: tuple[tuple[str, type[Scene]], ...] = (
     ("intro_cognitive_problem", IntroCognitiveProblemA),
-    ("intro_sensory_representation", IntroSensoryRepresentation),
+    ("sens-mem-representations", IntroSensoryRepresentation),
     ("intro_classical_view", IntroClassicalView),
     ("intro_sensory_recruitment", IntroSensoryRecruitment),
     ("intro_research_question_1", IntroResearchQuestion1),
@@ -1218,7 +1557,21 @@ _INTRO_SECTION_SCENES: tuple[tuple[str, type[Scene]], ...] = (
 )
 
 
-class Introduction(Scene):
+class Introduction(ThreeDScene):
+    def _reset_section_camera(self) -> None:
+        self.set_camera_orientation(
+            phi=0 * DEGREES,
+            theta=-90 * DEGREES,
+            gamma=0,
+            zoom=1.0,
+            frame_center=ORIGIN,
+        )
+        camera = self.renderer.camera
+        if hasattr(camera, "fixed_orientation_mobjects"):
+            camera.fixed_orientation_mobjects.clear()
+        if hasattr(camera, "fixed_in_frame_mobjects"):
+            camera.fixed_in_frame_mobjects.clear()
+
     def _render_section(
         self,
         section_name: str,
@@ -1231,6 +1584,7 @@ class Introduction(Scene):
             self.wait(_SECTION_HOLD)
         self.clear()
         self.camera.background_color = BG
+        self._reset_section_camera()
         scene_cls.construct(self)
 
     def construct(self) -> None:

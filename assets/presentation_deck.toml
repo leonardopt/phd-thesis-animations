@@ -18,12 +18,30 @@ subtitle = "Edit this title slide in assets/presentation_deck.toml"
 
 [[slide]]
 type = "section"
+title = "Introduction"
+subtitle = "Working memory, sensory recruitment, and the thesis questions"
+
+[[slide]]
+type = "video_sequence"
+glob = "media/videos/01_intro/{{quality_dir}}/sections/*.mp4"
+
+[[slide]]
+type = "section"
+title = "Methods"
+subtitle = "Stimulus requirements, diffusion pipeline, and study plan"
+
+[[slide]]
+type = "video_sequence"
+glob = "media/videos/02_methods/{{quality_dir}}/sections/*.mp4"
+
+[[slide]]
+type = "section"
 title = "Study 1"
 subtitle = "Core animation sequence"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/03_study1/{{quality_dir}}/*.mp4"
+glob = "media/videos/03_study1/{{quality_dir}}/sections/*.mp4"
 
 [[slide]]
 type = "section"
@@ -32,7 +50,16 @@ subtitle = "Core animation sequence"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/04_study2/{{quality_dir}}/*.mp4"
+glob = "media/videos/04_study2/{{quality_dir}}/sections/*.mp4"
+
+[[slide]]
+type = "section"
+title = "Conclusions"
+subtitle = "Questions revisited, main results, and future directions"
+
+[[slide]]
+type = "video_sequence"
+glob = "media/videos/05_conclusion/{{quality_dir}}/sections/*.mp4"
 
 [[slide]]
 type = "section"
