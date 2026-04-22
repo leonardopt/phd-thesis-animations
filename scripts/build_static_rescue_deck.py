@@ -20,6 +20,7 @@ try:
     from export_frame_screener_pdf import build_video_screen
     from export_last_frames_pdf import (
         DEFAULT_IMAGES_ROOT,
+        DEFAULT_SECTION_KEYS,
         DEFAULT_VIDEOS_ROOT,
         REPO_ROOT,
         VideoEntry,
@@ -30,6 +31,7 @@ except ModuleNotFoundError:
     from scripts.export_frame_screener_pdf import build_video_screen
     from scripts.export_last_frames_pdf import (
         DEFAULT_IMAGES_ROOT,
+        DEFAULT_SECTION_KEYS,
         DEFAULT_VIDEOS_ROOT,
         REPO_ROOT,
         VideoEntry,
@@ -46,21 +48,26 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Build an audience-ready static rescue deck PDF with one frame per "
-            "Study 1/2 video."
+            "numbered presentation section clip."
         )
     )
     parser.add_argument(
+        "--section",
         "--study",
-        choices=("study1", "study2"),
+        dest="sections",
+        choices=DEFAULT_SECTION_KEYS,
         nargs="+",
-        default=["study1", "study2"],
-        help="Studies to include in the rescue deck (default: study1 study2).",
+        default=list(DEFAULT_SECTION_KEYS),
+        help=(
+            "Presentation sections to include in the rescue deck "
+            f"(default: {' '.join(DEFAULT_SECTION_KEYS)})."
+        ),
     )
     parser.add_argument(
         "--videos-root",
         type=Path,
         default=DEFAULT_VIDEOS_ROOT,
-        help=f"Root directory containing study video folders (default: {DEFAULT_VIDEOS_ROOT}).",
+        help=f"Root directory containing numbered section video folders (default: {DEFAULT_VIDEOS_ROOT}).",
     )
     parser.add_argument(
         "--images-root",
@@ -264,7 +271,7 @@ def main() -> int:
         raise SystemExit("ffprobe is required but was not found on PATH.")
 
     overrides = load_overrides(args.overrides)
-    entries = discover_videos(args.videos_root, args.images_root, args.study)
+    entries = discover_videos(args.videos_root, args.images_root, args.sections)
     args.output.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="rescue_deck_") as temp_dir_name:

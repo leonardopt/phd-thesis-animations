@@ -9,7 +9,6 @@ Production render:
 
 Legacy standalone renders:
     uv run manim scenes/methods.py MethodsStimulusRequirements -ql
-    uv run manim scenes/methods.py MethodsWorkingVsLongTermMemory -ql
     uv run manim scenes/methods.py MethodsTraditionalLimits -ql
     uv run manim scenes/methods.py MethodsGANsProofOfConcept -ql
     uv run manim scenes/methods.py MethodsDiffusionOpportunity -ql
@@ -19,7 +18,6 @@ Legacy standalone renders:
 """
 from __future__ import annotations
 
-from functools import lru_cache
 from pathlib import Path
 import sys
 
@@ -46,13 +44,12 @@ simplify_manim_section_video_names(
 
 _METHODS_SCENE_ORDER: dict[str, str] = {
     "MethodsStimulusRequirements": "01",
-    "MethodsWorkingVsLongTermMemory": "02",
-    "MethodsTraditionalLimits": "03",
-    "MethodsGANsProofOfConcept": "04",
-    "MethodsDiffusionOpportunity": "05",
-    "MethodsDiffusionPromptConditioning": "06",
-    "MethodsDiffusionTrainVsGenerate": "07",
-    "MethodsProjectPlan": "08",
+    "MethodsTraditionalLimits": "02",
+    "MethodsGANsProofOfConcept": "03",
+    "MethodsDiffusionOpportunity": "04",
+    "MethodsDiffusionPromptConditioning": "05",
+    "MethodsDiffusionTrainVsGenerate": "06",
+    "MethodsProjectPlan": "07",
 }
 
 
@@ -97,7 +94,6 @@ _INTRO_STIM_DIR = env_path(
     REPO_ROOT / "assets" / "images" / "stimuli_reordered",
 )
 _BRAIN_ICON_PATH = REPO_ROOT / "assets" / "images" / "study2" / "brain_icon_sagittal.png"
-_METHODS_REFERENCE_PATH = REPO_ROOT / "assets" / "images" / "methods" / "wm_ltm_task_comparison_reference.png"
 
 _EXEMPLAR_CODE = "building_observatory"
 _DIFFUSION_CODE = "animal_fish"
@@ -113,11 +109,6 @@ _CATEGORY_EXAMPLES: tuple[tuple[str, int, str, str], ...] = (
     ("plant_pine", 5, r"\textit{pine tree in a landscape}", GREEN),
 )
 _SCENE_WHEELS_CITATION = "Scene Wheels (Son et al., 2022)"
-_WM_TOP_BOX = (120, 170, 820, 520)
-_WM_BOTTOM_BOX = (220, 610, 730, 1040)
-_SCHURGIN_BOX = (970, 865, 1470, 1075)
-_LTM_STACK_BOX = (1848, 350, 2250, 700)
-_LTM_ANNOTATED_BOX = (2240, 720, 2424, 876)
 
 
 def stim_path(code: str, idx: int) -> str:
@@ -125,12 +116,17 @@ def stim_path(code: str, idx: int) -> str:
     return str(_INTRO_STIM_DIR / f"{code}-{idx:02d}.png")
 
 
-def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
+def title_block(
+    title_text: str,
+    subtitle_text: str | None = None,
+    *,
+    subtitle_color: str = MGREY,
+) -> VGroup:
     """Return the standard methods title group."""
     title = Tex(title_text, color=INK, font_size=34).to_edge(UP, buff=0.34)
     parts = [title]
     if subtitle_text is not None:
-        subtitle = Tex(subtitle_text, color=MGREY, font_size=21)
+        subtitle = Tex(subtitle_text, color=subtitle_color, font_size=21)
         subtitle.next_to(title, DOWN, buff=0.14)
         parts.append(subtitle)
     return VGroup(*parts)
@@ -249,6 +245,51 @@ def make_section_block(
     return VGroup(heading_row, body, divider).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
 
 
+def make_requirement_column_scaffold(
+    heading: str,
+    *,
+    accent: str,
+    width: float = 2.72,
+    body_height: float = 4.40,
+    heading_size: float = 22,
+) -> VGroup:
+    """Build an empty requirement column with room for later text or images."""
+    heading_text = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=heading_size)
+    if heading_text.width > width:
+        heading_text.scale_to_fit_width(width)
+
+    header_rule = Line(ORIGIN, RIGHT * width, color=LGREY, stroke_width=1.0)
+    header_rule.set_stroke(opacity=0.72)
+
+    body_area = Rectangle(width=width, height=body_height, stroke_width=0)
+    body_area.set_fill(WHITE, opacity=0.0)
+
+    column = VGroup(heading_text, header_rule, body_area).arrange(
+        DOWN, buff=0.14, aligned_edge=LEFT
+    )
+    anchor_x = column.get_center()[0]
+    for mob in column:
+        mob.set_x(anchor_x)
+    return column
+
+
+def make_intersection_vertical_divider(
+    height: float,
+    *,
+    color: str = LGREY,
+    dot_color: str = MGREY,
+) -> VGroup:
+    """Build a clean vertical divider with a single intersection marker."""
+    line = Line(UP * height / 2, DOWN * height / 2, color=color, stroke_width=1.0)
+    line.set_stroke(opacity=0.72)
+
+    dot = Dot(radius=0.028, color=dot_color, stroke_width=0)
+    dot.set_opacity(0.92)
+    dot.move_to(line.get_center())
+
+    return VGroup(line, dot)
+
+
 def make_pipeline_stage(
     step_label: str,
     title_text: str,
@@ -294,24 +335,6 @@ _SHARED_NOISE: dict[tuple[int, ...], np.ndarray] = {}
 def load_rgb(path: str | Path) -> np.ndarray:
     """Load an image as a float RGB array in [0, 1]."""
     return np.asarray(PILImage.open(path).convert("RGB")).astype(np.float32) / 255.0
-
-
-@lru_cache(maxsize=None)
-def reference_crop(box: tuple[int, int, int, int]) -> np.ndarray:
-    """Crop one cached RGB snippet from the local reference slide."""
-    with PILImage.open(_METHODS_REFERENCE_PATH) as image:
-        return np.asarray(image.convert("RGB").crop(box))
-
-
-def make_reference_crop(
-    box: tuple[int, int, int, int],
-    *,
-    height: float,
-) -> ImageMobject:
-    """Create an image mobject from a cached crop of the reference slide."""
-    image = ImageMobject(reference_crop(box))
-    image.height = height
-    return image
 
 
 def diffusion_noise(shape: tuple[int, ...]) -> np.ndarray:
@@ -445,366 +468,41 @@ class MethodsStimulusRequirements(Scene):
         self.camera.background_color = BG
 
         title = title_block(
-            r"\textbf{Stimulus requirements}",
-            "Ecological validity without sacrificing experimental control",
+            r"\textbf{Design requirements for naturalistic stimuli}",
+            "delayed match to sample task with long-term memory component",
+            subtitle_color=INK,
         )
 
-        continuum = make_image_strip(_EXEMPLAR_CODE, (0, 3, 6, 9), height=1.00, buff=0.10)
-        continuum_stack = Group(
-            Tex(r"\textbf{Target stimulus space}", color=INK, font_size=24),
-            continuum,
-            text_lines(
-                (
-                    "same object-scene identity across controlled variants",
-                    "fine-grained perceptual change without losing naturalism",
-                ),
-                font_size=18,
-                color=MGREY,
-                max_width=8.8,
-            ),
-        ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
+        columns = VGroup(
+            make_requirement_column_scaffold("Naturalistic", accent=BLUE),
+            make_requirement_column_scaffold("Controlled", accent=AMBER),
+            make_requirement_column_scaffold("Suitable", accent=GREEN),
+            make_requirement_column_scaffold("Distinctive", accent=BLUE),
+        )
 
-        left_column = VGroup(
-            make_section_block(
-                "Naturalistic",
-                (
-                    "rich perceptual structure and recognisable semantic content",
-                    "rather than abstract laboratory stimuli",
-                ),
-                accent=BLUE,
-                width=4.65,
-            ),
-            make_section_block(
-                "Reusable across studies",
-                (
-                    "the same stimulus family should support behavioural work",
-                    "and later neuroimaging experiments",
-                ),
-                accent=GREEN,
-                width=4.65,
-            ),
-        ).arrange(DOWN, buff=0.22, aligned_edge=LEFT)
-        right_column = VGroup(
-            make_section_block(
-                "Perceptually controlled",
-                (
-                    "graded similarity while semantic identity remains stable",
-                    "across the continuum",
-                ),
-                accent=AMBER,
-                width=4.65,
-            ),
-            make_section_block(
-                "fMRI-compatible",
-                (
-                    "visual detail sufficient for multivariate analyses",
-                    r"in [V1, V2, V3]",
-                ),
-                accent=BLUE,
-                width=4.65,
-            ),
-        ).arrange(DOWN, buff=0.22, aligned_edge=LEFT)
-        requirements = split_columns(left_column, right_column, buff=0.42)
+        divider_height = columns[0].height - 0.16
+        vertical_dividers = VGroup(
+            *[
+                make_intersection_vertical_divider(divider_height)
+                for _ in range(len(columns) - 1)
+            ]
+        )
 
-        content = Group(
-            continuum_stack,
-            simple_divider(10.0),
-            requirements,
-        ).arrange(DOWN, buff=0.28)
-        content.next_to(title, DOWN, buff=0.28)
+        requirement_layout = VGroup()
+        for idx, column in enumerate(columns):
+            requirement_layout.add(column)
+            if idx < len(vertical_dividers):
+                requirement_layout.add(vertical_dividers[idx])
+        requirement_layout.arrange(RIGHT, buff=0.26, aligned_edge=UP)
+        requirement_layout.next_to(title, DOWN, buff=0.58)
 
-        callout = make_callout(
-            "The target set had to look natural, vary smoothly, and survive both behavioural and fMRI experiments.",
-            BLUE,
-            font_size=19,
-        ).to_edge(DOWN, buff=0.34)
+        intersection_y = columns[0][1].get_center()[1]
+        for divider in vertical_dividers:
+            divider[1].move_to(np.array([divider[0].get_center()[0], intersection_y, 0.0]))
 
         self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(continuum_stack, shift=UP * 0.05), run_time=0.90)
-        self.play(FadeIn(content[1]), FadeIn(requirements, shift=UP * 0.05), run_time=0.85)
-        self.play(FadeIn(callout, shift=UP * 0.04), run_time=0.55)
+        self.play(FadeIn(requirement_layout, shift=UP * 0.05), run_time=0.90)
         self.wait(3.20)
-
-
-class MethodsWorkingVsLongTermMemory(Scene):
-    """Chapter 2.2 — illustrate the task-design gap between WM and LTM."""
-
-    def construct(self) -> None:
-        self.camera.background_color = BG
-
-        wm_panel = RoundedRectangle(
-            width=4.35,
-            height=7.35,
-            corner_radius=0.48,
-            stroke_color="#D9E7F5",
-            stroke_width=1.6,
-        ).set_fill(WHITE, opacity=1.0)
-        wm_panel.to_edge(LEFT, buff=0.42)
-
-        ltm_panel = RoundedRectangle(
-            width=4.35,
-            height=7.35,
-            corner_radius=0.48,
-            stroke_color="#BFECC8",
-            stroke_width=1.6,
-        ).set_fill(WHITE, opacity=1.0)
-        ltm_panel.to_edge(RIGHT, buff=0.42)
-
-        wm_title = Tex("Working Memory", color=INK, font_size=37)
-        wm_title.move_to(wm_panel.get_top() + DOWN * 0.62)
-
-        wm_top = make_reference_crop(_WM_TOP_BOX, height=1.78)
-        wm_top.next_to(wm_title, DOWN, buff=0.42)
-
-        wm_top_ref = Tex(r"(Ma, Husain, Bays 2014)", color=INK, font_size=19)
-        wm_top_ref.next_to(wm_top, DOWN, buff=0.16)
-
-        wm_bottom = make_reference_crop(_WM_BOTTOM_BOX, height=2.36)
-        wm_bottom.next_to(wm_top_ref, DOWN, buff=0.26)
-
-        wm_bottom_ref = Tex(r"(Christophel et al 2012)", color=INK, font_size=18)
-        wm_bottom_ref.next_to(wm_bottom, DOWN, buff=0.16)
-
-        def bullet_block(
-            main_lines: tuple[str, ...],
-            sub_lines: tuple[str, ...],
-            *,
-            main_size: float = 27,
-            sub_size: float = 18,
-            max_width: float = 4.45,
-        ) -> VGroup:
-            main_text = VGroup(
-                *[Tex(line, color=INK, font_size=main_size) for line in main_lines]
-            ).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
-            if main_text.width > max_width:
-                main_text.scale_to_fit_width(max_width)
-
-            main_row = VGroup(
-                Dot(radius=0.055, color=INK),
-                main_text,
-            ).arrange(RIGHT, buff=0.22, aligned_edge=UP)
-
-            sub_text = VGroup(
-                *[Tex(line, color=INK, font_size=sub_size) for line in sub_lines]
-            ).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
-            if sub_text.width > max_width - 0.60:
-                sub_text.scale_to_fit_width(max_width - 0.60)
-
-            sub_row = VGroup(
-                Dot(radius=0.032, color=INK),
-                sub_text,
-            ).arrange(RIGHT, buff=0.18, aligned_edge=UP)
-            sub_row.next_to(main_row, DOWN, buff=0.26, aligned_edge=LEFT)
-            sub_row.shift(RIGHT * 0.58)
-
-            return VGroup(main_row, sub_row)
-
-        wm_bullet = bullet_block(
-            ("WM tasks usually rely on low-", "dimensional stimuli"),
-            (r"controlling for $\mathrm{vLTM}$ interaction",),
-        )
-        wm_bullet.move_to(UP * 1.63 + RIGHT * 0.02)
-
-        bridge_arrow = DoubleArrow(
-            LEFT * 2.10,
-            RIGHT * 2.10,
-            color=LGREY,
-            stroke_width=1.4,
-            buff=0.0,
-            tip_length=0.14,
-            tip_shape=StealthTip,
-        ).move_to(DOWN * 0.12)
-
-        ltm_bullet = bullet_block(
-            ("LTM tasks use objects or", "complex scenes, rich in detail"),
-            ("Unsuitable for WM tasks",),
-            max_width=4.65,
-        )
-        ltm_bullet.move_to(DOWN * 1.62 + RIGHT * 0.28)
-
-        schurgin_base = make_reference_crop(_SCHURGIN_BOX, height=1.34)
-        schurgin_base.next_to(ltm_bullet, DOWN, buff=0.32)
-
-        study_mask = Rectangle(
-            width=1.18,
-            height=0.33,
-            stroke_width=0,
-        ).set_fill(WHITE, opacity=1.0)
-        study_mask.move_to(schurgin_base.get_center() + LEFT * 1.36 + DOWN * 0.40)
-
-        report_mask = Rectangle(
-            width=1.46,
-            height=0.44,
-            stroke_width=0,
-        ).set_fill(WHITE, opacity=1.0)
-        report_mask.move_to(schurgin_base.get_center() + RIGHT * 1.08 + DOWN * 0.42)
-
-        study_label = Tex("Study 40 objects", color=INK, font_size=15)
-        study_label.rotate(-28 * DEGREES)
-        study_label.move_to(study_mask.get_center() + UP * 0.01 + LEFT * 0.04)
-
-        report_label = VGroup(
-            Tex("Colour wheel", color=INK, font_size=14),
-            Tex("report", color=INK, font_size=14),
-        ).arrange(DOWN, buff=0.03)
-        report_label.move_to(report_mask.get_center() + DOWN * 0.01)
-
-        schurgin_group = Group(
-            schurgin_base,
-            study_mask,
-            report_mask,
-            study_label,
-            report_label,
-        )
-
-        schurgin_ref = VGroup(
-            Tex("Schurgin et al.", color=INK, font_size=20),
-            Tex("(2020)", color=INK, font_size=20),
-        ).arrange(DOWN, buff=0.04)
-        schurgin_ref.next_to(schurgin_group, DOWN, buff=0.10)
-
-        ltm_title = Tex("Long-term Memory", color=INK, font_size=35)
-        ltm_title.move_to(ltm_panel.get_top() + DOWN * 0.62)
-
-        task_prompt = VGroup(
-            Tex(r"Task: ``Have you seen", color=INK, font_size=16),
-            Tex(r"this image before?''", color=INK, font_size=16),
-        ).arrange(DOWN, buff=0.04)
-
-        ltm_stack = make_reference_crop(_LTM_STACK_BOX, height=2.02)
-        ltm_stack.move_to(ltm_panel.get_center() + UP * 0.68 + LEFT * 0.18)
-        task_prompt.next_to(ltm_stack, UP, buff=0.22)
-        task_prompt.align_to(ltm_stack, LEFT).shift(RIGHT * 0.16)
-
-        ltm_label_a = Tex(r"\textbf{a}", color=INK, font_size=18)
-        ltm_label_b = Tex(r"\textbf{b}", color=INK, font_size=18)
-        ltm_label_a.next_to(ltm_stack, UP, buff=0.14).align_to(ltm_stack, LEFT).shift(RIGHT * 0.02)
-        ltm_label_b.next_to(ltm_stack, UP, buff=0.14).align_to(ltm_stack, RIGHT).shift(LEFT * 0.02)
-
-        fixation_dot = Dot(color="#B4443F", radius=0.032)
-        fixation_dot.move_to(ltm_stack.get_center() + RIGHT * 0.76 + DOWN * 0.24)
-
-        fixation_label = VGroup(
-            Tex("Fixation", color=INK, font_size=15),
-            Tex("dot", color=INK, font_size=15),
-        ).arrange(DOWN, buff=0.02, aligned_edge=LEFT)
-        fixation_label.move_to(ltm_stack.get_center() + RIGHT * 1.50 + UP * 0.22)
-
-        fixation_arrow = Arrow(
-            fixation_label.get_left() + LEFT * 0.04 + DOWN * 0.02,
-            fixation_dot.get_center(),
-            color=INK,
-            stroke_width=1.2,
-            buff=0.06,
-            tip_length=0.12,
-            tip_shape=StealthTip,
-        )
-
-        angle_arrow = DoubleArrow(
-            ltm_stack.get_bottom() + LEFT * 0.54 + DOWN * 0.14,
-            ltm_stack.get_bottom() + RIGHT * 0.98 + DOWN * 0.02,
-            color=INK,
-            stroke_width=1.2,
-            buff=0.0,
-            tip_length=0.12,
-            tip_shape=StealthTip,
-        )
-        angle_label = MathTex(r"8.4^\circ", color=INK, font_size=18)
-        angle_label.next_to(angle_arrow, DOWN, buff=0.04)
-
-        timeline = VMobject(color=INK, stroke_width=1.6)
-        timeline_points = [
-            LEFT * 1.55 + DOWN * 0.02,
-            LEFT * 1.38 + DOWN * 0.02,
-            LEFT * 1.38 + UP * 0.12,
-            LEFT * 0.92 + UP * 0.12,
-            LEFT * 0.92 + DOWN * 0.02,
-            LEFT * 0.72 + DOWN * 0.02,
-            LEFT * 0.72 + UP * 0.06,
-            LEFT * 0.50 + UP * 0.06,
-            LEFT * 0.50 + DOWN * 0.02,
-            LEFT * 0.28 + DOWN * 0.02,
-            LEFT * 0.28 + UP * 0.12,
-            RIGHT * 0.18 + UP * 0.12,
-            RIGHT * 0.18 + DOWN * 0.02,
-            RIGHT * 0.38 + DOWN * 0.02,
-            RIGHT * 0.38 + UP * 0.12,
-            RIGHT * 0.84 + UP * 0.12,
-            RIGHT * 0.84 + DOWN * 0.02,
-            RIGHT * 1.02 + DOWN * 0.02,
-        ]
-        timeline.set_points_as_corners(timeline_points)
-        timeline.next_to(ltm_stack, DOWN, buff=0.16)
-
-        timeline_left = MathTex(r"\cdots", color=INK, font_size=22)
-        timeline_right = MathTex(r"\cdots", color=INK, font_size=22)
-        timeline_left.next_to(timeline, LEFT, buff=0.10)
-        timeline_right.next_to(timeline, RIGHT, buff=0.10)
-
-        duration_3s = Tex("3 s", color=INK, font_size=15)
-        duration_1s = Tex("1 s", color=INK, font_size=15)
-        duration_3s.next_to(timeline, UP, buff=0.06).align_to(timeline, LEFT).shift(RIGHT * 0.62)
-        duration_1s.next_to(timeline, DOWN, buff=0.06).align_to(timeline, LEFT).shift(RIGHT * 0.84)
-
-        ltm_annotated = make_reference_crop(_LTM_ANNOTATED_BOX, height=0.74)
-        ltm_annotated.next_to(timeline, RIGHT, buff=0.42).shift(DOWN * 0.04 + LEFT * 0.18)
-
-        annotated_label = VGroup(
-            Tex("Richly annotated", color=INK, font_size=16),
-            Tex("images", color=INK, font_size=16),
-        ).arrange(DOWN, buff=0.03)
-        annotated_label.next_to(ltm_annotated, UP, buff=0.18)
-
-        ltm_ref = VGroup(
-            Tex("Natural Scenes Dataset", color=INK, font_size=19),
-            Tex(r"(Allen et al. 2022)", color=INK, font_size=17),
-        ).arrange(DOWN, buff=0.04)
-        ltm_ref.move_to(ltm_panel.get_center() + DOWN * 2.78)
-
-        self.play(
-            FadeIn(wm_panel),
-            FadeIn(ltm_panel),
-            FadeIn(wm_title, shift=UP * 0.04),
-            FadeIn(ltm_title, shift=UP * 0.04),
-            run_time=0.70,
-        )
-        self.play(
-            FadeIn(wm_top, scale=0.98),
-            FadeIn(wm_top_ref, shift=UP * 0.03),
-            FadeIn(task_prompt, shift=UP * 0.03),
-            FadeIn(ltm_label_a, shift=UP * 0.03),
-            FadeIn(ltm_label_b, shift=UP * 0.03),
-            FadeIn(ltm_stack, scale=0.98),
-            run_time=0.85,
-        )
-        self.play(
-            FadeIn(wm_bottom, scale=0.98),
-            FadeIn(wm_bottom_ref, shift=UP * 0.03),
-            FadeIn(wm_bullet, shift=UP * 0.04),
-            FadeIn(bridge_arrow),
-            FadeIn(ltm_bullet, shift=UP * 0.04),
-            run_time=0.90,
-        )
-        self.play(
-            FadeIn(schurgin_group, scale=0.98),
-            FadeIn(schurgin_ref, shift=UP * 0.03),
-            FadeIn(fixation_dot),
-            Create(fixation_arrow),
-            FadeIn(fixation_label, shift=UP * 0.03),
-            Create(angle_arrow),
-            FadeIn(angle_label, shift=UP * 0.03),
-            Create(timeline),
-            FadeIn(timeline_left),
-            FadeIn(timeline_right),
-            FadeIn(duration_3s, shift=UP * 0.03),
-            FadeIn(duration_1s, shift=DOWN * 0.03),
-            FadeIn(ltm_annotated, scale=0.98),
-            FadeIn(annotated_label, shift=UP * 0.03),
-            FadeIn(ltm_ref, shift=UP * 0.03),
-            run_time=1.05,
-        )
-        self.wait(3.20)
-
 
 class MethodsTraditionalLimits(Scene):
     """Chapter 2.3 — explain why traditional routes could not provide that set."""
@@ -1498,7 +1196,6 @@ class MethodsProjectPlan(Scene):
 
 _METHODS_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
     MethodsStimulusRequirements,
-    MethodsWorkingVsLongTermMemory,
     MethodsTraditionalLimits,
     MethodsGANsProofOfConcept,
     MethodsDiffusionOpportunity,
@@ -1508,7 +1205,6 @@ _METHODS_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
 )
 _METHODS_SECTION_NAMES: tuple[str, ...] = (
     "methods_stimulus_requirements",
-    "methods_working_vs_long_term_memory",
     "methods_traditional_limits",
     "methods_gans_proof_of_concept",
     "methods_diffusion_opportunity",

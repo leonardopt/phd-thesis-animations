@@ -15,6 +15,7 @@ try:
     from export_last_frames_pdf import (
         DEFAULT_IMAGES_ROOT,
         DEFAULT_OUTPUT as DEFAULT_LAST_FRAMES,
+        DEFAULT_SECTION_KEYS,
         DEFAULT_VIDEOS_ROOT,
         REPO_ROOT,
         discover_videos,
@@ -32,6 +33,7 @@ except ModuleNotFoundError:
     from scripts.export_last_frames_pdf import (
         DEFAULT_IMAGES_ROOT,
         DEFAULT_OUTPUT as DEFAULT_LAST_FRAMES,
+        DEFAULT_SECTION_KEYS,
         DEFAULT_VIDEOS_ROOT,
         REPO_ROOT,
         discover_videos,
@@ -50,17 +52,22 @@ def parse_args() -> argparse.Namespace:
         description="Create a portable emergency bundle with videos and backup presentation artifacts."
     )
     parser.add_argument(
+        "--section",
         "--study",
-        choices=("study1", "study2"),
+        dest="sections",
+        choices=DEFAULT_SECTION_KEYS,
         nargs="+",
-        default=["study1", "study2"],
-        help="Studies to include in the bundle (default: study1 study2).",
+        default=list(DEFAULT_SECTION_KEYS),
+        help=(
+            "Presentation sections to include in the bundle "
+            f"(default: {' '.join(DEFAULT_SECTION_KEYS)})."
+        ),
     )
     parser.add_argument(
         "--videos-root",
         type=Path,
         default=DEFAULT_VIDEOS_ROOT,
-        help=f"Root directory containing study video folders (default: {DEFAULT_VIDEOS_ROOT}).",
+        help=f"Root directory containing numbered section video folders (default: {DEFAULT_VIDEOS_ROOT}).",
     )
     parser.add_argument(
         "--images-root",
@@ -112,9 +119,9 @@ def build_readme(
     ]
     if presentation_files:
         lines.append("1. Open the presentation file in the presentation/ folder.")
-        lines.append("2. If embedded videos fail, switch to pdfs/study_static_rescue_deck.pdf.")
+        lines.append(f"2. If embedded videos fail, switch to pdfs/{DEFAULT_RESCUE_DECK.name}.")
     else:
-        lines.append("1. Open pdfs/study_static_rescue_deck.pdf.")
+        lines.append(f"1. Open pdfs/{DEFAULT_RESCUE_DECK.name}.")
     lines.append("3. If you need the original renders, use the videos/ folder.")
     lines.append("4. For manual frame lookup, use the screener PDFs in pdfs/.")
     lines.append("")
@@ -140,7 +147,7 @@ def main() -> int:
     bundle_dir = args.bundle_root / bundle_name
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
-    entries = discover_videos(args.videos_root, args.images_root, args.study)
+    entries = discover_videos(args.videos_root, args.images_root, args.sections)
 
     pdf_sources = [
         DEFAULT_RESCUE_DECK,

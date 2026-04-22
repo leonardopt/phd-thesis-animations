@@ -991,9 +991,9 @@ _INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
         "bullet_1_refs": r"(Schurgin, 2018; Eriksson et al., 2015; Bartsch et al., 2024)",
         "bullet_2": "Working memory integrates incoming sensory signals with information stored in long-term memory.",
         "bullet_2_refs": r"(Singer, 2021)",
-        "bullet_3": "Familiarity and meaning can improve working-memory performance and capacity.",
+        "bullet_3": "Familiarity and meaning improve working-memory performance and capacity.",
         "bullet_3_refs": r"(Xie \& Zhang, 2018; Ngiam et al., 2019; Buttle \& Raymond, 2003; Curby \& Gauthier, 2007; Jackson \& Raymond, 2008; Brady \& St{\"o}rmer, 2022)",
-        "bullet_4": "Neuroimaging evidence suggests that maintained WM content and retrieved LTM content can share a sensory-like representational format.",
+        "bullet_4": "Neuroimaging evidence that maintained WM content and retrieved LTM content share a sensory-like representational format.",
         "bullet_4_refs": r"(Vo et al., 2022)",
         "bullet_5": "Long-term memory traces may affect the formatting of working memory representations.",
         "accent": RQ_GREEN,
@@ -1248,55 +1248,176 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
 
 
 def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
-    photo = ImageMobject(_INTRO_RQ3_NASA_FIG)
-    photo_card = framed_visual(photo, width=4.30, height=2.92, corner_radius=0.06)
+    def _build_top_block() -> Group:
+        photo = ImageMobject(_INTRO_RQ3_NASA_FIG)
+        photo_card = framed_visual(photo, width=4.30, height=2.92, corner_radius=0.06)
 
-    quote = Tex(
-        r"``\emph{...the darker parts aren't quite in the right place}\\"
-        r"\emph{and something about you senses that is not the Moon}\\"
-        r"\emph{that I'm used to seeing.}''",
-        color=INK,
-        font_size=16,
-        tex_environment="flushleft",
+        quote = Tex(
+            r"``\emph{...the darker parts aren't quite in the right place}\\"
+            r"\emph{and something about you senses that is not the Moon}\\"
+            r"\emph{that I'm used to seeing.}''",
+            color=INK,
+            font_size=16,
+            tex_environment="flushleft",
+        )
+        if quote.width > 4.38:
+            quote.scale_to_fit_width(4.38)
+
+        attribution = Tex(
+            r"NASA Astronaut Christina Koch, 5 April 2026",
+            color=MGREY,
+            font_size=13,
+        )
+        if attribution.width > 4.38:
+            attribution.scale_to_fit_width(4.38)
+
+        photo_credit = Tex(
+            r"Photo credit: NASA",
+            color=MGREY,
+            font_size=11,
+        )
+        if photo_credit.width > 4.38:
+            photo_credit.scale_to_fit_width(4.38)
+
+        quote_block = VGroup(quote, attribution).arrange(
+            DOWN,
+            buff=0.12,
+            aligned_edge=LEFT,
+        )
+        quote_block.align_to(photo_card, LEFT)
+
+        supporting_text = VGroup(photo_credit, quote_block).arrange(
+            DOWN,
+            buff=0.10,
+            aligned_edge=LEFT,
+        )
+        supporting_text.align_to(photo_card, LEFT)
+
+        return Group(photo_card, supporting_text).arrange(
+            DOWN,
+            buff=0.14,
+            aligned_edge=LEFT,
+        )
+
+    def _matrix_with_label(matrix: np.ndarray, label_text: str) -> Group:
+        matrix_mob = _intro_question_matrix(matrix, cell=0.13, scale_factor=1.10)
+        label = Tex(label_text, color=INK, font_size=13.5)
+        label.next_to(matrix_mob, UP, buff=0.10)
+        label.set_x(matrix_mob.get_center()[0])
+        return Group(label, matrix_mob)
+
+    def _realign_matrix_group(group: Group) -> None:
+        label, matrix_mob = group
+        label.next_to(matrix_mob, UP, buff=0.10)
+        label.set_x(matrix_mob.get_center()[0])
+
+    top_block_intro = _build_top_block()
+    top_block_intro.move_to(ORIGIN)
+
+    top_block_final = _build_top_block()
+    top_block_final.scale(0.88)
+
+    sensory_like_matrix = interpolate_matrix(
+        _REPRESENTATION_MEMORY_PATTERN,
+        _REPRESENTATION_SENSORY_PATTERN_RIGHT,
+        0.72,
     )
-    if quote.width > 4.38:
-        quote.scale_to_fit_width(4.38)
-
-    attribution = Tex(
-        r"NASA Astronaut Christina Koch, 5 April 2026",
-        color=MGREY,
-        font_size=13,
+    less_sensory_like_matrix = interpolate_matrix(
+        _REPRESENTATION_MEMORY_PATTERN,
+        _REPRESENTATION_SENSORY_PATTERN_RIGHT,
+        0.18,
     )
-    if attribution.width > 4.38:
-        attribution.scale_to_fit_width(4.38)
 
-    photo_credit = Tex(
-        r"Photo credit: NASA",
-        color=MGREY,
-        font_size=11,
-    )
-    if photo_credit.width > 4.38:
-        photo_credit.scale_to_fit_width(4.38)
+    sensory_group = _matrix_with_label(_REPRESENTATION_SENSORY_PATTERN_RIGHT, "sensory pattern")
+    memory_group = _matrix_with_label(_REPRESENTATION_MEMORY_PATTERN, "memory pattern")
+    plus_group = _matrix_with_label(sensory_like_matrix, "+ sensory-like")
+    minus_group = _matrix_with_label(less_sensory_like_matrix, "- sensory-like")
 
-    quote_block = VGroup(quote, attribution).arrange(
+    left_column = Group(sensory_group, memory_group).arrange(
         DOWN,
-        buff=0.12,
+        buff=0.34,
         aligned_edge=LEFT,
     )
-    quote_block.align_to(photo_card, LEFT)
-
-    supporting_text = VGroup(photo_credit, quote_block).arrange(
+    right_column = Group(plus_group, minus_group).arrange(
         DOWN,
-        buff=0.10,
+        buff=0.34,
         aligned_edge=LEFT,
     )
-    supporting_text.align_to(photo_card, LEFT)
+    right_column.next_to(left_column, RIGHT, buff=0.70, aligned_edge=UP)
 
-    return Group(photo_card, supporting_text).arrange(
-        DOWN,
-        buff=0.14,
-        aligned_edge=LEFT,
+    # Align actual matrix centers by row/column so the branch geometry stays clean
+    # even when labels have different widths.
+    memory_group[1].set_x(sensory_group[1].get_x())
+    plus_group[1].set_x(max(plus_group[1].get_x(), minus_group[1].get_x()))
+    minus_group[1].set_x(plus_group[1].get_x())
+    plus_group[1].set_y(sensory_group[1].get_y())
+    minus_group[1].set_y(memory_group[1].get_y())
+    for group in (sensory_group, memory_group, plus_group, minus_group):
+        _realign_matrix_group(group)
+
+    source_matrix = memory_group[1]
+    top_target_matrix = plus_group[1]
+    bottom_target_matrix = minus_group[1]
+    source_point = source_matrix.get_right() + RIGHT * 0.08
+    target_x = min(top_target_matrix.get_left()[0], bottom_target_matrix.get_left()[0]) - 0.14
+    trunk_x = source_point[0] + 0.46 * (target_x - source_point[0])
+    top_y = top_target_matrix.get_center()[1]
+    bottom_y = bottom_target_matrix.get_center()[1]
+
+    branch_lead = Line(
+        source_point,
+        np.array([trunk_x, source_point[1], 0.0]),
+        color=spec["accent"],
+        stroke_width=1.5,
     )
+    branch_trunk = Line(
+        np.array([trunk_x, top_y, 0.0]),
+        np.array([trunk_x, bottom_y, 0.0]),
+        color=spec["accent"],
+        stroke_width=1.5,
+    )
+    top_branch = Arrow(
+        np.array([trunk_x, top_y, 0.0]),
+        np.array([target_x, top_y, 0.0]),
+        buff=0.0,
+        stroke_width=1.5,
+        tip_length=0.11,
+        max_stroke_width_to_length_ratio=6.0,
+        color=spec["accent"],
+    )
+    bottom_branch = Arrow(
+        np.array([trunk_x, bottom_y, 0.0]),
+        np.array([target_x, bottom_y, 0.0]),
+        buff=0.0,
+        stroke_width=1.5,
+        tip_length=0.11,
+        max_stroke_width_to_length_ratio=6.0,
+        color=spec["accent"],
+    )
+    for connector in (branch_lead, branch_trunk, top_branch, bottom_branch):
+        connector.set_stroke(opacity=0.82)
+
+    matrix_block = Group(
+        left_column,
+        right_column,
+        branch_lead,
+        branch_trunk,
+        top_branch,
+        bottom_branch,
+    )
+
+    matrix_block.next_to(top_block_final, DOWN, buff=0.30, aligned_edge=LEFT)
+
+    top_shift = 0.5 * (matrix_block.height + 0.30)
+    top_block_final.move_to(UP * top_shift)
+    matrix_block.next_to(top_block_final, DOWN, buff=0.30, aligned_edge=LEFT)
+    matrix_block.set_x(top_block_final[0].get_center()[0])
+
+    root = Group(top_block_intro, top_block_final, matrix_block)
+    root.top_block_intro = top_block_intro
+    root.top_block_final = top_block_final
+    root.matrix_block = matrix_block
+    return root
 
 
 def _build_intro_question_visual(question_idx: int, spec: dict[str, str]) -> VGroup:
@@ -1391,6 +1512,9 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
         "visual_bottom_branch": getattr(visual, "bottom_branch", None),
         "visual_simple_block": getattr(visual, "simple_block", None),
         "visual_natural_block": getattr(visual, "natural_block", None),
+        "visual_top_block_intro": getattr(visual, "top_block_intro", None),
+        "visual_top_block_final": getattr(visual, "top_block_final", None),
+        "visual_matrix_block": getattr(visual, "matrix_block", None),
     }
 
 
@@ -2866,7 +2990,7 @@ class IntroResearchQuestion3(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(2)
-        intro_group = Group(state["question_claim"], state["visual"])
+        intro_group = Group(state["question_claim"], state["visual_top_block_intro"])
         self.play(
             FadeIn(state["header"], shift=UP * 0.04, run_time=0.70),
             FadeIn(intro_group, shift=UP * 0.04, run_time=0.90),
@@ -2892,7 +3016,16 @@ class IntroResearchQuestion3(_IntroNumberedScene, Scene):
                     FadeIn(state["bullet_items"][idx], shift=UP * 0.03),
                 ]
             )
-        self.play(LaggedStart(*remaining_bullet_anims, lag_ratio=0.10, run_time=1.00))
+        self.play(
+            Transform(
+                state["visual_top_block_intro"],
+                state["visual_top_block_final"].copy(),
+                run_time=1.00,
+                rate_func=smooth,
+            ),
+            FadeIn(state["visual_matrix_block"], shift=UP * 0.05, run_time=0.95),
+            LaggedStart(*remaining_bullet_anims, lag_ratio=0.10, run_time=1.00),
+        )
         self.wait(4.25)
 
 

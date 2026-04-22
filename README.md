@@ -131,9 +131,9 @@ uv run python scripts/package_emergency_bundle.py --presentation-file /path/to/d
 
 ## Outputs and Conventions
 
-Rendered videos are written under numbered section folders such as `media/videos/03_study1/<quality>/`. Other generated artifacts are grouped alongside them in matching numbered directories under `media/images/`, plus `media/pdfs/`, `media/reports/`, and `media/keynote/`.
+Rendered videos are written as numbered section clips under paths such as `media/videos/03_study1/<quality>/sections/000_*.mp4`. The presentation builder, fallback PDF scripts, and backup tooling read only those numbered section clips and ignore stray files outside that convention. Other generated artifacts are grouped alongside them in matching numbered directories under `media/images/`, plus `media/pdfs/`, `media/reports/`, and `media/keynote/`.
 
-The numbered output convention is intentional. `scenes/study1.py` and `scenes/study2.py` define the public narrative order, and the render helpers read those mappings to produce filenames such as `01_ClassName.mp4`. Presentation and backup tooling assumes that convention rather than trying to infer order from ad hoc filenames.
+The numbered output convention is intentional. The unified render scenes emit section clips into filenames such as `sections/000_section_name.mp4`, and the presentation and backup tooling assumes that convention rather than trying to infer order from ad hoc filenames.
 
 The Keynote builder is manifest-driven. `assets/presentation_deck.toml` defines the slide sequence and can mix text slides, static image/PDF slides, and video sequences sourced from the numbered render outputs. Deck-level presenter notes for media slides can be authored separately in `assets/presenter_notes.md` instead of being embedded into the TOML slide definitions.
 

@@ -1,8 +1,8 @@
 # Optional per-video overrides for scripts/build_static_rescue_deck.py
 #
 # Leave this file empty if the default "last stable hold" heuristic looks good.
-# Add a table named after the scene class when one slide needs a different pick.
-# Numbered video stems also work, but class-name keys survive renumbering better.
+# Add a table named after the section clip stem when one slide needs a different
+# pick. Both the full stem and the stem without the numeric prefix work.
 #
 # Supported modes:
 # - timestamp: exact seconds into the video
@@ -12,14 +12,14 @@
 #
 # Examples:
 #
-# ["Study1Step4Interpolation"]
+# ["study1_stage1_step4_interpolation"]
 # mode = "timestamp"
 # value = 3.5
 #
-# ["Study2LTMResultsExplainer"]
+# ["study2_ltm_results_explainer"]
 # mode = "candidate_index"
 # value = 2
 
-["Study1Step2Showcase"]
+["study1_stage1_step2_showcase"]
 mode = "candidate_index"
 value = 3

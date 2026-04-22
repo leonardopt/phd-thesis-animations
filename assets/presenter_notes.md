@@ -115,49 +115,42 @@ A primary reason why these questions have been rarely tested directly is because
 - More specifically, the stimuli had to preserve semantic identity while varying in fine perceptual detail.
 - They also had to be suitable for early visual cortex analyses, where subtle perceptual differences are critical.
 
-## media/videos/02_methods/{{quality_dir}}/sections/001_methods_working_vs_long_term_memory.mp4
-
-- The next constraint comes from the divide between working-memory and long-term-memory research.
-- Working-memory tasks usually rely on simple, low-dimensional stimuli because they provide tight control and sensitive performance measures.
-- Long-term-memory tasks usually rely on richer, more distinctive images because they need durable item-specific traces.
-- Here I needed one stimulus family that could do both within a unified paradigm.
-
-## media/videos/02_methods/{{quality_dir}}/sections/002_methods_traditional_limits.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/001_methods_traditional_limits.mp4
 
 - Traditional solutions were not enough.
 - Existing image databases offer realism, but they do not provide controlled within-concept continua.
 - Manual image editing offers more control, but it does not scale to many categories and often sacrifices realism.
 - So the bottleneck is not just image availability; it is controlled naturalistic variation.
 
-## media/videos/02_methods/{{quality_dir}}/sections/003_methods_gans_proof_of_concept.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/002_methods_gans_proof_of_concept.mp4
 
 - Earlier GAN-based work, especially Scene Wheels, was an important proof of concept.
 - It showed that naturalistic images can be ordered on a perceptual continuum and used in memory experiments.
 - But for this thesis that approach was too limited in resolution, semantic range, and image quality.
 - I needed a method that could generate many high-resolution object-scenes across a broad stimulus space.
 
-## media/videos/02_methods/{{quality_dir}}/sections/004_methods_diffusion_opportunity.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/003_methods_diffusion_opportunity.mp4
 
 - Diffusion models offered the methodological opportunity.
 - Instead of searching for suitable images, I could specify the target concept directly through text prompts.
 - Stable Diffusion XL was attractive because it combines high output quality, flexibility, and 1024 x 1024 image synthesis.
 - That makes it possible to generate many photorealistic object-scenes with one common procedure.
 
-## media/videos/02_methods/{{quality_dir}}/sections/005_methods_diffusion_prompt_conditioning.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/004_methods_diffusion_prompt_conditioning.mp4
 
 - This slide shows the core generative logic.
 - For each object-scene, I keep one prompt fixed so the semantic concept remains stable.
 - I then vary the random seed, which changes the perceptual realisation without changing the intended identity.
 - That is the basic mechanism for generating multiple exemplars of the same object-scene.
 
-## media/videos/02_methods/{{quality_dir}}/sections/006_methods_diffusion_train_vs_generate.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/005_methods_diffusion_train_vs_generate.mp4
 
 - Diffusion models generate images by reversing a denoising process from noise to image.
 - For my purposes, the important point is not only image quality, but access to a structured generative space.
 - That structure makes interpolation possible at the level of noisy input latents.
 - In other words, this is the mechanistic basis for creating perceptual continua rather than isolated exemplars.
 
-## media/videos/02_methods/{{quality_dir}}/sections/007_methods_project_plan.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/006_methods_project_plan.mp4
 
 - This is the full logic of the project.
 - First, generate candidate object-scenes with controlled naturalistic variation.

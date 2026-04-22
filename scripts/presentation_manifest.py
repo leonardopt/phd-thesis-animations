@@ -27,6 +27,7 @@ except ModuleNotFoundError:  # pragma: no cover - macOS system Python can be < 3
 
 RECORD_SEPARATOR = "\x1e"
 FIELD_SEPARATOR = "\x1f"
+NUMBERED_SECTION_VIDEO_RE = re.compile(r"(?P<prefix>\d{3})_(?P<name>.+)$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -70,7 +71,15 @@ def ordered_media_paths(patterns: list[str], project_root: Path, quality_dir: st
         matches.extend(Path(p).resolve() for p in glob.glob(absolute_pattern))
 
     unique_matches = sorted(set(matches), key=slide_sort_key)
-    return [path for path in unique_matches if path.is_file()]
+    return [path for path in unique_matches if path.is_file() and include_media_path(path)]
+
+
+def include_media_path(path: Path) -> bool:
+    if path.suffix.lower() != ".mp4" or path.parent.name != "sections":
+        return True
+    if not NUMBERED_SECTION_VIDEO_RE.fullmatch(path.stem):
+        return False
+    return not path.stem.endswith("_autocreated")
 
 
 def slide_sort_key(path: Path) -> tuple:

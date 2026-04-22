@@ -22,6 +22,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 try:
     from export_last_frames_pdf import (
         DEFAULT_IMAGES_ROOT,
+        DEFAULT_SECTION_KEYS,
         DEFAULT_VIDEOS_ROOT,
         REPO_ROOT,
         VideoEntry,
@@ -30,6 +31,7 @@ try:
 except ModuleNotFoundError:
     from scripts.export_last_frames_pdf import (
         DEFAULT_IMAGES_ROOT,
+        DEFAULT_SECTION_KEYS,
         DEFAULT_VIDEOS_ROOT,
         REPO_ROOT,
         VideoEntry,
@@ -61,23 +63,28 @@ def parse_args() -> argparse.Namespace:
     """Parse CLI flags for stable-frame discovery and PDF layout generation."""
     parser = argparse.ArgumentParser(
         description=(
-            "Build a screener PDF with candidate still frames from Study 1/2 "
-            "videos, preferring frames that sit in stable holds rather than "
-            "in the middle of an animation."
+            "Build a screener PDF with candidate still frames from numbered "
+            "presentation section clips, preferring frames that sit in stable "
+            "holds rather than in the middle of an animation."
         )
     )
     parser.add_argument(
+        "--section",
         "--study",
-        choices=("study1", "study2"),
+        dest="sections",
+        choices=DEFAULT_SECTION_KEYS,
         nargs="+",
-        default=["study1", "study2"],
-        help="Studies to include in the screener (default: study1 study2).",
+        default=list(DEFAULT_SECTION_KEYS),
+        help=(
+            "Presentation sections to include in the screener "
+            f"(default: {' '.join(DEFAULT_SECTION_KEYS)})."
+        ),
     )
     parser.add_argument(
         "--videos-root",
         type=Path,
         default=DEFAULT_VIDEOS_ROOT,
-        help=f"Root directory containing study video folders (default: {DEFAULT_VIDEOS_ROOT}).",
+        help=f"Root directory containing numbered section video folders (default: {DEFAULT_VIDEOS_ROOT}).",
     )
     parser.add_argument(
         "--images-root",
@@ -429,7 +436,7 @@ def main() -> int:
     if ffmpeg_path is None:
         raise SystemExit("ffmpeg is required but was not found on PATH.")
 
-    entries = discover_videos(args.videos_root, args.images_root, args.study)
+    entries = discover_videos(args.videos_root, args.images_root, args.sections)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.full_page_output.parent.mkdir(parents=True, exist_ok=True)
 

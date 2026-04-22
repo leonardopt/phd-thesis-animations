@@ -64,13 +64,49 @@ class _ConclusionNumberedScene:
 BG = WHITE
 INK = "#1C1C1E"
 LGREY = "#D1D5DB"
-MGREY = "#374151"
-BLUE = "#3E5C76"
-AMBER = "#8A6642"
-GREEN = "#4F6D5E"
-RED = "#8B5A52"
+MGREY = "#9CA3AF"
+BLUE = "#2563EB"
+AMBER = "#D97706"
+GREEN = "#16A34A"
+RED = "#DC2626"
+RQ_BLUE = "#4E647F"
+RQ_RED = "#7A2E3A"
+RQ_GREEN = "#2F5D50"
+PANEL = "#F8FAFC"
 _FISH_VIDEO_PATH = _SCENES_DIR.parent / "assets" / "images" / "fish_video.mp4"
 _VIDEO_FRAME_CACHE: dict[tuple[str, int, int, int, int], list[np.ndarray]] = {}
+
+_CONCLUSION_RQ_SPECS: tuple[dict[str, str], ...] = (
+    {
+        "label": "Research question 1",
+        "title": "Representational format",
+        "question": r"Are working memory\\representations sensory-like?",
+        "result": (
+            r"Stimulus-specific information\\was retained in early visual\\cortex, but not in a stable\\sensory-like format."
+        ),
+        "accent": RQ_BLUE,
+    },
+    {
+        "label": "Research question 2",
+        "title": "Ecological validity",
+        "question": r"Does the sensory recruitment model\\generalize to naturalistic cognition?",
+        "result": (
+            r"Sensory recruitment generalized\\to controlled, high-resolution\\naturalistic images in\\perception and working memory."
+        ),
+        "accent": RQ_RED,
+    },
+    {
+        "label": "Research question 3",
+        "title": "Long-term memory interaction",
+        "question": (
+            r"Do pre-existing long-term memory\\representations affect how the early\\visual cortex represents\\working memory content?"
+        ),
+        "result": (
+            r"Repetition improved behavioural\\performance, but did not make\\working memory representations\\more sensory-like."
+        ),
+        "accent": RQ_GREEN,
+    },
+)
 
 
 def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
@@ -78,7 +114,7 @@ def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
     title = Tex(title_text, color=INK, font_size=34).to_edge(UP, buff=0.34)
     parts = [title]
     if subtitle_text is not None:
-        subtitle = Tex(subtitle_text, color=MGREY, font_size=21)
+        subtitle = Tex(subtitle_text, color=INK, font_size=21)
         subtitle.next_to(title, DOWN, buff=0.14)
         parts.append(subtitle)
     return VGroup(*parts)
@@ -87,13 +123,13 @@ def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
 def make_callout(text: str, color: str, *, font_size: float = 22) -> VGroup:
     """Build a short concluding takeaway with an underline."""
     line = Tex(text, color=INK, font_size=font_size)
-    if line.width > 9.1:
-        line.scale_to_fit_width(9.1)
+    if line.width > 9.0:
+        line.scale_to_fit_width(9.0)
     underline = Line(
-        line.get_corner(DL) + DOWN * 0.10,
-        line.get_corner(DR) + DOWN * 0.10,
+        line.get_left() + DOWN * 0.12,
+        line.get_right() + DOWN * 0.12,
         color=color,
-        stroke_width=1.8,
+        stroke_width=2.0,
     )
     return VGroup(line, underline)
 
@@ -107,6 +143,20 @@ def caption_line(
 ) -> Tex:
     """Build one caption line with optional width capping."""
     line = Tex(text, color=color, font_size=font_size)
+    if max_width is not None and line.width > max_width:
+        line.scale_to_fit_width(max_width)
+    return line
+
+
+def panel_text(
+    text: str,
+    *,
+    color: str = INK,
+    font_size: float = 18,
+    max_width: float | None = None,
+) -> Tex:
+    """Build one wrapped paragraph using the same left-aligned text treatment as the intro."""
+    line = Tex(text, color=color, font_size=font_size, tex_environment="flushleft")
     if max_width is not None and line.width > max_width:
         line.scale_to_fit_width(max_width)
     return line
@@ -132,6 +182,25 @@ def text_lines(
 def simple_divider(width: float, *, color: str = LGREY, stroke_width: float = 1.2) -> Line:
     """Build a centered divider."""
     return Line(LEFT * width / 2, RIGHT * width / 2, color=color, stroke_width=stroke_width)
+
+
+def card_shell(*, accent: str, width: float, height: float) -> tuple[RoundedRectangle, RoundedRectangle]:
+    """Build the same filled card shell used across the introduction."""
+    frame = RoundedRectangle(
+        width=width,
+        height=height,
+        corner_radius=0.16,
+        stroke_color=LGREY,
+        stroke_width=1.4,
+    ).set_fill(PANEL, opacity=0.96)
+    accent_bar = RoundedRectangle(
+        width=0.12,
+        height=height - 0.24,
+        corner_radius=0.06,
+        stroke_width=0,
+    ).set_fill(accent, opacity=1.0)
+    accent_bar.move_to(np.array([frame.get_left()[0] + 0.22, frame.get_center()[1], 0.0]))
+    return frame, accent_bar
 
 
 def load_video_frames(
@@ -229,55 +298,91 @@ def make_section_block(
     heading_size: float = 22,
     line_size: float = 18,
 ) -> VGroup:
-    """Build one unframed section block with a small accent marker."""
-    heading_row = VGroup(
-        Dot(radius=0.045, color=accent),
-        Tex(rf"\textbf{{{heading}}}", color=INK, font_size=heading_size),
-    ).arrange(RIGHT, buff=0.12)
-    body = text_lines(rows, font_size=line_size, color=INK, max_width=width)
-    divider = simple_divider(max(heading_row.width, body.width, width * 0.62), stroke_width=1.0)
-    divider.align_to(body, LEFT)
-    return VGroup(heading_row, body, divider).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+    """Build one framed section block so the conclusion matches the intro card language."""
+    content_width = width - 0.74
+    heading_text = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=heading_size)
+    if heading_text.width > content_width:
+        heading_text.scale_to_fit_width(content_width)
+    body = text_lines(rows, font_size=line_size, color=INK, buff=0.08, max_width=content_width)
+    content = VGroup(heading_text, body).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+    height = max(1.44, content.height + 0.38)
+    frame, accent_bar = card_shell(accent=accent, width=width, height=height)
+    content.move_to(frame.get_center())
+    content.align_to(frame, LEFT).shift(RIGHT * 0.48)
+    return VGroup(frame, accent_bar, content)
 
 
 def make_question_panel(
     label: str,
     heading: str,
-    rows: tuple[str, ...] | list[str],
+    question_text: str,
     *,
     accent: str,
-    width: float = 3.10,
+    width: float = 3.18,
+    height: float = 2.98,
 ) -> VGroup:
-    """Build one research-question panel."""
+    """Build one framed research-question panel using the intro's labels and accents."""
+    content_width = width - 0.78
     header = VGroup(
-        Tex(label, color=accent, font_size=16),
-        Tex(rf"\textbf{{{heading}}}", color=INK, font_size=22),
+        Dot(radius=0.038, color=accent, stroke_width=0),
+        Tex(label, color=accent, font_size=14),
     ).arrange(RIGHT, buff=0.10, aligned_edge=DOWN)
-    body = text_lines(rows, font_size=17, color=INK, max_width=width)
-    divider = simple_divider(max(header.width, body.width, width * 0.84), stroke_width=1.0)
-    divider.align_to(header, LEFT)
-    return VGroup(header, divider, body).arrange(DOWN, buff=0.12, aligned_edge=LEFT)
+    if header.width > content_width:
+        header.scale_to_fit_width(content_width)
+    title = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=20)
+    if title.width > content_width:
+        title.scale_to_fit_width(content_width)
+    divider = Line(ORIGIN, RIGHT * content_width, color=LGREY, stroke_width=1.0)
+    divider.set_stroke(opacity=0.72)
+    body = panel_text(question_text, font_size=16.8, max_width=content_width)
+    content = VGroup(header, title, divider, body).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+    max_content_height = height - 0.34
+    if content.height > max_content_height:
+        content.scale_to_fit_height(max_content_height)
+    frame, accent_bar = card_shell(accent=accent, width=width, height=height)
+    content.move_to(frame.get_center())
+    content.align_to(frame, UP).shift(DOWN * 0.18)
+    content.align_to(frame, LEFT).shift(RIGHT * 0.48)
+    return VGroup(frame, accent_bar, content)
 
 
 def make_result_panel(
     label: str,
     heading: str,
-    rows: tuple[str, ...] | list[str],
+    answer_text: str,
     *,
     accent: str,
-    width: float = 3.10,
+    width: float = 3.18,
+    height: float = 3.14,
 ) -> VGroup:
     """Build one concise answer block for a research question."""
+    content_width = width - 0.78
     header = VGroup(
-        Tex(label, color=accent, font_size=16),
-        Tex(rf"\textbf{{{heading}}}", color=INK, font_size=22),
+        Dot(radius=0.038, color=accent, stroke_width=0),
+        Tex(label, color=accent, font_size=14),
     ).arrange(RIGHT, buff=0.10, aligned_edge=DOWN)
-    body = text_lines(rows, font_size=17, color=INK, max_width=width)
-    divider = simple_divider(max(header.width, body.width, width * 0.84), stroke_width=1.0)
-    divider.align_to(header, LEFT)
-    answer = caption_line(r"\textbf{Answer}", color=accent, font_size=16)
-    block = VGroup(header, divider, answer, body).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
-    return block
+    if header.width > content_width:
+        header.scale_to_fit_width(content_width)
+    title = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=20)
+    if title.width > content_width:
+        title.scale_to_fit_width(content_width)
+    divider = Line(ORIGIN, RIGHT * content_width, color=LGREY, stroke_width=1.0)
+    divider.set_stroke(opacity=0.72)
+    answer = caption_line(r"\textbf{Answer}", color=accent, font_size=15)
+    body = panel_text(answer_text, font_size=16.2, max_width=content_width)
+    content = VGroup(header, title, divider, answer, body).arrange(
+        DOWN,
+        buff=0.10,
+        aligned_edge=LEFT,
+    )
+    max_content_height = height - 0.34
+    if content.height > max_content_height:
+        content.scale_to_fit_height(max_content_height)
+    frame, accent_bar = card_shell(accent=accent, width=width, height=height)
+    content.move_to(frame.get_center())
+    content.align_to(frame, UP).shift(DOWN * 0.18)
+    content.align_to(frame, LEFT).shift(RIGHT * 0.48)
+    return VGroup(frame, accent_bar, content)
 
 
 def three_panel_row(left: Mobject, middle: Mobject, right: Mobject, *, buff: float = 0.34) -> Group:
@@ -306,53 +411,24 @@ class ConclusionQuestions(_ConclusionNumberedScene, Scene):
 
         title = title_block(
             r"\textbf{Research questions}",
-            "Three open questions about sensory recruitment under naturalistic conditions",
+            "The same three questions introduced at the start of the thesis",
         )
 
-        questions = three_panel_row(
+        question_panels = [
             make_question_panel(
-                "RQ1",
-                "Representational format",
-                (
-                    "are working-memory codes",
-                    "in early visual cortex",
-                    "sensory-like or",
-                    "memory-specific?",
-                ),
-                accent=BLUE,
-                width=3.00,
-            ),
-            make_question_panel(
-                "RQ2",
-                "Naturalistic stimuli",
-                (
-                    "does sensory recruitment",
-                    "extend to controlled",
-                    "high-resolution",
-                    "naturalistic images?",
-                ),
-                accent=AMBER,
-                width=3.00,
-            ),
-            make_question_panel(
-                "RQ3",
-                "Long-term memory",
-                (
-                    "does long-term memory",
-                    "reshape working-memory",
-                    "representations in",
-                    "early visual cortex?",
-                ),
-                accent=GREEN,
-                width=3.00,
-            ),
-            buff=0.30,
-        )
+                spec["label"],
+                spec["title"],
+                spec["question"],
+                accent=spec["accent"],
+            )
+            for spec in _CONCLUSION_RQ_SPECS
+        ]
+        questions = three_panel_row(*question_panels, buff=0.28)
         questions.next_to(title, DOWN, buff=0.72)
 
         callout = make_callout(
-            "The thesis asked about format, generalisability, and long-term memory interactions.",
-            BLUE,
+            "The thesis asked about representational format, ecological validity, and long-term memory interaction.",
+            RQ_BLUE,
             font_size=20,
         ).to_edge(DOWN, buff=0.34)
 
@@ -370,7 +446,7 @@ class ConclusionApproach(_ConclusionNumberedScene, Scene):
 
         title = title_block(
             r"\textbf{What the dissertation did}",
-            "Study 1 solved the stimulus problem; Study 2 used the set to test sensory recruitment",
+            "Study 1 established controlled naturalistic stimuli; Study 2 used them to test sensory recruitment",
         )
 
         left_column = VGroup(
@@ -381,7 +457,7 @@ class ConclusionApproach(_ConclusionNumberedScene, Scene):
                     "108 high-resolution images with 10 graded variations per object-scene",
                     "behavioural validation showed a perceptual continuum",
                 ),
-                accent=BLUE,
+                accent=RQ_RED,
                 width=4.80,
             ),
             make_section_block(
@@ -390,7 +466,7 @@ class ConclusionApproach(_ConclusionNumberedScene, Scene):
                     "naturalistic stimuli with fine control over similarity",
                     "usable in behavioural tasks and neuroimaging",
                 ),
-                accent=GREEN,
+                accent=RQ_RED,
                 width=4.80,
             ),
         ).arrange(DOWN, buff=0.24, aligned_edge=LEFT)
@@ -401,9 +477,9 @@ class ConclusionApproach(_ConclusionNumberedScene, Scene):
                 (
                     "used the validated set in a two-session fMRI design",
                     "decoded stimulus-specific information in early visual cortex",
-                    "tested sensory-like generalisation and repetition effects",
+                    "tested sensory-like generalization and repetition effects",
                 ),
-                accent=AMBER,
+                accent=RQ_BLUE,
                 width=4.80,
             ),
             make_section_block(
@@ -412,7 +488,7 @@ class ConclusionApproach(_ConclusionNumberedScene, Scene):
                     "tested the sensory recruitment model with naturalistic stimuli",
                     "and refined it by separating information from format",
                 ),
-                accent=RED,
+                accent=RQ_GREEN,
                 width=4.80,
             ),
         ).arrange(DOWN, buff=0.24, aligned_edge=LEFT)
@@ -421,8 +497,8 @@ class ConclusionApproach(_ConclusionNumberedScene, Scene):
         content.next_to(title, DOWN, buff=0.34)
 
         callout = make_callout(
-            "The thesis combined controlled stimulus synthesis with neuroimaging to test naturalistic working memory.",
-            GREEN,
+            "The thesis combined controlled naturalistic stimulus synthesis with neuroimaging to test the sensory recruitment model.",
+            BLUE,
             font_size=20,
         ).to_edge(DOWN, buff=0.34)
 
@@ -441,52 +517,23 @@ class ConclusionResults(_ConclusionNumberedScene, Scene):
 
         title = title_block(
             r"\textbf{Main results}",
-            "Summary of the answers to the three research questions",
+            "Answers to the same three research questions from the introduction",
         )
 
-        results = three_panel_row(
+        result_panels = [
             make_result_panel(
-                "RQ1",
-                "Representational format",
-                (
-                    "stimulus-specific information",
-                    "was retained in early visual",
-                    "cortex, but not in a stable",
-                    "sensory-like format",
-                ),
-                accent=BLUE,
-                width=3.00,
-            ),
-            make_result_panel(
-                "RQ2",
-                "Naturalistic stimuli",
-                (
-                    "sensory recruitment extended",
-                    "to high-resolution",
-                    "naturalistic images during",
-                    "perception and delay",
-                ),
-                accent=AMBER,
-                width=3.00,
-            ),
-            make_result_panel(
-                "RQ3",
-                "Long-term memory",
-                (
-                    "repetition improved",
-                    "behavioural performance,",
-                    "but did not increase",
-                    "sensory-memory similarity",
-                ),
-                accent=GREEN,
-                width=3.00,
-            ),
-            buff=0.30,
-        )
+                spec["label"],
+                spec["title"],
+                spec["result"],
+                accent=spec["accent"],
+            )
+            for spec in _CONCLUSION_RQ_SPECS
+        ]
+        results = three_panel_row(*result_panels, buff=0.28)
         results.next_to(title, DOWN, buff=0.66)
 
         callout = make_callout(
-            "Naturalistic sensory recruitment was robust, but its mnemonic code was transformed rather than a stable sensory copy.",
+            "Naturalistic sensory recruitment was robust, but maintained representations were transformed rather than preserved as a stable sensory copy.",
             RED,
             font_size=19,
         ).to_edge(DOWN, buff=0.34)

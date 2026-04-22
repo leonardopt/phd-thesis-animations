@@ -25,13 +25,17 @@ SCENES_DIR = REPO_ROOT / "scenes"
 if str(SCENES_DIR) not in sys.path:
     sys.path.insert(0, str(SCENES_DIR))
 
-from utils import section_output_dir
+try:
+    from utils import SECTION_OUTPUT_DIRS, section_output_dir
+except ModuleNotFoundError:
+    from scripts.utils import SECTION_OUTPUT_DIRS, section_output_dir
 
 DEFAULT_VIDEOS_ROOT = REPO_ROOT / "media" / "videos"
 DEFAULT_IMAGES_ROOT = REPO_ROOT / "media" / "images"
 DEFAULT_OUTPUT = REPO_ROOT / "media" / "pdfs" / "study_last_frames_backup.pdf"
+DEFAULT_SECTION_KEYS = tuple(SECTION_OUTPUT_DIRS)
 QUALITY_RE = re.compile(r"(?P<height>\d+)p(?P<fps>\d+)$")
-STEM_RE = re.compile(r"(?P<prefix>\d+)(?P<suffix>[A-Za-z]*)_(?P<name>.+)$")
+STEM_RE = re.compile(r"(?P<prefix>\d{3})_(?P<name>.+)$")
 
 
 @dataclass(frozen=True)
@@ -48,22 +52,27 @@ class VideoEntry:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Extract the last frame from each rendered Study 1/2 video and "
+            "Extract the last frame from each numbered presentation section clip and "
             "assemble them into a one-slide-per-page PDF."
         )
     )
     parser.add_argument(
+        "--section",
         "--study",
-        choices=("study1", "study2"),
+        dest="sections",
+        choices=DEFAULT_SECTION_KEYS,
         nargs="+",
-        default=["study1", "study2"],
-        help="Studies to include in the PDF (default: study1 study2).",
+        default=list(DEFAULT_SECTION_KEYS),
+        help=(
+            "Presentation sections to include in the PDF "
+            f"(default: {' '.join(DEFAULT_SECTION_KEYS)})."
+        ),
     )
     parser.add_argument(
         "--videos-root",
         type=Path,
         default=DEFAULT_VIDEOS_ROOT,
-        help=f"Root directory containing study video folders (default: {DEFAULT_VIDEOS_ROOT}).",
+        help=f"Root directory containing numbered section video folders (default: {DEFAULT_VIDEOS_ROOT}).",
     )
     parser.add_argument(
         "--images-root",
@@ -111,38 +120,56 @@ def stem_sort_key(stem: str) -> tuple[object, ...]:
         return (sys.maxsize, stem)
     return (
         int(match.group("prefix")),
-        match.group("suffix"),
         match.group("name"),
     )
 
 
-def discover_videos(videos_root: Path, images_root: Path, studies: list[str]) -> list[VideoEntry]:
+def is_numbered_section_video(path: Path) -> bool:
+    if path.suffix.lower() != ".mp4":
+        return False
+    if path.parent.name != "sections":
+        return False
+    if not STEM_RE.fullmatch(path.stem):
+        return False
+    return not path.stem.endswith("_autocreated")
+
+
+def discover_videos(videos_root: Path, images_root: Path, sections: list[str]) -> list[VideoEntry]:
     entries: list[VideoEntry] = []
-    for study in studies:
-        study_dir_name = section_output_dir(study)
-        study_dir = videos_root / study_dir_name
-        if not study_dir.exists():
-            raise SystemExit(f"Video directory not found for {study}: {study_dir}")
+    for section_index, section_key in enumerate(sections):
+        section_dir_name = section_output_dir(section_key)
+        section_dir = videos_root / section_dir_name
+        if not section_dir.exists():
+            raise SystemExit(f"Video directory not found for {section_key}: {section_dir}")
 
         grouped: dict[str, list[Path]] = defaultdict(list)
-        for path in study_dir.rglob("*.mp4"):
-            if "partial_movie_files" in path.parts:
+        for quality_dir in sorted(section_dir.iterdir()):
+            if not quality_dir.is_dir() or not QUALITY_RE.fullmatch(quality_dir.name):
                 continue
-            grouped[path.stem].append(path)
+            sections_dir = quality_dir / "sections"
+            if not sections_dir.is_dir():
+                continue
+            for path in sorted(sections_dir.glob("*.mp4")):
+                if not is_numbered_section_video(path):
+                    continue
+                grouped[path.stem].append(path)
 
         if not grouped:
-            raise SystemExit(f"No top-level MP4 renders found under {study_dir}")
+            raise SystemExit(
+                "No numbered section MP4 renders found under "
+                f"{section_dir} (expected paths like */sections/000_clip_name.mp4)."
+            )
 
         for stem, candidates in grouped.items():
             best_video = max(candidates, key=video_quality_key)
-            still_fallback = images_root / study_dir_name / f"{stem}.png"
+            still_fallback = images_root / section_dir_name / f"{stem}.png"
             if not still_fallback.exists():
                 still_fallback = None
             entries.append(
                 VideoEntry(
                     video_path=best_video,
                     still_fallback=still_fallback,
-                    sort_key=(study, *stem_sort_key(stem)),
+                    sort_key=(section_index, *stem_sort_key(stem)),
                 )
             )
 
@@ -209,7 +236,7 @@ def main() -> int:
     if ffmpeg_path is None:
         raise SystemExit("ffmpeg is required but was not found on PATH.")
 
-    entries = discover_videos(args.videos_root, args.images_root, args.study)
+    entries = discover_videos(args.videos_root, args.images_root, args.sections)
     args.output.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="last_frames_") as temp_dir_name:

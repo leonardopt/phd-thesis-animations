@@ -16,11 +16,19 @@ SCENES_DIR = REPO_ROOT / "scenes"
 if str(SCENES_DIR) not in sys.path:
     sys.path.insert(0, str(SCENES_DIR))
 
-from utils import section_display_name, section_output_dir
+try:
+    from utils import section_display_name, section_output_dir
+except ModuleNotFoundError:
+    from scripts.utils import section_display_name, section_output_dir
 
 DEFAULT_VIDEOS_ROOT = REPO_ROOT / "media" / "videos"
 DEFAULT_REPORT_DIR = REPO_ROOT / "media" / "reports"
-DEFAULT_EXCLUDED_SECTIONS = ("old", "test_svg", section_output_dir("methods"))
+DEFAULT_EXCLUDED_SECTIONS = (
+    "old",
+    "test_svg",
+    "clips",
+    "intro_representation_test",
+)
 SECTION_ORDER_HINTS = (
     section_output_dir("intro"),
     section_output_dir("methods"),
@@ -53,6 +61,7 @@ DISPLAY_SECTION_NAMES = {
     "intro_diffusion_explainer": "Intro Diffusion Explainer",
 }
 SPLIT_RE = re.compile(r"(\d+)")
+NUMBERED_SECTION_VIDEO_RE = re.compile(r"(?P<prefix>\d{3})_(?P<name>.+)$")
 
 
 @dataclass(frozen=True)
@@ -158,6 +167,16 @@ def available_quality_names(section_dir: Path) -> list[str]:
     return qualities
 
 
+def is_numbered_section_video(path: Path) -> bool:
+    if path.suffix.lower() != ".mp4":
+        return False
+    if path.parent.name != "sections":
+        return False
+    if not NUMBERED_SECTION_VIDEO_RE.fullmatch(path.stem):
+        return False
+    return not path.stem.endswith("_autocreated")
+
+
 def probe_duration_seconds(ffprobe_path: str, video_path: Path) -> float:
     command = [
         ffprobe_path,
@@ -214,8 +233,11 @@ def discover_video_records(
             missing_quality_sections.append(f"{section_dir.name} [{available_display}]")
             continue
 
+        sections_dir = quality_dir / "sections"
         video_paths = sorted(
-            quality_dir.glob("*.mp4"),
+            [path for path in sections_dir.glob("*.mp4") if is_numbered_section_video(path)]
+            if sections_dir.is_dir()
+            else [],
             key=lambda path: natural_sort_key(path.stem),
         )
         if not video_paths:
@@ -244,7 +266,7 @@ def discover_video_records(
     if empty_sections:
         empty_lines = "\n".join(f"  - {entry}" for entry in empty_sections)
         raise SystemExit(
-            "No top-level MP4 files were found in one or more included sections:\n"
+            "No numbered section MP4 files were found in one or more included sections:\n"
             f"{empty_lines}"
         )
 

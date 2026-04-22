@@ -17,6 +17,7 @@ try:
     from export_last_frames_pdf import (
         DEFAULT_IMAGES_ROOT,
         DEFAULT_OUTPUT as DEFAULT_LAST_FRAMES,
+        DEFAULT_SECTION_KEYS,
         DEFAULT_VIDEOS_ROOT,
         REPO_ROOT,
         discover_videos,
@@ -30,6 +31,7 @@ except ModuleNotFoundError:
     from scripts.export_last_frames_pdf import (
         DEFAULT_IMAGES_ROOT,
         DEFAULT_OUTPUT as DEFAULT_LAST_FRAMES,
+        DEFAULT_SECTION_KEYS,
         DEFAULT_VIDEOS_ROOT,
         REPO_ROOT,
         discover_videos,
@@ -53,17 +55,22 @@ def parse_args() -> argparse.Namespace:
         description="Check that the presentation backups and video renders are ready for use."
     )
     parser.add_argument(
+        "--section",
         "--study",
-        choices=("study1", "study2"),
+        dest="sections",
+        choices=DEFAULT_SECTION_KEYS,
         nargs="+",
-        default=["study1", "study2"],
-        help="Studies to include in the preflight check (default: study1 study2).",
+        default=list(DEFAULT_SECTION_KEYS),
+        help=(
+            "Presentation sections to include in the preflight check "
+            f"(default: {' '.join(DEFAULT_SECTION_KEYS)})."
+        ),
     )
     parser.add_argument(
         "--videos-root",
         type=Path,
         default=DEFAULT_VIDEOS_ROOT,
-        help=f"Root directory containing study video folders (default: {DEFAULT_VIDEOS_ROOT}).",
+        help=f"Root directory containing numbered section video folders (default: {DEFAULT_VIDEOS_ROOT}).",
     )
     parser.add_argument(
         "--images-root",
@@ -244,12 +251,12 @@ def main() -> int:
             )
         )
 
-    entries = discover_videos(args.videos_root, args.images_root, args.study)
+    entries = discover_videos(args.videos_root, args.images_root, args.sections)
     results.append(
         pass_result(
             "video",
             "video inventory",
-            f"Discovered {len(entries)} top-level study render videos.",
+            f"Discovered {len(entries)} numbered section render videos.",
         )
     )
     for entry in entries:
