@@ -72,7 +72,6 @@ RED = "#DC2626"
 RQ_BLUE = "#4E647F"
 RQ_RED = "#7A2E3A"
 RQ_GREEN = "#2F5D50"
-PANEL = "#F8FAFC"
 _FISH_VIDEO_PATH = _SCENES_DIR.parent / "assets" / "images" / "fish_video.mp4"
 _VIDEO_FRAME_CACHE: dict[tuple[str, int, int, int, int], list[np.ndarray]] = {}
 
@@ -123,11 +122,12 @@ def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
 def make_callout(text: str, color: str, *, font_size: float = 22) -> VGroup:
     """Build a short concluding takeaway with an underline."""
     line = Tex(text, color=INK, font_size=font_size)
-    if line.width > 9.0:
-        line.scale_to_fit_width(9.0)
+    if line.width > 10.6:
+        line.scale_to_fit_width(10.6)
+    underline_y = line.get_bottom()[1] - 0.12
     underline = Line(
-        line.get_left() + DOWN * 0.12,
-        line.get_right() + DOWN * 0.12,
+        np.array([line.get_left()[0], underline_y, 0.0]),
+        np.array([line.get_right()[0], underline_y, 0.0]),
         color=color,
         stroke_width=2.0,
     )
@@ -182,25 +182,6 @@ def text_lines(
 def simple_divider(width: float, *, color: str = LGREY, stroke_width: float = 1.2) -> Line:
     """Build a centered divider."""
     return Line(LEFT * width / 2, RIGHT * width / 2, color=color, stroke_width=stroke_width)
-
-
-def card_shell(*, accent: str, width: float, height: float) -> tuple[RoundedRectangle, RoundedRectangle]:
-    """Build the same filled card shell used across the introduction."""
-    frame = RoundedRectangle(
-        width=width,
-        height=height,
-        corner_radius=0.16,
-        stroke_color=LGREY,
-        stroke_width=1.4,
-    ).set_fill(PANEL, opacity=0.96)
-    accent_bar = RoundedRectangle(
-        width=0.12,
-        height=height - 0.24,
-        corner_radius=0.06,
-        stroke_width=0,
-    ).set_fill(accent, opacity=1.0)
-    accent_bar.move_to(np.array([frame.get_left()[0] + 0.22, frame.get_center()[1], 0.0]))
-    return frame, accent_bar
 
 
 def load_video_frames(
@@ -298,18 +279,18 @@ def make_section_block(
     heading_size: float = 22,
     line_size: float = 18,
 ) -> VGroup:
-    """Build one framed section block so the conclusion matches the intro card language."""
-    content_width = width - 0.74
-    heading_text = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=heading_size)
-    if heading_text.width > content_width:
-        heading_text.scale_to_fit_width(content_width)
-    body = text_lines(rows, font_size=line_size, color=INK, buff=0.08, max_width=content_width)
-    content = VGroup(heading_text, body).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
-    height = max(1.44, content.height + 0.38)
-    frame, accent_bar = card_shell(accent=accent, width=width, height=height)
-    content.move_to(frame.get_center())
-    content.align_to(frame, LEFT).shift(RIGHT * 0.48)
-    return VGroup(frame, accent_bar, content)
+    """Build one unframed section block with the intro's lighter divider style."""
+    heading_row = VGroup(
+        Dot(radius=0.045, color=accent),
+        Tex(rf"\textbf{{{heading}}}", color=INK, font_size=heading_size),
+    ).arrange(RIGHT, buff=0.12)
+    if heading_row.width > width:
+        heading_row.scale_to_fit_width(width)
+    body = text_lines(rows, font_size=line_size, color=INK, buff=0.08, max_width=width)
+    divider = simple_divider(max(heading_row.width, body.width, width * 0.68), stroke_width=1.0)
+    divider.align_to(body, LEFT)
+    divider.set_stroke(opacity=0.72)
+    return VGroup(heading_row, body, divider).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
 
 
 def make_question_panel(
@@ -318,32 +299,23 @@ def make_question_panel(
     question_text: str,
     *,
     accent: str,
-    width: float = 3.18,
-    height: float = 2.98,
+    width: float = 3.08,
 ) -> VGroup:
-    """Build one framed research-question panel using the intro's labels and accents."""
-    content_width = width - 0.78
+    """Build one unframed research-question panel using the intro's labels and accents."""
     header = VGroup(
         Dot(radius=0.038, color=accent, stroke_width=0),
         Tex(label, color=accent, font_size=14),
     ).arrange(RIGHT, buff=0.10, aligned_edge=DOWN)
-    if header.width > content_width:
-        header.scale_to_fit_width(content_width)
+    if header.width > width:
+        header.scale_to_fit_width(width)
     title = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=20)
-    if title.width > content_width:
-        title.scale_to_fit_width(content_width)
-    divider = Line(ORIGIN, RIGHT * content_width, color=LGREY, stroke_width=1.0)
+    if title.width > width:
+        title.scale_to_fit_width(width)
+    divider = Line(ORIGIN, RIGHT * max(width * 0.86, title.width), color=LGREY, stroke_width=1.0)
     divider.set_stroke(opacity=0.72)
-    body = panel_text(question_text, font_size=16.8, max_width=content_width)
-    content = VGroup(header, title, divider, body).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
-    max_content_height = height - 0.34
-    if content.height > max_content_height:
-        content.scale_to_fit_height(max_content_height)
-    frame, accent_bar = card_shell(accent=accent, width=width, height=height)
-    content.move_to(frame.get_center())
-    content.align_to(frame, UP).shift(DOWN * 0.18)
-    content.align_to(frame, LEFT).shift(RIGHT * 0.48)
-    return VGroup(frame, accent_bar, content)
+    divider.align_to(title, LEFT)
+    body = panel_text(question_text, font_size=16.8, max_width=width)
+    return VGroup(header, title, divider, body).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
 
 
 def make_result_panel(
@@ -352,37 +324,28 @@ def make_result_panel(
     answer_text: str,
     *,
     accent: str,
-    width: float = 3.18,
-    height: float = 3.14,
+    width: float = 3.08,
 ) -> VGroup:
-    """Build one concise answer block for a research question."""
-    content_width = width - 0.78
+    """Build one concise unframed answer block for a research question."""
     header = VGroup(
         Dot(radius=0.038, color=accent, stroke_width=0),
         Tex(label, color=accent, font_size=14),
     ).arrange(RIGHT, buff=0.10, aligned_edge=DOWN)
-    if header.width > content_width:
-        header.scale_to_fit_width(content_width)
+    if header.width > width:
+        header.scale_to_fit_width(width)
     title = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=20)
-    if title.width > content_width:
-        title.scale_to_fit_width(content_width)
-    divider = Line(ORIGIN, RIGHT * content_width, color=LGREY, stroke_width=1.0)
+    if title.width > width:
+        title.scale_to_fit_width(width)
+    divider = Line(ORIGIN, RIGHT * max(width * 0.86, title.width), color=LGREY, stroke_width=1.0)
     divider.set_stroke(opacity=0.72)
+    divider.align_to(title, LEFT)
     answer = caption_line(r"\textbf{Answer}", color=accent, font_size=15)
-    body = panel_text(answer_text, font_size=16.2, max_width=content_width)
-    content = VGroup(header, title, divider, answer, body).arrange(
+    body = panel_text(answer_text, font_size=16.2, max_width=width)
+    return VGroup(header, title, divider, answer, body).arrange(
         DOWN,
         buff=0.10,
         aligned_edge=LEFT,
     )
-    max_content_height = height - 0.34
-    if content.height > max_content_height:
-        content.scale_to_fit_height(max_content_height)
-    frame, accent_bar = card_shell(accent=accent, width=width, height=height)
-    content.move_to(frame.get_center())
-    content.align_to(frame, UP).shift(DOWN * 0.18)
-    content.align_to(frame, LEFT).shift(RIGHT * 0.48)
-    return VGroup(frame, accent_bar, content)
 
 
 def three_panel_row(left: Mobject, middle: Mobject, right: Mobject, *, buff: float = 0.34) -> Group:

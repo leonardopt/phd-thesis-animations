@@ -106,51 +106,68 @@ It is plausible that stronger ltm traces would make the wm code more sensory-lik
 
 # Methods
 
-## media/videos/02_methods/{{quality_dir}}/sections/000_methods_stimulus_requirements.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/000_methods_stimulus_requirements_a.mp4
 
 A primary reason why these questions have been rarely tested directly is because of methodological constraints. The main difficulty is to design an experimental paradigm, and a corresponding set of naturalistic stimuli, suitable for studying sensory recruitment and its interaction with long-term memory
 
-- The central methodological problem is that the dissertation questions could not be answered with existing stimulus sets.
-- We needed naturalistic images that still permit threshold-level discrimination, not just coarse category judgements.
-- More specifically, the stimuli had to preserve semantic identity while varying in fine perceptual detail.
-- They also had to be suitable for early visual cortex analyses, where subtle perceptual differences are critical.
+- The first requirement was that the stimuli had to be naturalistic.
+- The thesis is about perception and memory in rich visual settings, so abstract lab features would not be enough.
+- I needed object-scenes that look like real visual episodes rather than simplified placeholders.
 
-## media/videos/02_methods/{{quality_dir}}/sections/001_methods_traditional_limits.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/001_methods_stimulus_requirements_b.mp4
+
+- The second requirement was control.
+- The stimuli had to preserve semantic identity while varying in fine perceptual detail.
+- So the goal was not just realism, but a family of controlled within-concept variations.
+
+## media/videos/02_methods/{{quality_dir}}/sections/002_methods_stimulus_requirements_c.mp4
+
+- The third requirement was suitability for the actual working-memory and fMRI analyses.
+- The images had to permit threshold-level discrimination, not just coarse category judgements.
+- They also had to be informative for early visual cortex analyses, where subtle perceptual differences matter.
+
+## media/videos/02_methods/{{quality_dir}}/sections/003_methods_stimulus_requirements_d.mp4
+
+- The fourth requirement was distinctiveness.
+- The stimuli had to be item-specific enough to support later long-term-memory manipulations as well.
+- So one stimulus family had to work for perception, working memory, and later memory-based comparisons.
+
+## media/videos/02_methods/{{quality_dir}}/sections/004_methods_traditional_limits.mp4
 
 - Traditional solutions were not enough.
 - Existing image databases offer realism, but they do not provide controlled within-concept continua.
 - Manual image editing offers more control, but it does not scale to many categories and often sacrifices realism.
 - So the bottleneck is not just image availability; it is controlled naturalistic variation.
 
-## media/videos/02_methods/{{quality_dir}}/sections/002_methods_gans_proof_of_concept.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/005_methods_gans_proof_of_concept.mp4
 
 - Earlier GAN-based work, especially Scene Wheels, was an important proof of concept.
 - It showed that naturalistic images can be ordered on a perceptual continuum and used in memory experiments.
 - But for this thesis that approach was too limited in resolution, semantic range, and image quality.
 - I needed a method that could generate many high-resolution object-scenes across a broad stimulus space.
 
-## media/videos/02_methods/{{quality_dir}}/sections/003_methods_diffusion_opportunity.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/006_methods_diffusion_opportunity.mp4
 
 - Diffusion models offered the methodological opportunity.
 - Instead of searching for suitable images, I could specify the target concept directly through text prompts.
 - Stable Diffusion XL was attractive because it combines high output quality, flexibility, and 1024 x 1024 image synthesis.
 - That makes it possible to generate many photorealistic object-scenes with one common procedure.
 
-## media/videos/02_methods/{{quality_dir}}/sections/004_methods_diffusion_prompt_conditioning.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/007_methods_diffusion_prompt_conditioning.mp4
 
 - This slide shows the core generative logic.
 - For each object-scene, I keep one prompt fixed so the semantic concept remains stable.
 - I then vary the random seed, which changes the perceptual realisation without changing the intended identity.
 - That is the basic mechanism for generating multiple exemplars of the same object-scene.
 
-## media/videos/02_methods/{{quality_dir}}/sections/005_methods_diffusion_train_vs_generate.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/008_methods_diffusion_train_vs_generate.mp4
 
 - Diffusion models generate images by reversing a denoising process from noise to image.
 - For my purposes, the important point is not only image quality, but access to a structured generative space.
 - That structure makes interpolation possible at the level of noisy input latents.
 - In other words, this is the mechanistic basis for creating perceptual continua rather than isolated exemplars.
 
-## media/videos/02_methods/{{quality_dir}}/sections/006_methods_project_plan.mp4
+## media/videos/02_methods/{{quality_dir}}/sections/009_methods_project_plan.mp4
 
 - This is the full logic of the project.
 - First, generate candidate object-scenes with controlled naturalistic variation.

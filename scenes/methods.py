@@ -8,9 +8,11 @@ Production render:
     uv run manim scenes/methods.py Methods -ql --save_sections
 
 Legacy standalone renders:
-    uv run manim scenes/methods.py MethodsStimulusRequirements -ql
-    uv run manim scenes/methods.py MethodsTraditionalLimits -ql
-    uv run manim scenes/methods.py MethodsGANsProofOfConcept -ql
+    uv run manim scenes/methods.py MethodsStimulusRequirementsA -ql
+    uv run manim scenes/methods.py MethodsStimulusRequirementsB -ql
+    uv run manim scenes/methods.py MethodsStimulusRequirementsC -ql
+    uv run manim scenes/methods.py MethodsStimulusRequirementsD -ql
+    uv run manim scenes/methods.py MethodsExistingApproaches -ql
     uv run manim scenes/methods.py MethodsDiffusionOpportunity -ql
     uv run manim scenes/methods.py MethodsDiffusionPromptConditioning -ql
     uv run manim scenes/methods.py MethodsDiffusionTrainVsGenerate -ql
@@ -18,8 +20,12 @@ Legacy standalone renders:
 """
 from __future__ import annotations
 
+import base64
+from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 import sys
+import xml.etree.ElementTree as ET
 
 import numpy as np
 from PIL import Image as PILImage
@@ -44,12 +50,19 @@ simplify_manim_section_video_names(
 
 _METHODS_SCENE_ORDER: dict[str, str] = {
     "MethodsStimulusRequirements": "01",
-    "MethodsTraditionalLimits": "02",
-    "MethodsGANsProofOfConcept": "03",
-    "MethodsDiffusionOpportunity": "04",
-    "MethodsDiffusionPromptConditioning": "05",
-    "MethodsDiffusionTrainVsGenerate": "06",
-    "MethodsProjectPlan": "07",
+    "MethodsStimulusRequirementsA": "01",
+    "MethodsStimulusRequirementsB": "02",
+    "MethodsStimulusRequirementsC": "03",
+    "MethodsStimulusRequirementsD": "04",
+    "MethodsExistingApproaches": "05",
+    "MethodsGANsProofOfConcept": "05",
+    "MethodsDiffusionOpportunity": "06",
+    "MethodsDiffusionPromptConditioning": "07",
+    "MethodsDiffusionTrainVsGenerate": "08",
+    "MethodsProjectPlan": "09",
+}
+_METHODS_OUTPUT_NAMES: dict[str, str] = {
+    "MethodsGANsProofOfConcept": "MethodsExistingApproaches",
 }
 
 
@@ -59,8 +72,9 @@ class _MethodsNumberedScene:
     def __init__(self, *args, **kwargs):
         scene_name = self.__class__.__name__
         number = _METHODS_SCENE_ORDER.get(scene_name, "")
+        output_name = _METHODS_OUTPUT_NAMES.get(scene_name, scene_name)
         if config.output_file == "methods":
-            config.output_file = f"{number}_{scene_name}" if number else scene_name
+            config.output_file = f"{number}_{output_name}" if number else output_name
         super().__init__(*args, **kwargs)
 
 
@@ -94,6 +108,43 @@ _INTRO_STIM_DIR = env_path(
     REPO_ROOT / "assets" / "images" / "stimuli_reordered",
 )
 _BRAIN_ICON_PATH = REPO_ROOT / "assets" / "images" / "study2" / "brain_icon_sagittal.png"
+_METHODS_REQUIREMENTS_A_PNG_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "requirements_a.png"
+)
+_METHODS_REQUIREMENTS_A_SVG_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "requirements_a.svg"
+)
+_METHODS_REQUIREMENTS_B_PNG_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "requirements_b.png"
+)
+_METHODS_REQUIREMENTS_B_SVG_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "requirements_b.svg"
+)
+_METHODS_REQUIREMENTS_C_PNG_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "requirements_c.png"
+)
+_METHODS_REQUIREMENTS_C_SVG_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "requirements_c.svg"
+)
+_METHODS_REQUIREMENTS_D_V1V2V3_PNG_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "requirements_d_v1v2v3.png"
+)
+_METHODS_SNODGRASS_VANDERWART_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "Snodgrass & Vanderwart (1980).png"
+)
+_METHODS_BRODEUR_2010_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "Brodeur et al. (2010).png"
+)
+_METHODS_COCO_DATASET_PATH = (
+    REPO_ROOT / "assets" / "images" / "methods" / "COCO dataset (Lin et al 2015) .png"
+)
+_METHODS_THINGS_GUITAR_PATH = REPO_ROOT / "assets" / "images" / "methods" / "thins_guitar.jpg"
+_METHODS_THINGS_BALLON_PATH = REPO_ROOT / "assets" / "images" / "methods" / "things_ballon.jpg"
+_METHODS_THINGS_FISH1_PATH = REPO_ROOT / "assets" / "images" / "methods" / "things_fish1.jpg"
+_METHODS_THINGS_FISH2_PATH = REPO_ROOT / "assets" / "images" / "methods" / "things_fish2.jpg"
+_METHODS_THINGS_FISH3_PATH = REPO_ROOT / "assets" / "images" / "methods" / "things_fish3.jpg"
+_METHODS_SON_2021_PATH = REPO_ROOT / "assets" / "images" / "methods" / "son2021.png"
+_METHODS_SON_2021B_PATH = REPO_ROOT / "assets" / "images" / "methods" / "son2021b.png"
 
 _EXEMPLAR_CODE = "building_observatory"
 _DIFFUSION_CODE = "animal_fish"
@@ -245,8 +296,51 @@ def make_section_block(
     return VGroup(heading_row, body, divider).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
 
 
+def make_centered_timeline_column(
+    heading: str | tuple[str, ...],
+    body: Mobject,
+    *,
+    width: float = 3.10,
+    heading_size: float = 22,
+    divider_color: str = BLACK,
+    show_divider: bool = True,
+    title_body_buff: float = 0.14,
+) -> Group:
+    """Build a centered text block suitable for a dot-anchored timeline."""
+    if isinstance(heading, str):
+        heading_block = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=heading_size)
+    else:
+        heading_block = VGroup(
+            *[Tex(rf"\textbf{{{row}}}", color=INK, font_size=heading_size) for row in heading]
+        ).arrange(DOWN, buff=0.03)
+    if heading_block.width > width:
+        heading_block.scale_to_fit_width(width)
+
+    body_group = body.copy()
+    if body_group.width > width:
+        body_group.scale_to_fit_width(width)
+
+    column_parts = [heading_block]
+    if show_divider:
+        divider = simple_divider(
+            max(heading_block.width, body_group.width, width * 0.84),
+            color=divider_color,
+            stroke_width=1.0,
+        )
+        column_parts.append(divider)
+        column_parts.append(body_group)
+        column = Group(*column_parts).arrange(DOWN, buff=0.12)
+    else:
+        column_parts.append(body_group)
+        column = Group(*column_parts).arrange(DOWN, buff=title_body_buff)
+    anchor_x = column.get_center()[0]
+    for mob in column:
+        mob.set_x(anchor_x)
+    return column
+
+
 def make_requirement_column_scaffold(
-    heading: str,
+    heading: str | tuple[str, ...] | list[str],
     *,
     accent: str,
     width: float = 2.72,
@@ -254,7 +348,12 @@ def make_requirement_column_scaffold(
     heading_size: float = 22,
 ) -> VGroup:
     """Build an empty requirement column with room for later text or images."""
-    heading_text = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=heading_size)
+    if isinstance(heading, str):
+        heading_text = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=heading_size)
+    else:
+        heading_text = VGroup(
+            *[Tex(rf"\textbf{{{row}}}", color=INK, font_size=heading_size) for row in heading]
+        ).arrange(DOWN, buff=0.03)
     if heading_text.width > width:
         heading_text.scale_to_fit_width(width)
 
@@ -274,20 +373,24 @@ def make_requirement_column_scaffold(
 
 
 def make_intersection_vertical_divider(
-    height: float,
+    upper_length: float,
     *,
+    lower_length: float = 0.26,
     color: str = LGREY,
     dot_color: str = MGREY,
+    junction_padding: float = 0.26,
 ) -> VGroup:
     """Build a clean vertical divider with a single intersection marker."""
-    line = Line(UP * height / 2, DOWN * height / 2, color=color, stroke_width=1.0)
-    line.set_stroke(opacity=0.72)
-
     dot = Dot(radius=0.028, color=dot_color, stroke_width=0)
     dot.set_opacity(0.92)
-    dot.move_to(line.get_center())
+    gap_edge = dot.radius + junction_padding
 
-    return VGroup(line, dot)
+    top_segment = Line(UP * upper_length, UP * gap_edge, color=color, stroke_width=1.0)
+    bottom_segment = Line(DOWN * gap_edge, DOWN * lower_length, color=color, stroke_width=1.0)
+    top_segment.set_stroke(opacity=0.72)
+    bottom_segment.set_stroke(opacity=0.72)
+
+    return VGroup(top_segment, dot, bottom_segment)
 
 
 def make_pipeline_stage(
@@ -327,6 +430,168 @@ def make_image_strip(
             for idx in idxs
         ]
     ).arrange(RIGHT, buff=buff)
+
+
+@lru_cache(maxsize=None)
+def _embedded_png_from_svg(svg_path: str | Path) -> np.ndarray:
+    """Extract one embedded PNG from an SVG wrapper for direct ImageMobject use."""
+    root = ET.parse(str(svg_path)).getroot()
+    href_key = "{http://www.w3.org/1999/xlink}href"
+    image_nodes = root.findall(".//{http://www.w3.org/2000/svg}image")
+    if not image_nodes:
+        raise ValueError(f"No embedded image found in {svg_path}")
+    href = image_nodes[0].attrib.get(href_key, "")
+    prefix = "data:image/png;base64,"
+    if not href.startswith(prefix):
+        raise ValueError(f"Expected embedded PNG data URL in {svg_path}")
+    png_bytes = base64.b64decode("".join(href[len(prefix) :].split()))
+    return np.array(PILImage.open(BytesIO(png_bytes)).convert("RGBA"))
+
+
+_METHODS_STUDY2_BLUE = "#2563EB"
+_METHODS_STUDY2_RED = "#DC2626"
+_METHODS_STUDY2_CYAN = "#0891B2"
+_METHODS_STUDY2_GRID_PAT = np.array([
+    [0.9, 0.2, 0.7],
+    [0.3, 0.8, 0.1],
+    [0.5, 0.4, 0.9],
+])
+_METHODS_STUDY2_GRID_PERMS = (
+    np.array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+    np.array([2, 6, 0, 7, 4, 8, 1, 5, 3]),
+    np.array([8, 3, 6, 1, 4, 7, 2, 5, 0]),
+    np.array([1, 4, 7, 0, 8, 5, 2, 6, 3]),
+    np.array([5, 0, 8, 2, 6, 1, 7, 3, 4]),
+    np.array([6, 2, 5, 8, 1, 4, 0, 3, 7]),
+)
+
+
+def _methods_study2_pattern_for_index(idx: int) -> np.ndarray:
+    """Return one Study 2-style multivoxel pattern."""
+    flat = _METHODS_STUDY2_GRID_PAT.flatten()
+    perm = _METHODS_STUDY2_GRID_PERMS[idx % len(_METHODS_STUDY2_GRID_PERMS)]
+    return flat[perm].reshape(_METHODS_STUDY2_GRID_PAT.shape)
+
+
+def _make_methods_study2_grid(
+    color: str,
+    pattern: np.ndarray,
+    *,
+    cell_size: float = 0.108,
+    gap: float = 0.017,
+) -> VGroup:
+    """Build a compact multivoxel grid matching the Study 2 visual grammar."""
+    step = cell_size + gap
+    group = VGroup()
+    for r in range(pattern.shape[0]):
+        for c in range(pattern.shape[1]):
+            value = float(pattern[r, c])
+            cell = Square(
+                side_length=cell_size,
+                stroke_width=0.7,
+                stroke_color=LGREY,
+            ).set_fill(
+                interpolate_color(ManimColor(WHITE), ManimColor(color), 0.10 + 0.90 * value),
+                opacity=1.0,
+            )
+            cell.move_to(
+                RIGHT * (c - 1) * step
+                + UP * (1 - r) * step
+            )
+            group.add(cell)
+    return group
+
+
+def _make_methods_requirement_flow_arrow(
+    start: np.ndarray,
+    end: np.ndarray,
+    *,
+    color: str,
+) -> Arrow:
+    """Build one thin branch arrow for the decoding requirement diagram."""
+    arrow = Arrow(
+        start,
+        end,
+        buff=0.03,
+        color=color,
+        stroke_width=1.9,
+        tip_length=0.12,
+        max_tip_length_to_length_ratio=0.18,
+    )
+    arrow.set_stroke(opacity=0.88)
+    return arrow
+
+
+def _build_methods_requirement_d_visual(*, width: float) -> VGroup:
+    """Build the custom V1-V3 decoding diagram for requirement D."""
+    branch_specs = (
+        {
+            "image_path": stim_path("animal_cat", 0),
+            "color": _METHODS_STUDY2_RED,
+            "pattern_idx": 3,
+        },
+        {
+            "image_path": stim_path("plant_bristlecone", 0),
+            "color": _METHODS_STUDY2_CYAN,
+            "pattern_idx": 5,
+        },
+        {
+            # Study 2 has no sailboat identity entry; reuse its blue-family accent.
+            "image_path": stim_path("vehicle_sailboat", 0),
+            "color": _METHODS_STUDY2_BLUE,
+            "pattern_idx": 1,
+        },
+    )
+
+    cards = Group(
+        *[
+            make_image_card(
+                spec["image_path"],
+                height=0.34,
+                border_color=spec["color"],
+                buff=0.028,
+                corner_radius=0.10,
+            )
+            for spec in branch_specs
+        ]
+    ).arrange(RIGHT, buff=0.10, aligned_edge=UP)
+    cards.set_z_index(4)
+
+    brain = ImageMobject(str(_METHODS_REQUIREMENTS_D_V1V2V3_PNG_PATH))
+    brain.scale_to_fit_width(width * 0.58)
+    brain.set_z_index(2)
+
+    patterns = VGroup(
+        *[
+            _make_methods_study2_grid(
+                spec["color"],
+                _methods_study2_pattern_for_index(spec["pattern_idx"]),
+            )
+            for spec in branch_specs
+        ]
+    ).arrange(RIGHT, buff=0.18, aligned_edge=UP)
+    patterns.set_z_index(4)
+
+    cards.next_to(brain, DOWN, buff=0.22)
+    patterns.next_to(cards, DOWN, buff=0.36)
+
+    flow_arrows = VGroup()
+    for card, pattern, spec in zip(cards, patterns, branch_specs):
+        color = str(spec["color"])
+        flow_arrows.add(
+            _make_methods_requirement_flow_arrow(
+                card.get_bottom() + DOWN * 0.02,
+                pattern.get_top() + UP * 0.02,
+                color=color,
+            )
+        )
+    flow_arrows.set_z_index(3)
+
+    diagram = Group(brain, cards, flow_arrows, patterns)
+    frame = Rectangle(width=width, height=diagram.height, stroke_width=0)
+    frame.set_fill(WHITE, opacity=0.0)
+    diagram.move_to(frame.get_center())
+    return Group(frame, diagram)
 
 
 _SHARED_NOISE: dict[tuple[int, ...], np.ndarray] = {}
@@ -461,196 +726,578 @@ def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.
     }
 
 
-class MethodsStimulusRequirements(Scene):
-    """Chapter 2.1 — define the stimulus properties the project required."""
+_METHODS_REQUIREMENT_SPECS: tuple[dict[str, object], ...] = (
+    {
+        "heading": ("Ecological", "validity"),
+        "accent": BLUE,
+        "image_path": _METHODS_REQUIREMENTS_A_PNG_PATH,
+        "bullets": (
+            (
+                "Approximate perceptual and",
+                "semantic richness in",
+                "naturalistic vision",
+            ),
+        ),
+    },
+    {
+        "heading": ("Experimental", "control"),
+        "accent": AMBER,
+        "image_path": _METHODS_REQUIREMENTS_B_PNG_PATH,
+        "bullets": (
+            (
+                "Dissociate perceptual",
+                "similarity from",
+                "semantic identity",
+            ),
+            (
+                "Vary fine-grained",
+                "visual details, not",
+                "semantic content",
+            ),
+            (
+                "Allow controlled",
+                "manipulation of overall",
+                "similarity",
+            ),
+        ),
+    },
+    {
+        "heading": ("Unified memory", "paradigm"),
+        "accent": GREEN,
+        "image_path": _METHODS_REQUIREMENTS_C_PNG_PATH,
+        "image_text_buff": 0.30,
+        "bullets": (
+            (
+                "Limit semantic rehearsal",
+                "while preserving",
+                "perceptual demands",
+            ),
+            (
+                "Measure WM and LTM",
+                "sensitively, avoiding",
+                "floor and ceiling effects",
+            ),
+        ),
+    },
+    {
+        "heading": ("Suitable for", "brain decoding"),
+        "accent": BLUE,
+        "custom_visual_builder": _build_methods_requirement_d_visual,
+        "bullets": (
+            (
+                "Perceptual variability",
+                "evokes distinct cortical",
+                "patterns in V1-V3",
+            ),
+            (
+                "Support multivariate",
+                "decoding analyses",
+            ),
+            (
+                "Enable comparison of",
+                "sensory and memory",
+                "representations",
+            ),
+        ),
+    },
+)
+_METHODS_REQUIREMENT_FOCUS_GAP = 0.20
 
-    def construct(self) -> None:
-        self.camera.background_color = BG
 
-        title = title_block(
-            r"\textbf{Design requirements for naturalistic stimuli}",
-            "delayed match to sample task with long-term memory component",
-            subtitle_color=INK,
+def _build_methods_stimulus_requirement_state(active_idx: int) -> dict[str, Mobject]:
+    title = title_block(
+        r"\textbf{Design requirements for naturalistic stimuli}",
+        "Objective: delayed match-to-sample task with long-term memory component",
+        subtitle_color=INK,
+    )
+
+    columns = VGroup(
+        *[
+            make_requirement_column_scaffold(spec["heading"], accent=spec["accent"])
+            for spec in _METHODS_REQUIREMENT_SPECS
+        ]
+    )
+
+    for idx, (column, spec) in enumerate(zip(columns, _METHODS_REQUIREMENT_SPECS)):
+        heading_text = column[0]
+        header_rule = column[1]
+        if idx <= active_idx:
+            heading_text.set_color(spec["accent"])
+            header_rule.set_color(spec["accent"])
+            header_rule.set_stroke(opacity=1.0, width=1.6)
+        else:
+            heading_text.set_color(INK)
+            header_rule.set_color(LGREY)
+            header_rule.set_stroke(opacity=0.72, width=1.0)
+
+    divider_gap = 0.26
+    heading_height = max(column[0].height for column in columns)
+    body_depth = max(column[2].height for column in columns)
+    divider_upper = heading_height + 0.08
+    divider_lower = body_depth + 0.10
+    vertical_dividers = VGroup(
+        *[
+            make_intersection_vertical_divider(
+                divider_upper,
+                lower_length=divider_lower,
+                junction_padding=divider_gap,
+            )
+            for _ in range(len(columns) - 1)
+        ]
+    )
+
+    requirement_layout = VGroup()
+    for idx, column in enumerate(columns):
+        requirement_layout.add(column)
+        if idx < len(vertical_dividers):
+            requirement_layout.add(vertical_dividers[idx])
+    requirement_layout.arrange(RIGHT, buff=divider_gap, aligned_edge=UP)
+    requirement_layout.next_to(title, DOWN, buff=0.58)
+
+    intersection_y = columns[0][1].get_center()[1]
+    for divider in vertical_dividers:
+        divider.shift(UP * (intersection_y - divider[1].get_center()[1]))
+
+    def _selection_bounds(idx: int) -> tuple[float, float, float, float]:
+        column = columns[idx]
+        body_area = column[2]
+        rule = column[1]
+        inner_side_span = (
+            divider_gap + vertical_dividers[0][1].radius
+            if len(vertical_dividers)
+            else divider_gap
         )
-
-        columns = VGroup(
-            make_requirement_column_scaffold("Naturalistic", accent=BLUE),
-            make_requirement_column_scaffold("Controlled", accent=AMBER),
-            make_requirement_column_scaffold("Suitable", accent=GREEN),
-            make_requirement_column_scaffold("Distinctive", accent=BLUE),
+        left_boundary = (
+            vertical_dividers[idx - 1][1].get_x()
+            if idx > 0
+            else body_area.get_left()[0] - inner_side_span
         )
+        right_boundary = (
+            vertical_dividers[idx][1].get_x()
+            if idx < len(vertical_dividers)
+            else body_area.get_right()[0] + inner_side_span
+        )
+        rect_left = left_boundary + _METHODS_REQUIREMENT_FOCUS_GAP
+        rect_right = right_boundary - _METHODS_REQUIREMENT_FOCUS_GAP
+        rect_top = rule.get_y() - _METHODS_REQUIREMENT_FOCUS_GAP
+        rect_bottom = body_area.get_bottom()[1] + _METHODS_REQUIREMENT_FOCUS_GAP
+        return rect_left, rect_right, rect_top, rect_bottom
 
-        divider_height = columns[0].height - 0.16
-        vertical_dividers = VGroup(
-            *[
-                make_intersection_vertical_divider(divider_height)
-                for _ in range(len(columns) - 1)
+    bodies = Group()
+    for idx, (column, spec) in enumerate(zip(columns, _METHODS_REQUIREMENT_SPECS)):
+        accent = spec["accent"]
+        body_items = Group()
+        image_path = spec.get("image_path")
+        custom_visual_builder = spec.get("custom_visual_builder")
+        bullet_items = VGroup()
+        for bullet_rows in spec["bullets"]:
+            bullet = Dot(radius=0.034, color=accent, stroke_width=0)
+            bullet_text = text_lines(
+                bullet_rows,
+                font_size=16,
+                color=INK,
+                buff=0.06,
+                max_width=column[2].width - 0.56,
+            )
+            item = VGroup(bullet, bullet_text).arrange(RIGHT, buff=0.12, aligned_edge=UP)
+            bullet_items.add(item)
+        text_group = None
+        if len(bullet_items) > 0:
+            text_group = bullet_items.arrange(DOWN, buff=0.22, aligned_edge=LEFT)
+
+        image = None
+        if custom_visual_builder is not None:
+            image = custom_visual_builder(width=column[2].width - 0.30)
+            body_items.add(image)
+        elif image_path is not None:
+            if Path(image_path).suffix.lower() == ".svg":
+                image = ImageMobject(_embedded_png_from_svg(image_path))
+            else:
+                image = ImageMobject(str(image_path))
+            if text_group is not None:
+                text_width = max(item[1].width for item in bullet_items)
+                image.scale_to_fit_width(text_width)
+            else:
+                image.scale_to_fit_width(column[2].width - 0.56)
+            body_items.add(image)
+
+        if text_group is not None:
+            body_items.add(text_group)
+
+        image_text_buff = float(spec.get("image_text_buff", 0.18))
+        if image is not None and text_group is not None:
+            body = Group(image, text_group)
+            text_group.next_to(image, DOWN, buff=image_text_buff)
+            text_group.set_x(image.get_center()[0])
+        else:
+            body = body_items.arrange(DOWN, buff=0.18)
+        if body.width > column[2].width - 0.18:
+            body.scale_to_fit_width(column[2].width - 0.18)
+        if body.height > column[2].height - 0.24:
+            body.scale_to_fit_height(column[2].height - 0.24)
+        col_rect_left, col_rect_right, _, _ = _selection_bounds(idx)
+        body.move_to(
+            np.array(
+                [
+                    0.5 * (col_rect_left + col_rect_right),
+                    column[2].get_top()[1] - (0.18 + body.height / 2),
+                    0.0,
+                ]
+            )
+        )
+        body.set_z_index(15)
+        target_opacity = 1.0 if idx <= active_idx else 0.0
+        for submob in body.get_family():
+            if hasattr(submob, "set_opacity"):
+                submob.set_opacity(target_opacity)
+            elif hasattr(submob, "set"):
+                submob.set(opacity=target_opacity)
+        bodies.add(body)
+
+    active_column = columns[active_idx]
+    active_spec = _METHODS_REQUIREMENT_SPECS[active_idx]
+    base_left, base_right, base_top, base_bottom = _selection_bounds(active_idx)
+    active_body_group = bodies[active_idx]
+    content_pad_x = 0.12
+    content_pad_y = 0.12
+    rect_left = min(base_left, active_body_group.get_left()[0] - content_pad_x)
+    rect_right = max(base_right, active_body_group.get_right()[0] + content_pad_x)
+    rect_top = max(base_top, active_body_group.get_top()[1] + content_pad_y)
+    rect_bottom = min(base_bottom, active_body_group.get_bottom()[1] - content_pad_y)
+
+    focus_rect = RoundedRectangle(
+        width=rect_right - rect_left,
+        height=rect_top - rect_bottom,
+        corner_radius=0.18,
+        stroke_color=active_spec["accent"],
+        stroke_width=1.5,
+    ).set_fill(WHITE, opacity=0.0)
+    focus_rect.move_to(
+        np.array(
+            [
+                0.5 * (rect_left + rect_right),
+                0.5 * (rect_top + rect_bottom),
+                0.0,
             ]
         )
+    )
+    focus_rect.set_z_index(5)
 
-        requirement_layout = VGroup()
-        for idx, column in enumerate(columns):
-            requirement_layout.add(column)
-            if idx < len(vertical_dividers):
-                requirement_layout.add(vertical_dividers[idx])
-        requirement_layout.arrange(RIGHT, buff=0.26, aligned_edge=UP)
-        requirement_layout.next_to(title, DOWN, buff=0.58)
+    return {
+        "title": title,
+        "columns": columns,
+        "vertical_dividers": vertical_dividers,
+        "focus_rect": focus_rect,
+        "bodies": bodies,
+        "layout": requirement_layout,
+        "final_group": Group(title, requirement_layout, focus_rect, bodies),
+    }
 
-        intersection_y = columns[0][1].get_center()[1]
-        for divider in vertical_dividers:
-            divider[1].move_to(np.array([divider[0].get_center()[0], intersection_y, 0.0]))
 
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(requirement_layout, shift=UP * 0.05), run_time=0.90)
-        self.wait(3.20)
-
-class MethodsTraditionalLimits(Scene):
-    """Chapter 2.3 — explain why traditional routes could not provide that set."""
+class _MethodsStimulusRequirementScene(Scene):
+    requirement_index: int = 0
 
     def construct(self) -> None:
         self.camera.background_color = BG
+        current_state = _build_methods_stimulus_requirement_state(self.requirement_index)
 
-        title = title_block(
-            r"\textbf{Traditional methods could not provide them}",
-            "No off-the-shelf route gave us realism, continuity, and reuse together",
-        )
+        if self.requirement_index == 0:
+            self.play(FadeIn(current_state["title"], shift=UP * 0.04), run_time=0.75)
+            self.play(
+                FadeIn(current_state["focus_rect"], shift=UP * 0.03),
+                FadeIn(current_state["layout"], shift=UP * 0.05),
+                run_time=0.90,
+            )
+            self.play(FadeIn(current_state["bodies"][0], shift=UP * 0.04), run_time=0.55)
+            self.wait(2.10)
+            return
 
-        requirement_row = VGroup(
-            Tex(r"\textbf{naturalistic}", color=INK, font_size=22),
-            Dot(radius=0.04, color=LGREY),
-            Tex(r"\textbf{continuous}", color=INK, font_size=22),
-            Dot(radius=0.04, color=LGREY),
-            Tex(r"\textbf{reusable}", color=INK, font_size=22),
-        ).arrange(RIGHT, buff=0.18)
-        requirement_row.next_to(title, DOWN, buff=0.34)
-
-        limits = VGroup(
-            make_section_block(
-                "Curated photographs",
-                (
-                    "realistic images, but uncontrolled low-level variation",
-                    "and very few matched continua within one object-scene concept",
-                ),
-                accent=RED,
-                width=8.90,
-            ),
-            make_section_block(
-                "Existing databases",
-                (
-                    "broad coverage, but limited fine-grained sets with stable semantic identity",
-                    "and insufficient control over perceptual spacing",
-                ),
-                accent=RED,
-                width=8.90,
-            ),
-            make_section_block(
-                "Manual morphing or editing",
-                (
-                    "better control, but weaker realism and poor scalability across many categories",
-                    "and many different stimulus families",
-                ),
-                accent=AMBER,
-                width=8.90,
-            ),
-        ).arrange(DOWN, buff=0.24, aligned_edge=LEFT)
-        limits.next_to(requirement_row, DOWN, buff=0.28)
-
-        callout = make_callout(
-            "We could find realism or control, but not both at the scale the project required.",
-            RED,
-            font_size=20,
-        ).to_edge(DOWN, buff=0.34)
-
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(requirement_row, shift=UP * 0.04), run_time=0.55)
+        previous_state = _build_methods_stimulus_requirement_state(self.requirement_index - 1)
+        self.add(previous_state["final_group"])
         self.play(
-            LaggedStart(*[FadeIn(block, shift=UP * 0.05) for block in limits], lag_ratio=0.16),
-            run_time=1.00,
+            Transform(previous_state["columns"], current_state["columns"]),
+            Transform(previous_state["vertical_dividers"], current_state["vertical_dividers"]),
+            Transform(previous_state["focus_rect"], current_state["focus_rect"]),
+            FadeIn(
+                current_state["bodies"][self.requirement_index],
+                shift=UP * 0.04,
+                run_time=0.55,
+            ),
+            run_time=0.80,
         )
-        self.play(FadeIn(callout, shift=UP * 0.04), run_time=0.55)
-        self.wait(3.20)
+        self.wait(2.10)
 
 
-class MethodsGANsProofOfConcept(Scene):
-    """Chapter 2.4 — GANs provided the first convincing proof of concept."""
+class MethodsStimulusRequirementsA(_MethodsStimulusRequirementScene):
+    requirement_index = 0
+
+
+class MethodsStimulusRequirementsB(_MethodsStimulusRequirementScene):
+    requirement_index = 1
+
+
+class MethodsStimulusRequirementsC(_MethodsStimulusRequirementScene):
+    requirement_index = 2
+
+
+class MethodsStimulusRequirementsD(_MethodsStimulusRequirementScene):
+    requirement_index = 3
+
+
+class MethodsStimulusRequirements(MethodsStimulusRequirementsA):
+    pass
+
+class MethodsExistingApproaches(Scene):
+    """Chapter 2.3 — survey existing approaches and the GAN proof of concept."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
         title = title_block(
-            r"\textbf{Deep generative modelling: GAN proof of concept}",
-            "Image synthesis in this space had mostly used GANs",
+            r"\textbf{Existing approaches}",
         )
 
-        gan_column = Group(
-            Tex(r"\textbf{GAN precedent}", color=INK, font_size=24),
-            caption_line(_SCENE_WHEELS_CITATION, color=BLUE, font_size=20),
-            text_lines(
+        def _bullet_list(
+            bullets: tuple[str | tuple[str, ...], ...] | list[str | tuple[str, ...]],
+            *,
+            font_size: float = 18,
+            color: str = INK,
+            width: float = 2.85,
+            bullet_radius: float = 0.026,
+            line_buff: float = 0.05,
+            item_buff: float = 0.19,
+        ) -> VGroup:
+            items = VGroup()
+            for entry in bullets:
+                lines = (entry,) if isinstance(entry, str) else entry
+                marker = Dot(radius=bullet_radius, color=BLACK, stroke_width=0)
+                text_block = text_lines(
+                    lines,
+                    font_size=font_size,
+                    color=color,
+                    buff=line_buff,
+                    max_width=width - 0.24,
+                )
+                items.add(VGroup(marker, text_block).arrange(RIGHT, buff=0.10, aligned_edge=UP))
+            return items.arrange(DOWN, buff=item_buff, aligned_edge=LEFT)
+
+        snodgrass_image = make_image_card(
+            _METHODS_SNODGRASS_VANDERWART_PATH,
+            height=0.62,
+            border_color=LGREY,
+            buff=0.02,
+        )
+        snodgrass_citation = caption_line(
+            "Snodgrass \\& Vanderwart (1980)",
+            color=MGREY,
+            font_size=14,
+            max_width=2.80,
+        )
+        snodgrass_citation.next_to(snodgrass_image, DOWN, buff=0.04)
+        snodgrass_citation.set_x(snodgrass_image.get_center()[0])
+
+        brodeur_image = make_image_card(
+            _METHODS_BRODEUR_2010_PATH,
+            height=0.62,
+            border_color=LGREY,
+            buff=0.02,
+        )
+        brodeur_citation = caption_line(
+            "Brodeur et al. (2010)",
+            color=MGREY,
+            font_size=14,
+            max_width=2.80,
+        )
+        brodeur_citation.next_to(brodeur_image, DOWN, buff=0.04)
+        brodeur_citation.set_x(brodeur_image.get_center()[0])
+
+        manual_images = Group(
+            Group(snodgrass_image, snodgrass_citation),
+            Group(brodeur_image, brodeur_citation),
+        ).arrange(DOWN, buff=0.08, aligned_edge=LEFT)
+        manual_body = Group(
+            _bullet_list(
                 (
-                    '"continuous stimulus space" for realistic scenes',
-                    "important proof of concept for perception and memory",
+                    ("time consuming",),
+                    ("limited ecological validity",),
                 ),
-                font_size=18,
-                color=INK,
-                max_width=4.55,
-            ),
-            make_image_strip(_EXEMPLAR_CODE, (0, 3, 6, 9), height=0.66, buff=0.06),
-            caption_line(
-                "continuous naturalistic variation was now plausible",
-                color=MGREY,
                 font_size=17,
-                max_width=4.55,
+                width=2.75,
             ),
+            manual_images,
         ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
 
-        limit_column = VGroup(
-            make_section_block(
-                "What GANs established",
-                (
-                    "continuous image spaces could be engineered",
-                    "for realistic perception and memory experiments",
-                ),
-                accent=BLUE,
-                width=4.70,
-            ),
-            make_section_block(
-                "Why not enough here",
-                (
-                    "the thesis needed many heterogeneous object-scene outputs",
-                    "with more direct control over what the model should generate",
-                ),
-                accent=RED,
-                width=4.70,
-            ),
-            make_section_block(
-                "Main limitation",
-                (
-                    "strong proof of concept, but not yet the most flexible route",
-                    "for our broader stimulus-design problem",
-                ),
-                accent=AMBER,
-                width=4.70,
-            ),
-        ).arrange(DOWN, buff=0.22, aligned_edge=LEFT)
+        manual_column = make_centered_timeline_column(
+            "Manual selection",
+            manual_body,
+            width=3.10,
+            show_divider=False,
+            title_body_buff=0.17,
+        )
 
-        content = split_columns(gan_column, limit_column, buff=0.52)
-        content.next_to(title, DOWN, buff=0.34)
+        things_top_row = Group(
+            make_image_card(
+                _METHODS_THINGS_GUITAR_PATH,
+                height=0.40,
+                border_color=LGREY,
+                buff=0.02,
+            ),
+            make_image_card(
+                _METHODS_THINGS_BALLON_PATH,
+                height=0.40,
+                border_color=LGREY,
+                buff=0.02,
+            ),
+        ).arrange(RIGHT, buff=0.05, aligned_edge=UP)
+        things_bottom_row = Group(
+            make_image_card(
+                _METHODS_THINGS_FISH1_PATH,
+                height=0.40,
+                border_color=LGREY,
+                buff=0.02,
+            ),
+            make_image_card(
+                _METHODS_THINGS_FISH2_PATH,
+                height=0.40,
+                border_color=LGREY,
+                buff=0.02,
+            ),
+            make_image_card(
+                _METHODS_THINGS_FISH3_PATH,
+                height=0.40,
+                border_color=LGREY,
+                buff=0.02,
+            ),
+        ).arrange(RIGHT, buff=0.05, aligned_edge=UP)
+        things_images = Group(
+            things_top_row,
+            things_bottom_row,
+        ).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
 
-        callout = make_callout(
-            "GANs showed the direction, but not yet the flexibility we needed.",
-            AMBER,
-            font_size=20,
-        ).to_edge(DOWN, buff=0.34)
+        scraping_body = Group(
+            _bullet_list(
+                (
+                    ("limited experimental control",),
+                    ("perceptually very dissimilar",),
+                    ("limited number of exemplars",),
+                    ("variable resolution and quality",),
+                ),
+                font_size=16,
+                width=2.95,
+            ),
+            make_image_card(
+                _METHODS_COCO_DATASET_PATH,
+                height=0.66,
+                border_color=LGREY,
+                buff=0.02,
+            ),
+            caption_line(
+                "COCO dataset (Lin et al. 2015)",
+                color=MGREY,
+                font_size=14,
+                max_width=2.80,
+            ),
+            things_images,
+            caption_line(
+                "Hebart et al. (2019)",
+                color=MGREY,
+                font_size=14,
+                max_width=2.80,
+            ),
+        ).arrange(DOWN, buff=0.16, aligned_edge=LEFT)
+
+        scraping_column = make_centered_timeline_column(
+            "Web scraping",
+            scraping_body,
+            width=3.18,
+            show_divider=False,
+            title_body_buff=0.17,
+        )
+
+        gan_bullets = _bullet_list(
+            (
+                (
+                    "Generative Adversarial Networks",
+                    "(Goodfellow et al., 2014)",
+                    "have been explored",
+                    "to synthesise stimuli",
+                ),
+                ("limited flexibility",),
+                (
+                    "Denoising Diffusion Probabilistic Models",
+                    "(Ho et al., 2020; Nichol \\& Dhariwal, 2021;",
+                    "Rombach et al., 2022; Song et al., 2022)",
+                    "have been largely unexplored",
+                ),
+            ),
+            font_size=13.5,
+            color=INK,
+            width=3.85,
+            bullet_radius=0.024,
+            line_buff=0.04,
+            item_buff=0.20,
+        )
+        gan_images = Group(
+            make_image_card(_METHODS_SON_2021_PATH, height=0.96, border_color=LGREY, buff=0.025),
+            make_image_card(_METHODS_SON_2021B_PATH, height=1.12, border_color=LGREY, buff=0.025),
+        ).arrange(DOWN, buff=0.14)
+        gan_citation = caption_line(
+            _SCENE_WHEELS_CITATION,
+            color=MGREY,
+            font_size=14,
+            max_width=3.35,
+        )
+        gan_citation.next_to(gan_images, DOWN, buff=0.08)
+        gan_citation.set_x(gan_images.get_center()[0])
+        gan_visuals = Group(gan_images, gan_citation)
+
+        gan_body = Group(
+            gan_bullets,
+            gan_visuals,
+        ).arrange(DOWN, buff=0.18, aligned_edge=LEFT)
+
+        gan_column = make_centered_timeline_column(
+            ("Deep generative", "models"),
+            gan_body,
+            width=4.15,
+            heading_size=21,
+            show_divider=False,
+            title_body_buff=0.17,
+        )
+
+        columns = Group(manual_column, scraping_column, gan_column)
+        dot_xs = (-4.35, 0.0, 4.35)
+        timeline_y = title.get_bottom()[1] - 0.78
+        dots = VGroup(
+            *[
+                Dot(radius=0.055, color=BLACK, stroke_width=0).move_to(np.array([x, timeline_y, 0.0]))
+                for x in dot_xs
+            ]
+        )
+        for column, dot in zip(columns, dots):
+            column.next_to(dot, DOWN, buff=0.22)
+            column.set_x(dot.get_x())
+        line_margin = 0.14
+        timeline_line = Line(
+            np.array([columns.get_left()[0] - line_margin, timeline_y, 0.0]),
+            np.array([columns.get_right()[0] + line_margin, timeline_y, 0.0]),
+            color=BLACK,
+            stroke_width=1.45,
+        )
 
         self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(gan_column, shift=UP * 0.05), run_time=0.90)
-        self.play(FadeIn(content[1]), FadeIn(limit_column, shift=UP * 0.05), run_time=0.90)
-        self.play(FadeIn(callout, shift=UP * 0.04), run_time=0.55)
+        self.play(Create(timeline_line), run_time=0.50)
+        for dot, column in zip(dots, columns):
+            self.play(
+                FadeIn(dot, scale=0.92),
+                FadeIn(column, shift=UP * 0.04),
+                run_time=0.38 if column is not gan_column else 0.48,
+            )
         self.wait(3.20)
 
 
 class MethodsDiffusionOpportunity(Scene):
-    """Chapter 2.5 — diffusion models offered a broader stimulus-design engine."""
+    """Chapter 2.4 — diffusion models offered a broader stimulus-design engine."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
@@ -727,7 +1374,7 @@ class MethodsDiffusionOpportunity(Scene):
 
 
 class MethodsDiffusionPromptConditioning(Scene):
-    """Chapter 2.6 — explain prompt conditioning and controlled variation."""
+    """Chapter 2.5 — explain prompt conditioning and controlled variation."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
@@ -906,7 +1553,7 @@ class MethodsDiffusionPromptConditioning(Scene):
 
 
 class MethodsDiffusionTrainVsGenerate(Scene):
-    """Chapter 2.7 — contrast forward diffusion with reverse denoising."""
+    """Chapter 2.6 — contrast forward diffusion with reverse denoising."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
@@ -1104,7 +1751,7 @@ class MethodsDiffusionTrainVsGenerate(Scene):
 
 
 class MethodsProjectPlan(Scene):
-    """Chapter 2.8 — end with the actual thesis plan."""
+    """Chapter 2.7 — end with the actual thesis plan."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
@@ -1194,19 +1841,26 @@ class MethodsProjectPlan(Scene):
         self.wait(3.20)
 
 
+MethodsGANsProofOfConcept = MethodsExistingApproaches
+
+
 _METHODS_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
-    MethodsStimulusRequirements,
-    MethodsTraditionalLimits,
-    MethodsGANsProofOfConcept,
+    MethodsStimulusRequirementsA,
+    MethodsStimulusRequirementsB,
+    MethodsStimulusRequirementsC,
+    MethodsStimulusRequirementsD,
+    MethodsExistingApproaches,
     MethodsDiffusionOpportunity,
     MethodsDiffusionPromptConditioning,
     MethodsDiffusionTrainVsGenerate,
     MethodsProjectPlan,
 )
 _METHODS_SECTION_NAMES: tuple[str, ...] = (
-    "methods_stimulus_requirements",
-    "methods_traditional_limits",
-    "methods_gans_proof_of_concept",
+    "methods_stimulus_requirements_a",
+    "methods_stimulus_requirements_b",
+    "methods_stimulus_requirements_c",
+    "methods_stimulus_requirements_d",
+    "methods_existing_approaches",
     "methods_diffusion_opportunity",
     "methods_diffusion_prompt_conditioning",
     "methods_diffusion_train_vs_generate",
@@ -1248,7 +1902,11 @@ class Methods(Scene):
         if carry_previous_frame:
             self._hold_previous_section_frame()
         self._reset_master_scene_state()
+        if hasattr(scene_cls, "requirement_index"):
+            self.requirement_index = scene_cls.requirement_index
         scene_cls.construct(self)
+        if hasattr(self, "requirement_index"):
+            delattr(self, "requirement_index")
 
     def construct(self) -> None:
         """Render the full methods chapter as one sectioned scene."""
@@ -1269,5 +1927,12 @@ for _scene_cls in _PUBLIC_SCENES:
     globals()[_scene_cls.__name__] = _wrapped
 del _scene_cls
 
+MethodsStimulusRequirements = MethodsStimulusRequirementsA
+MethodsGANsProofOfConcept = MethodsExistingApproaches
 Methods.__module__ = __name__
-__all__ = ["Methods", *[scene.__name__ for scene in _PUBLIC_SCENES]]
+__all__ = [
+    "Methods",
+    "MethodsStimulusRequirements",
+    "MethodsGANsProofOfConcept",
+    *[scene.__name__ for scene in _PUBLIC_SCENES],
+]
