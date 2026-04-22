@@ -66,7 +66,7 @@ BLUE = "#2563EB"
 AMBER = "#D97706"
 GREEN = "#16A34A"
 RED = "#DC2626"
-RQ_BLUE = "#264C73"
+RQ_BLUE = "#4E647F"
 RQ_RED = "#7A2E3A"
 RQ_GREEN = "#2F5D50"
 RQ_MUTED = "#6B7280"
@@ -95,9 +95,25 @@ _AWH_JONIDES_2001_FIG = str(_REFERENCE_DIR / "awhjonides2001_spatial_wm.png")
 _HARRISON_TONG_2009_FIG = str(_INTRO_FIG_DIR / "harrisontong2009.png")
 _HARRISON_TONG_2009_PARADIGM_FIG = str(_INTRO_FIG_DIR / "harrisontong2009paradigm.png")
 _CHRISTOPHEL_2012_FIG = str(_INTRO_FIG_DIR / "christophel2012.png")
+_INTRO_RQ3_NASA_FIG = str(_INTRO_FIG_DIR / "nasa.jpg")
 _VISUAL_CORTEX_FIG = str(REPO_ROOT / "assets" / "images" / "visual_cortex_white.png")
 _INTRO_HOOK_TARGET_FISH = str(_INTRO_STIM_DIR / "animal_fish-00.png")
 _INTRO_HOOK_FOIL_FISH = str(_INTRO_STIM_DIR / "animal_fish-05.png")
+_INTRO_HOOK_CANNY_FISH = str(_INTRO_FIG_DIR / "animal_fish-00_canny.png")
+_INTRO_HOOK_QUESTION_NORMAL_FISH = str(_INTRO_STIM_DIR / "animal_fish-09.png")
+_INTRO_HOOK_QUESTION_FISH = str(_INTRO_FIG_DIR / "animal_fish-09_soft.png")
+_INTRO_HOOK_QUESTION_MEMORY_FISH = str(_INTRO_FIG_DIR / "animal_fish-09_memory.png")
+_INTRO_RQ2_SIMPLE_STIMULI = (
+    (str(_INTRO_FIG_DIR / "emrich2013.png"), r"Emrich et al. (2013)"),
+    (str(_INTRO_FIG_DIR / "sprague2014.png"), r"Sprague et al. (2014)"),
+    (str(_INTRO_FIG_DIR / "harrison_stimulus.png"), r"Harrison \& Tong (2009)"),
+    (str(_INTRO_FIG_DIR / "christophel2012_stimulus.png"), r"Christophel et al. (2012)"),
+)
+_INTRO_RQ2_NATURALISTIC_STIMULI = (
+    str(_INTRO_STIM_DIR / "landscape_element_mountain_ridge-00.png"),
+    str(_INTRO_STIM_DIR / "plant_bristlecone-00.png"),
+    str(_INTRO_STIM_DIR / "item_lamp_table-00.png"),
+)
 
 _EXEMPLAR_CODE = "building_observatory"
 _HOOK_CODE = "animal_fish"
@@ -108,6 +124,15 @@ _ORDER = (5, 3, 7, 1, 8, 2, 6, 4)
 _STRIP = (0, 2, 4, 6, 8)
 _FROZEN_IDX = 4
 _PRIOR_SPECS = ((0.62, 0.28), (0.74, 0.56), (0.86, 0.90))
+_INTRO_QUESTION_BULLET_GAP = 0.44
+_INTRO_QUESTION_TEXT_CENTER_X = -3.35
+_INTRO_QUESTION_VISUAL_CENTER_X = 3.35
+_INTRO_QUESTION_CONTENT_Y = -0.22
+_INTRO_QUESTION_HEADER_LEFT_X = -4.72
+_INTRO_QUESTION_HEADER_Y = 3.5
+_INTRO_QUESTION_HEADER_FONT_SIZE = 28
+_INTRO_QUESTION_CLAIM_FONT_SIZE = 23.5
+_INTRO_QUESTION_CLAIM_MAX_WIDTH = 5.35
 
 
 def _seeded_pattern(seed: int) -> np.ndarray:
@@ -935,247 +960,342 @@ _INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
     {
         "kicker": "Research question 1",
         "title": "Representational format",
-        "subtitle": "Is the maintained code still sensory-like?",
-        "bullet_1": "Early cross-decoding suggested shared sensory codes.",
-        "bullet_2": "Recent work finds weaker generalization and dynamic delay codes.",
-        "bullet_3": "A separate perception session enables direct format comparison.",
+        "subtitle": "Are working memory representations sensory-like?",
+        "bullet_1": r"Reuse of the same neuronal codes for \textbf{efficient and high-fidelity} feature storage.",
+        "bullet_1_refs": r"(Pasternak \& Greenlee, 2005; Serences, 2016)",
+        "bullet_2": r"Some evidence of \textbf{cross-decoding} suggests shared sensory codes.",
+        "bullet_2_refs": r"(Harrison \& Tong, 2009; Albers et al., 2013; Rademaker et al., 2019; Iamshchinina et al., 2021; Vo et al., 2022)",
+        "bullet_3": r"Recent work suggests no sensory-to-memory generalization and \textbf{dynamic codes} during working memory maintenance.",
+        "bullet_3_refs": r"(Buschman \& Miller, 2022; Duan and Curtis, 2024)",
+        "bullet_4": r"\textbf{Memory-specific} code may limit interference with sensory processing.",
+        "bullet_4_refs": r"(Bettencourt \& Xu, 2016; Libby \& Buschman, 2021)",
         "accent": RQ_BLUE,
     },
     {
         "kicker": "Research question 2",
         "title": "Ecological validity",
-        "subtitle": "Does it generalize beyond simple lab stimuli?",
-        "bullet_1": "Most evidence comes from orientations, colors, or locations.",
-        "bullet_2": "Stimulus properties may change how sensory and memory codes align.",
-        "bullet_3": "Naturalistic WM evidence remains limited and hard to obtain.",
+        "subtitle": r"Does the sensory recruitment model\\generalize to naturalistic cognition?",
+        "bullet_1": "Standard working memory stimuli are perceptually simple.",
+        "bullet_2": "Naturalistic settings require the brain to process and retain a vast amount of complex visual information.",
+        "bullet_3": r"Growing interest in naturalistic working-memory.",
+        "bullet_3_refs": r"(Orhan \& Jacobs, 2014; Brady et al., 2019; Bates et al., 2024; Adam et al., 2025)",
+        "bullet_4": "Whether sensory and memory representations share a code might depend on the characteristics of the stimuli and task demands.",
+        "bullet_4_refs": r"(Duan \& Curtis, 2024) (Serences, 2016; Christophel et al., 2017)",
         "accent": RQ_RED,
     },
     {
         "kicker": "Research question 3",
-        "title": "Long-term memory",
-        "subtitle": "Do LTM traces modulate the WM code?",
-        "bullet_1": "Familiarity and meaning can improve working-memory performance.",
-        "bullet_2": "WM and LTM retrieval may share sensory-like codes in EVC.",
-        "bullet_3": "LTM may make WM more sensory-like or shift processing elsewhere.",
+        "title": "Long-term memory interaction",
+        "subtitle": r"Do pre-existing long-term memory representations\\affect how the early visual cortex represents\\working memory content?",
+        "bullet_1": "Working memory and long-term memory are often studied in isolation, despite their interaction.",
+        "bullet_1_refs": r"(Schurgin, 2018; Eriksson et al., 2015; Bartsch et al., 2024)",
+        "bullet_2": "Working memory integrates incoming sensory signals with information stored in long-term memory.",
+        "bullet_2_refs": r"(Singer, 2021)",
+        "bullet_3": "Familiarity and meaning can improve working-memory performance and capacity.",
+        "bullet_3_refs": r"(Xie \& Zhang, 2018; Ngiam et al., 2019; Buttle \& Raymond, 2003; Curby \& Gauthier, 2007; Jackson \& Raymond, 2008; Brady \& St{\"o}rmer, 2022)",
+        "bullet_4": "Neuroimaging evidence suggests that maintained WM content and retrieved LTM content can share a sensory-like representational format.",
+        "bullet_4_refs": r"(Vo et al., 2022)",
+        "bullet_5": "Long-term memory traces may affect the formatting of working memory representations.",
         "accent": RQ_GREEN,
     },
 )
 
 
 def _intro_question_context_block(spec: dict[str, str]) -> VGroup:
+    bullet_indices: list[int] = []
+    bullet_idx = 1
+    while f"bullet_{bullet_idx}" in spec:
+        bullet_indices.append(bullet_idx)
+        bullet_idx += 1
+
     cue_lines = VGroup(
         *[
-            Tex(text, color=INK, font_size=17)
-            for text in (spec["bullet_1"], spec["bullet_2"], spec["bullet_3"])
+            Tex(spec[f"bullet_{idx}"], color=INK, font_size=21, tex_environment="flushleft")
+            for idx in bullet_indices
         ]
-    ).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
-    for line in cue_lines:
-        if line.width > 4.90:
-            line.scale_to_fit_width(4.90)
+    )
+    max_line_width = max(line.width for line in cue_lines)
+    if max_line_width > 5.55:
+        shared_scale = 5.55 / max_line_width
+        cue_lines.scale(shared_scale)
+    for line in cue_lines[1:]:
+        line.align_to(cue_lines[0], LEFT)
+
+    bullet_items = VGroup()
+    for idx, line in zip(bullet_indices, cue_lines):
+        refs_key = f"bullet_{idx}_refs"
+        refs_text = spec.get(refs_key)
+        if refs_text:
+            refs = Tex(refs_text, color=MGREY, font_size=13, tex_environment="flushleft")
+            if refs.width > 5.35:
+                refs.scale_to_fit_width(5.35)
+            item = VGroup(line, refs).arrange(DOWN, buff=0.06, aligned_edge=LEFT)
+        else:
+            item = VGroup(line)
+        bullet_items.add(item)
+
+    bullet_items.arrange(DOWN, buff=_INTRO_QUESTION_BULLET_GAP, aligned_edge=LEFT)
+    for item in bullet_items[1:]:
+        item.align_to(bullet_items[0], LEFT)
 
     cue_rule = Line(UP * 0.5, DOWN * 0.5, color=spec["accent"], stroke_width=1.4)
-    cue_rule.set(height=max(0.92, cue_lines.height - 0.04))
     cue_rule.set_stroke(opacity=0.52)
-    cue_dot = Dot(radius=0.028, color=spec["accent"], stroke_width=0)
-    cue_dot.move_to(cue_rule.get_top() + UP * 0.11)
-    cue_anchor = VGroup(cue_rule, cue_dot)
-    return VGroup(cue_anchor, cue_lines).arrange(RIGHT, buff=0.20, aligned_edge=UP)
+    cue_dots = VGroup(
+        *[
+            Dot(radius=0.028, color=spec["accent"], stroke_width=0)
+            for _ in cue_lines
+        ]
+    )
+    cue_anchor = VGroup(cue_rule, cue_dots)
+    cue_anchor.next_to(bullet_items, LEFT, buff=0.24)
+    cue_anchor.set_y(bullet_items.get_center()[1])
+    for dot, line in zip(cue_dots, cue_lines):
+        dot.set_x(cue_rule.get_x())
+        dot.set_y(line.get_center()[1])
+    cue_rule.put_start_and_end_on(
+        np.array([cue_rule.get_x(), cue_dots[0].get_y() + 0.28, 0.0]),
+        np.array([cue_rule.get_x(), cue_dots[-1].get_y() - 0.28, 0.0]),
+    )
+    return VGroup(cue_anchor, bullet_items)
 
 
-def _intro_question_matrix(matrix: np.ndarray, label_text: str) -> VGroup:
-    cells = _mini_matrix(matrix, cell=0.15)
-    cells.scale(1.60)
+def _intro_question_matrix(
+    matrix: np.ndarray,
+    *,
+    cell: float = 0.13,
+    scale_factor: float = 1.28,
+) -> VGroup:
+    cells = _mini_matrix(matrix, cell=cell)
+    cells.scale(scale_factor)
     cells.set_opacity(0.95)
+    return cells
+
+
+def _intro_question_visual_chip(
+    image_path: str,
+    label_text: str,
+    *,
+    image_opacity: float = 1.0,
+) -> Group:
+    image = ImageMobject(image_path)
+    image.scale_to_fit_width(0.82)
+    image.set_opacity(image_opacity)
+
     label = Tex(label_text, color=INK, font_size=15)
-    if label.width > max(1.90, cells.width * 1.50):
-        label.scale_to_fit_width(max(1.90, cells.width * 1.50))
-    label.next_to(cells, DOWN, buff=0.10)
-    return VGroup(cells, label)
+    if label.width > 1.90:
+        label.scale_to_fit_width(1.90)
+    return Group(image, label).arrange(DOWN, buff=0.10)
 
 
-def _build_intro_question_visual_format(spec: dict[str, str]) -> VGroup:
-    source = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT, "perception")
-    top_target = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT, "sensory-like")
-    bottom_target = _intro_question_matrix(_REPRESENTATION_MEMORY_PATTERN, "transformed")
+def _intro_question_image_card(
+    image_path: str,
+    *,
+    width: float,
+    height: float,
+    image_opacity: float = 1.0,
+) -> Group:
+    image = ImageMobject(image_path)
+    image.set_opacity(image_opacity)
+    return framed_visual(image, width=width, height=height, corner_radius=0.06)
 
-    source.move_to(LEFT * 1.65)
-    top_target.move_to(RIGHT * 1.45 + UP * 0.92)
-    bottom_target.move_to(RIGHT * 1.45 + DOWN * 0.92)
 
-    branch = Dot(radius=0.038, color=spec["accent"], stroke_width=0).move_to(LEFT * 0.12)
-    branch_lines = VGroup(
-        Line(
-            source[0].get_right() + RIGHT * 0.16,
-            branch.get_center(),
-            color=LGREY,
-            stroke_width=1.0,
+def _intro_question_image_with_ref(
+    image_path: str,
+    ref_text: str,
+    *,
+    width: float,
+    height: float,
+) -> Group:
+    card = _intro_question_image_card(image_path, width=width, height=height)
+    ref = Tex(ref_text, color=MGREY, font_size=10)
+    if ref.width > width + 0.22:
+        ref.scale_to_fit_width(width + 0.22)
+    return Group(card, ref).arrange(DOWN, buff=0.10)
+
+
+def _build_intro_question_visual_format(spec: dict[str, str]) -> Group:
+    source_matrix = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT)
+    sensory_like_matrix = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT)
+    memory_specific_matrix = _intro_question_matrix(_REPRESENTATION_MEMORY_PATTERN)
+
+    left_column = Group(
+        _intro_question_visual_chip(_INTRO_HOOK_QUESTION_NORMAL_FISH, "sensory"),
+        source_matrix,
+    ).arrange(DOWN, buff=0.18)
+    top_target = Group(
+        _intro_question_visual_chip(
+            _INTRO_HOOK_QUESTION_FISH,
+            "sensory-like",
+            image_opacity=0.94,
         ),
-        Line(
-            branch.get_center(),
-            top_target[0].get_left() + LEFT * 0.14,
-            color=spec["accent"],
-            stroke_width=1.15,
-        ).set_stroke(opacity=0.74),
-        Line(
-            branch.get_center(),
-            bottom_target[0].get_left() + LEFT * 0.14,
-            color=LGREY,
-            stroke_width=1.0,
-        ).set_stroke(opacity=0.82),
+        sensory_like_matrix,
+    ).arrange(DOWN, buff=0.18)
+    bottom_target = Group(
+        _intro_question_visual_chip(
+            _INTRO_HOOK_QUESTION_MEMORY_FISH,
+            "memory-specific",
+            image_opacity=0.46,
+        ),
+        memory_specific_matrix,
+    ).arrange(DOWN, buff=0.18)
+
+    right_stack_gap = 0.72
+    max_target_height = max(top_target.height, bottom_target.height)
+    target_center_offset = 0.5 * (max_target_height + right_stack_gap)
+    right_stack_x = (
+        left_column.get_right()[0]
+        + 0.92
+        + 0.5 * max(top_target.width, bottom_target.width)
     )
+    top_target.set_x(right_stack_x)
+    bottom_target.set_x(right_stack_x)
+    top_target.set_y(left_column.get_y() + target_center_offset)
+    bottom_target.set_y(left_column.get_y() - target_center_offset)
 
-    caption = Tex(r"\textbf{Two plausible mappings}", color=INK, font_size=15)
-    caption.move_to(np.array([0.02, 1.78, 0.0]))
-    return VGroup(caption, branch_lines, branch, source, top_target, bottom_target)
+    right_stack = Group(top_target, bottom_target)
 
+    columns = Group(left_column, right_stack)
 
-def _build_intro_question_visual_ecology(spec: dict[str, str]) -> VGroup:
-    orientation = Line(LEFT * 0.24, RIGHT * 0.24, color=spec["accent"], stroke_width=2.4)
-    orientation.rotate(PI / 5)
-    color_dot = Dot(radius=0.11, color=spec["accent"], stroke_width=0).set_opacity(0.82)
-    location = VGroup(
-        Circle(radius=0.17, color=spec["accent"], stroke_width=1.2).set_fill(opacity=0.0),
-        Line(UP * 0.08, DOWN * 0.08, color=spec["accent"], stroke_width=1.0),
-        Line(LEFT * 0.08, RIGHT * 0.08, color=spec["accent"], stroke_width=1.0),
+    source_label = left_column[0][1]
+    top_label = top_target[0][1]
+    bottom_label = bottom_target[0][1]
+    branch_origin = np.array([source_label.get_right()[0] + 0.10, source_label.get_center()[1], 0.0])
+    target_x = min(top_label.get_left()[0], bottom_label.get_left()[0]) - 0.14
+    trunk_x = branch_origin[0] + 0.36 * (target_x - branch_origin[0])
+    trunk_top_y = top_label.get_center()[1]
+    trunk_bottom_y = bottom_label.get_center()[1]
+
+    lead_out = Line(
+        branch_origin,
+        np.array([trunk_x, branch_origin[1], 0.0]),
+        color=spec["accent"],
+        stroke_width=1.2,
     )
-    simple_glyphs = VGroup(orientation, color_dot, location).arrange(RIGHT, buff=0.28)
-    simple_label = Tex("simple tasks", color=INK, font_size=15)
-    simple = VGroup(simple_label, simple_glyphs).arrange(DOWN, buff=0.14)
-    simple.move_to(LEFT * 1.92)
-
-    cloud_points = (
-        (-0.72, 0.34),
-        (-0.48, 0.72),
-        (-0.12, 0.46),
-        (0.18, 0.78),
-        (0.56, 0.44),
-        (-0.58, -0.02),
-        (-0.18, -0.20),
-        (0.22, 0.02),
-        (0.66, -0.16),
-        (-0.30, -0.58),
-        (0.14, -0.50),
-        (0.50, -0.72),
+    top_trunk = Line(
+        np.array([trunk_x, branch_origin[1], 0.0]),
+        np.array([trunk_x, trunk_top_y, 0.0]),
+        color=spec["accent"],
+        stroke_width=1.2,
     )
-    accent_ids = {1, 3, 7, 10}
-    radii = (0.06, 0.075, 0.05, 0.068, 0.058, 0.05, 0.055, 0.062, 0.048, 0.052, 0.06, 0.05)
-    cloud_dots = VGroup(
+    bottom_trunk = Line(
+        np.array([trunk_x, branch_origin[1], 0.0]),
+        np.array([trunk_x, trunk_bottom_y, 0.0]),
+        color=spec["accent"],
+        stroke_width=1.2,
+    )
+    top_branch = Line(
+        np.array([trunk_x, trunk_top_y, 0.0]),
+        np.array([target_x, trunk_top_y, 0.0]),
+        color=spec["accent"],
+        stroke_width=1.2,
+    )
+    bottom_branch = Line(
+        np.array([trunk_x, trunk_bottom_y, 0.0]),
+        np.array([target_x, trunk_bottom_y, 0.0]),
+        color=spec["accent"],
+        stroke_width=1.2,
+    )
+    branch = VGroup(lead_out, top_trunk, bottom_trunk, top_branch, bottom_branch).set_stroke(opacity=0.82)
+    root = Group(columns, branch)
+    root.left_column = left_column
+    root.top_target = top_target
+    root.bottom_target = bottom_target
+    root.lead_out = lead_out
+    root.top_trunk = top_trunk
+    root.bottom_trunk = bottom_trunk
+    root.top_branch = top_branch
+    root.bottom_branch = bottom_branch
+    return root
+
+
+def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
+    def _row_header(text: str, *, font_size: float = 15) -> Tex:
+        return Tex(text, color=INK, font_size=font_size)
+
+    simple_cards = Group(
         *[
-            Dot(
-                radius=radii[idx],
-                color=spec["accent"] if idx in accent_ids else RQ_MUTED,
-                stroke_width=0,
-            ).move_to(np.array([x, y, 0.0]))
-            for idx, (x, y) in enumerate(cloud_points)
+            _intro_question_image_with_ref(path, ref, width=0.96, height=0.78)
+            for path, ref in _INTRO_RQ2_SIMPLE_STIMULI
         ]
-    )
-    cloud_lines = VGroup(
-        *[
-            Line(
-                cloud_dots[i].get_center(),
-                cloud_dots[j].get_center(),
-                color=LGREY,
-                stroke_width=0.9,
-            ).set_stroke(opacity=0.45)
-            for i, j in ((0, 5), (1, 2), (2, 7), (5, 9), (6, 10), (7, 8), (10, 11))
-        ]
-    )
-    natural_cluster = VGroup(cloud_lines, cloud_dots)
-    natural_label = Tex("natural scenes", color=INK, font_size=15)
-    natural = Group(natural_label, natural_cluster).arrange(DOWN, buff=0.14)
-    natural.move_to(RIGHT * 1.56)
+    ).arrange(RIGHT, buff=0.12)
+    simple_block = Group(
+        _row_header(r"Traditional working memory stimuli", font_size=14),
+        simple_cards,
+    ).arrange(DOWN, buff=0.12)
 
-    bridge = Line(
-        simple_glyphs.get_right() + RIGHT * 0.22,
-        natural_cluster.get_left() + LEFT * 0.22,
-        color=LGREY,
-        stroke_width=1.0,
-    ).set_stroke(opacity=0.7)
-    bridge_dots = VGroup(
+    natural_cards = Group(
         *[
-            Dot(radius=0.022, color=LGREY, stroke_width=0).move_to(
-                bridge.point_from_proportion(alpha)
-            )
-            for alpha in (0.34, 0.68)
+            _intro_question_image_card(path, width=1.18, height=1.02)
+            for path in _INTRO_RQ2_NATURALISTIC_STIMULI
         ]
-    )
-    caption = Tex(r"\textbf{From canonical stimuli to rich scenes}", color=INK, font_size=15)
-    caption.move_to(np.array([0.0, 1.72, 0.0]))
-    return Group(caption, bridge, bridge_dots, simple, natural)
+    ).arrange(RIGHT, buff=0.16)
+    natural_ref = Tex(r"Pettini et al. (2025)", color=MGREY, font_size=10)
+    if natural_ref.width > natural_cards.width:
+        natural_ref.scale_to_fit_width(natural_cards.width)
+    natural_block = Group(
+        _row_header(
+            r"Perceptually and semantically rich\\naturalistic cognition",
+            font_size=14,
+        ),
+        natural_cards,
+        natural_ref,
+    ).arrange(DOWN, buff=0.12)
+
+    rows = Group(simple_block, natural_block).arrange(DOWN, buff=0.34)
+    rows.simple_block = simple_block
+    rows.natural_block = natural_block
+    return rows
 
 
 def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
-    brain_parts = brain_icon_with_evc(highlight_color=spec["accent"], scale_factor=0.72)
-    brain = brain_parts["group"]
-    brain.move_to(RIGHT * 1.55 + DOWN * 0.08)
+    photo = ImageMobject(_INTRO_RQ3_NASA_FIG)
+    photo_card = framed_visual(photo, width=4.30, height=2.92, corner_radius=0.06)
 
-    wm_cluster = VGroup(
-        Dot(radius=0.055, color=spec["accent"], stroke_width=0),
-        Dot(radius=0.040, color=RQ_MUTED, stroke_width=0),
-        Dot(radius=0.048, color=RQ_MUTED, stroke_width=0),
-        Dot(radius=0.036, color=RQ_MUTED, stroke_width=0),
+    quote = Tex(
+        r"``\emph{...the darker parts aren't quite in the right place}\\"
+        r"\emph{and something about you senses that is not the Moon}\\"
+        r"\emph{that I'm used to seeing.}''",
+        color=INK,
+        font_size=16,
+        tex_environment="flushleft",
     )
-    wm_cluster[0].move_to(np.array([-1.10, 0.88, 0.0]))
-    wm_cluster[1].move_to(np.array([-0.80, 1.05, 0.0]))
-    wm_cluster[2].move_to(np.array([-0.62, 0.74, 0.0]))
-    wm_cluster[3].move_to(np.array([-0.92, 0.54, 0.0]))
-    wm_label = Tex("working memory", color=INK, font_size=15)
-    wm_label.next_to(wm_cluster, UP, buff=0.14)
+    if quote.width > 4.38:
+        quote.scale_to_fit_width(4.38)
 
-    ltm_cluster = VGroup(
-        Dot(radius=0.050, color=RQ_MUTED, stroke_width=0),
-        Dot(radius=0.062, color=spec["accent"], stroke_width=0),
-        Dot(radius=0.046, color=RQ_MUTED, stroke_width=0),
-        Dot(radius=0.040, color=RQ_MUTED, stroke_width=0),
-        Dot(radius=0.056, color=RQ_MUTED, stroke_width=0),
-        Dot(radius=0.042, color=RQ_MUTED, stroke_width=0),
+    attribution = Tex(
+        r"NASA Astronaut Christina Koch, 5 April 2026",
+        color=MGREY,
+        font_size=13,
     )
-    ltm_positions = (
-        (-1.14, -0.56),
-        (-0.90, -0.88),
-        (-0.56, -0.72),
-        (-0.68, -1.14),
-        (-0.34, -0.96),
-        (-0.18, -0.60),
+    if attribution.width > 4.38:
+        attribution.scale_to_fit_width(4.38)
+
+    photo_credit = Tex(
+        r"Photo credit: NASA",
+        color=MGREY,
+        font_size=11,
     )
-    for dot, (x, y) in zip(ltm_cluster, ltm_positions):
-        dot.move_to(np.array([x, y, 0.0]))
-    ltm_label = Tex("long-term memory", color=INK, font_size=15)
-    ltm_label.next_to(ltm_cluster, DOWN, buff=0.14)
+    if photo_credit.width > 4.38:
+        photo_credit.scale_to_fit_width(4.38)
 
-    wm_line = Line(
-        wm_cluster.get_right() + RIGHT * 0.18,
-        brain.get_left() + LEFT * 0.08 + UP * 0.24,
-        color=LGREY,
-        stroke_width=1.0,
-    ).set_stroke(opacity=0.78)
-    ltm_line = DashedLine(
-        ltm_cluster.get_right() + RIGHT * 0.16,
-        brain.get_left() + LEFT * 0.08 + DOWN * 0.18,
-        dash_length=0.09,
-        color=LGREY,
-        stroke_width=1.0,
-    ).set_stroke(opacity=0.72)
+    quote_block = VGroup(quote, attribution).arrange(
+        DOWN,
+        buff=0.12,
+        aligned_edge=LEFT,
+    )
+    quote_block.align_to(photo_card, LEFT)
 
-    convergence = Dot(radius=0.040, color=spec["accent"], stroke_width=0)
-    convergence.move_to(brain.get_left() + LEFT * 0.10 + DOWN * 0.02)
-    convergence_halo = Circle(radius=0.14, color=spec["accent"], stroke_width=1.0)
-    convergence_halo.move_to(convergence.get_center())
-    convergence_halo.set_stroke(opacity=0.46)
+    supporting_text = VGroup(photo_credit, quote_block).arrange(
+        DOWN,
+        buff=0.10,
+        aligned_edge=LEFT,
+    )
+    supporting_text.align_to(photo_card, LEFT)
 
-    caption = Tex(r"\textbf{Prior traces may bias the maintained code}", color=INK, font_size=15)
-    caption.move_to(np.array([0.05, 1.72, 0.0]))
-    return Group(
-        caption,
-        wm_line,
-        ltm_line,
-        convergence_halo,
-        convergence,
-        brain,
-        wm_cluster,
-        wm_label,
-        ltm_cluster,
-        ltm_label,
+    return Group(photo_card, supporting_text).arrange(
+        DOWN,
+        buff=0.14,
+        aligned_edge=LEFT,
     )
 
 
@@ -1189,46 +1309,88 @@ def _build_intro_question_visual(question_idx: int, spec: dict[str, str]) -> VGr
 
 def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
     spec = _INTRO_RESEARCH_QUESTIONS[question_idx]
-    kicker = VGroup(
-        Dot(radius=0.042, color=spec["accent"], stroke_width=0),
-        Tex(spec["kicker"], color=INK, font_size=18),
-    ).arrange(RIGHT, buff=0.12)
-    header_rule = Line(ORIGIN, RIGHT * 4.90, color=LGREY, stroke_width=1.0)
+    header_left_x = _INTRO_QUESTION_HEADER_LEFT_X
+    header_y = _INTRO_QUESTION_HEADER_Y
+
+    header_dot = Dot(radius=0.046, color=spec["accent"], stroke_width=0)
+    header_dot.move_to(np.array([header_left_x, header_y, 0.0]))
+
+    kicker = Tex(spec["kicker"], color=INK, font_size=_INTRO_QUESTION_HEADER_FONT_SIZE)
+    kicker.next_to(header_dot, RIGHT, buff=0.16)
+    kicker.set_y(header_y)
+
+    header_separator = Line(ORIGIN, RIGHT * 0.54, color=spec["accent"], stroke_width=1.8)
+    header_separator.next_to(kicker, RIGHT, buff=0.22)
+    header_separator.set_y(header_y)
+
+    header_title = Tex(spec["title"], color=INK, font_size=_INTRO_QUESTION_HEADER_FONT_SIZE)
+    if header_title.width > 3.30:
+        header_title.scale_to_fit_width(3.30)
+    header_title.next_to(header_separator, RIGHT, buff=0.22)
+    header_title.set_y(header_y)
+
+    header_rule = Line(
+        np.array([header_left_x - 0.02, header_y - 0.36, 0.0]),
+        np.array([4.80, header_y - 0.36, 0.0]),
+        color=LGREY,
+        stroke_width=1.0,
+    )
     header_rule.set_stroke(opacity=0.72)
-    header = VGroup(kicker, header_rule).arrange(RIGHT, buff=0.22, aligned_edge=DOWN)
+    header = VGroup(header_dot, kicker, header_separator, header_title, header_rule)
 
-    question_title = Tex(rf"\textbf{{{spec['title']}}}", color=spec["accent"], font_size=19)
-    if question_title.width > 5.05:
-        question_title.scale_to_fit_width(5.05)
-
-    question_claim = Tex(spec["subtitle"], color=INK, font_size=31)
-    if question_claim.width > 5.35:
-        question_claim.scale_to_fit_width(5.35)
+    question_claim = Tex(
+        spec["subtitle"],
+        color=INK,
+        font_size=_INTRO_QUESTION_CLAIM_FONT_SIZE,
+        tex_environment="flushleft",
+    )
+    if question_claim.width > _INTRO_QUESTION_CLAIM_MAX_WIDTH:
+        question_claim.scale_to_fit_width(_INTRO_QUESTION_CLAIM_MAX_WIDTH)
 
     context_block = _intro_question_context_block(spec)
-    text_column = VGroup(question_title, question_claim, context_block).arrange(
-        DOWN,
-        buff=0.24,
-        aligned_edge=LEFT,
-    )
-    text_group = text_column
-
+    cue_anchor = context_block[0]
+    cue_rule = cue_anchor[0]
+    cue_dots = cue_anchor[1]
+    bullet_items = context_block[1]
+    context_block.next_to(question_claim, DOWN, buff=0.28)
+    question_claim.align_to(bullet_items, LEFT)
+    text_column = Group(question_claim, context_block)
     visual = _build_intro_question_visual(question_idx, spec)
     visual.scale(1.07)
-    visual.shift(DOWN * 0.08)
+    visual.move_to(np.array([_INTRO_QUESTION_VISUAL_CENTER_X, _INTRO_QUESTION_CONTENT_Y, 0.0]))
 
-    question_card = Group(text_group, visual).arrange(RIGHT, buff=0.92, aligned_edge=UP)
-    max_width = config.frame_width - 0.90
-    if question_card.width > max_width:
-        question_card.scale_to_fit_width(max_width)
-    question_card.move_to(DOWN * 0.44)
-    header.next_to(question_card, UP, buff=0.46, aligned_edge=LEFT)
+    text_group = text_column
+    text_group.move_to(
+        np.array([
+            _INTRO_QUESTION_TEXT_CENTER_X,
+            _INTRO_QUESTION_CONTENT_Y,
+            0.0,
+        ])
+    )
+
+    question_card = Group(text_group, visual)
 
     return {
         "header": header,
+        "question_claim": question_claim,
+        "cue_rule": cue_rule,
+        "cue_dots": cue_dots,
+        "bullet_items": bullet_items,
+        "visual": visual,
+        "question_card_without_rule": Group(question_claim, cue_dots, bullet_items, visual),
         "question_card": question_card,
         "content": question_card,
         "final_group": Group(header, question_card),
+        "visual_left_column": getattr(visual, "left_column", None),
+        "visual_top_target": getattr(visual, "top_target", None),
+        "visual_bottom_target": getattr(visual, "bottom_target", None),
+        "visual_lead_out": getattr(visual, "lead_out", None),
+        "visual_top_trunk": getattr(visual, "top_trunk", None),
+        "visual_bottom_trunk": getattr(visual, "bottom_trunk", None),
+        "visual_top_branch": getattr(visual, "top_branch", None),
+        "visual_bottom_branch": getattr(visual, "bottom_branch", None),
+        "visual_simple_block": getattr(visual, "simple_block", None),
+        "visual_natural_block": getattr(visual, "natural_block", None),
     }
 
 
@@ -2562,6 +2724,7 @@ class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
             previous_state = _build_intro_d_layout()
             self.add(previous_state["final_group"])
             self.wait(0.12)
+        live_timeline_line = previous_state["timeline_line"]
         classical_fade_group = Group(
             previous_state["title"],
             previous_state["dots"],
@@ -2573,9 +2736,17 @@ class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
             FadeOut(classical_fade_group, run_time=0.45),
         )
         self.play(
-            Transform(previous_state["timeline_line"], state["timeline_line"]),
+            Transform(live_timeline_line, state["timeline_line"]),
             run_time=0.85,
         )
+        state["timeline_line"] = live_timeline_line
+        state["content"] = Group(
+            state["timeline_line"],
+            state["dots"],
+            state["entries"],
+            state["figure_column"],
+        )
+        state["final_group"] = Group(state["title"], state["hero_figure"], state["content"])
         self.play(
             FadeIn(state["hero_figure"], shift=UP * 0.03),
             FadeIn(first_dot, scale=0.92),
@@ -2589,6 +2760,7 @@ class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
             FadeIn(state["figure_column"], shift=RIGHT * 0.10),
             run_time=0.90,
         )
+        self._intro_sensory_recruitment_state = state
         self.wait(4.50)
 
 
@@ -2596,36 +2768,68 @@ class IntroResearchQuestion1(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(0)
-        comparison_state = _build_intro_sensmem_b_hook_state()
-        self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.90)
-        self.wait(0.90)
+        previous_state = getattr(self, "_intro_sensory_recruitment_state", None)
+        if previous_state is None:
+            previous_state = _build_intro_e_layout()
+            self.add(
+                previous_state["title"],
+                previous_state["hero_figure"],
+                previous_state["timeline_line"],
+                previous_state["dots"],
+                previous_state["entries"],
+                previous_state["figure_column"],
+            )
+            self.wait(0.12)
+        sensory_fade_group = Group(
+            previous_state["title"],
+            previous_state["hero_figure"],
+            previous_state["dots"],
+            previous_state["entries"],
+            previous_state["figure_column"],
+        )
+        source_group = Group(state["question_claim"], state["visual_left_column"], state["visual_lead_out"])
         self.play(
-            FadeOut(state["header"], shift=UP * 0.04, run_time=0.45),
-            FadeOut(state["question_card"], shift=UP * 0.04, run_time=0.55),
-            FadeIn(comparison_state["title_group"], shift=UP * 0.03, run_time=0.60),
-            FadeIn(comparison_state["column_headers"], shift=UP * 0.03, run_time=0.60),
-            FadeIn(comparison_state["row_panels"][0], scale=0.98, run_time=0.60),
-            FadeIn(comparison_state["row_labels"][0], shift=RIGHT * 0.04, run_time=0.60),
+            FadeOut(sensory_fade_group, shift=UP * 0.04, run_time=0.55),
+            FadeIn(state["header"], shift=UP * 0.04, run_time=0.70),
+            FadeIn(source_group, shift=UP * 0.04, run_time=0.90),
+            ReplacementTransform(previous_state["timeline_line"], state["cue_rule"], run_time=0.85),
+        )
+        self.play(
+            AnimationGroup(
+                Create(state["visual_top_trunk"]),
+                Create(state["visual_top_branch"]),
+                lag_ratio=0.0,
+                run_time=0.70,
+            ),
+            FadeIn(state["visual_top_target"], shift=RIGHT * 0.06, run_time=0.75),
             LaggedStart(
-                FadeIn(comparison_state["top_row"][0], shift=UP * 0.04),
-                FadeIn(comparison_state["top_row"][1], shift=UP * 0.04),
-                lag_ratio=0.12,
-                run_time=0.72,
+                FadeIn(state["cue_dots"][0], scale=0.92),
+                FadeIn(state["bullet_items"][0], shift=UP * 0.03),
+                FadeIn(state["cue_dots"][1], scale=0.92),
+                FadeIn(state["bullet_items"][1], shift=UP * 0.03),
+                lag_ratio=0.10,
+                run_time=0.85,
             ),
         )
-        self.wait(0.65)
+        self.wait(4.00)
         self.play(
-            FadeIn(comparison_state["row_panels"][1], scale=0.98, run_time=0.55),
-            FadeIn(comparison_state["row_labels"][1], shift=RIGHT * 0.04, run_time=0.55),
+            AnimationGroup(
+                Create(state["visual_bottom_trunk"]),
+                Create(state["visual_bottom_branch"]),
+                lag_ratio=0.0,
+                run_time=0.62,
+            ),
+            FadeIn(state["visual_bottom_target"], shift=RIGHT * 0.06, run_time=0.72),
             LaggedStart(
-                FadeIn(comparison_state["bottom_row"][0], shift=UP * 0.04),
-                FadeIn(comparison_state["bottom_row"][1], shift=UP * 0.04),
-                lag_ratio=0.12,
-                run_time=0.68,
+                FadeIn(state["cue_dots"][2], scale=0.92),
+                FadeIn(state["bullet_items"][2], shift=UP * 0.03),
+                FadeIn(state["cue_dots"][3], scale=0.92),
+                FadeIn(state["bullet_items"][3], shift=UP * 0.03),
+                lag_ratio=0.10,
+                run_time=0.82,
             ),
         )
-        self.wait(3.15)
+        self.wait(4.25)
 
 
 class IntroResearchQuestion2(_IntroNumberedScene, Scene):
@@ -2633,7 +2837,28 @@ class IntroResearchQuestion2(_IntroNumberedScene, Scene):
         self.camera.background_color = BG
         state = _build_intro_question_layout(1)
         self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.90)
+        self.play(
+            FadeIn(state["question_claim"], shift=UP * 0.04, run_time=0.75),
+            Create(state["cue_rule"], run_time=0.80),
+        )
+        self.play(
+            FadeIn(state["cue_dots"][0], scale=0.92),
+            FadeIn(state["bullet_items"][0], shift=UP * 0.03),
+            FadeIn(state["visual_simple_block"], shift=RIGHT * 0.06, run_time=0.90),
+        )
+        self.wait(4.00)
+        remaining_bullet_anims = []
+        for idx in range(1, len(state["bullet_items"])):
+            remaining_bullet_anims.extend(
+                [
+                    FadeIn(state["cue_dots"][idx], scale=0.92),
+                    FadeIn(state["bullet_items"][idx], shift=UP * 0.03),
+                ]
+            )
+        self.play(
+            FadeIn(state["visual_natural_block"], shift=RIGHT * 0.06, run_time=0.90),
+            LaggedStart(*remaining_bullet_anims, lag_ratio=0.10, run_time=1.00),
+        )
         self.wait(4.25)
 
 
@@ -2641,8 +2866,33 @@ class IntroResearchQuestion3(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(2)
-        self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["question_card"], shift=UP * 0.04), run_time=0.90)
+        intro_group = Group(state["question_claim"], state["visual"])
+        self.play(
+            FadeIn(state["header"], shift=UP * 0.04, run_time=0.70),
+            FadeIn(intro_group, shift=UP * 0.04, run_time=0.90),
+        )
+        self.wait(4.00)
+        self.play(
+            Create(state["cue_rule"], run_time=0.80),
+            LaggedStart(
+                FadeIn(state["cue_dots"][0], scale=0.92),
+                FadeIn(state["bullet_items"][0], shift=UP * 0.03),
+                FadeIn(state["cue_dots"][1], scale=0.92),
+                FadeIn(state["bullet_items"][1], shift=UP * 0.03),
+                lag_ratio=0.10,
+                run_time=0.90,
+            ),
+        )
+        self.wait(4.00)
+        remaining_bullet_anims = []
+        for idx in range(2, len(state["bullet_items"])):
+            remaining_bullet_anims.extend(
+                [
+                    FadeIn(state["cue_dots"][idx], scale=0.92),
+                    FadeIn(state["bullet_items"][idx], shift=UP * 0.03),
+                ]
+            )
+        self.play(LaggedStart(*remaining_bullet_anims, lag_ratio=0.10, run_time=1.00))
         self.wait(4.25)
 
 
@@ -2727,9 +2977,14 @@ class Introduction(ThreeDScene):
     ) -> None:
         if carry_previous_frame and not config.save_sections:
             self.wait(_SECTION_HOLD)
-        preserve_mobjects = scene_cls is IntroSensoryRecruitment
+        preserve_mobjects = (
+            not config.save_sections
+            and scene_cls in (IntroSensoryRecruitment, IntroResearchQuestion1)
+        )
         if not preserve_mobjects:
             self.clear()
+            if hasattr(self, "_intro_sensory_recruitment_state"):
+                delattr(self, "_intro_sensory_recruitment_state")
         self._reset_section_scene_state(preserve_mobjects=preserve_mobjects)
         if scene_cls is not IntroSensoryRecruitment:
             self._reset_section_camera()
