@@ -95,6 +95,7 @@ _AWH_JONIDES_2001_FIG = str(_REFERENCE_DIR / "awhjonides2001_spatial_wm.png")
 _HARRISON_TONG_2009_FIG = str(_INTRO_FIG_DIR / "harrisontong2009.png")
 _HARRISON_TONG_2009_PARADIGM_FIG = str(_INTRO_FIG_DIR / "harrisontong2009paradigm.png")
 _CHRISTOPHEL_2012_FIG = str(_INTRO_FIG_DIR / "christophel2012.png")
+_CHRISTOPHEL_2017_FIG = str(_INTRO_FIG_DIR / "christophel2017.png")
 _INTRO_RQ3_NASA_FIG = str(_INTRO_FIG_DIR / "nasa.jpg")
 _VISUAL_CORTEX_FIG = str(REPO_ROOT / "assets" / "images" / "visual_cortex_white.png")
 _INTRO_HOOK_TARGET_FISH = str(_INTRO_STIM_DIR / "animal_fish-00.png")
@@ -283,7 +284,7 @@ def make_summary_panel(
         *[Tex(line, color=INK, font_size=body_font_size) for line in body_lines]
     ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
     refs = VGroup(
-        *[Tex(line, color=MGREY, font_size=ref_font_size) for line in ref_lines]
+        *[Tex(line, color=INK, font_size=ref_font_size) for line in ref_lines]
     ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
 
     text_block = VGroup(headline, body, refs).arrange(DOWN, buff=0.12, aligned_edge=LEFT)
@@ -829,7 +830,7 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
             *[_fit_width(Tex(line, color=INK, font_size=16), width) for line in body_lines]
         ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
         refs = VGroup(
-            *[_fit_width(Tex(line, color=MGREY, font_size=13), width) for line in ref_lines]
+            *[_fit_width(Tex(line, color=INK, font_size=13), width) for line in ref_lines]
         ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
         return Group(heading, body, refs).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
 
@@ -843,7 +844,9 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
         image.height = height
         if ref_text is None:
             return Group(image)
-        refs = Tex(ref_text, color=MGREY, font_size=14)
+        refs = Tex(ref_text, color=INK, font_size=12)
+        if refs.width > image.width + 0.16:
+            refs.scale_to_fit_width(image.width + 0.16)
         return Group(image, refs).arrange(DOWN, buff=0.10)
 
     what_it_does = _sensory_text_entry(
@@ -868,7 +871,7 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
         ),
         (
             r"Harrison \& Tong (2009); Serences et al. (2009)",
-            r"Christophel et al. (2012)",
+            r"Christophel et al. (2012; 2017)",
         ),
     )
     entries = Group(what_it_does, evidence_source).arrange(DOWN, buff=1.28, aligned_edge=LEFT)
@@ -902,36 +905,36 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     )
     hero_figure.next_to(title, DOWN, buff=0.18)
     hero_figure.match_x(title)
-    paradigm_figure = _study_figure(
-        _HARRISON_TONG_2009_PARADIGM_FIG,
-        None,
-        height=2.18,
-    )
-    harrison_figure = _study_figure(
-        _HARRISON_TONG_2009_FIG,
-        None,
-        height=2.22,
-    )
-    christophel_figure = _study_figure(
-        _CHRISTOPHEL_2012_FIG,
-        r"Christophel et al. (2012)",
-        height=1.98,
-    )
-    top_row = Group(harrison_figure, paradigm_figure).arrange(RIGHT, buff=0.22, aligned_edge=UP)
-    harrison_ref = Tex(r"Harrison \& Tong (2009)", color=MGREY, font_size=14)
-    harrison_ref.next_to(top_row, DOWN, buff=0.12)
-    harrison_ref.set_x(top_row.get_center()[0])
-    separator = Line(ORIGIN, RIGHT * (top_row.width * 0.88), color=LGREY, stroke_width=1.0)
-    separator.set_opacity(0.42)
-    separator.next_to(harrison_ref, DOWN, buff=0.12)
-    separator.set_x(top_row.get_center()[0])
-    christophel_figure.next_to(separator, DOWN, buff=0.16)
-    christophel_figure.set_x(top_row.get_center()[0])
-    upper_row_shift = DOWN * (top_row.height * 0.10)
-    top_row.shift(upper_row_shift)
-    harrison_ref.shift(upper_row_shift)
-    separator.shift(upper_row_shift)
-    figure_column = Group(top_row, harrison_ref, separator, christophel_figure)
+    top_row = Group(
+        _study_figure(
+            _HARRISON_TONG_2009_PARADIGM_FIG,
+            None,
+            height=1.84,
+        ),
+        _study_figure(
+            _HARRISON_TONG_2009_FIG,
+            None,
+            height=1.84,
+        ),
+    ).arrange(RIGHT, buff=0.20, aligned_edge=UP)
+    top_row_ref = Tex(r"Harrison \& Tong (2009)", color=INK, font_size=12)
+    top_row_ref.next_to(top_row, DOWN, buff=0.10)
+    top_row_ref.set_x(top_row.get_center()[0])
+    bottom_row = Group(
+        _study_figure(
+            _CHRISTOPHEL_2012_FIG,
+            r"Christophel et al. (2012)",
+            height=1.74,
+        ),
+        _study_figure(
+            _CHRISTOPHEL_2017_FIG,
+            r"Christophel et al. (2017)",
+            height=1.74,
+        ),
+    ).arrange(RIGHT, buff=0.20, aligned_edge=UP)
+    bottom_row.next_to(top_row_ref, DOWN, buff=0.42)
+    bottom_row.set_x(top_row.get_center()[0])
+    figure_column = Group(top_row, top_row_ref, bottom_row)
     figure_column.next_to(entries, RIGHT, buff=1.02, aligned_edge=UP)
     figure_column.set_y(entries.get_center()[1])
     left_column_shift = LEFT * 0.34
@@ -1026,7 +1029,7 @@ def _intro_question_context_block(spec: dict[str, str]) -> VGroup:
         refs_key = f"bullet_{idx}_refs"
         refs_text = spec.get(refs_key)
         if refs_text:
-            refs = Tex(refs_text, color=MGREY, font_size=13, tex_environment="flushleft")
+            refs = Tex(refs_text, color=INK, font_size=13, tex_environment="flushleft")
             if refs.width > 5.35:
                 refs.scale_to_fit_width(5.35)
             item = VGroup(line, refs).arrange(DOWN, buff=0.06, aligned_edge=LEFT)
@@ -1107,7 +1110,7 @@ def _intro_question_image_with_ref(
     height: float,
 ) -> Group:
     card = _intro_question_image_card(image_path, width=width, height=height)
-    ref = Tex(ref_text, color=MGREY, font_size=10)
+    ref = Tex(ref_text, color=INK, font_size=10)
     if ref.width > width + 0.22:
         ref.scale_to_fit_width(width + 0.22)
     return Group(card, ref).arrange(DOWN, buff=0.10)
@@ -1229,7 +1232,7 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
             for path in _INTRO_RQ2_NATURALISTIC_STIMULI
         ]
     ).arrange(RIGHT, buff=0.16)
-    natural_ref = Tex(r"Pettini et al. (2025)", color=MGREY, font_size=10)
+    natural_ref = Tex(r"Pettini et al. (2025)", color=INK, font_size=10)
     if natural_ref.width > natural_cards.width:
         natural_ref.scale_to_fit_width(natural_cards.width)
     natural_block = Group(
@@ -1265,7 +1268,7 @@ def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
 
         attribution = Tex(
             r"NASA Astronaut Christina Koch, 5 April 2026",
-            color=MGREY,
+            color=INK,
             font_size=13,
         )
         if attribution.width > 4.38:
@@ -1273,7 +1276,7 @@ def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
 
         photo_credit = Tex(
             r"Photo credit: NASA",
-            color=MGREY,
+            color=INK,
             font_size=11,
         )
         if photo_credit.width > 4.38:

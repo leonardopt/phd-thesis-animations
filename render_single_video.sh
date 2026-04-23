@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Render the full Study 1 and Study 2 production scenes, then concatenate
-# them into a single MP4.
+# Render the full presentation section sequence, then concatenate the numbered
+# section clips into one MP4.
 #
 # Usage:
 #   ./render_single_video.sh
@@ -12,18 +12,17 @@ set -euo pipefail
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     echo "Usage: ./render_single_video.sh [QUALITY] [OUTPUT_MP4]"
     echo
-    echo "Render the full Study 1 scene, then the full Study 2 scene."
-    echo "After rendering, concatenate them into one MP4 with ffmpeg."
+    echo "Render all top-level presentation sections with the requested quality."
+    echo "After rendering, concatenate the numbered section clips into one MP4."
     echo
     echo "Examples:"
     echo "  ./render_single_video.sh"
     echo "  ./render_single_video.sh -qh"
-    echo "  ./render_single_video.sh -qm media/videos/presentation_studies_1_2.mp4"
+    echo "  ./render_single_video.sh -qm media/videos/presentation_full_720p30.mp4"
     exit 0
 fi
 
 QUALITY="${1:--ql}"
-OUTPUT_MP4="${2:-media/videos/studies_1_2_full.mp4}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -48,9 +47,6 @@ quality_dir_from_arg() {
         -qh|qh|1080p60)
             printf '%s\n' "1080p60"
             ;;
-        -qp|qp|1440p60)
-            printf '%s\n' "1440p60"
-            ;;
         -qk|qk|2160p60)
             printf '%s\n' "2160p60"
             ;;
@@ -64,54 +60,47 @@ QUALITY_DIR=""
 if QUALITY_DIR="$(quality_dir_from_arg "$QUALITY")"; then
     :
 else
-    QUALITY_DIR=""
-fi
-
-scene_entries=(
-    "study1:03_study1:scenes/study1.py:study1:Study1:--save_sections"
-    "study2:04_study2:scenes/study2.py:study2:Study2:--save_sections"
-)
-
-if [[ ${#scene_entries[@]} -eq 0 ]]; then
-    echo "No scenes found to render." >&2
+    echo "Unsupported quality: $QUALITY" >&2
+    echo "Use -ql, -qm, -qh, -qk or 480p15/720p30/1080p60/2160p60." >&2
     exit 1
 fi
+
+OUTPUT_MP4="${2:-media/videos/presentation_full_${QUALITY_DIR}.mp4}"
+
+section_dirs=(
+    "01_intro"
+    "02_methods"
+    "03_study1"
+    "04_study2"
+    "05_conclusion"
+)
 
 concat_list="$(mktemp)"
 trap 'rm -f "$concat_list"' EXIT
 
-total=${#scene_entries[@]}
-idx=0
+echo "[1/2] Rendering all presentation sections"
+./render_all.sh "$QUALITY"
 
-for entry in "${scene_entries[@]}"; do
-    study_slug="${entry%%:*}"
-    rest="${entry#*:}"
-    study_dir="${rest%%:*}"
-    rest="${rest#*:}"
-    scene_file="${rest%%:*}"
-    rest="${rest#*:}"
-    output_name="${rest%%:*}"
-    rest="${rest#*:}"
-    class_name="${rest%%:*}"
-    sections_flag="${rest#*:}"
-
-    idx=$((idx + 1))
-    echo "[$idx/$total] $class_name -> $output_name${sections_flag:+ (sectioned)}"
-    uv run manim "$scene_file" "$class_name" "$QUALITY" ${sections_flag:+$sections_flag}
-
-    rendered_path=""
-    if [[ -n "$QUALITY_DIR" && -f "media/videos/$study_dir/$QUALITY_DIR/${output_name}.mp4" ]]; then
-        rendered_path="media/videos/$study_dir/$QUALITY_DIR/${output_name}.mp4"
-    else
-        rendered_path="$(find "media/videos/$study_dir" -type f -name "${output_name}.mp4" | sort | tail -n 1)"
-    fi
-    if [[ -z "$rendered_path" ]]; then
-        echo "Could not locate rendered output for $output_name in media/videos/$study_dir" >&2
+echo "[2/2] Collecting section clips for concatenation"
+for section_dir in "${section_dirs[@]}"; do
+    sections_dir="media/videos/$section_dir/$QUALITY_DIR/sections"
+    if [[ ! -d "$sections_dir" ]]; then
+        echo "Missing section directory: $sections_dir" >&2
         exit 1
     fi
 
-    abs_rendered_path="$(cd "$(dirname "$rendered_path")" && pwd)/$(basename "$rendered_path")"
-    printf "file '%s'\n" "$abs_rendered_path" >> "$concat_list"
+    mapfile -t clip_paths < <(
+        find "$sections_dir" -maxdepth 1 -type f -name "*.mp4" ! -name "*_autocreated.mp4" | sort
+    )
+    if [[ ${#clip_paths[@]} -eq 0 ]]; then
+        echo "No section clips found under $sections_dir" >&2
+        exit 1
+    fi
+
+    for rendered_path in "${clip_paths[@]}"; do
+        abs_rendered_path="$(cd "$(dirname "$rendered_path")" && pwd)/$(basename "$rendered_path")"
+        printf "file '%s'\n" "$abs_rendered_path" >> "$concat_list"
+    done
 done
 
 mkdir -p "$(dirname "$OUTPUT_MP4")"

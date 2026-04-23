@@ -13,8 +13,13 @@ presenter_notes_path = "assets/presenter_notes.md"
 
 [[slide]]
 type = "title"
-title = "PhD Defence"
-subtitle = "Edit this title slide in assets/presentation_deck.toml"
+title = "Perception and Memory in Rich Visual Settings"
+subtitle = "Sensory recruitment, naturalistic stimuli, and long-term memory interactions"
+body = """
+Leonardo Pettini
+PhD Defence
+23 April 2026
+"""
 
 [[slide]]
 type = "section"
@@ -62,6 +67,17 @@ type = "video_sequence"
 glob = "media/videos/05_conclusion/{{quality_dir}}/sections/*.mp4"
 
 [[slide]]
+type = "text"
+title = "Acknowledgments"
+subtitle = "Thanks to everyone who made this work possible"
+body = """
+Supervisors, mentors, and committee members
+Collaborators and lab colleagues
+Research participants and supporting teams
+Friends and family
+"""
+
+[[slide]]
 type = "section"
 title = "Appendix"
 subtitle = "Add static slides or backup animations below"
@@ -84,4 +100,4 @@ subtitle = "Add static slides or backup animations below"
 #
 # [[slide]]
 # type = "video"
-# path = "media/videos/04_study2/{{quality_dir}}/14_Study2LTMResultsExplainer.mp4"
+# path = "media/videos/04_study2/{{quality_dir}}/sections/016_study2_ltm_results_explainer.mp4"

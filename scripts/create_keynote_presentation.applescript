@@ -212,8 +212,17 @@ on setSlideText(aSlide, titleText, bodyText, notesText)
 		end tell
 end setSlideText
 
+-- Reject any media path that is not a numbered section clip. The manifest
+-- performs the same validation; this second check keeps the deck builder from
+-- silently drifting if a malformed slide record ever reaches AppleScript.
+on assertSectionVideoPath(videoPath)
+	if videoPath does not contain "/sections/" then error "Deck videos must come from a /sections/ directory: " & videoPath
+	if videoPath ends with "_autocreated.mp4" then error "Deck videos must not use autocreated section clips: " & videoPath
+end assertSectionVideoPath
+
 -- Add one full-slide movie asset to a blank-layout slide.
 on addMovieToSlide(aSlide, videoPath, slideWidth, slideHeight)
+	my assertSectionVideoPath(videoPath)
 	set movieFileAlias to (POSIX file videoPath) as alias
 	tell application "Keynote"
 		tell aSlide
@@ -337,6 +346,12 @@ on run argv
 	end tell
 	
 	if my waitForFile(outputPath, 120) is false then error "Keynote did not produce the saved file at " & outputPath
+	try
+		-- Rewrite Keynote's stored font names so deck text uses Computer Modern.
+		my runCommandInDirectory("/usr/bin/python3", {"scripts/force_keynote_cmu_font.py", "--presentation-file", outputPath}, projectRoot)
+	on error errMsg number errNum
+		error "Keynote export succeeded, but CMU font post-processing failed. " & errMsg number errNum
+	end try
 	
 	display dialog "Created " & outputName & " using video folder " & qualityFolder & " with " & (count of slideSpecs) & " slides at " & outputPath buttons {"OK"} default button "OK"
 	return outputPath

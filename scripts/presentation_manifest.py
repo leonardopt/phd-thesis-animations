@@ -82,6 +82,26 @@ def include_media_path(path: Path) -> bool:
     return not path.stem.endswith("_autocreated")
 
 
+def is_numbered_section_video_path(path: Path) -> bool:
+    """Return whether a path matches the deck's numbered section-clip contract."""
+    if path.suffix.lower() != ".mp4":
+        return False
+    if path.parent.name != "sections":
+        return False
+    if NUMBERED_SECTION_VIDEO_RE.fullmatch(path.stem) is None:
+        return False
+    return not path.stem.endswith("_autocreated")
+
+
+def validate_deck_video_path(path: Path) -> None:
+    """Reject any deck video that does not come from numbered /sections/ clips."""
+    if not is_numbered_section_video_path(path):
+        manifest_error(
+            "deck videos must point at numbered section clips under a /sections/ "
+            f"directory: {path}"
+        )
+
+
 def slide_sort_key(path: Path) -> tuple:
     """Return a natural sort key that keeps numbered slide exports in narrative order."""
     name = path.name
@@ -266,6 +286,8 @@ def validate_media_slide(
     resolved_path = resolve_path(render_template(raw_path, quality_dir), project_root)
     if not resolved_path.is_file():
         manifest_error(f"{slide_type!r} slide path not found: {resolved_path}")
+    if slide_type == "video":
+        validate_deck_video_path(resolved_path)
 
     return {
         "type": slide_type,
@@ -349,10 +371,45 @@ def normalize_presenter_notes_target(raw_target: str) -> str:
     return target
 
 
+def stem_without_numeric_prefix(stem: str) -> str:
+    """Drop the numbered slide prefix used by both old and current media names."""
+    match = re.match(r"\d+[A-Za-z]*_(.*)", stem)
+    if match is not None:
+        return match.group(1)
+    return stem
+
+
+def canonical_media_stem(stem: str) -> str:
+    """Normalize legacy CamelCase and current snake-case stems onto one alias."""
+    stem = stem_without_numeric_prefix(stem)
+    stem = stem.replace("-", "_").replace(" ", "_")
+
+    tokens: list[str] = []
+    for chunk in stem.split("_"):
+        if not chunk:
+            continue
+        chunk_tokens = re.findall(
+            r"[A-Z]+(?=[A-Z][a-z]|\d|$)|[A-Z]?[a-z]+|\d+[a-z]?|[A-Z]",
+            chunk,
+        )
+        if chunk_tokens:
+            tokens.extend(token.lower() for token in chunk_tokens)
+        else:
+            tokens.append(chunk.lower())
+
+    return "_".join(tokens)
+
+
 def media_path_aliases(path: Path, project_root: Path, quality_dir: str) -> set[str]:
     """Build matching aliases for one concrete media path."""
     resolved_path = path.resolve()
-    aliases = {str(resolved_path), resolved_path.name, resolved_path.stem}
+    aliases = {
+        str(resolved_path),
+        resolved_path.name,
+        resolved_path.stem,
+        stem_without_numeric_prefix(resolved_path.stem),
+        canonical_media_stem(resolved_path.stem),
+    }
 
     try:
         relative_path = resolved_path.relative_to(project_root)
@@ -392,9 +449,7 @@ def presenter_note_aliases(raw_target: str, project_root: Path, quality_dir: str
 def presenter_note_label_from_path(path_text: str) -> str:
     """Build a readable fallback note label from a rendered media filename."""
     stem = Path(path_text).stem
-    numbered_match = re.match(r"\d+[A-Za-z]*_(.*)", stem)
-    if numbered_match is not None:
-        stem = numbered_match.group(1)
+    stem = stem_without_numeric_prefix(stem)
 
     tokens = re.findall(
         r"[A-Z]+(?=[A-Z][a-z]|\d|$)|[A-Z]?[a-z]+|\d+[a-z]?|[A-Z]",
@@ -583,6 +638,7 @@ def expand_slides(slides: list[dict], project_root: Path, quality_dir: str) -> l
             for match in matches:
                 if not match.is_file():
                     manifest_error(f"video_sequence file not found: {match}")
+                validate_deck_video_path(match.resolve())
                 expanded.append(
                     {
                         "type": "video",

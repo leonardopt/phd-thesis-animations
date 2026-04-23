@@ -23,6 +23,9 @@ export UV_CACHE_DIR="${UV_CACHE_DIR:-$SCRIPT_DIR/.uv-cache}"
 export MPLCONFIGDIR="${MPLCONFIGDIR:-$SCRIPT_DIR/.mplconfig}"
 mkdir -p "$UV_CACHE_DIR" "$MPLCONFIGDIR"
 
+# Clear stale section clips from previous introduction layouts before rendering.
+find media/videos/01_intro -path "*/sections/*" -type f -delete 2>/dev/null || true
+
 echo "[1/1] Introduction -> intro (sectioned)"
 uv run manim scenes/intro.py Introduction "$QUALITY" --save_sections
 

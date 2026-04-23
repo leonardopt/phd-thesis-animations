@@ -194,7 +194,7 @@ def _s1_step1__build_stimulus_tree():
         cat_label.shift(UP * (label_top_y - cat_label.get_top()[1]))
         divider = Line(LEFT * max(0.82, cat_label.width / 2 + 0.02), RIGHT * max(0.82, cat_label.width / 2 + 0.02), stroke_color=side_color, stroke_width=1.2).move_to(UP * 0.0)
         stem = Line(divider.get_bottom() + DOWN * 0.02, divider.get_bottom() + DOWN * 0.22, color=side_color, stroke_width=1.0)
-        sample_texts = [sample_line(sample_names[0] + ','), sample_line(sample_names[1] + ','), sample_line(sample_names[2] + ','), Tex('\\dots', color=_s1_step1_GREY, font_size=SAMPLE_FONT)]
+        sample_texts = [sample_line(sample_names[0] + ','), sample_line(sample_names[1] + ','), sample_line(sample_names[2] + ','), Tex('\\dots', color=_s1_step1_INK, font_size=SAMPLE_FONT)]
         samples = VGroup(*sample_texts).arrange(DOWN, buff=0.06, aligned_edge=LEFT)
         samples.next_to(stem, DOWN, buff=0.06)
         node = VGroup(cat_label, divider, stem, samples)
@@ -487,7 +487,7 @@ class Study1Stage1Step2(Scene):
         active_row_y = desired_grid_top_y - ACTIVE_TILE_H / 2 - (FINAL_VISIBLE_ROWS - 1) * STACK_ROW_STEP
         noise_mob = ImageMobject(_s1_step2_noise_magma(seed=row_seeds[0], sz=512)).scale_to_fit_height(NOISE_H)
         noise_mob.move_to(np.array([left_panel_x, active_row_y, 0.0]))
-        comp_sym = MathTex('\\oplus', color=_s1_step2_GREY, font_size=52)
+        comp_sym = MathTex('\\oplus', color=_s1_step2_INK, font_size=52)
         comp_sym.move_to(
             np.array(
                 [
@@ -497,11 +497,11 @@ class Study1Stage1Step2(Scene):
                 ]
             )
         )
-        noise_id_lab = MathTex('\\mathbf{z}_1', color=_s1_step2_GREY, font_size=20)
+        noise_id_lab = MathTex('\\mathbf{z}_1', color=_s1_step2_INK, font_size=20)
         noise_id_lab.next_to(noise_mob, DOWN, buff=0.10)
-        dist_lab = MathTex('\\sim \\mathcal{N}(\\mathbf{0},\\,\\mathbf{I})', color=_s1_step2_GREY, font_size=18)
+        dist_lab = MathTex('\\sim \\mathcal{N}(\\mathbf{0},\\,\\mathbf{I})', color=_s1_step2_INK, font_size=18)
         dist_lab.next_to(noise_id_lab, DOWN, buff=0.06)
-        noise_note = Tex('different starting noise', color=_s1_step2_GREY, font_size=16)
+        noise_note = Tex('different starting noise', color=_s1_step2_INK, font_size=16)
         noise_note.next_to(dist_lab, DOWN, buff=0.05)
 
         prompt_link = Line(p_block.get_bottom() + DOWN * 0.08, comp_sym.get_top() + UP * 0.08, color=_s1_step2_LGREY, stroke_width=1.5)
@@ -546,7 +546,7 @@ class Study1Stage1Step2(Scene):
             for row in range(FINAL_VISIBLE_ROWS)
         ]
         final_bottom_y = final_stack_positions[-1][0][1] if final_stack_positions else ACTIVE_ROW_Y
-        final_vdots = MathTex('\\vdots', color=_s1_step2_GREY, font_size=30).move_to(
+        final_vdots = MathTex('\\vdots', color=_s1_step2_INK, font_size=30).move_to(
             np.array([GRID_CENTER_X, final_bottom_y - ACTIVE_TILE_H / 2 - 0.32, 0.0])
         )
 
@@ -578,7 +578,7 @@ class Study1Stage1Step2(Scene):
             if row_i > 0:
                 new_noise = ImageMobject(_s1_step2_noise_magma(seed=seed, sz=512)).scale_to_fit_height(NOISE_H)
                 new_noise.move_to(noise_mob.get_center())
-                new_noise_id_lab = MathTex(f'\\mathbf{{z}}_{{{row_i + 1}}}', color=_s1_step2_GREY, font_size=20)
+                new_noise_id_lab = MathTex(f'\\mathbf{{z}}_{{{row_i + 1}}}', color=_s1_step2_INK, font_size=20)
                 new_noise_id_lab.next_to(new_noise, DOWN, buff=0.10)
                 self.play(FadeTransform(noise_mob, new_noise), FadeTransform(noise_id_lab, new_noise_id_lab), run_time=0.42)
                 noise_mob = new_noise
@@ -893,10 +893,10 @@ def _s1_step2_showcase_cloud_reveal(
 
 def _s1_step2_showcase_make_static_frame(n_cloud: int) -> dict:
     """Build the structural frame that stays fixed across showcase entries."""
-    comp_sym = MathTex('\\oplus', color=_s1_step2_showcase_GREY, font_size=52)
+    comp_sym = MathTex('\\oplus', color=_s1_step2_showcase_INK, font_size=52)
     comp_sym.move_to(RIGHT * _s1_step2_showcase_LEFT_CX)
     _dummy = [ImageMobject(_s1_step2_showcase_noise_magma(seed=0)).scale_to_fit_height(_s1_step2_showcase_THUMB_H) for _ in range(3)]
-    dots_tex = MathTex('\\ldots', color=_s1_step2_showcase_GREY, font_size=36)
+    dots_tex = MathTex('\\ldots', color=_s1_step2_showcase_INK, font_size=36)
     thumb_row = Group(*_dummy, dots_tex).arrange(RIGHT, buff=0.18)
     lbrace = MathTex('\\bigl\\{', color=_s1_step2_showcase_INK, font_size=52)
     rbrace = MathTex('\\bigr\\}', color=_s1_step2_showcase_INK, font_size=52)
@@ -930,8 +930,8 @@ def _s1_step2_showcase_make_static_frame(n_cloud: int) -> dict:
     set_row.shift(LEFT * left_cluster_shift)
     thumb_positions = [d.get_center().copy() for d in _dummy]
     set_brace = Brace(set_row, DOWN, color=_s1_step2_showcase_GREY, buff=0.08)
-    set_brace_lab = MathTex('60 \\text{ noise tensors}', color=_s1_step2_showcase_GREY, font_size=20).next_to(set_brace, DOWN, buff=0.08)
-    dist_note = MathTex('\\mathbf{z}_i \\sim \\mathcal{N}(\\mathbf{0},\\,\\mathbf{I})', color=_s1_step2_showcase_GREY, font_size=20).next_to(set_brace_lab, DOWN, buff=0.14)
+    set_brace_lab = MathTex('60 \\text{ noise tensors}', color=_s1_step2_showcase_INK, font_size=20).next_to(set_brace, DOWN, buff=0.08)
+    dist_note = MathTex('\\mathbf{z}_i \\sim \\mathcal{N}(\\mathbf{0},\\,\\mathbf{I})', color=_s1_step2_showcase_INK, font_size=20).next_to(set_brace_lab, DOWN, buff=0.14)
     sdxl_center_x, cloud_cx = _s1_step2_showcase_layout_x(rbrace, sdxl_group, n_cloud)
     sdxl_group.shift(RIGHT * (sdxl_center_x - sdxl_group.get_center()[0]))
     c_sub = Tex('Same semantic identity $\\cdot$ Perceptually distinct realisations', color=_s1_step2_showcase_INK, font_size=19).to_edge(DOWN, buff=0.3)
@@ -1339,8 +1339,8 @@ class _Study1Step3Base(Scene):
         tri_bg = Polygon(mat_ul, mat_dl, mat_dr, stroke_width=0).set_fill('#FAFAFB', opacity=1.0)
         tri_frame = Polygon(mat_ul, mat_dl, mat_dr, color=_s1_step3_LGREY, stroke_width=1.5)
         diag_line = Line(mat_ul, mat_dr, color=_s1_step3_LGREY, stroke_width=1.0)
-        axis_x = Tex('\\textit{exemplar }j', color=_s1_step3_GREY, font_size=14).next_to(tri_frame, DOWN, buff=0.15)
-        axis_y = Tex('\\textit{exemplar }i', color=_s1_step3_GREY, font_size=14).rotate(PI / 2).next_to(tri_frame, LEFT, buff=0.15)
+        axis_x = Tex('\\textit{exemplar }j', color=_s1_step3_INK, font_size=14).next_to(tri_frame, DOWN, buff=0.15)
+        axis_y = Tex('\\textit{exemplar }i', color=_s1_step3_INK, font_size=14).rotate(PI / 2).next_to(tri_frame, LEFT, buff=0.15)
         tri_bg.set_z_index(0)
         tri_frame.set_z_index(2)
         diag_line.set_z_index(2)
@@ -1427,8 +1427,8 @@ class _Study1Step3Base(Scene):
         pair_card.move_to(RIGHT * 5.25 + UP * 2.15)
         pair_card.set_z_index(5)
         repeat_note = VGroup(
-            Tex('\\textit{repeat for all}', color=_s1_step3_GREY, font_size=16),
-            Tex('\\textit{image pairs}', color=_s1_step3_GREY, font_size=16),
+            Tex('\\textit{repeat for all}', color=_s1_step3_INK, font_size=16),
+            Tex('\\textit{image pairs}', color=_s1_step3_INK, font_size=16),
         ).arrange(DOWN, buff=0.02).next_to(pair_card, DOWN, buff=0.16)
         repeat_note.set_z_index(5)
         pair_arrow = pair_score_arrow(pair_score, demo_pairs[0])
@@ -1767,9 +1767,9 @@ class Study1Stage1Step4Detailed(ThreeDScene):
         ax_y = _s1_step4_vec3(ORIGIN, [0, L, 0], _s1_step4_MGREY, sw=2.2, tl=0.18)
         ax_z = _s1_step4_vec3(ORIGIN, [0, 0, L], _s1_step4_MGREY, sw=2.2, tl=0.18)
         FS = 28
-        lab_x = MathTex('x', color=_s1_step4_MGREY, font_size=FS).move_to(np.array([L + AXIS_LABEL_OFFSET, 0.0, 0.0]))
-        lab_y = MathTex('y', color=_s1_step4_MGREY, font_size=FS).move_to(np.array([0.0, L + AXIS_LABEL_OFFSET, 0.0]))
-        lab_z = MathTex('z', color=_s1_step4_MGREY, font_size=FS).move_to(np.array([0.0, 0.0, L + AXIS_LABEL_OFFSET]))
+        lab_x = MathTex('x', color=_s1_step4_INK, font_size=FS).move_to(np.array([L + AXIS_LABEL_OFFSET, 0.0, 0.0]))
+        lab_y = MathTex('y', color=_s1_step4_INK, font_size=FS).move_to(np.array([0.0, L + AXIS_LABEL_OFFSET, 0.0]))
+        lab_z = MathTex('z', color=_s1_step4_INK, font_size=FS).move_to(np.array([0.0, 0.0, L + AXIS_LABEL_OFFSET]))
         R = 1.7
         z0_dir = np.array([0.52, -0.18, 1.0])
         z0_dir /= np.linalg.norm(z0_dir)
@@ -1809,8 +1809,8 @@ class Study1Stage1Step4Detailed(ThreeDScene):
         BW, BY, BAR_CX = (4.6, PROGRESS_Y, MID_ARROW_CENTER_X)
         bl = RIGHT * (BAR_CX - BW / 2) + DOWN * abs(BY)
         bar_bg = Line(bl, bl + RIGHT * BW, color=_s1_step4_LGREY, stroke_width=4)
-        lab_al0 = MathTex('\\alpha=0', color=_s1_step4_MGREY, font_size=24).next_to(bar_bg, LEFT, buff=0.1)
-        lab_al1 = MathTex('\\alpha=1', color=_s1_step4_MGREY, font_size=24).next_to(bar_bg, RIGHT, buff=0.1)
+        lab_al0 = MathTex('\\alpha=0', color=_s1_step4_INK, font_size=24).next_to(bar_bg, LEFT, buff=0.1)
+        lab_al1 = MathTex('\\alpha=1', color=_s1_step4_INK, font_size=24).next_to(bar_bg, RIGHT, buff=0.1)
         bar_fill = always_redraw(lambda: Line(bl, bl + RIGHT * (alpha.get_value() * BW), color=_s1_step4_C_ZA, stroke_width=4))
         slerp_eq = MathTex('\\mathbf{z}_\\alpha= \\dfrac{\\sin((1-\\alpha)\\theta)}{\\sin\\theta}\\;\\mathbf{z}_0+ \\dfrac{\\sin(\\alpha\\theta)}{\\sin\\theta}\\;\\mathbf{z}_1', color=_s1_step4_INK, font_size=24).next_to(bar_bg, UP, buff=0.26)
         panel_title = Tex('\\textit{Noise latent space} ($\\mathbb{R}^n$)', color=_s1_step4_INK, font_size=26).to_corner(PANEL_TITLE_CORNER, buff=PANEL_TITLE_BUFF)
@@ -1842,9 +1842,9 @@ class _Study1Step4CompactBase(ThreeDScene):
         ax_x = _s1_step4_vec3(ORIGIN, [L_XY, 0, 0], _s1_step4_MGREY, sw=2.4, tl=0.24)
         ax_y = _s1_step4_vec3(ORIGIN, [0, L_XY, 0], _s1_step4_MGREY, sw=2.4, tl=0.24)
         ax_z = _s1_step4_vec3(ORIGIN, [0, 0, L_Z], _s1_step4_MGREY, sw=2.4, tl=0.24)
-        lab_x = MathTex('x', color=_s1_step4_MGREY, font_size=30).move_to(np.array([L_XY + 0.32, 0.0, 0.0]))
-        lab_y = MathTex('y', color=_s1_step4_MGREY, font_size=30).move_to(np.array([0.0, L_XY + 0.32, 0.0]))
-        lab_z = MathTex('z', color=_s1_step4_MGREY, font_size=30).move_to(np.array([0.18, 0.18, L_Z - 0.08]))
+        lab_x = MathTex('x', color=_s1_step4_INK, font_size=30).move_to(np.array([L_XY + 0.32, 0.0, 0.0]))
+        lab_y = MathTex('y', color=_s1_step4_INK, font_size=30).move_to(np.array([0.0, L_XY + 0.32, 0.0]))
+        lab_z = MathTex('z', color=_s1_step4_INK, font_size=30).move_to(np.array([0.18, 0.18, L_Z - 0.08]))
         R = 2.85
         z0_dir = np.array([0.0, 1.0, 1.0])
         z0_dir /= np.linalg.norm(z0_dir)
@@ -2201,9 +2201,9 @@ class _Study1Step5Base(ThreeDScene):
         ax_x = _s1_step5__vec3(ORIGIN, [L_XY, 0, 0], _s1_step5_MGREY, sw=2.4, tl=0.24)
         ax_y = _s1_step5__vec3(ORIGIN, [0, L_XY, 0], _s1_step5_MGREY, sw=2.4, tl=0.24)
         ax_z = _s1_step5__vec3(ORIGIN, [0, 0, L_Z], _s1_step5_MGREY, sw=2.4, tl=0.24)
-        lab_ax = MathTex('x', color=_s1_step5_MGREY, font_size=30).move_to([L_XY + 0.32, 0.0, 0.0])
-        lab_ay = MathTex('y', color=_s1_step5_MGREY, font_size=30).move_to([0.0, L_XY + 0.32, 0.0])
-        lab_az = MathTex('z', color=_s1_step5_MGREY, font_size=30).move_to([0.18, 0.18, L_Z - 0.08])
+        lab_ax = MathTex('x', color=_s1_step5_INK, font_size=30).move_to([L_XY + 0.32, 0.0, 0.0])
+        lab_ay = MathTex('y', color=_s1_step5_INK, font_size=30).move_to([0.0, L_XY + 0.32, 0.0])
+        lab_az = MathTex('z', color=_s1_step5_INK, font_size=30).move_to([0.18, 0.18, L_Z - 0.08])
         vec_z0 = _s1_step5__vec3(ORIGIN, tip0, _s1_step5_BLUE, sw=4.2, tl=0.28)
         vec_z1 = _s1_step5__vec3(ORIGIN, tip1, _s1_step5__C_Z1, sw=4.2, tl=0.28)
         arc_3d = ParametricFunction(lambda t: R * _s1_step5__slerp(z0_dir, z1_dir, t), t_range=[0.0, 1.0, 0.005], color=_s1_step5__C_ARC, stroke_width=4)
@@ -2574,7 +2574,7 @@ class Study1Stage2TripletTask(Scene):
             row = target.copy()
             row.move_to(target.get_center()).align_to(target, LEFT)
             response_rows.append(row)
-        continuation_dots = MathTex('\\vdots', color=_s1_stage2_MGREY, font_size=30)
+        continuation_dots = MathTex('\\vdots', color=_s1_stage2_INK, font_size=30)
         continuation_dots.next_to(response_rows[-1], DOWN, buff=0.16)
         continuation_dots.move_to([response_rows[-1].get_center()[0], continuation_dots.get_center()[1], 0.0])
 
@@ -2668,7 +2668,7 @@ class Study1Stage2TripletTask2(Study1Stage2TripletTask):
             row = target.copy()
             row.move_to(target.get_center()).align_to(target, LEFT)
             response_rows.append(row)
-        continuation_dots = MathTex('\\vdots', color=_s1_stage2_MGREY, font_size=30)
+        continuation_dots = MathTex('\\vdots', color=_s1_stage2_INK, font_size=30)
         continuation_dots.next_to(response_rows[-1], DOWN, buff=0.16)
         continuation_dots.move_to([response_rows[-1].get_center()[0], continuation_dots.get_center()[1], 0.0])
 
@@ -2762,7 +2762,7 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
         response_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=24)
         response_stack = VGroup(response_lhs, response_rows)
         response_title.next_to(response_stack, UP, buff=0.28).align_to(response_stack, LEFT)
-        continuation_dots = MathTex('\\vdots', color=_s1_stage2_MGREY, font_size=30).next_to(response_rows[-1], DOWN, buff=0.16)
+        continuation_dots = MathTex('\\vdots', color=_s1_stage2_INK, font_size=30).next_to(response_rows[-1], DOWN, buff=0.16)
         continuation_dots.move_to([response_rows[-1].get_center()[0], continuation_dots.get_center()[1], 0.0])
         response_group = VGroup(response_title, response_lhs, response_rows, continuation_dots).move_to([4.35, -0.68, 0.0])
         previous_scene_group = Group(title_prev, subtitle_prev, question_prev, math_prev, trial_frame, computer_icon, si_img, si_bdr, si_lbl, sj_img, sj_bdr, sj_lbl, sk_img, sk_bdr, sk_lbl, response_group)
@@ -2840,11 +2840,11 @@ class Study1Stage2OrdinalEmbedding(Scene):
         tag_before = Tex('Arbitrary order', color=_s1_stage2_INK, font_size=19).move_to([0.0, y + IMG_H / 2 + 0.38, 0.0])
         PIPE_Y = -2.8
         pipe_task = Tex('Triplet task', color=_s1_stage2_INK, font_size=18)
-        pipe_a1 = Tex('$\\longrightarrow$', color=_s1_stage2_MGREY, font_size=20)
+        pipe_a1 = Tex('$\\longrightarrow$', color=_s1_stage2_INK, font_size=20)
         pipe_resp = VGroup(Tex('Behavioral responses', color=_s1_stage2_INK, font_size=18), Tex('$(N \\times T$ triplets$)$', color=_s1_stage2_INK, font_size=14)).arrange(DOWN, buff=0.05)
-        pipe_a2 = Tex('$\\longrightarrow$', color=_s1_stage2_MGREY, font_size=20)
+        pipe_a2 = Tex('$\\longrightarrow$', color=_s1_stage2_INK, font_size=20)
         pipe_algo = Tex('Ordinal Embedding', color=_s1_stage2_BLUE, font_size=18)
-        pipe_a3 = Tex('$\\longrightarrow$', color=_s1_stage2_MGREY, font_size=20)
+        pipe_a3 = Tex('$\\longrightarrow$', color=_s1_stage2_INK, font_size=20)
         pipe_scale = Tex('Perceptual scale', color=_s1_stage2_INK, font_size=18)
         pipeline = VGroup(pipe_task, pipe_a1, pipe_resp, pipe_a2, pipe_algo, pipe_a3, pipe_scale).arrange(RIGHT, buff=0.28).move_to([0.0, PIPE_Y, 0.0])
         x_si = xs[scramble.index(0)]
@@ -2857,7 +2857,7 @@ class Study1Stage2OrdinalEmbedding(Scene):
         lbl_close = Tex('$s_j$ close', color=GREEN_C, font_size=16).move_to(arc_close.get_center() + UP * 0.3)
         lbl_far = Tex('$s_k$ far', color=RED_C, font_size=16).move_to(arc_far.get_center() + UP * 0.28)
         val_y = axis_y - 0.26
-        val_labels = VGroup(*[Tex(f'{_s1_stage2_EMBED_Y[k]:.2f}', color=_s1_stage2_MGREY, font_size=14).move_to([xs[k], val_y, 0.0]) for k in range(10)])
+        val_labels = VGroup(*[Tex(f'{_s1_stage2_EMBED_Y[k]:.2f}', color=_s1_stage2_INK, font_size=14).move_to([xs[k], val_y, 0.0]) for k in range(10)])
         tag_after = Tex('Perceptual scale', color=_s1_stage2_INK, font_size=19).move_to([0.0, y + IMG_H / 2 + 0.38, 0.0])
         self.play(Write(title), run_time=0.55)
         self.play(LaggedStart(*[FadeIn(c, scale=1.08) for c in cards], lag_ratio=0.05), run_time=0.85)
@@ -2890,7 +2890,7 @@ class Study1Stage2EmbeddingResult(Scene):
         title = Tex('From behavioural responses to perceptual embedding', color=_s1_stage2_INK, font_size=34).to_edge(UP, buff=0.28)
         responses_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=28)
         responses_main = MathTex('\\mathit{T}=\\{(i,j,k)\\}', color=_s1_stage2_INK, font_size=36)
-        responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_INK, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_INK, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_INK, font_size=25), MathTex('\\vdots', color=_s1_stage2_MGREY, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
+        responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_INK, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_INK, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_INK, font_size=25), MathTex('\\vdots', color=_s1_stage2_INK, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
         responses_block = VGroup(responses_title, responses_main, responses_examples).arrange(DOWN, aligned_edge=LEFT, buff=0.2)
         responses_block.move_to([-5.0, 1.55, 0.0])
         algo_title = Tex('Ordinal embedding algorithm', color=_s1_stage2_BLUE, font_size=27)
@@ -3006,7 +3006,7 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
         title = Tex('From behavioural responses to perceptual embedding', color=_s1_stage2_INK, font_size=34).to_edge(UP, buff=0.28)
         responses_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=28)
         responses_main = MathTex('\\mathit{T}=\\{(i,j,k)\\}', color=_s1_stage2_INK, font_size=36)
-        responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_INK, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_INK, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_INK, font_size=25), MathTex('\\vdots', color=_s1_stage2_MGREY, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
+        responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_INK, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_INK, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_INK, font_size=25), MathTex('\\vdots', color=_s1_stage2_INK, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
         responses_block = VGroup(responses_title, responses_main, responses_examples).arrange(DOWN, aligned_edge=LEFT, buff=0.2)
         responses_block.move_to([-5.0, 1.55, 0.0])
         algo_title = Tex('Ordinal embedding algorithm', color=_s1_stage2_BLUE, font_size=27)
@@ -3319,7 +3319,7 @@ class Study1Stage3MemoryIntro(Scene):
             selected_targets = [np.array([selected_xs[0], row_y, 0.0]), np.array([selected_xs[1], row_y, 0.0]), np.array([selected_xs[2], row_y, 0.0]), np.array([selected_xs[3], row_y, 0.0])]
             panels.append({'row_group': row_group, 'cards': cards, 'selected_indices': selected_indices, 'selected_targets': selected_targets, 'center': np.array([initial_row_center_x, row_y, 0.0])})
         bottom_panel = panels[-1]
-        bottom_row_dots = VGroup(*[MathTex('\\vdots', color=_s1_stage3_MGREY, font_size=24).next_to(card, DOWN, buff=0.1) for card in bottom_panel['cards']])
+        bottom_row_dots = VGroup(*[MathTex('\\vdots', color=_s1_stage3_INK, font_size=24).next_to(card, DOWN, buff=0.1) for card in bottom_panel['cards']])
         bottom_dot_offsets = [dot.get_center() - card.get_center() for card, dot in zip(bottom_panel['cards'], bottom_row_dots)]
         self.play(Write(title), run_time=0.7)
         self.wait(0.15)
@@ -3444,7 +3444,7 @@ class Study1Stage3MemoryExpDesignLegacy(Scene):
                 if category == 'landscape_element' and obj == 'lake_island' and (col_idx == 3):
                     lake_d3_card = card
                 if obj == 'sofa':
-                    dot = MathTex('\\vdots', color=_s1_stage3_MGREY, font_size=24).next_to(card, DOWN, buff=0.19)
+                    dot = MathTex('\\vdots', color=_s1_stage3_INK, font_size=24).next_to(card, DOWN, buff=0.19)
                     dot.set_z_index(5)
                     bottom_continuation_marks.append(dot)
         target_cards = Group(*collapsed_cards[0::4])
@@ -3616,7 +3616,7 @@ class Study1Stage3MemoryExpDesignB(Scene):
                 card.set_z_index(5)
                 collapsed_cards.append(card)
                 if obj == 'sofa':
-                    dot = MathTex('\\vdots', color=_s1_stage3_MGREY, font_size=24).next_to(card, DOWN, buff=0.19)
+                    dot = MathTex('\\vdots', color=_s1_stage3_INK, font_size=24).next_to(card, DOWN, buff=0.19)
                     dot.set_z_index(5)
                     bottom_continuation_marks.append(dot)
         target_cards = Group(*collapsed_cards[0::4])
@@ -4657,7 +4657,7 @@ def _build_memory_intro_c_overlay(ctx: dict[str, object]) -> dict[str, object]:
             selected_card_lookup[(category, obj, col_idx)] = collapsed_card
 
             if obj == "sofa":
-                dot = MathTex(r"\vdots", color=MGREY, font_size=24).next_to(
+                dot = MathTex(r"\vdots", color=INK, font_size=24).next_to(
                     collapsed_card,
                     DOWN,
                     buff=0.19,
@@ -5904,8 +5904,14 @@ class Study1(
         if clear_scene:
             self.clear()
         self.camera.background_color = WHITE
+        if hasattr(self.camera, "fixed_orientation_mobjects"):
+            self.camera.fixed_orientation_mobjects.clear()
+        if hasattr(self.camera, "fixed_in_frame_mobjects"):
+            self.camera.fixed_in_frame_mobjects.clear()
         if hasattr(self.camera, "frame_center"):
             self.camera.frame_center = ORIGIN.copy()
+        if hasattr(self.camera, "_frame_center"):
+            self.camera._frame_center.move_to(ORIGIN)
         self.set_camera_orientation(
             phi=0 * DEGREES,
             theta=-90 * DEGREES,

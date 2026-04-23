@@ -23,6 +23,9 @@ export UV_CACHE_DIR="${UV_CACHE_DIR:-$SCRIPT_DIR/.uv-cache}"
 export MPLCONFIGDIR="${MPLCONFIGDIR:-$SCRIPT_DIR/.mplconfig}"
 mkdir -p "$UV_CACHE_DIR" "$MPLCONFIGDIR"
 
+# Clear stale section clips from previous Study 2 layouts before rendering.
+find media/videos/04_study2 -path "*/sections/*" -type f -delete 2>/dev/null || true
+
 echo "[1/1] Study2 -> study2 (sectioned, no cache)"
 uv run manim scenes/study2.py Study2 "$QUALITY" --save_sections --disable_caching
 

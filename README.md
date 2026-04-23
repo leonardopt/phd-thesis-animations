@@ -6,14 +6,14 @@ The project is organized around my thesis chapters, with a set of scripts that t
 
 At a glance:
 
-- Render the Study 1 and Study 2 animation sequences in numbered narrative order.
+- Render the full five-part presentation sequence in numbered narrative order.
 - Build a Keynote deck from a manifest instead of placing videos by hand.
 - Generate static rescue PDFs, frame screeners, and emergency presentation bundles.
 - Keep local asset sync and scene numbering reproducible across rerenders.
 
 ## Overview
 
-The core of the repository is a set of Manim entrypoints: `scenes/study1.py`, `scenes/study2.py`, and `scenes/intro.py`. `study1.py` and `study2.py` define the numbered public scene sequences used for rendering; `intro.py` is a scaffold for future introduction scenes. Together they provide the stable public rendering interface for the two study pipelines and the surrounding presentation tooling.
+The core of the repository is a set of Manim entrypoints: `scenes/intro.py`, `scenes/methods.py`, `scenes/study1.py`, `scenes/study2.py`, and `scenes/conclusion.py`. These define the numbered public scene sequences used for rendering the current presentation, and together they provide the stable public rendering interface for the end-to-end build pipeline.
 
 Downstream scripts assume that rendered clips follow a consistent numbered naming scheme and live under numbered section folders such as `media/videos/01_intro/<quality>/`, `media/videos/02_methods/<quality>/`, `media/videos/03_study1/<quality>/`, `media/videos/04_study2/<quality>/`, and `media/videos/05_conclusion/<quality>/`. That convention is then reused by the presentation builder, backup generators, preflight checks, and bundle-packaging helpers. Assets follow a similar model: some are tracked directly in the repo, while larger study inputs are synced locally into expected locations under `assets/`.
 
@@ -21,7 +21,7 @@ Downstream scripts assume that rendered clips follow a consistent numbered namin
 
 | Area | Purpose | Key Paths |
 |---|---|---|
-| Scene source | Public scene entrypoints and shared scene code | `scenes/study1.py`, `scenes/study2.py`, `scenes/intro.py`, `scenes/utils.py` |
+| Scene source | Public scene entrypoints and shared scene code | `scenes/intro.py`, `scenes/methods.py`, `scenes/study1.py`, `scenes/study2.py`, `scenes/conclusion.py`, `scenes/utils.py` |
 | Assets | Tracked presentation figures, repo-local sync targets, and presentation manifests | `assets/`, `assets/presentation_deck.toml`, `assets/presentation_frame_overrides.toml` |
 | Tooling | Render helpers, deck assembly, backup generation, preflight, packaging, renumbering | `render_01_intro.sh`, `render_02_methods.sh`, `render_03_study1.sh`, `render_04_study2.sh`, `render_05_conclusion.sh`, `render_all.sh`, `render_single_video.sh`, `scripts/` |
 | Generated outputs | Rendered videos, stills, PDFs, reports, and Keynote exports | `media/videos/`, `media/images/`, `media/pdfs/`, `media/reports/`, `media/keynote/` |
@@ -34,7 +34,7 @@ The main workflows in this repository are:
 
 - Environment setup: install the Python environment and ensure the local machine has the runtime dependencies required by Manim and, optionally, Keynote.
 - Asset sync: populate the repo-local asset locations that the scenes expect, either with the small tracked/copied groups or with the larger study-specific sync targets as needed.
-- Rendering: render Study 1, Study 2, or every top-level render helper, or rerender a single scene during iteration.
+- Rendering: render one presentation section, the entire presentation section sequence, or one-off scene rerenders during iteration.
 - Presentation build: assemble a Keynote deck from `assets/presentation_deck.toml`, using the numbered rendered videos as slide media.
 - Backup and recovery: generate static rescue decks, screeners, preflight reports, and transport bundles for live presentation fallback.
 
@@ -85,7 +85,7 @@ Use these when you want the numbered study sequences rather than one-off scene r
 ./render_all.sh -qh
 ```
 
-`render_all.sh` runs every top-level `render_*.sh` helper in the repository. If you specifically want one concatenated presentation video after rendering both studies, use:
+`render_all.sh` runs every top-level section render helper in the repository. If you specifically want one concatenated presentation MP4 built from the numbered section clips, use:
 
 ```bash
 ./render_single_video.sh -qh
@@ -100,7 +100,7 @@ uv run manim scenes/study1.py Study1Stage1Step1a -qh
 uv run manim scenes/study2.py Study2ExperimentalDesign -qh
 ```
 
-`scenes/intro.py` exists as the public introduction entrypoint, but it currently has no exported scenes.
+`scenes/intro.py`, `scenes/methods.py`, and `scenes/conclusion.py` are active public entrypoints in the same way as `scenes/study1.py` and `scenes/study2.py`.
 
 ### Build the Presentation
 
@@ -116,7 +116,7 @@ Presenter notes for media slides can live in `assets/presenter_notes.md`. The
 builder reads that file through `presenter_notes_path` in the deck manifest and
 matches each `## media-target` section onto the corresponding rendered slide.
 Use a repo-relative templated path such as
-`## media/videos/03_study1/{{quality_dir}}/01_Study1Scene.mp4` when you want the
+`## media/videos/03_study1/{{quality_dir}}/sections/000_study1_scene.mp4` when you want the
 same notes to work across qualities.
 
 ### Optional Backup and Recovery Commands

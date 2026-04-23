@@ -275,7 +275,7 @@ class Study2ResearchQuestions(_Study2NumberedScene, Scene):
         )
         body_mob = Tex(
             body,
-            color=_RQ_MUTED,
+            color=INK,
             font_size=17,
         )
         text_block = VGroup(title_mob, body_mob).arrange(
@@ -2255,7 +2255,7 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
         ).move_to(content)
         train_label = Tex(
             "Train",
-            color=_D_MGREY,
+            color=INK,
             font_size=15,
         ).next_to(frame, UP, buff=0.05).align_to(frame, LEFT)
         return Group(train_label, frame, object_label, card, pattern)
