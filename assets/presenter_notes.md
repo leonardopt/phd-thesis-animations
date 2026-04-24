@@ -27,7 +27,7 @@ In order to perform this task correctly. The brain here needs to represent the v
 
 The localisation of working memory function in the brain has long been debated. For a long time in the past century, the predominant view was that working memory is a prefrontal process.
 
-Early lesion studies like Jacobsen's in non-human primates found that prefrontal ablations caused significant short-term memory deficits (Jacobsen, 1936). 
+Early lesion studies in non-human primates found that prefrontal ablations caused significant short-term memory deficits (Jacobsen 1936). 
 
 This inspired successive single-unit recording studies, like Funahashi's for example, who here recorded from dorsolateral prefrontal areas while monkeys were performing delayed response tasks.  Studies like Funahashi's found that single neurons in PFC exhibited persistent excitatory discharge throughout working memory delay.
 
@@ -42,7 +42,7 @@ More recently, it has been proposed that sensory areas also play a role.
 
 According to the sensory recruitment model, sensory areas not only process sensory information, but they are also actively recruited to maintain working-memory content. 
 
-Evidence for this model mostly comes from fMRI studies using MVPA, like the seminal study from Harrison and Tong 2009 or from our lab Christophel 2012. Such studies showed that it was possible to decode stimulus-specific information from sensory areas during working-memory delays. 
+Evidence for this model mostly comes from fMRI studies using MVPA, including seminal work from Harrison and Tong and related work from our lab (Harrison & Tong 2009; Christophel 2012). Such studies showed that it was possible to decode stimulus-specific information from sensory areas during working-memory delays. 
 
 Importantly, MVPA makes it possible to detect feature information in distributed voxel patterns, that mean univariate activation
 can miss.
@@ -60,8 +60,8 @@ Storing working memory content in a sensory format would have the computational 
 The main line of evidence suggesting this comes from sensory-memory cross-decoding, in which decoders can be trained on sensory brain responses to predict mnemonic responses. I will talk more about this later. 
 
 However, the interpretation is no longer straightforward. Sensory-trained decoders
-are often weaker than memory-trained ones, with recent work showing that it is sometimes not possible at all,  Duan et al. (2024). Dynamic-coding work such as Buschman et al. (2022) and Li et al. (2023) also suggests that the memory code may
-undergo a dynamic change across the delay.
+are often weaker than memory-trained ones, and recent work suggests that sensory-memory cross-decoding can fail altogether and that the memory code may
+undergo a dynamic change across the delay (Buschman et al. 2022; Li et al. 2023; Duan et al. 2024).
 
 So our first key question is not just whether content is decodable in
 early visual cortex, but whether the maintained code is still sensory-like. The
@@ -83,7 +83,7 @@ But this is not how naturalistic cognition looks like.
 
 This raises a problem of generalisability of the sensory recruitment results. 
 
-Especially stimulus properties may affect whether sensory and memory codes look similar at all. Duan et al. (2024) showed that if you control for vignetting effects when using orientation stimuli, sensory-memory cross-decoding is at chance. 
+Especially stimulus properties may affect whether sensory and memory codes look similar at all. If you control for vignetting effects when using orientation stimuli, sensory-memory cross-decoding is at chance (Duan et al. 2024). 
 
 Anothe point is that sensory recruitment might be dependent on task demands. 
 
@@ -104,9 +104,60 @@ Memory systems are often studied separately in cognitive neuroscience them separ
 
 We could ask how Christina Koch's brain would represent the image of the moon during working memory maintenance.
 
-We know that pre-existing long-term traces improve working memory performance, as shown by many studies like for example by Xie et al. (2018).
+## media/videos/06_supplementary/{{quality_dir}}/sections/000_intro_research_question_1.mp4
 
-Vo et al. (2022) found that working memory representations and long-term memory retrieval shared a sensory-like code in retinotopic areas. 
+A first question is about representational format. If sensory areas represent stimulus-specific information, it is not clear whether they do so using a code that is a copy of the perceptual one or if the reformat the information in a different way. 
+
+Storing working memory content in a sensory format would have the computational advantage of reusing similar neuronal networks, and to maintain fine-grained, detailed representations. 
+
+The main line of evidence suggesting this comes from sensory-memory cross-decoding, in which decoders can be trained on sensory brain responses to predict mnemonic responses. I will talk more about this later. 
+
+However, the interpretation is no longer straightforward. Sensory-trained decoders
+are often weaker than memory-trained ones, and recent work suggests that sensory-memory cross-decoding can fail altogether and that the memory code may
+undergo a dynamic change across the delay (Buschman et al. 2022; Li et al. 2023; Duan et al. 2024).
+
+So our first key question is not just whether content is decodable in
+early visual cortex, but whether the maintained code is still sensory-like. The
+critical design feature is the separate perceptual session, which gives me an
+independent sensory training set for a direct format comparison.
+
+In fact, one open question how sensory cortices can maintain memory information and also memory information at the same time. Naturalistic settings rarely have no blank period. It is possible that memory representations need to be orthogonalized by the brain to avoid interference. 
+
+So our first research question here is to find out whether wm representations are sensory-like or not. 
+
+## media/videos/06_supplementary/{{quality_dir}}/sections/001_intro_research_question_2.mp4
+
+A second question is about ecological validity. 
+
+Most sensory-recruitment studies used simple stimuli such as orientations, colors, or spatial locations. By design they aim to control for semantic strategies.
+
+But this is not how naturalistic cognition looks like. 
+
+This raises a problem of generalisability of the sensory recruitment results. 
+
+Especially stimulus properties may affect whether sensory and memory codes look similar at all. If you control for vignetting effects when using orientation stimuli, sensory-memory cross-decoding is at chance (Duan et al. 2024). 
+
+Anothe point is that sensory recruitment might be dependent on task demands. 
+
+Naturalistic work is still limited. Challenge to find suitable naturalistic stimuli stimuli for wm tasks.
+
+## media/videos/06_supplementary/{{quality_dir}}/sections/002_intro_research_question_3.mp4
+
+EXAMPLE CHRISTINA KOCH. 
+
+A third question is about the interaction with long-term memory. 
+
+Here I would start with something astronaut Christina Koch said in the recent Artemis II mission to the far side of the moon. She said * read quote * 
+
+I don't know if other people would feel similarly, but certainly somebody like Christina Koch has probably looked at the moon many many times, and her brain has accumulated a vast amount of fine-grained perceptual details. When new sensory input mismatched her long-term memory representation of the moon, she felt that something wasn't quite right.
+
+Memory systems are often studied separately in cognitive neuroscience them separately, but in naturalistic cognition, wm integrates constantly ltm information. 
+
+We could ask how Christina Koch's brain would represent the image of the moon during working memory maintenance.
+
+We know that pre-existing long-term traces improve working memory performance, as shown by previous work (Xu 2018).
+
+Working memory representations and long-term memory retrieval have also been shown to share a sensory-like code in retinotopic areas (Vo et al. 2022). 
 
 That motivates our question: does the presence of stimulus-specific long-term memory traces modulate how working-memory content is represented in early visual cortex? Does Christina Koch's brain represent the Moon in a way that is more similar to perception?
 
@@ -172,10 +223,10 @@ We asked what kind of stimuli and task we would need to answer these research qu
 
 ## media/videos/02_methods/{{quality_dir}}/sections/007_methods_diffusion_opportunity.mp4
 
-- Diffusion models offered the methodological opportunity.
-- Instead of searching for suitable images, I could specify the target concept directly through text prompts.
-- Stable Diffusion XL was attractive because it combines high output quality, flexibility, and 1024 x 1024 image synthesis.
-- That makes it possible to generate many photorealistic object-scenes with one common procedure.
+- This slide uses a numbered list for structure, not for temporal order.
+- Points 1 to 3 summarize the main advantages: text-to-image synthesis, output scalability, and variability.
+- Point 4 keeps the main caveat visible: generating controlled variations is less straightforward.
+- The overall message is that diffusion models were powerful for stimulus generation, but not automatically precise enough for controlled manipulations.
 
 ## media/videos/02_methods/{{quality_dir}}/sections/008_methods_project_plan.mp4
 
@@ -301,46 +352,53 @@ We asked what kind of stimuli and task we would need to answer these research qu
 ## media/videos/03_study1/{{quality_dir}}/sections/016_study1_stage2_model_order_to_heatmap.mp4
 
 - This slide compares the model-based order with the behaviour-based order.
-- The important result is that agreement was strong overall, with Spearman rho = 0.73.
+- The key result is strong LPIPS-behaviour alignment, with rho = 0.73.
 - So LPIPS was useful for coarse ordering, but human judgements confirmed and refined the final scale.
 - At this point, the continua are no longer just model-defined; they are psychophysically grounded.
 
-## media/videos/06_supplementary/{{quality_dir}}/sections/000_study1_stage3_memory_intro_a.mp4
+## media/videos/06_supplementary/{{quality_dir}}/sections/003_study1_stage3_memory_intro_a.mp4
 
 - Stage 3 asks whether the validated perceptual continuum matters functionally for working memory.
 - I now move from similarity judgements to a delayed match-to-sample task.
 - The core prediction is that target-foil proximity on the continuum should determine discrimination difficulty.
 - If the continuum is meaningful, memory performance should vary gradually with similarity.
 
-## media/videos/06_supplementary/{{quality_dir}}/sections/001_study1_stage3_memory_intro_b.mp4
+## media/videos/06_supplementary/{{quality_dir}}/sections/004_study1_stage3_memory_intro_b.mp4
 
 - This slide makes the Stage 3 prediction explicit.
 - When target and foil are perceptually close, discriminability should be low.
 - When they are farther apart on the continuum, performance should improve.
 - So perceptual similarity becomes the operational definition of task difficulty.
 
-## media/videos/06_supplementary/{{quality_dir}}/sections/002_study1_stage3_memory_intro_c.mp4
+## media/videos/06_supplementary/{{quality_dir}}/sections/005_study1_stage3_memory_intro_c.mp4
 
 - I then add repetition to probe long-term-memory contributions to working memory.
 - The logic is that repeated exposure should strengthen stimulus-specific long-term-memory traces.
 - If that happens, performance should improve beyond the pure target-foil similarity effect.
 - This is the conceptual bridge from perceptual validation to the working-memory and long-term-memory interaction question.
 
-## media/videos/06_supplementary/{{quality_dir}}/sections/003_study1_stage3_memory_intro_d.mp4
+## media/videos/06_supplementary/{{quality_dir}}/sections/006_study1_stage3_memory_intro_d.mp4
 
 - Here the conceptual logic becomes the actual stimulus grouping.
 - For each object-scene, I select one target and three foils with increasing perceptual dissimilarity.
 - This yields Easy, Medium, and Hard conditions grounded in the validated perceptual scale.
 - Because target and foils share the same semantic identity, participants must rely on detailed perceptual information rather than gist or verbal labels.
 
-## media/videos/03_study1/{{quality_dir}}/sections/021_study1_stage3_memory_exp_design.mp4
+## media/videos/03_study1/{{quality_dir}}/sections/017_study1_stage3_memory_exp_design.mp4
 
 - This is the full Stage 3 memory-validation design.
 - Participants completed the task online, N = 260, using an 8-second blank delay.
 - The experiment comprised six blocks of 18 trials each.
 - In every block, 9 targets were repeated and 9 were non-repeated, which lets me separate repetition-based improvement from general task adaptation.
 
-## media/videos/03_study1/{{quality_dir}}/sections/022_study1_stage3_memory_exp_results.mp4
+## media/videos/03_study1/{{quality_dir}}/sections/018_study1_stage3_memory_repetition_explainer.mp4
+
+- Here the conceptual logic becomes the actual stimulus grouping.
+- For each object-scene, I select one target and three foils with increasing perceptual dissimilarity.
+- This yields Easy, Medium, and Hard conditions grounded in the validated perceptual scale.
+- Because target and foils share the same semantic identity, participants must rely on detailed perceptual information rather than gist or verbal labels.
+
+## media/videos/03_study1/{{quality_dir}}/sections/019_study1_stage3_memory_exp_results.mp4
 
 - The results validate the stimulus set on both counts.
 - Accuracy followed the predicted graded difficulty pattern: Easy above Medium above Hard.
@@ -349,161 +407,163 @@ We asked what kind of stimuli and task we would need to answer these research qu
 
 # Study 2
 
-## media/videos/04_study2/{{quality_dir}}/sections/000_study2_research_questions.mp4
-
-- Study 2 carries the three dissertation questions into the fMRI setting.
-- The first question is whether delay-period codes in early visual cortex remain sensory-like when measured against an independent perceptual session.
-- The second is whether sensory recruitment extends to controlled naturalistic object-scenes rather than only simple laboratory features.
-- The third is whether repetition-based long-term-memory traces change behaviour or mnemonic representational format during working memory.
-
-## media/videos/04_study2/{{quality_dir}}/sections/001_study2_experimental_design.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/000_study2_experimental_design.mp4
 
 - Study 2 uses a two-session fMRI design to separate sensory and mnemonic representations.
 - Session 1 is the delayed match-to-sample working-memory task; Session 2 is a perceptual task with the same stimuli and an attentional control task.
 - This provides an independent sensory training set for decoding.
 - The study included N = 42 participants and used a subset of 63 object-scenes from Study 1.
 
-## media/videos/04_study2/{{quality_dir}}/sections/002_study2_decoding_overview_a.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/001_study2_decoding_overview_a.mp4
 
 - I begin the decoding logic with Session 2.
 - During the perceptual task, each object-scene evokes a multivoxel response pattern in early visual cortex.
 - This gives me a purely sensory representational space.
 - The first question is whether that sensory space is strong and reliable enough to decode stimulus identity.
 
-## media/videos/04_study2/{{quality_dir}}/sections/003_study2_decoding_overview_b.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/002_study2_decoding_overview_b.mp4
 
 - The next step is to define the comparable patterns during the memory task.
 - In Session 1, both stimulus presentation and delay yield multivoxel patterns.
 - The crucial issue is whether delay-period patterns are organised like the sensory patterns from Session 2.
 - That is the representational-format question at the centre of the thesis.
 
-## media/videos/04_study2/{{quality_dir}}/sections/004_study2_decoding_overview_c.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/003_study2_decoding_overview_c.mp4
 
 - This slide states the cross-decoding logic explicitly.
 - If sensory and mnemonic representations share the same format, a classifier trained on Session 2 perception should generalise to Session 1.
 - If it generalises to stimulation but not to sustained delay, that argues against a stable sensory-like memory code.
 - And if within-session decoding still succeeds, the correct interpretation is representational transformation rather than absence of information.
 
-## media/videos/04_study2/{{quality_dir}}/sections/005_study2_within_session2_decoding_setup.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/004_study2_decoding_overview_d.mp4
+
+- This slide isolates the train-test schema from the broader overview.
+- The top row anchors the sensory training path.
+- The lower row makes the memory-target prediction logic explicit.
+- That prepares the audience for the concrete within-session and cross-session decoding analyses that follow.
+
+## media/videos/04_study2/{{quality_dir}}/sections/005_study2_within_session2_decoding_setup_a.mp4
 
 - Before asking the main cross-session question, I first benchmark Session 2 on its own.
 - I train and test linear multiclass SVMs within Session 2 using leave-one-run-out cross-validation.
 - This establishes whether the naturalistic stimuli evoke robust stimulus-specific sensory information in V1-V3.
 - Without this benchmark, a later cross-session null result would be hard to interpret.
 
-## media/videos/04_study2/{{quality_dir}}/sections/006_study2_within_session2_decoding_results.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/006_study2_within_session2_decoding_setup_b.mp4
+
+## media/videos/04_study2/{{quality_dir}}/sections/007_study2_within_session2_decoding_results.mp4
 
 - The benchmark is clearly positive.
 - Within Session 2, stimulus identity is robustly decodable in early visual cortex.
 - So the stimuli do generate separable sensory representations for naturalistic object-scenes.
 - This means any later cross-session failure cannot simply be explained by weak sensory signal.
 
-## media/videos/04_study2/{{quality_dir}}/sections/007_study2_cross_session_decoding_setup.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/008_study2_cross_session_decoding_setup.mp4
 
 - Now I move to the main test of representational format.
 - I train on Session 2 stimulation data and test on Session 1 stimulation and delay.
 - The stimulation phase provides a positive control because it should still resemble perception.
 - The delay phase is the critical test of whether mnemonic representations share the same geometry as sensory ones.
 
-## media/videos/04_study2/{{quality_dir}}/sections/008_study2_cross_session_decoding_results_a.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/009_study2_cross_session_decoding_results_a.mp4
 
 - The GLM-based cross-session results give the first answer.
 - Sensory-trained classifiers generalise to the stimulation period in Session 1.
 - But they do not generalise throughout the delay.
 - So the mnemonic code in early visual cortex is not a sustained sensory copy.
 
-## media/videos/04_study2/{{quality_dir}}/sections/009_study2_cross_session_decoding_results_b.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/010_study2_cross_session_decoding_results_b.mp4
 
 - The time-resolved analysis sharpens the same conclusion.
 - Cross-session generalisation is strong in the early phase of the trial, corresponding to stimulus processing.
 - It reappears around the late probe-related phase, but not throughout sustained delay.
 - That temporal profile argues against a stable sensory-like code during working-memory maintenance.
 
-## media/videos/04_study2/{{quality_dir}}/sections/010_study2_within_session1_decoding_setup_a.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/011_study2_within_session1_decoding_setup_a.mp4
 
 - At this point the complementary question becomes necessary.
 - If cross-session decoding fails in the delay, is the delay uninformative, or is it informative in a different format?
 - So the analysis now shifts from cross-session similarity to within-session mnemonic decodability.
 - This is the step that separates a null-information account from a memory-specific-format account.
 
-## media/videos/04_study2/{{quality_dir}}/sections/011_study2_within_session1_decoding_setup_b.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/012_study2_within_session1_decoding_setup_b.mp4
 
 - The within-session rationale makes that contrast explicit.
 - Here I train and test within Session 1 itself, comparing matched task phases.
 - These analyses are restricted to repeated stimuli because non-repeated items were shown only once and cannot support within-participant identity decoding.
 - This removes the assumption that memory must look like Session 2 perception and allows a memory-specific format to emerge.
 
-## media/videos/04_study2/{{quality_dir}}/sections/012_study2_within_session1_decoding_results_a.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/013_study2_within_session1_decoding_results_a.mp4
 
 - The within-session GLM results are positive for both stimulation and delay.
 - Stimulus identity is decodable during the delay when the classifier is trained on the memory task itself.
 - So early visual cortex does retain stimulus-specific information during working memory.
 - What changed across sessions was the format, not the presence of information.
 
-## media/videos/04_study2/{{quality_dir}}/sections/013_study2_within_session1_decoding_results_b.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/014_study2_within_session1_decoding_results_b.mp4
 
 - The time-resolved within-session analysis extends that result across the full trial.
 - Stimulus-specific information remains detectable throughout the delay when training and testing are matched within Session 1.
 - This is the strongest evidence for early sensory recruitment with naturalistic stimuli in the dissertation.
 - But the signal still does not look sensory-like to a Session 2 decoder.
 
-## media/videos/04_study2/{{quality_dir}}/sections/014_study2_within_session1_decoding_results_c.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/015_study2_within_session1_decoding_results_c.mp4
 
 - The next question is whether the mnemonic code is stable over time.
 - Temporal generalisation asks whether a decoder trained at one moment in the trial generalises to other moments.
 - A broad off-diagonal pattern would suggest a stable code.
 - A diagonal-dominant pattern would suggest a dynamic, non-stationary code.
 
-## media/videos/04_study2/{{quality_dir}}/sections/015_study2_within_session1_decoding_results_d.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/016_study2_within_session1_decoding_results_d.mp4
 
 - The pattern is largely concentrated near the diagonal.
 - Generalisation weakens away from the diagonal, especially into later delay periods.
 - This is more consistent with a dynamic mnemonic code than with one stable representation maintained unchanged over time.
 - It also fits the broader conclusion of a representational discontinuity between perception and later maintenance.
 
-## media/videos/04_study2/{{quality_dir}}/sections/016_study2_ltm_results_explainer.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/017_study2_ltm_results_explainer.mp4
 
 - This slide turns to Research Question 3, the working-memory and long-term-memory interaction.
 - Behaviourally, repeated object-scenes improved performance in both Study 1 and Study 2.
 - Neurally, repeated and non-repeated items did not differ in their similarity to sensory representations; in the GLM analysis, p = 0.75.
 - So repetition changes behaviour, but I do not find evidence that it makes delay representations more sensory-like in early visual cortex.
 
-## media/videos/04_study2/{{quality_dir}}/sections/017_study2_supplemental_roi_timecourses_a.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/018_study2_supplemental_roi_timecourses_a.mp4
 
 - The supplemental ROI analyses ask whether the main pattern is unique to V1-V3 or part of a broader network.
 - Qualitatively, the cross-session pattern is similar across visual and parietal ROIs.
 - But the strongest stimulus-specific information is consistently found in early visual cortex.
 - So the main result is not an artefact of ROI selection, but V1-V3 remains the clearest locus.
 
-## media/videos/04_study2/{{quality_dir}}/sections/018_study2_supplemental_roi_timecourses_b.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/019_study2_supplemental_roi_timecourses_b.mp4
 
 - This companion panel makes the same comparison for the within-session analyses.
 - Delay-period mnemonic information is not confined to one single ROI.
 - But again, early visual cortex carries the clearest and strongest stimulus-specific signal.
 - That supports the claim that naturalistic working-memory representations are robust in early visual areas.
 
-## media/videos/04_study2/{{quality_dir}}/sections/019_study2_supplemental_roi_temp_gen_mats.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/020_study2_supplemental_roi_temp_gen_mats.mp4
 
 - The temporal-generalisation matrices provide the same comparison in compact form across ROIs.
 - Across regions, the pattern is more compatible with dynamic coding than with one stable code that persists unchanged.
 - So the time-varying character of the delay code is not confined to a single region.
 - This strengthens the interpretation that non-stationarity is a genuine feature of the mnemonic representation.
 
-## media/videos/04_study2/{{quality_dir}}/sections/020_study2_searchlight_stimulation.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/021_study2_searchlight_stimulation.mp4
 
 - The searchlight analysis asks whether the stimulation result generalises beyond predefined ROIs.
 - Decodable sensory information is clearly expressed in occipital cortex and nearby regions.
 - This replicates the ROI result at the whole-brain level.
 - So the perceptual decoding result is spatially robust, not ROI-dependent.
 
-## media/videos/04_study2/{{quality_dir}}/sections/021_study2_searchlight_delay.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/022_study2_searchlight_delay.mp4
 
 - During the delay, the searchlight pattern becomes more selective.
 - But the informative voxels still point back to visual cortex.
 - So the delay signal remains in early visual areas even when the representation is no longer sensory-like.
 - This is the central result of the thesis in one slide: early sensory recruitment for naturalistic images, but with a transformed mnemonic format.
 
-## media/videos/04_study2/{{quality_dir}}/sections/022_study2_decoding_summary.mp4
+## media/videos/04_study2/{{quality_dir}}/sections/023_study2_decoding_summary.mp4
 
 - Taken together, the decoding analyses give a consistent answer across methods.
 - Early visual cortex carries robust stimulus-specific information during working memory for naturalistic images.

@@ -325,6 +325,143 @@ on addTopCenteredImageToSlide(aSlide, imagePath, slideWidth, topInset, maxWidth,
 	end tell
 end addTopCenteredImageToSlide
 
+-- Load one JSON object from disk using Foundation and return the parsed NSDictionary.
+on loadJsonObjectFromFile(posixPath)
+	my existingFileOrFail(posixPath, "Native slide spec")
+	set fileURL to current application's NSURL's fileURLWithPath:posixPath
+	set jsonData to current application's NSData's dataWithContentsOfURL:fileURL
+	if jsonData is missing value then error "Unable to read JSON file: " & posixPath
+	set {jsonObject, jsonError} to current application's NSJSONSerialization's JSONObjectWithData:jsonData options:0 |error|:(reference)
+	if jsonObject is missing value then error "Unable to parse JSON file: " & posixPath & " (" & ((jsonError's localizedDescription()) as text) & ")"
+	return jsonObject
+end loadJsonObjectFromFile
+
+-- Return the JSON value for one key, or missing value when absent / null.
+on jsonValueForKey(jsonDict, keyText)
+	set rawValue to jsonDict's objectForKey:keyText
+	if rawValue is missing value then return missing value
+	if ((rawValue's isKindOfClass:(current application's NSNull)) as boolean) then return missing value
+	return rawValue
+end jsonValueForKey
+
+-- Convert a JSON string value to AppleScript text, defaulting when absent.
+on jsonTextForKey(jsonDict, keyText, defaultText)
+	set rawValue to my jsonValueForKey(jsonDict, keyText)
+	if rawValue is missing value then return defaultText
+	return rawValue as text
+end jsonTextForKey
+
+-- Convert a JSON number value to AppleScript real, defaulting when absent.
+on jsonRealForKey(jsonDict, keyText, defaultNumber)
+	set rawValue to my jsonValueForKey(jsonDict, keyText)
+	if rawValue is missing value then return defaultNumber
+	return rawValue as real
+end jsonRealForKey
+
+-- Convert one #RRGGBB string into the AppleScript RGB format used by iWork text.
+on colorListFromHex(hexText)
+	set rawHex to hexText as text
+	if rawHex starts with "#" then set rawHex to text 2 thru -1 of rawHex
+	if (length of rawHex) is not 6 then error "Expected #RRGGBB color, got: " & hexText
+	set redValue to my hexPairToColorComponent(text 1 thru 2 of rawHex)
+	set greenValue to my hexPairToColorComponent(text 3 thru 4 of rawHex)
+	set blueValue to my hexPairToColorComponent(text 5 thru 6 of rawHex)
+	return {redValue, greenValue, blueValue}
+end colorListFromHex
+
+on hexPairToColorComponent(hexPairText)
+	set highNibble to my hexNibbleValue(character 1 of (hexPairText as text))
+	set lowNibble to my hexNibbleValue(character 2 of (hexPairText as text))
+	return ((highNibble * 16) + lowNibble) * 257
+end hexPairToColorComponent
+
+on hexNibbleValue(nibbleText)
+	set normalizedNibble to (current application's NSString's stringWithString:(nibbleText as text))'s uppercaseString() as text
+	set hexDigits to "0123456789ABCDEF"
+	set nibbleOffset to offset of normalizedNibble in hexDigits
+	if nibbleOffset is 0 then error "Invalid hex color digit: " & nibbleText
+	return nibbleOffset - 1
+end hexNibbleValue
+
+-- Create one free-positioned text item from a JSON element record.
+on addNativeTextItemToSlide(aSlide, elementSpec)
+	set itemText to my jsonTextForKey(elementSpec, "text", "")
+	set fontName to my jsonTextForKey(elementSpec, "font", "CMUSerif-Roman")
+	set fontSize to my jsonRealForKey(elementSpec, "size", 18)
+	set itemColor to my jsonTextForKey(elementSpec, "color", "")
+	set itemX to my jsonRealForKey(elementSpec, "x", 0)
+	set itemY to my jsonRealForKey(elementSpec, "y", 0)
+	set itemWidth to my jsonRealForKey(elementSpec, "w", 200)
+	set itemHeight to my jsonRealForKey(elementSpec, "h", 40)
+	
+	tell application "Keynote"
+		tell aSlide
+			set textRef to make new text item with properties {position:{itemX, itemY}, width:itemWidth, height:itemHeight}
+			set object text of textRef to itemText
+			set font of object text of textRef to fontName
+			set size of object text of textRef to fontSize
+			if itemColor is not "" then set color of object text of textRef to my colorListFromHex(itemColor)
+		end tell
+	end tell
+end addNativeTextItemToSlide
+
+-- Create one image item from a JSON element record.
+on addNativeImageItemToSlide(aSlide, elementSpec)
+	set rawImagePath to my jsonTextForKey(elementSpec, "path", "")
+	if rawImagePath is "" then error "Native image element is missing its path."
+	set imagePath to my resolveManifestPath(rawImagePath)
+	my existingFileOrFail(imagePath, "Native slide image")
+	set imageFileAlias to (POSIX file imagePath) as alias
+	set itemX to my jsonRealForKey(elementSpec, "x", 0)
+	set itemY to my jsonRealForKey(elementSpec, "y", 0)
+	set itemWidth to my jsonRealForKey(elementSpec, "w", 200)
+	set itemHeight to my jsonRealForKey(elementSpec, "h", 40)
+	
+	tell application "Keynote"
+		tell aSlide
+			set imageRef to make new image with properties {file:imageFileAlias}
+			set position of imageRef to {itemX, itemY}
+			set width of imageRef to itemWidth
+			set height of imageRef to itemHeight
+		end tell
+	end tell
+end addNativeImageItemToSlide
+
+-- Create one line item from a JSON element record.
+on addNativeLineItemToSlide(aSlide, elementSpec)
+	set startX to my jsonRealForKey(elementSpec, "x1", 0)
+	set startY to my jsonRealForKey(elementSpec, "y1", 0)
+	set endX to my jsonRealForKey(elementSpec, "x2", 200)
+	set endY to my jsonRealForKey(elementSpec, "y2", 0)
+	
+	tell application "Keynote"
+		tell aSlide
+			make new line with properties {start point:{startX, startY}, end point:{endX, endY}}
+		end tell
+	end tell
+end addNativeLineItemToSlide
+
+-- Populate a blank slide from a JSON layout spec describing native Keynote objects.
+on populateNativeSlide(aSlide, specPath, notesText)
+	set specObject to my loadJsonObjectFromFile(specPath)
+	set elementSpecs to specObject's objectForKey:"elements"
+	if elementSpecs is missing value then error "Native slide spec has no elements array: " & specPath
+	
+	repeat with elementSpec in elementSpecs
+		set kindText to my jsonTextForKey(elementSpec, "kind", "")
+		if kindText is "text" then
+			my addNativeTextItemToSlide(aSlide, elementSpec)
+		else if kindText is "image" then
+			my addNativeImageItemToSlide(aSlide, elementSpec)
+		else if kindText is "line" then
+			my addNativeLineItemToSlide(aSlide, elementSpec)
+		else
+			error "Unsupported native slide element kind: " & kindText
+		end if
+	end repeat
+	if notesText is not "" then tell application "Keynote" to set presenter notes of aSlide to notesText
+end populateNativeSlide
+
 -- Populate one slide from a normalized manifest tuple.
 -- slideSpec order is {slideType, mediaPath, titleText, subtitleText, bodyText, notesText}.
 -- Text-oriented records leave mediaPath empty; media-oriented records may leave
@@ -351,6 +488,11 @@ on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, tit
 		my prepareSlide(aSlide, blankLayout, false, false)
 		my addImageToSlide(aSlide, mediaPath, slideWidth, slideHeight)
 		if notesText is not "" then tell application "Keynote" to set presenter notes of aSlide to notesText
+		return
+	end if
+	if slideType is "native" then
+		my prepareSlide(aSlide, blankLayout, false, false)
+		my populateNativeSlide(aSlide, mediaPath, notesText)
 		return
 	end if
 	if slideType is "title" then

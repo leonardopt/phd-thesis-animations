@@ -15,6 +15,7 @@ import sys
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.svm import LinearSVC
 import re
 import shutil
 import subprocess
@@ -134,6 +135,10 @@ TL_Y_OFF = -0.78   # timeline offset below row centre
 LBL_SIZE = 18      # phase label font size (below timeline)
 TIME_SIZE = 16     # time label font size (above boxes)
 TTL_SIZE = 30      # section title font size
+
+
+def _bold_tex(text: str) -> str:
+    return text if r"\textbf{" in text else rf"\textbf{{{text}}}"
 
 
 def _box(img_path: str | None, resp: bool = False) -> Group:
@@ -755,7 +760,7 @@ class Study2DecodingOverviewA(_Study2NumberedScene, Scene):
 
     def _make_overview_title(self, tex: str) -> Tex:
         """Build the overview title anchored close to the top edge."""
-        return Tex(tex, color=INK, font_size=TTL_SIZE).to_edge(
+        return Tex(_bold_tex(tex), color=INK, font_size=TTL_SIZE).to_edge(
             UP, buff=self._TITLE_TOP_BUFF
         )
 
@@ -2083,8 +2088,8 @@ class Study2DecodingOverviewB(Study2DecodingOverviewA):
 
 class Study2DecodingOverviewC(Study2DecodingOverviewB):
     """
-    Open on the final held frame of DecodingOverviewB, then introduce the
-    decoding-schema rationale for shared representational format.
+    Open on the final held frame of DecodingOverviewB, then isolate the
+    multivoxel-pattern similarity intuition as its own slide.
 
     Render:
         uv run manim scenes/study2.py Study2DecodingOverviewC -ql
@@ -2811,14 +2816,11 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
                 run_time=self._SCHEMA_OUTPUT_REVEAL_TIME,
             )
 
-    def construct(self) -> None:
-        """Run the animation sequence for this scene."""
-        self.camera.background_color = BG
-        self._set_overview_camera_frame()
-        ctx = self._build_overview_b_end_state()
-        self.add(ctx["frame"])
-        self.wait(0.70)
-
+    def _build_intuition_slide(
+        self,
+        ctx: dict[str, Mobject],
+    ) -> tuple[Group, float, float]:
+        """Build the standalone multivoxel-pattern similarity slide."""
         similar_pattern = self._pattern_for_index(3)
         different_pattern = np.array([
             [0.18, 0.86, 0.24],
@@ -2866,14 +2868,30 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
             intuition_rows.shift(DOWN * (intuition_rows.get_top()[1] - intro_top_limit))
         if intuition_rows.get_bottom()[1] < intro_bottom_limit:
             intuition_rows.shift(UP * (intro_bottom_limit - intuition_rows.get_bottom()[1]))
+        return intuition_rows, content_top_limit, content_bottom_limit
 
-        schema_ctx = self._build_overview_schema_block(
+    def _build_overview_schema_context(
+        self,
+        *,
+        top_limit: float,
+        bottom_limit: float,
+    ) -> dict[str, object]:
+        """Build the cross-decoding schema context shown after the intuition slide."""
+        return self._build_overview_schema_block(
             cases=self._SCHEMA_OVERVIEW_CASES,
-            top_limit=content_top_limit,
-            bottom_limit=content_bottom_limit,
+            top_limit=top_limit,
+            bottom_limit=bottom_limit,
         )
-        rows = schema_ctx["rows"]
-        memory_fork = schema_ctx["memory_fork"]
+
+    def construct(self) -> None:
+        """Run the animation sequence for this scene."""
+        self.camera.background_color = BG
+        self._set_overview_camera_frame()
+        ctx = self._build_overview_b_end_state()
+        self.add(ctx["frame"])
+        self.wait(0.70)
+
+        intuition_rows, _, _ = self._build_intuition_slide(ctx)
         overview_body = Group(*(mob for mob in ctx["frame"] if mob is not ctx["title"]))
 
         self.play(
@@ -2883,9 +2901,37 @@ class Study2DecodingOverviewC(Study2DecodingOverviewB):
         )
         self.wait(self._SCHEMA_INTRO_PANEL_PAUSE)
 
+
+class Study2DecodingOverviewD(Study2DecodingOverviewC):
+    """
+    Continue from the cross-decoding overview and isolate the sensory/memory
+    train-test cat schema as its own slide.
+
+    Render:
+        uv run manim scenes/study2.py Study2DecodingOverviewD -ql
+        uv run manim scenes/study2.py Study2DecodingOverviewD -qh
+    """
+
+    def construct(self) -> None:
+        """Run the animation sequence for this scene."""
+        self.camera.background_color = BG
+        self._set_overview_camera_frame()
+        ctx = self._build_overview_b_end_state()
+        self.add(ctx["frame"])
+        self.wait(0.70)
+
+        _, content_top_limit, content_bottom_limit = self._build_intuition_slide(ctx)
+        schema_ctx = self._build_overview_schema_context(
+            top_limit=content_top_limit,
+            bottom_limit=content_bottom_limit,
+        )
+        rows = schema_ctx["rows"]
+        memory_fork = schema_ctx["memory_fork"]
+        overview_body = Group(*(mob for mob in ctx["frame"] if mob is not ctx["title"]))
+
         self.play(
-            FadeOut(intuition_rows, shift=LEFT * 0.10),
-            run_time=0.75,
+            FadeOut(overview_body),
+            run_time=1.05,
         )
         self._play_schema_row_sequence(rows[0])
         self.wait(self._SCHEMA_TRAIN_EXPLAIN_PAUSE)
@@ -3071,6 +3117,8 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
     _MATRIX_DIVERGING_MID_COLOR = "#F5F3EE"
     _MATRIX_DIVERGING_HIGH_COLOR = "#C46A5A"
     _SETUP_ROWS_RIGHT_SHIFT_RATIO = 0.10
+    _START_FROM_SENSORY_SETUP_HANDOFF = False
+    _STOP_AFTER_SENSORY_SETUP = False
     _BASE_ROWS = [
         np.array([0.90, 0.20, 0.70, 0.30, 0.80, 0.10, 0.50, 0.40, 0.90]),
         np.array([0.25, 0.82, 0.18, 0.74, 0.22, 0.88, 0.30, 0.68, 0.24]),
@@ -3217,11 +3265,8 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
         """Build the locked results/cross-session handoff frame."""
         return Study2WithinSession2DecodingResults._build_results_end_static(self)
 
-    def construct(self) -> None:
-        """Run the animation sequence for this scene."""
-        self.camera.background_color = BG
-        self._set_overview_camera_frame()
-
+    def _build_sensory_setup_context(self) -> dict[str, object]:
+        """Build the within-session sensory-sensory setup context."""
         overview_title = self._make_overview_title(self._OVERVIEW_B_TITLE)
         overview_content_top_limit = overview_title.get_bottom()[1] - 0.18
         overview_content_bottom_limit = -config.frame_height / 2 + 0.36
@@ -3255,22 +3300,6 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
         bottom_row.shift(setup_rows_right_shift)
 
         title = self._make_overview_title(self._SENSORY_CASE_TITLE)
-
-        self.add(overview_title, overview_final_schema)
-        self.wait(0.45)
-
-        self.play(
-            TransformMatchingTex(overview_title, title),
-            top_row.animate.shift(setup_rows_right_shift),
-            FadeOut(overview_memory_fork, shift=RIGHT * 0.08),
-            FadeOut(overview_memory_row, shift=DOWN * 0.04),
-            run_time=0.70,
-        )
-        self._play_schema_row_sequence(
-            bottom_row,
-            source_decoder=top_row.decoder,
-            include_output=False,
-        )
         uncertain_output_label = VGroup(
             self._make_schema_cat_label(font_size=20),
             self._make_schema_question_label(font_size=20),
@@ -3281,17 +3310,80 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             buff=0.24,
         )
         uncertain_output_label.align_to(bottom_row.output_group[1], DOWN)
-        self.play(
-            FadeIn(bottom_row.output_group[0], shift=RIGHT * 0.05),
-            FadeIn(uncertain_output_label, shift=RIGHT * 0.05),
-            run_time=self._SCHEMA_OUTPUT_REVEAL_TIME,
-        )
         bottom_input_components = bottom_row.input_group
         bottom_output_components = Group(
             bottom_row.output_group[0],
             uncertain_output_label,
         )
-        self.wait(0.75)
+
+        return {
+            "overview_title": overview_title,
+            "overview_final_schema": overview_final_schema,
+            "overview_memory_fork": overview_memory_fork,
+            "overview_memory_row": overview_memory_row,
+            "title": title,
+            "top_row": top_row,
+            "bottom_row": bottom_row,
+            "setup_rows_right_shift": setup_rows_right_shift,
+            "uncertain_output_label": uncertain_output_label,
+            "bottom_input_components": bottom_input_components,
+            "bottom_output_components": bottom_output_components,
+        }
+
+    def construct(self) -> None:
+        """Run the animation sequence for this scene."""
+        self.camera.background_color = BG
+        self._set_overview_camera_frame()
+        setup_ctx = self._build_sensory_setup_context()
+        overview_title = setup_ctx["overview_title"]
+        overview_final_schema = setup_ctx["overview_final_schema"]
+        overview_memory_fork = setup_ctx["overview_memory_fork"]
+        title = setup_ctx["title"]
+        top_row = setup_ctx["top_row"]
+        overview_memory_row = setup_ctx["overview_memory_row"]
+        bottom_row = setup_ctx["bottom_row"]
+        setup_rows_right_shift = setup_ctx["setup_rows_right_shift"]
+        uncertain_output_label = setup_ctx["uncertain_output_label"]
+        bottom_input_components = setup_ctx["bottom_input_components"]
+        bottom_output_components = setup_ctx["bottom_output_components"]
+
+        if self._START_FROM_SENSORY_SETUP_HANDOFF:
+            top_row.shift(setup_rows_right_shift)
+            self.add(
+                title,
+                top_row,
+                bottom_input_components,
+                bottom_row.decode_support,
+                bottom_row.decoder,
+                bottom_output_components,
+            )
+            self.wait(0.6)
+        else:
+            self.add(overview_title, overview_final_schema)
+            self.wait(0.45)
+
+            self.play(
+                TransformMatchingTex(overview_title, title),
+                top_row.animate.shift(setup_rows_right_shift),
+                FadeOut(overview_memory_fork, shift=RIGHT * 0.08),
+                FadeOut(overview_memory_row, shift=DOWN * 0.04),
+                run_time=0.70,
+            )
+            self._play_schema_row_sequence(
+                bottom_row,
+                source_decoder=top_row.decoder,
+                include_output=False,
+            )
+            self.play(
+                FadeIn(bottom_row.output_group[0], shift=RIGHT * 0.05),
+                FadeIn(uncertain_output_label, shift=RIGHT * 0.05),
+                run_time=self._SCHEMA_OUTPUT_REVEAL_TIME,
+            )
+            self.wait(0.75)
+
+            if self._STOP_AFTER_SENSORY_SETUP:
+                self.wait(1.6)
+                return
 
         matrix_x = -4.30
         row_centers = self._matrix_row_centers(matrix_x, y_shift=-0.18)
@@ -3432,6 +3524,11 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             test_ax, color=test_col, stroke_width=2.0, buff=0.0, corner_radius=0.02,
         )
         train_title = Tex("training runs", color=train_col, font_size=18).next_to(train_ax, UP, buff=0.08)
+        ovr_label = Tex(
+            r"one-vs-rest: 3 binary classifiers",
+            color=_D_MGREY,
+            font_size=12,
+        ).next_to(train_title, UP, buff=0.04)
         test_title = Tex("held-out run", color=test_col, font_size=18).next_to(test_ax, UP, buff=0.08)
         test_flow_annotation = self._make_test_flow_annotation(
             train_frame,
@@ -3468,24 +3565,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             np.array([plot_column_x, train_ax.get_top()[1] + 0.76, 0.0])
         )
 
-        fold_misclassified = [
-            [("blue", 3), ("amber", 1)],
-            [("green", 0)],
-            [("blue", 2), ("amber", 2)],
-            [("blue", 3), ("green", 1), ("amber", 0)],
-            [("green", 2)],
-            [("blue", 2), ("amber", 1)],
-            [("green", 0)],
-            [("blue", 3), ("amber", 2)],
-        ]
-        fold_error_counts = [len(items) for items in fold_misclassified]
-        fold_accuracy_tex = [
-            rf"{int(round(100 * (12 - n_err) / 12))}\%"
-            for n_err in fold_error_counts
-        ]
-        crossvalidated_accuracy = 100 * (12 * len(fold_error_counts) - sum(fold_error_counts)) / (
-            12 * len(fold_error_counts)
-        )
+        points_per_class_per_run = 2
 
         train_point_radius = 0.055
         test_point_radius = 0.070
@@ -3506,22 +3586,16 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
         }
         replicate_offsets = {
             "blue": [
-                (-0.18, 0.20),
-                (-0.08, 0.08),
-                (0.14, 0.08),
-                (0.24, -0.02),
+                (-0.14, 0.14),
+                (0.14, -0.02),
             ],
             "green": [
-                (-0.12, 0.18),
-                (0.04, 0.08),
-                (0.16, -0.08),
-                (-0.08, -0.02),
+                (-0.10, 0.12),
+                (0.12, -0.08),
             ],
             "amber": [
-                (-0.18, 0.14),
-                (-0.08, 0.04),
-                (0.10, -0.10),
-                (0.22, -0.02),
+                (-0.14, 0.10),
+                (0.14, -0.06),
             ],
         }
 
@@ -3551,25 +3625,21 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
 
         master_point_specs = _build_master_point_specs()
 
-        # Model the class regions as Voronoi cells around slowly moving class
-        # centres. The dataset stays fixed while the fold-specific classifier
-        # shifts slightly as one run is held out.
-        def _decision_shift(fold_idx: int) -> tuple[float, float]:
-            """Return the decision shift."""
-            return 0.13 * np.sin(0.72 * fold_idx), 0.09 * np.cos(0.86 * fold_idx)
+        # Fit one LinearSVC (OvR) per fold so decision regions, boundary lines,
+        # and support-vector highlights are derived from the actual max-margin classifier.
+        def _fit_fold_svm(fold_idx: int) -> LinearSVC:
+            train_specs = [s for s in master_point_specs if s["run_idx"] != fold_idx]
+            X = np.array([[float(s["x"]), float(s["y"])] for s in train_specs])
+            y = np.array([point_class_order.index(str(s["class_name"])) for s in train_specs])
+            clf = LinearSVC(C=1.0, multi_class="ovr", max_iter=5000, random_state=0)
+            clf.fit(X, y)
+            return clf
 
-        def _class_centers(fold_idx: int) -> dict[str, tuple[float, float]]:
-            """Return the class centers."""
-            x_shift, y_shift = _decision_shift(fold_idx)
-            return {
-                "blue": (-1.25 + 0.28 * x_shift, -0.02 + 0.20 * y_shift),
-                "green": (0.05 + 0.56 * x_shift, 0.96 + 1.05 * y_shift),
-                "amber": (1.18 + 0.44 * x_shift, -0.06 + 0.22 * y_shift),
-            }
+        fold_svms: list[LinearSVC] = [_fit_fold_svm(i) for i in range(8)]
 
         def _region_fill(col: str) -> ManimColor:
             """Return the region fill."""
-            return interpolate_color(WHITE, ManimColor(col), 0.58)
+            return interpolate_color(WHITE, ManimColor(col), 0.64)
 
         def _clip_polygon_halfplane(
             poly: list[np.ndarray], normal: np.ndarray, offset: float
@@ -3605,10 +3675,8 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                     clipped.append(intersect(prev, curr))
             return clipped
 
-        def _linear_region_polygon(
-            label: str, centers: dict[str, tuple[float, float]]
-        ) -> list[np.ndarray]:
-            """Return the linear region polygon."""
+        def _svm_region_polygon(class_idx: int, clf: LinearSVC) -> list[np.ndarray]:
+            """Return the argmax decision region polygon for class_idx under clf."""
             x_min, x_max = -2.45, 2.45
             y_min, y_max = -1.35, 1.55
             poly = [
@@ -3617,36 +3685,73 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 np.array([x_max, y_max]),
                 np.array([x_min, y_max]),
             ]
-            c_i = np.array(centers[label], dtype=float)
-            for other_label, other_center in centers.items():
-                if other_label == label:
+            for j in range(len(point_class_order)):
+                if j == class_idx:
                     continue
-                c_j = np.array(other_center, dtype=float)
-                # The Voronoi boundary between class i and j is the perpendicular
-                # bisector of their centres, expressed here as a half-plane.
-                normal = c_j - c_i
-                offset = 0.5 * (float(np.dot(c_j, c_j)) - float(np.dot(c_i, c_i)))
+                # Keep half-plane where score_i >= score_j:
+                # (coef[j] - coef[i]) · x <= intercept[i] - intercept[j]
+                normal = clf.coef_[j] - clf.coef_[class_idx]
+                offset = float(clf.intercept_[class_idx] - clf.intercept_[j])
                 poly = _clip_polygon_halfplane(poly, normal, offset)
                 if len(poly) < 3:
                     return []
             return poly
 
-        def _decision_regions(ax: Axes, centers: dict[str, tuple[float, float]]) -> VGroup:
-            """Return the decision regions."""
+        def _decision_regions(ax: Axes, clf: LinearSVC) -> VGroup:
+            """Return filled argmax decision regions from the fitted SVM."""
             color_map = {"blue": class_one_col, "green": class_two_col, "amber": class_three_col}
             regions = VGroup()
-            for label in ["blue", "green", "amber"]:
-                poly = _linear_region_polygon(label, centers)
+            for class_idx, label in enumerate(point_class_order):
+                poly = _svm_region_polygon(class_idx, clf)
                 if len(poly) < 3:
                     continue
                 region = Polygon(
                     *[ax.c2p(float(x), float(y)) for x, y in poly],
                     stroke_width=0.0,
                 )
-                region.set_fill(_region_fill(color_map[label]), opacity=0.92)
+                region.set_fill(_region_fill(color_map[label]), opacity=0.96)
                 region.set_z_index(-8)
                 regions.add(region)
             return regions
+
+        def _svm_boundary_lines(ax: Axes, clf: LinearSVC) -> VGroup:
+            """Draw the 3 pairwise OvR decision boundaries as explicit lines."""
+            x_min, x_max = -2.45, 2.45
+            y_min, y_max = -1.35, 1.55
+            lines = VGroup()
+            for i, j in [(0, 1), (0, 2), (1, 2)]:
+                w = clf.coef_[i] - clf.coef_[j]
+                b = float(clf.intercept_[i] - clf.intercept_[j])
+                endpoints: list[tuple[float, float]] = []
+                if abs(w[1]) > 1e-9:
+                    for xv in [x_min, x_max]:
+                        yv = -(w[0] * xv + b) / w[1]
+                        if y_min - 1e-6 <= yv <= y_max + 1e-6:
+                            endpoints.append((xv, float(np.clip(yv, y_min, y_max))))
+                if abs(w[0]) > 1e-9:
+                    for yv in [y_min, y_max]:
+                        xv = -(w[1] * yv + b) / w[0]
+                        if x_min - 1e-6 <= xv <= x_max + 1e-6:
+                            endpoints.append((float(np.clip(xv, x_min, x_max)), yv))
+                unique: list[tuple[float, float]] = []
+                for ep in endpoints:
+                    if not any(
+                        abs(ep[0] - u[0]) < 1e-4 and abs(ep[1] - u[1]) < 1e-4
+                        for u in unique
+                    ):
+                        unique.append(ep)
+                if len(unique) >= 2:
+                    p1, p2 = unique[0], unique[-1]
+                    line = Line(
+                        ax.c2p(p1[0], p1[1]),
+                        ax.c2p(p2[0], p2[1]),
+                        color=INK,
+                        stroke_width=1.2,
+                        stroke_opacity=0.45,
+                    )
+                    line.set_z_index(-5)
+                    lines.add(line)
+            return lines
 
         def _error_mark(center: np.ndarray, *, visible: bool) -> VGroup:
             """Return the error mark."""
@@ -3698,25 +3803,6 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 points_by_class["amber"],
             )
 
-        def _decision_margin(
-            spec: dict[str, float | int | str],
-            centers: dict[str, tuple[float, float]],
-        ) -> float:
-            """Return the minimum distance from one point to any class boundary."""
-            point = np.array([float(spec["x"]), float(spec["y"])], dtype=float)
-            class_name = str(spec["class_name"])
-            c_i = np.array(centers[class_name], dtype=float)
-            margins: list[float] = []
-            for other_label, other_center in centers.items():
-                if other_label == class_name:
-                    continue
-                c_j = np.array(other_center, dtype=float)
-                normal = c_j - c_i
-                offset = 0.5 * (float(np.dot(c_j, c_j)) - float(np.dot(c_i, c_i)))
-                denom = max(float(np.linalg.norm(normal)), 1e-6)
-                margins.append(abs(offset - float(np.dot(normal, point))) / denom)
-            return min(margins) if margins else 0.0
-
         def _support_vector_ring(center: np.ndarray, *, visible: bool) -> Circle:
             """Return one support-vector highlight ring."""
             ring = Circle(
@@ -3736,38 +3822,32 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             green_group: VGroup,
             amber_group: VGroup,
         ) -> VGroup:
-            """Highlight conceptual support vectors among the active training points."""
-            centers = _class_centers(fold_idx)
-            active_specs = [
-                spec for spec in master_point_specs if spec["run_idx"] != fold_idx
-            ]
-            ranked_by_class = {
-                class_name: sorted(
-                    [spec for spec in active_specs if spec["class_name"] == class_name],
-                    key=lambda spec: _decision_margin(spec, centers),
-                )
-                for class_name in point_class_order
-            }
-            selected_specs: list[dict[str, float | int | str]] = []
-            for class_name in point_class_order:
-                if ranked_by_class[class_name]:
-                    selected_specs.append(ranked_by_class[class_name][0])
-            remainder = sorted(
-                [spec for spec in active_specs if spec not in selected_specs],
-                key=lambda spec: _decision_margin(spec, centers),
-            )
-            if remainder:
-                selected_specs.append(remainder[0])
-
-            point_groups = {
-                "blue": blue_group,
-                "green": green_group,
-                "amber": amber_group,
-            }
+            """Ring the training points closest to each pairwise SVM boundary."""
+            clf = fold_svms[fold_idx]
+            active_specs = [s for s in master_point_specs if s["run_idx"] != fold_idx]
+            X = np.array([[float(s["x"]), float(s["y"])] for s in active_specs])
+            point_groups = {"blue": blue_group, "green": green_group, "amber": amber_group}
+            selected: list[tuple[str, int]] = []
+            for i, j in [(0, 1), (0, 2), (1, 2)]:
+                w = clf.coef_[i] - clf.coef_[j]
+                b = float(clf.intercept_[i] - clf.intercept_[j])
+                norm = max(float(np.linalg.norm(w)), 1e-6)
+                signed = (X @ w + b) / norm
+                for mask in [signed > 0, signed <= 0]:
+                    if not mask.any():
+                        continue
+                    best_local = int(np.argmin(np.abs(signed[mask])))
+                    global_idx = int(np.where(mask)[0][best_local])
+                    spec = active_specs[global_idx]
+                    key = (
+                        str(spec["class_name"]),
+                        int(spec["run_idx"]) * points_per_class_per_run + int(spec["replicate_idx"]),
+                    )
+                    if key not in selected:
+                        selected.append(key)
             marks = VGroup()
-            for spec in selected_specs[:4]:
-                point_idx = int(spec["run_idx"]) * 4 + int(spec["replicate_idx"])
-                point = point_groups[str(spec["class_name"])][point_idx]
+            for class_name, point_idx in selected[:6]:
+                point = point_groups[class_name][point_idx]
                 marks.add(_support_vector_ring(point.get_center(), visible=True))
             return marks
 
@@ -3775,7 +3855,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             fold_idx: int,
         ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
             """Build the current held-out plot state."""
-            centers = _class_centers(fold_idx)
+            clf = fold_svms[fold_idx]
             blue_group, green_group, amber_group = _make_panel_points(
                 test_ax,
                 fold_idx,
@@ -3784,29 +3864,27 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 inactive_opacity=test_inactive_opacity,
                 radius=test_point_radius,
             )
-            misclassified = fold_misclassified[fold_idx]
-            error_lookup = {
-                "blue": blue_group,
-                "green": green_group,
-                "amber": amber_group,
-            }
+            test_specs = [s for s in master_point_specs if s["run_idx"] == fold_idx]
+            X_test = np.array([[float(s["x"]), float(s["y"])] for s in test_specs])
+            y_true = np.array([point_class_order.index(str(s["class_name"])) for s in test_specs])
+            y_pred = clf.predict(X_test)
+            error_lookup = {"blue": blue_group, "green": green_group, "amber": amber_group}
             error_marks = VGroup()
-            for class_name, idx in misclassified:
-                point_idx = 4 * fold_idx + idx
-                error_marks.add(
-                    _error_mark(
-                        error_lookup[class_name][point_idx].get_center(),
-                        visible=True,
+            for spec, true_label, pred_label in zip(test_specs, y_true, y_pred):
+                if true_label != pred_label:
+                    class_name = str(spec["class_name"])
+                    point_idx = points_per_class_per_run * fold_idx + int(spec["replicate_idx"])
+                    error_marks.add(
+                        _error_mark(error_lookup[class_name][point_idx].get_center(), visible=True)
                     )
-                )
-            regions = _decision_regions(test_ax, centers)
+            regions = _decision_regions(test_ax, clf)
             return regions, blue_group, green_group, amber_group, error_marks
 
         def make_train_plot_state(
             fold_idx: int,
-        ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
+        ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup, VGroup]:
             """Build the current training-plot state."""
-            centers = _class_centers(fold_idx)
+            clf = fold_svms[fold_idx]
             blue_group, green_group, amber_group = _make_panel_points(
                 train_ax,
                 fold_idx,
@@ -3815,29 +3893,16 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 inactive_opacity=train_inactive_opacity,
                 radius=train_point_radius,
             )
-            regions = _decision_regions(train_ax, centers)
-            support_marks = make_support_vector_marks(
-                fold_idx,
-                blue_group,
-                green_group,
-                amber_group,
-            )
-            return regions, blue_group, green_group, amber_group, support_marks
+            regions = _decision_regions(train_ax, clf)
+            boundary_lines = _svm_boundary_lines(train_ax, clf)
+            support_marks = make_support_vector_marks(fold_idx, blue_group, green_group, amber_group)
+            return regions, boundary_lines, blue_group, green_group, amber_group, support_marks
 
-        train_regions, train_blue_pts, train_green_pts, train_amber_pts, train_support_marks = make_train_plot_state(0)
+        train_regions, train_boundary_lines, train_blue_pts, train_green_pts, train_amber_pts, train_support_marks = make_train_plot_state(0)
         test_regions, test_blue_pts, test_green_pts, test_amber_pts, test_error_marks = make_test_plot_state(0)
         fold_label = Tex("held-out run 1 / 8", color=INK, font_size=20).move_to(
             np.array([plot_column_x, -2.42 + right_block_y_shift, 0.0])
         )
-        def make_accuracy_display(n_filled: int) -> MathTex:
-            """Build the current accuracy display."""
-            if n_filled <= 0:
-                tex = r"[\ ]"
-            else:
-                tex = r"[" + r", ".join(fold_accuracy_tex[:n_filled]) + r"]"
-            return MathTex(tex, color=INK, font_size=20).next_to(fold_label, DOWN, buff=0.16)
-
-        accuracy_display = make_accuracy_display(0)
 
         self.play(
             FadeIn(svm_label, shift=RIGHT * 0.06),
@@ -3847,7 +3912,9 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             Create(train_ax),
             FadeIn(train_frame),
             FadeIn(train_regions),
+            FadeIn(train_boundary_lines),
             FadeIn(train_title),
+            FadeIn(ovr_label),
             FadeIn(train_x_label),
             FadeIn(train_y_label),
             Create(test_ax),
@@ -3998,7 +4065,6 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             Create(current_test_box),
             FadeIn(current_test_label),
             FadeIn(fold_label, shift=DOWN * 0.04),
-            FadeIn(accuracy_display, shift=DOWN * 0.04),
             run_time=0.5,
         )
         self.wait(0.35)
@@ -4009,22 +4075,20 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 color=INK,
                 font_size=20,
             ).move_to(fold_label.get_center())
-            new_train_regions, new_train_blue_pts, new_train_green_pts, new_train_amber_pts, new_train_support_marks = make_train_plot_state(fold_idx)
+            new_train_regions, new_train_boundary_lines, new_train_blue_pts, new_train_green_pts, new_train_amber_pts, new_train_support_marks = make_train_plot_state(fold_idx)
             new_test_regions, new_test_blue_pts, new_test_green_pts, new_test_amber_pts, new_test_error_marks = make_test_plot_state(fold_idx)
             new_train_overlays = make_train_overlays(fold_idx)
-            new_accuracy_display = make_accuracy_display(fold_idx + 1)
 
             if fold_idx == 0:
                 self.play(
-                    TransformMatchingTex(accuracy_display, new_accuracy_display),
                     Indicate(svm_label, color=INK, scale_factor=1.02),
                     run_time=0.45,
                 )
-                accuracy_display = new_accuracy_display
             else:
                 self.play(
                     Transform(fold_label, new_fold_label),
                     Transform(train_regions, new_train_regions),
+                    Transform(train_boundary_lines, new_train_boundary_lines),
                     Transform(train_blue_pts, new_train_blue_pts),
                     Transform(train_green_pts, new_train_green_pts),
                     Transform(train_amber_pts, new_train_amber_pts),
@@ -4033,29 +4097,25 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                     Transform(test_blue_pts, new_test_blue_pts),
                     Transform(test_green_pts, new_test_green_pts),
                     Transform(test_amber_pts, new_test_amber_pts),
-                    Transform(test_error_marks, new_test_error_marks),
+                    FadeOut(test_error_marks),
                     FadeOut(current_train_overlays),
                     FadeOut(current_test_box),
                     FadeOut(current_test_label),
                     FadeIn(new_train_overlays),
                     FadeIn(test_boxes[fold_idx]),
                     FadeIn(test_labels[fold_idx]),
-                    TransformMatchingTex(accuracy_display, new_accuracy_display),
+                    FadeIn(new_test_error_marks),
                     Indicate(svm_label, color=INK, scale_factor=1.02),
                     run_time=0.55,
                 )
                 current_test_box = test_boxes[fold_idx]
                 current_test_label = test_labels[fold_idx]
-                accuracy_display = new_accuracy_display
                 current_train_overlays = new_train_overlays
+                test_error_marks = new_test_error_marks
             if fold_idx < 7:
                 self.wait(0.2)
         self.wait(0.35)
 
-        final_acc = VGroup(
-            Tex("crossvalidated accuracy", color=INK, font_size=20),
-            MathTex(rf"= {crossvalidated_accuracy:.1f}\%", color=INK, font_size=20),
-        ).arrange(RIGHT, buff=0.10).move_to(accuracy_display.get_center())
         self.play(
             *[
                 Transform(target_rows[row_idx], initial_matrix_rows[row_idx].copy())
@@ -4066,6 +4126,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             FadeOut(current_test_label),
             FadeOut(current_train_overlays),
             FadeOut(train_title),
+            FadeOut(ovr_label),
             FadeOut(test_title),
             FadeOut(train_support_marks),
             FadeOut(train_x_label),
@@ -4074,7 +4135,6 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             FadeOut(test_y_label),
             FadeOut(test_flow_annotation[0]),
             FadeOut(test_flow_annotation[1]),
-            FadeTransform(accuracy_display, final_acc),
             run_time=0.8,
         )
 
@@ -4082,6 +4142,37 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
         self.clear()
         self.add(locked_layout["static_frame"])
         self.wait(1.6)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Study2WithinSession2DecodingSetupA / B
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class Study2WithinSession2DecodingSetupA(Study2WithinSession2DecodingSetup):
+    """
+    Part A: introduce within-session sensory-sensory decoding before the
+    cross-validation mechanics.
+
+    Render:
+        uv run manim scenes/study2.py Study2WithinSession2DecodingSetupA -ql
+        uv run manim scenes/study2.py Study2WithinSession2DecodingSetupA -qh
+    """
+
+    _STOP_AFTER_SENSORY_SETUP = True
+
+
+class Study2WithinSession2DecodingSetupB(Study2WithinSession2DecodingSetup):
+    """
+    Part B: start from the sensory-sensory setup frame and then explain
+    leave-one-run-out cross-validation.
+
+    Render:
+        uv run manim scenes/study2.py Study2WithinSession2DecodingSetupB -ql
+        uv run manim scenes/study2.py Study2WithinSession2DecodingSetupB -qh
+    """
+
+    _START_FROM_SENSORY_SETUP_HANDOFF = True
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -4246,39 +4337,78 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             np.array([plot_column_x, train_ax.get_top()[1] + 0.76, 0.0])
         )
 
-        fold_misclassified = [
-            [("blue", 3), ("amber", 1)],
-            [("green", 0)],
-            [("blue", 2), ("amber", 2)],
-            [("blue", 3), ("green", 1), ("amber", 0)],
-            [("green", 2)],
-            [("blue", 2), ("amber", 1)],
-            [("green", 0)],
-            [("blue", 3), ("amber", 2)],
-        ]
-        fold_error_counts = [len(items) for items in fold_misclassified]
-        crossvalidated_accuracy = 100 * (12 * len(fold_error_counts) - sum(fold_error_counts)) / (
-            12 * len(fold_error_counts)
-        )
+        points_per_class_per_run = 2
+        train_point_radius = 0.055
+        test_point_radius = 0.070
+        train_active_opacity = 0.88
+        train_inactive_opacity = 0.18
+        test_active_opacity = 0.92
+        test_inactive_opacity = 0.16
+        point_class_order = ["blue", "green", "amber"]
+        fixed_class_centers = {
+            "blue": (-1.25, -0.02),
+            "green": (0.05, 0.96),
+            "amber": (1.18, -0.06),
+        }
+        run_offset_scales = {
+            "blue": (0.34, 0.22, 0.12),
+            "green": (0.28, 0.18, 0.55),
+            "amber": (0.34, 0.22, -0.18),
+        }
+        replicate_offsets = {
+            "blue": [
+                (-0.14, 0.14),
+                (0.14, -0.02),
+            ],
+            "green": [
+                (-0.10, 0.12),
+                (0.12, -0.08),
+            ],
+            "amber": [
+                (-0.14, 0.10),
+                (0.14, -0.06),
+            ],
+        }
 
-        # Same Voronoi construction as the setup scene above; keep the
-        # explanation local because this block is edited independently.
-        def _decision_shift(fold_idx: int) -> tuple[float, float]:
-            """Return the decision shift."""
-            return 0.13 * np.sin(0.72 * fold_idx), 0.09 * np.cos(0.86 * fold_idx)
+        def _build_master_point_specs() -> list[dict[str, float | int | str]]:
+            """Return one fixed synthetic dataset shared across all CV folds."""
+            specs: list[dict[str, float | int | str]] = []
+            for class_name in point_class_order:
+                base_x, base_y = fixed_class_centers[class_name]
+                x_scale, y_scale, phase = run_offset_scales[class_name]
+                for run_idx in range(8):
+                    angle = TAU * run_idx / 8.0 + phase
+                    run_dx = x_scale * np.cos(angle)
+                    run_dy = y_scale * np.sin(angle)
+                    for replicate_idx, (rep_dx, rep_dy) in enumerate(
+                        replicate_offsets[class_name]
+                    ):
+                        specs.append(
+                            {
+                                "class_name": class_name,
+                                "run_idx": run_idx,
+                                "replicate_idx": replicate_idx,
+                                "x": base_x + run_dx + rep_dx,
+                                "y": base_y + run_dy + rep_dy,
+                            }
+                        )
+            return specs
 
-        def _class_centers(fold_idx: int) -> dict[str, tuple[float, float]]:
-            """Return the class centers."""
-            x_shift, y_shift = _decision_shift(fold_idx)
-            return {
-                "blue": (-1.25 + 0.28 * x_shift, -0.02 + 0.20 * y_shift),
-                "green": (0.05 + 0.56 * x_shift, 0.96 + 1.05 * y_shift),
-                "amber": (1.18 + 0.44 * x_shift, -0.06 + 0.22 * y_shift),
-            }
+        master_point_specs = _build_master_point_specs()
+
+        # Fit a LinearSVC (OvR) for fold 7 so this static handoff frame uses
+        # the same data-driven decision regions as the animated setup scene.
+        def _fit_svm(fold_idx: int) -> LinearSVC:
+            train_specs = [s for s in master_point_specs if s["run_idx"] != fold_idx]
+            X = np.array([[float(s["x"]), float(s["y"])] for s in train_specs])
+            y = np.array([point_class_order.index(str(s["class_name"])) for s in train_specs])
+            clf = LinearSVC(C=1.0, multi_class="ovr", max_iter=5000, random_state=0)
+            clf.fit(X, y)
+            return clf
 
         def _region_fill(col: str) -> ManimColor:
             """Return the region fill."""
-            return interpolate_color(WHITE, ManimColor(col), 0.58)
+            return interpolate_color(WHITE, ManimColor(col), 0.64)
 
         def _clip_polygon_halfplane(
             poly: list[np.ndarray], normal: np.ndarray, offset: float
@@ -4288,11 +4418,9 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 return []
 
             def inside(p: np.ndarray) -> bool:
-                """Return whether the current point lies inside the active region."""
                 return float(np.dot(normal, p)) <= offset + 1e-9
 
             def intersect(p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
-                """Return the intersection point for the current line segment."""
                 direction = p2 - p1
                 denom = float(np.dot(normal, direction))
                 if abs(denom) < 1e-9:
@@ -4314,10 +4442,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                     clipped.append(intersect(prev, curr))
             return clipped
 
-        def _linear_region_polygon(
-            label: str, centers: dict[str, tuple[float, float]]
-        ) -> list[np.ndarray]:
-            """Return the linear region polygon."""
+        def _svm_region_polygon(class_idx: int, clf: LinearSVC) -> list[np.ndarray]:
             x_min, x_max = -2.45, 2.45
             y_min, y_max = -1.35, 1.55
             poly = [
@@ -4326,38 +4451,73 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 np.array([x_max, y_max]),
                 np.array([x_min, y_max]),
             ]
-            c_i = np.array(centers[label], dtype=float)
-            for other_label, other_center in centers.items():
-                if other_label == label:
+            for j in range(len(point_class_order)):
+                if j == class_idx:
                     continue
-                c_j = np.array(other_center, dtype=float)
-                # Intersect the current polygon with each pairwise Voronoi
-                # half-plane to recover one class region.
-                normal = c_j - c_i
-                offset = 0.5 * (float(np.dot(c_j, c_j)) - float(np.dot(c_i, c_i)))
+                normal = clf.coef_[j] - clf.coef_[class_idx]
+                offset = float(clf.intercept_[class_idx] - clf.intercept_[j])
                 poly = _clip_polygon_halfplane(poly, normal, offset)
                 if len(poly) < 3:
                     return []
             return poly
 
-        def _decision_regions(ax: Axes, centers: dict[str, tuple[float, float]]) -> VGroup:
-            """Return the decision regions."""
+        def _decision_regions(ax: Axes, clf: LinearSVC) -> VGroup:
+            """Return filled argmax decision regions from the fitted SVM."""
             color_map = {"blue": class_one_col, "green": class_two_col, "amber": class_three_col}
             regions = VGroup()
-            for label in ["blue", "green", "amber"]:
-                poly = _linear_region_polygon(label, centers)
+            for class_idx, label in enumerate(point_class_order):
+                poly = _svm_region_polygon(class_idx, clf)
                 if len(poly) < 3:
                     continue
                 region = Polygon(
                     *[ax.c2p(float(x), float(y)) for x, y in poly],
                     stroke_width=0.0,
                 )
-                region.set_fill(_region_fill(color_map[label]), opacity=0.92)
+                region.set_fill(_region_fill(color_map[label]), opacity=0.96)
                 region.set_z_index(-8)
                 regions.add(region)
             return regions
 
-        def _error_mark(center: np.ndarray) -> VGroup:
+        def _svm_boundary_lines(ax: Axes, clf: LinearSVC) -> VGroup:
+            """Draw the 3 pairwise OvR decision boundaries as explicit lines."""
+            x_min, x_max = -2.45, 2.45
+            y_min, y_max = -1.35, 1.55
+            lines = VGroup()
+            for i, j in [(0, 1), (0, 2), (1, 2)]:
+                w = clf.coef_[i] - clf.coef_[j]
+                b = float(clf.intercept_[i] - clf.intercept_[j])
+                endpoints: list[tuple[float, float]] = []
+                if abs(w[1]) > 1e-9:
+                    for xv in [x_min, x_max]:
+                        yv = -(w[0] * xv + b) / w[1]
+                        if y_min - 1e-6 <= yv <= y_max + 1e-6:
+                            endpoints.append((xv, float(np.clip(yv, y_min, y_max))))
+                if abs(w[0]) > 1e-9:
+                    for yv in [y_min, y_max]:
+                        xv = -(w[1] * yv + b) / w[0]
+                        if x_min - 1e-6 <= xv <= x_max + 1e-6:
+                            endpoints.append((float(np.clip(xv, x_min, x_max)), yv))
+                unique: list[tuple[float, float]] = []
+                for ep in endpoints:
+                    if not any(
+                        abs(ep[0] - u[0]) < 1e-4 and abs(ep[1] - u[1]) < 1e-4
+                        for u in unique
+                    ):
+                        unique.append(ep)
+                if len(unique) >= 2:
+                    p1, p2 = unique[0], unique[-1]
+                    line = Line(
+                        ax.c2p(p1[0], p1[1]),
+                        ax.c2p(p2[0], p2[1]),
+                        color=INK,
+                        stroke_width=1.2,
+                        stroke_opacity=0.45,
+                    )
+                    line.set_z_index(-5)
+                    lines.add(line)
+            return lines
+
+        def _error_mark(center: np.ndarray, *, visible: bool) -> VGroup:
             """Return the error mark."""
             anchor = Circle(radius=0.082).move_to(center)
             mark = Cross(
@@ -4366,137 +4526,93 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
                 stroke_width=2.6,
             ).move_to(center)
             mark.set_z_index(6)
+            if not visible:
+                mark.set_stroke(opacity=0.0)
             return mark
+
+        def _make_panel_points(
+            ax: Axes,
+            fold_idx: int,
+            *,
+            mode: str,
+            active_opacity: float,
+            inactive_opacity: float,
+            radius: float,
+        ) -> tuple[VGroup, VGroup, VGroup]:
+            """Build one fixed dataset view with fold-specific emphasis."""
+            color_map = {
+                "blue": class_one_col,
+                "green": class_two_col,
+                "amber": class_three_col,
+            }
+            points_by_class = {class_name: VGroup() for class_name in point_class_order}
+            for spec in master_point_specs:
+                is_active = (
+                    spec["run_idx"] != fold_idx
+                    if mode == "train"
+                    else spec["run_idx"] == fold_idx
+                )
+                opacity = active_opacity if is_active else inactive_opacity
+                point = Dot(
+                    ax.c2p(float(spec["x"]), float(spec["y"])),
+                    radius=radius,
+                    color=color_map[str(spec["class_name"])],
+                    fill_opacity=opacity,
+                )
+                point.set_z_index(2 if is_active else 1)
+                points_by_class[str(spec["class_name"])].add(point)
+            return (
+                points_by_class["blue"],
+                points_by_class["green"],
+                points_by_class["amber"],
+            )
 
         def make_train_plot_state(
             fold_idx: int,
-        ) -> tuple[VGroup, VGroup, VGroup, VGroup]:
-            """Build the current train-plot state."""
-            centers = _class_centers(fold_idx)
-            blue_pts = [
-                (-1.88 + 0.11 * np.sin(0.70 * fold_idx), 0.98 + 0.10 * np.cos(0.52 * fold_idx)),
-                (-1.56 + 0.10 * np.cos(0.94 * fold_idx), 0.56 + 0.10 * np.sin(0.82 * fold_idx)),
-                (-1.42 + 0.11 * np.sin(0.78 * fold_idx), -0.06 + 0.10 * np.cos(1.02 * fold_idx)),
-                (-1.72 + 0.085 * np.cos(0.60 * fold_idx), -0.64 + 0.085 * np.sin(0.76 * fold_idx)),
-                (-1.12 + 0.11 * np.sin(1.02 * fold_idx), 0.34 + 0.10 * np.cos(0.74 * fold_idx)),
-                (-0.76 + 0.10 * np.cos(0.86 * fold_idx), -0.26 + 0.085 * np.sin(0.66 * fold_idx)),
-                (-0.52 + 0.10 * np.sin(0.90 * fold_idx), 0.12 + 0.085 * np.cos(0.80 * fold_idx)),
-                (-0.40 + 0.10 * np.cos(0.74 * fold_idx), -0.38 + 0.085 * np.sin(0.88 * fold_idx)),
-            ]
-            green_pts = [
-                (-0.12 + 0.10 * np.cos(0.86 * fold_idx), 1.34 + 0.075 * np.sin(0.60 * fold_idx)),
-                (0.22 + 0.085 * np.sin(0.84 * fold_idx), 1.06 + 0.085 * np.cos(0.74 * fold_idx)),
-                (0.58 + 0.10 * np.cos(0.92 * fold_idx), 0.78 + 0.085 * np.sin(0.66 * fold_idx)),
-                (0.10 + 0.085 * np.sin(0.70 * fold_idx), 0.62 + 0.085 * np.cos(0.88 * fold_idx)),
-                (0.42 + 0.10 * np.cos(0.98 * fold_idx), 0.44 + 0.085 * np.sin(0.72 * fold_idx)),
-                (-0.20 + 0.085 * np.sin(0.90 * fold_idx), 0.86 + 0.075 * np.cos(0.78 * fold_idx)),
-                (0.72 + 0.10 * np.cos(0.76 * fold_idx), 0.22 + 0.075 * np.sin(0.90 * fold_idx)),
-                (-0.34 + 0.075 * np.sin(0.82 * fold_idx), 0.42 + 0.085 * np.cos(0.84 * fold_idx)),
-            ]
-            amber_pts = [
-                (1.06 + 0.11 * np.cos(0.82 * fold_idx), 0.84 + 0.10 * np.sin(0.70 * fold_idx)),
-                (1.42 + 0.10 * np.sin(0.88 * fold_idx), 0.34 + 0.10 * np.cos(0.64 * fold_idx)),
-                (1.80 + 0.10 * np.cos(1.12 * fold_idx), -0.18 + 0.085 * np.sin(0.88 * fold_idx)),
-                (1.52 + 0.11 * np.sin(0.72 * fold_idx), -0.76 + 0.10 * np.cos(0.98 * fold_idx)),
-                (1.02 + 0.10 * np.cos(1.00 * fold_idx), 0.06 + 0.10 * np.sin(0.84 * fold_idx)),
-                (0.74 + 0.11 * np.sin(1.06 * fold_idx), -0.42 + 0.10 * np.cos(0.90 * fold_idx)),
-                (0.52 + 0.10 * np.cos(0.76 * fold_idx), -0.02 + 0.075 * np.sin(0.86 * fold_idx)),
-                (0.34 + 0.10 * np.sin(0.84 * fold_idx), -0.54 + 0.075 * np.cos(0.72 * fold_idx)),
-            ]
-            blue_group = VGroup(*[
-                Dot(train_ax.c2p(x, y), radius=0.055, color=class_one_col, fill_opacity=0.88)
-                for x, y in blue_pts
-            ])
-            green_group = VGroup(*[
-                Dot(train_ax.c2p(x, y), radius=0.055, color=class_two_col, fill_opacity=0.88)
-                for x, y in green_pts
-            ])
-            amber_group = VGroup(*[
-                Dot(train_ax.c2p(x, y), radius=0.055, color=class_three_col, fill_opacity=0.88)
-                for x, y in amber_pts
-            ])
-            return _decision_regions(train_ax, centers), blue_group, green_group, amber_group
+        ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
+            """Build the current training-plot state."""
+            clf = _fit_svm(fold_idx)
+            blue_group, green_group, amber_group = _make_panel_points(
+                train_ax,
+                fold_idx,
+                mode="train",
+                active_opacity=train_active_opacity,
+                inactive_opacity=train_inactive_opacity,
+                radius=train_point_radius,
+            )
+            return _decision_regions(train_ax, clf), _svm_boundary_lines(train_ax, clf), blue_group, green_group, amber_group
 
         def make_test_plot_state(
             fold_idx: int,
         ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
             """Build the current test-plot state."""
-            centers = _class_centers(fold_idx)
-            misclassified = fold_misclassified[fold_idx]
-            blue_pts = [
-                (-1.62 + 0.05 * np.sin(0.72 * fold_idx), 0.86 + 0.05 * np.cos(0.52 * fold_idx)),
-                (-1.30 + 0.05 * np.cos(0.82 * fold_idx), 0.46 + 0.05 * np.sin(0.74 * fold_idx)),
-                (-1.10 + 0.05 * np.sin(0.88 * fold_idx), -0.08 + 0.04 * np.cos(0.80 * fold_idx)),
-                (-0.90 + 0.04 * np.cos(0.78 * fold_idx), 0.18 + 0.05 * np.sin(0.70 * fold_idx)),
-            ]
-            green_pts = [
-                (-0.08 + 0.05 * np.cos(0.84 * fold_idx), 1.18 + 0.05 * np.sin(0.66 * fold_idx)),
-                (0.28 + 0.04 * np.sin(0.78 * fold_idx), 0.94 + 0.05 * np.cos(0.80 * fold_idx)),
-                (0.56 + 0.05 * np.cos(0.88 * fold_idx), 0.62 + 0.04 * np.sin(0.72 * fold_idx)),
-                (-0.18 + 0.04 * np.sin(0.82 * fold_idx), 0.74 + 0.04 * np.cos(0.74 * fold_idx)),
-            ]
-            amber_pts = [
-                (1.24 + 0.05 * np.cos(0.78 * fold_idx), 0.72 + 0.05 * np.sin(0.66 * fold_idx)),
-                (1.44 + 0.04 * np.sin(0.84 * fold_idx), 0.20 + 0.05 * np.cos(0.70 * fold_idx)),
-                (1.52 + 0.05 * np.sin(0.90 * fold_idx), -0.34 + 0.05 * np.cos(0.82 * fold_idx)),
-                (0.98 + 0.04 * np.cos(0.76 * fold_idx), -0.08 + 0.04 * np.sin(0.68 * fold_idx)),
-            ]
-            wrong_positions = {
-                ("blue", 2): (0.42, 0.24),
-                ("blue", 3): (0.98, -0.08),
-                ("green", 0): (1.04, 0.08),
-                ("green", 1): (-0.92, 0.24),
-                ("green", 2): (1.10, -0.18),
-                ("amber", 0): (-0.14, 0.80),
-                ("amber", 1): (-0.88, 0.10),
-                ("amber", 2): (0.28, 0.34),
-            }
-            point_lookup = {"blue": blue_pts, "green": green_pts, "amber": amber_pts}
-            for class_name, idx in misclassified:
-                base_x, base_y = wrong_positions[(class_name, idx)]
-                point_lookup[class_name][idx] = (
-                    base_x + 0.04 * np.sin(0.88 * fold_idx + idx),
-                    base_y + 0.04 * np.cos(0.76 * fold_idx + idx),
-                )
-            blue_group = VGroup(*[
-                Dot(test_ax.c2p(x, y), radius=0.070, color=class_one_col, fill_opacity=0.92)
-                for x, y in blue_pts
-            ])
-            green_group = VGroup(*[
-                Dot(test_ax.c2p(x, y), radius=0.070, color=class_two_col, fill_opacity=0.92)
-                for x, y in green_pts
-            ])
-            amber_group = VGroup(*[
-                Dot(test_ax.c2p(x, y), radius=0.070, color=class_three_col, fill_opacity=0.92)
-                for x, y in amber_pts
-            ])
-            error_marks = VGroup()
+            clf = _fit_svm(fold_idx)
+            blue_group, green_group, amber_group = _make_panel_points(
+                test_ax,
+                fold_idx,
+                mode="test",
+                active_opacity=test_active_opacity,
+                inactive_opacity=test_inactive_opacity,
+                radius=test_point_radius,
+            )
+            test_specs = [s for s in master_point_specs if s["run_idx"] == fold_idx]
+            X_test = np.array([[float(s["x"]), float(s["y"])] for s in test_specs])
+            y_true = np.array([point_class_order.index(str(s["class_name"])) for s in test_specs])
+            y_pred = clf.predict(X_test)
             error_lookup = {"blue": blue_group, "green": green_group, "amber": amber_group}
-            for class_name, idx in misclassified:
-                error_marks.add(_error_mark(error_lookup[class_name][idx].get_center()))
-            return _decision_regions(test_ax, centers), blue_group, green_group, amber_group, error_marks
+            error_marks = VGroup()
+            for spec, true_label, pred_label in zip(test_specs, y_true, y_pred):
+                if true_label != pred_label:
+                    class_name = str(spec["class_name"])
+                    point_idx = points_per_class_per_run * fold_idx + int(spec["replicate_idx"])
+                    error_marks.add(
+                        _error_mark(error_lookup[class_name][point_idx].get_center(), visible=True)
+                    )
+            return _decision_regions(test_ax, clf), blue_group, green_group, amber_group, error_marks
 
         fold_idx = 7
-        train_regions, train_blue_pts, train_green_pts, train_amber_pts = make_train_plot_state(fold_idx)
+        train_regions, train_boundary_lines, train_blue_pts, train_green_pts, train_amber_pts = make_train_plot_state(fold_idx)
         test_regions, test_blue_pts, test_green_pts, test_amber_pts, test_error_marks = make_test_plot_state(fold_idx)
-
-        fold_label = Tex("held-out run 8 / 8", color=INK, font_size=20).move_to(
-            np.array([plot_column_x, -2.42 + right_block_y_shift, 0.0])
-        )
-        accuracy_anchor = MathTex(
-            r"["
-            + r", ".join([
-                rf"{int(round(100 * (12 - n_err) / 12))}\%"
-                for n_err in fold_error_counts
-            ])
-            + r"]",
-            color=INK,
-            font_size=20,
-        ).next_to(fold_label, DOWN, buff=0.16)
-        final_acc = VGroup(
-            Tex("crossvalidated accuracy", color=INK, font_size=20),
-            MathTex(rf"= {crossvalidated_accuracy:.1f}\%", color=INK, font_size=20),
-        ).arrange(RIGHT, buff=0.10).move_to(accuracy_anchor.get_center())
 
         static_frame = Group(
             title,
@@ -4513,6 +4629,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             train_ax,
             train_frame,
             train_regions,
+            train_boundary_lines,
             train_blue_pts,
             train_green_pts,
             train_amber_pts,
@@ -4523,7 +4640,6 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             test_green_pts,
             test_amber_pts,
             test_error_marks,
-            final_acc,
         )
 
         fade_group = Group(
@@ -4540,6 +4656,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             train_ax,
             train_frame,
             train_regions,
+            train_boundary_lines,
             train_blue_pts,
             train_green_pts,
             train_amber_pts,
@@ -4550,7 +4667,6 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             test_green_pts,
             test_amber_pts,
             test_error_marks,
-            final_acc,
         )
         return {
             "static_frame": static_frame,
@@ -5179,7 +5295,7 @@ class Study2CrossSessionDecodingSetup(Study2WithinSession2DecodingResults):
 
     def _build_cross_session_layout(self) -> dict[str, object]:
         """Build the reusable cross-session decoding layout and its parts."""
-        slide_title = Tex("Between-session decoding", color=INK, font_size=30)
+        slide_title = Tex(_bold_tex("Between-session decoding"), color=INK, font_size=30)
         slide_title.to_edge(UP, buff=0.18)
 
         s2_title, s2_row_group, boxes2, dots2, time_lbl2, ph_lbl2 = self._make_session_row(
@@ -7356,7 +7472,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
     ) -> Tex:
         """Build the results heading."""
         return Tex(
-            text,
+            _bold_tex(text),
             color=color,
             font_size=font_size,
             tex_environment="center",
@@ -12268,7 +12384,7 @@ class Study2SupplementalRoiTimecoursesCombined(_Study2NumberedScene, Scene):
 
     def _build_panel(self, panel_spec: dict[str, object]) -> dict[str, object]:
         """Build the panel."""
-        title = Tex(str(panel_spec["title"]), color=INK, font_size=24).to_edge(UP, buff=0.20)
+        title = Tex(_bold_tex(str(panel_spec["title"])), color=INK, font_size=24).to_edge(UP, buff=0.20)
         cards = [
             self._make_roi_card(label, svg_path, panel_spec)
             for label, svg_path in self._ROI_SVGS
@@ -12372,7 +12488,7 @@ class Study2SupplementalRoiTimecoursesB(Study2SupplementalRoiTimecoursesCombined
         self.add(panel_a["title"], panel_a["grid"])
         self.wait(0.25)
 
-        title_b = Tex(self._PANEL_TITLE, color=INK, font_size=24).move_to(panel_a["title"])
+        title_b = Tex(_bold_tex(self._PANEL_TITLE), color=INK, font_size=24).move_to(panel_a["title"])
         target_plots = self._build_matched_target_plots(panel_a["cards"], self._panel_spec())
         target_cards = [
             Group(source_card[0].copy(), target_plot)
@@ -12855,7 +12971,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
         self.camera.background_color = BG
 
         title = Tex(
-            r"Temporal-generalisation matrices across ROIs",
+            _bold_tex(r"Temporal-generalisation matrices across ROIs"),
             color=INK,
             font_size=26,
         ).to_edge(UP, buff=0.22)
@@ -13215,12 +13331,13 @@ class Study2SearchlightDelay(_Study2SearchlightSceneBase):
 
 
 _STUDY2_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
-    Study2ResearchQuestions,
     Study2ExperimentalDesign,
     Study2DecodingOverviewA,
     Study2DecodingOverviewB,
     Study2DecodingOverviewC,
-    Study2WithinSession2DecodingSetup,
+    Study2DecodingOverviewD,
+    Study2WithinSession2DecodingSetupA,
+    Study2WithinSession2DecodingSetupB,
     Study2WithinSession2DecodingResults,
     Study2CrossSessionDecodingSetup,
     Study2CrossSessionDecodingResultsA,
@@ -13240,12 +13357,13 @@ _STUDY2_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
     Study2DecodingSummary,
 )
 _STUDY2_SECTION_NAMES: tuple[str, ...] = (
-    "study2_research_questions",
     "study2_experimental_design",
     "study2_decoding_overview_a",
     "study2_decoding_overview_b",
     "study2_decoding_overview_c",
-    "study2_within_session2_decoding_setup",
+    "study2_decoding_overview_d",
+    "study2_within_session2_decoding_setup_a",
+    "study2_within_session2_decoding_setup_b",
     "study2_within_session2_decoding_results",
     "study2_cross_session_decoding_setup",
     "study2_cross_session_decoding_results_a",
@@ -13270,7 +13388,6 @@ class Study2(
     Study2LTMResultsExplainer,
     Study2SupplementalRoiTempGenMats,
     Study2SearchlightDelay,
-    Study2ResearchQuestions,
     Study2ExperimentalDesign,
 ):
     """
@@ -13329,10 +13446,10 @@ class Study2(
         carry_previous_frame: bool,
     ) -> None:
         """Replay one existing Study 2 scene inside the master section render."""
-        if carry_previous_frame and not config.save_sections:
+        self.next_section(section_name)
+        if carry_previous_frame:
             self._hold_previous_section_frame()
         self._reset_master_scene_state()
-        self.next_section(section_name)
         scene_cls.construct(self._legacy_scene_proxy(scene_cls))
 
     def construct(self) -> None:
@@ -13354,6 +13471,8 @@ _HIDDEN_STUDY2_SCENES: tuple[type[Scene], ...] = (
     Study2DecodingOverviewC,
     Study2DecodingSummary,
     Study2WithinSession2DecodingSetup,
+    Study2WithinSession2DecodingSetupA,
+    Study2WithinSession2DecodingSetupB,
     Study2WithinSession2DecodingResults,
     Study2CrossSessionDecodingSetup,
     Study2CrossSessionDecodingResultsA,

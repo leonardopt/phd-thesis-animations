@@ -48,6 +48,40 @@ class PresentationHybridDeckTests(unittest.TestCase):
             presentation_hybrid_deck.HybridDisposition.EMBEDDED_VIDEO,
         )
 
+    def test_parse_report_extracts_simple_config_decisions(self) -> None:
+        report_text = textwrap.dedent(
+            """
+            # Video Disposition Config
+
+            Variant: `strict_static_only`
+
+            | clip | decision |
+            | --- | --- |
+            | `000_intro_cognitive_problem` | `video` |
+            | `001_intro_classical_view` | `static` |
+            | `999_omitted_clip` | `omit` |
+            """
+        ).strip()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            report_path = Path(tmp_dir) / "audit.md"
+            report_path.write_text(report_text, encoding="utf-8")
+
+            decisions = presentation_hybrid_deck.parse_report(report_path)
+
+        self.assertEqual(
+            decisions["000_intro_cognitive_problem"].disposition,
+            presentation_hybrid_deck.HybridDisposition.EMBEDDED_VIDEO,
+        )
+        self.assertEqual(
+            decisions["001_intro_classical_view"].disposition,
+            presentation_hybrid_deck.HybridDisposition.STATIC_STILL,
+        )
+        self.assertEqual(
+            decisions["999_omitted_clip"].disposition,
+            presentation_hybrid_deck.HybridDisposition.OMIT,
+        )
+
     def test_build_hybrid_slide_records_rewrites_video_slides(self) -> None:
         static_video_path = (
             REPO_ROOT / "media" / "videos" / "01_intro" / "1080p60" / "sections" / "001_static.mp4"
@@ -149,6 +183,66 @@ class PresentationHybridDeckTests(unittest.TestCase):
         self.assertEqual(
             used_stems,
             {"001_static", "002_keynote", "003_embedded"},
+        )
+
+    def test_build_hybrid_slide_records_omits_marked_video_slides(self) -> None:
+        omitted_video_path = (
+            REPO_ROOT / "media" / "videos" / "04_study2" / "1080p60" / "sections" / "000_omitted_clip.mp4"
+        )
+        kept_video_path = (
+            REPO_ROOT / "media" / "videos" / "04_study2" / "1080p60" / "sections" / "001_kept_clip.mp4"
+        )
+
+        expanded_slides = [
+            {
+                "type": "video",
+                "path": str(omitted_video_path),
+                "title": "",
+                "subtitle": "",
+                "body": "",
+                "notes": "",
+            },
+            {
+                "type": "video",
+                "path": str(kept_video_path),
+                "title": "",
+                "subtitle": "",
+                "body": "",
+                "notes": "",
+            },
+        ]
+        decisions = {
+            "000_omitted_clip": presentation_hybrid_deck.AuditDecision(
+                stem="000_omitted_clip",
+                disposition=presentation_hybrid_deck.HybridDisposition.OMIT,
+                duration_text="",
+                animation_summary="",
+                why="",
+            ),
+            "001_kept_clip": presentation_hybrid_deck.AuditDecision(
+                stem="001_kept_clip",
+                disposition=presentation_hybrid_deck.HybridDisposition.EMBEDDED_VIDEO,
+                duration_text="",
+                animation_summary="",
+                why="",
+            ),
+        }
+
+        hybrid_slides, used_stems = presentation_hybrid_deck.build_hybrid_slide_records(
+            expanded_slides,
+            decisions,
+            extracted_stills={},
+        )
+
+        self.assertEqual(len(hybrid_slides), 1)
+        self.assertEqual(hybrid_slides[0]["type"], "video")
+        self.assertEqual(
+            hybrid_slides[0]["path"],
+            "media/videos/04_study2/1080p60/sections/001_kept_clip.mp4",
+        )
+        self.assertEqual(
+            used_stems,
+            {"000_omitted_clip", "001_kept_clip"},
         )
 
     def test_serialize_hybrid_manifest_keeps_note_blocks_readable(self) -> None:

@@ -14,8 +14,8 @@ Legacy standalone renders:
     uv run manim scenes/methods.py MethodsStimulusRequirementsD -ql
     uv run manim scenes/methods.py MethodsExistingApproaches -ql
     uv run manim scenes/methods.py MethodsDiffusionOpportunity -ql
-    uv run manim scenes/methods.py MethodsDiffusionPromptConditioning -ql
-    uv run manim scenes/methods.py MethodsDiffusionTrainVsGenerate -ql
+    uv run manim scenes/methods.py MethodsDiffusionExplainerA -ql
+    uv run manim scenes/methods.py MethodsDiffusionExplainerB -ql
     uv run manim scenes/methods.py MethodsProjectPlan -ql
 """
 from __future__ import annotations
@@ -57,15 +57,15 @@ _METHODS_SCENE_ORDER: dict[str, str] = {
     "MethodsStimulusRequirementsD": "04",
     "MethodsExistingApproaches": "05",
     "MethodsGANsProofOfConcept": "05",
-    "MethodsDiffusionPromptConditioning": "06",
-    "MethodsDiffusionTrainVsGenerate": "07",
+    "MethodsDiffusionExplainerA": "06",
+    "MethodsDiffusionExplainerB": "07",
     "MethodsDiffusionOpportunity": "08",
     "MethodsProjectPlan": "09",
 }
 _METHODS_OUTPUT_NAMES: dict[str, str] = {
     "MethodsGANsProofOfConcept": "MethodsExistingApproaches",
-    "MethodsDiffusionPromptConditioning": "MethodsDiffusionModelsExplainerA",
-    "MethodsDiffusionTrainVsGenerate": "MethodsDiffusionModelsExplainerB",
+    "MethodsDiffusionExplainerA": "MethodsDiffusionModelsExplainerA",
+    "MethodsDiffusionExplainerB": "MethodsDiffusionModelsExplainerB",
 }
 
 
@@ -179,6 +179,10 @@ def stim_path(code: str, idx: int) -> str:
     return str(_INTRO_STIM_DIR / f"{code}-{idx:02d}.png")
 
 
+def _bold_tex(text: str) -> str:
+    return text if r"\textbf{" in text else rf"\textbf{{{text}}}"
+
+
 def title_block(
     title_text: str,
     subtitle_text: str | None = None,
@@ -186,7 +190,7 @@ def title_block(
     subtitle_color: str = MGREY,
 ) -> VGroup:
     """Return the standard methods title group."""
-    title = Tex(title_text, color=INK, font_size=34).to_edge(UP, buff=0.34)
+    title = Tex(_bold_tex(title_text), color=INK, font_size=34).to_edge(UP, buff=0.34)
     parts = [title]
     if subtitle_text is not None:
         subtitle = Tex(subtitle_text, color=subtitle_color, font_size=21)
@@ -662,7 +666,7 @@ def _build_methods_requirement_d_visual(*, width: float) -> VGroup:
     return Group(frame, diagram)
 
 
-_DDPM_EXPLAINER_BETAS: tuple[float, ...] = (0.04, 0.18, 0.34)
+_DDPM_ALPHA_BAR_CHECKPOINTS: tuple[float, ...] = (1.0, 0.85, 0.50, 0.02)
 
 
 def load_rgb(path: str | Path) -> np.ndarray:
@@ -681,10 +685,7 @@ def _from_diffusion_range(state: np.ndarray) -> np.ndarray:
 
 
 def _gaussian_noise(shape: tuple[int, ...], rng: np.random.Generator) -> np.ndarray:
-    """Draw monochrome Gaussian noise for DDPM state transitions."""
-    if len(shape) == 3 and shape[-1] == 3:
-        noise = rng.normal(0.0, 1.0, shape[:2] + (1,)).astype(np.float32)
-        return np.repeat(noise, 3, axis=2)
+    """Draw independent-channel Gaussian noise matching ε ~ N(0, I)."""
     return rng.normal(0.0, 1.0, shape).astype(np.float32)
 
 
@@ -693,16 +694,6 @@ def _magma_noise_image(noise: np.ndarray) -> np.ndarray:
     scalar_noise = noise[..., 0] if noise.ndim == 3 else noise
     normalized = np.clip((scalar_noise + 2.5) / 5.0, 0.0, 1.0)
     return colormaps["magma"](normalized)[..., :3].astype(np.float32)
-
-
-def _alpha_bars_from_betas(betas: tuple[float, ...]) -> list[float]:
-    """Return cumulative DDPM alpha-bar values, including alpha_bar_0 = 1."""
-    alpha_bars = [1.0]
-    running = 1.0
-    for beta in betas:
-        running *= 1.0 - beta
-        alpha_bars.append(running)
-    return alpha_bars
 
 
 def _render_ddpm_state(
@@ -719,96 +710,32 @@ def _render_ddpm_state(
     residual = state - float(np.sqrt(alpha_bar)) * x_0
     noise_scale = max(float(np.sqrt(1.0 - alpha_bar)), 1e-6)
     magma_noise = _magma_noise_image(residual / noise_scale)
-    noise_weight = float(np.clip(np.sqrt(1.0 - alpha_bar), 0.0, 0.9))
+    # Keep early checkpoints visually readable while still making late checkpoints noise-dominated.
+    noise_weight = float(np.clip(0.85 * (1.0 - alpha_bar), 0.0, 0.9))
     return np.clip((1.0 - noise_weight) * base_rgb + noise_weight * magma_noise, 0.0, 1.0)
 
 
-def _ddpm_forward_latents(
+def build_ddpm_checkpoint_sources(
     clean: np.ndarray,
     *,
-    betas: tuple[float, ...],
-    seed: int,
-) -> list[np.ndarray]:
-    """Sample one DDPM forward trajectory x_0 -> ... -> x_T."""
-    current = _to_diffusion_range(clean)
-    latents = [current.copy()]
-    rng = np.random.default_rng(seed)
-    for beta in betas:
-        current = (
-            float(np.sqrt(1.0 - beta)) * current
-            + float(np.sqrt(beta)) * _gaussian_noise(current.shape, rng)
-        )
-        latents.append(current.copy())
-    return latents
-
-
-def _ddpm_posterior_mean(
-    x_t: np.ndarray,
-    x_0: np.ndarray,
-    *,
-    beta_t: float,
-    alpha_bar_t: float,
-    alpha_bar_prev: float,
-) -> np.ndarray:
-    """Return the DDPM posterior mean q(x_{t-1} | x_t, x_0)."""
-    alpha_t = 1.0 - beta_t
-    coef_x0 = float(np.sqrt(alpha_bar_prev) * beta_t / (1.0 - alpha_bar_t))
-    coef_xt = float(np.sqrt(alpha_t) * (1.0 - alpha_bar_prev) / (1.0 - alpha_bar_t))
-    return coef_x0 * x_0 + coef_xt * x_t
-
-
-def build_ddpm_forward_sources(
-    clean: np.ndarray,
-    *,
-    betas: tuple[float, ...] = _DDPM_EXPLAINER_BETAS,
+    alpha_bars: tuple[float, ...] = _DDPM_ALPHA_BAR_CHECKPOINTS,
     seed: int = 7,
 ) -> list[np.ndarray]:
-    """Render display cards from one DDPM forward trajectory."""
+    """Render display cards at chosen ᾱ checkpoints via direct reparameterization.
+
+    Each underlying state satisfies the closed-form DDPM marginal with a single shared ε draw;
+    the rendered card uses a tinted noise overlay for visual clarity, not a literal RGB display.
+    """
     x_0 = _to_diffusion_range(clean)
-    latents = _ddpm_forward_latents(clean, betas=betas, seed=seed)
-    alpha_bars = _alpha_bars_from_betas(betas)
-    return [
-        _render_ddpm_state(state, x_0, alpha_bar=alpha_bar)
-        for state, alpha_bar in zip(latents, alpha_bars)
-    ]
-
-
-def build_ddpm_pure_noise_source(
-    clean: np.ndarray,
-    *,
-    seed: int = 19,
-) -> np.ndarray:
-    """Render one explicit Gaussian-noise card for the explainer strip."""
     rng = np.random.default_rng(seed)
-    return _magma_noise_image(_gaussian_noise(clean.shape, rng))
-
-
-def build_ddpm_reverse_sources(
-    clean: np.ndarray,
-    *,
-    betas: tuple[float, ...] = _DDPM_EXPLAINER_BETAS,
-    seed: int = 29,
-) -> list[np.ndarray]:
-    """Render a DDPM-style reverse denoising trajectory from fresh noise."""
-    x_0 = _to_diffusion_range(clean)
-    forward_latents = _ddpm_forward_latents(clean, betas=betas, seed=seed)
-    alpha_bars = _alpha_bars_from_betas(betas)
-
-    current = forward_latents[-1].copy()
-    reverse_latents = [current.copy()]
-    for step in range(len(betas), 0, -1):
-        current = _ddpm_posterior_mean(
-            current,
-            x_0,
-            beta_t=betas[step - 1],
-            alpha_bar_t=alpha_bars[step],
-            alpha_bar_prev=alpha_bars[step - 1],
-        )
-        reverse_latents.append(current.copy())
-    reverse_alpha_bars = list(reversed(alpha_bars))
+    epsilon = _gaussian_noise(x_0.shape, rng)
     return [
-        _render_ddpm_state(state, x_0, alpha_bar=alpha_bar)
-        for state, alpha_bar in zip(reverse_latents, reverse_alpha_bars)
+        _render_ddpm_state(
+            float(np.sqrt(ab)) * x_0 + float(np.sqrt(1.0 - ab)) * epsilon,
+            x_0,
+            alpha_bar=ab,
+        )
+        for ab in alpha_bars
     ]
 
 
@@ -965,6 +892,7 @@ _METHODS_REQUIREMENT_SPECS: tuple[dict[str, object], ...] = (
         "heading": ("Experimental", "control"),
         "accent": AMBER,
         "image_path": _METHODS_REQUIREMENTS_B_PNG_PATH,
+        "image_scale_factor": 1.7,
         "bullets": (
 
             (
@@ -973,11 +901,6 @@ _METHODS_REQUIREMENT_SPECS: tuple[dict[str, object], ...] = (
             ), (
                 "Maintain overall",
                 "semantic identity",
-            ),
-            (
-                "Controlled",
-                "manipulation of overall",
-                "similarity",
             ),
         ),
     },
@@ -990,10 +913,6 @@ _METHODS_REQUIREMENT_SPECS: tuple[dict[str, object], ...] = (
             (
                 "Perceptual task demands",
             ),            
-            (
-                "Limit semantic rehearsal",
-            ),
-
             (
                 "Measure WM and LTM",
                 "with adequate sensitivity",
@@ -1012,11 +931,6 @@ _METHODS_REQUIREMENT_SPECS: tuple[dict[str, object], ...] = (
             (
                 "Support robust multivariate",
                 "decoding analyses",
-            ),
-            (
-                "Sensitive comparison of",
-                "sensory and memory",
-                "representations",
             ),
         ),
     },
@@ -1137,6 +1051,9 @@ def _build_methods_stimulus_requirement_state(active_idx: int) -> dict[str, Mobj
                 image.scale_to_fit_width(text_width)
             else:
                 image.scale_to_fit_width(column[2].width - 0.56)
+            image_scale_factor = float(spec.get("image_scale_factor", 1.0))
+            if image_scale_factor != 1.0:
+                image.scale(image_scale_factor)
             body_items.add(image)
 
         if text_group is not None:
@@ -1412,16 +1329,13 @@ class MethodsExistingApproaches(Scene):
             (
                 (
                     "Generative Adversarial Networks (GANs)",
-                    "(Goodfellow et al., 2014)",
-                    "have been explored",
-                    "to synthesise stimuli (Goetschalckx et al., 2021; Son et al., 2022)",
+                    "to synthesise stimuli (Goodfellow et al., 2014; Son et al., 2022)",
                 ),
                 ("Limited flexibility",),
                 (
-                    "Denoising Diffusion Probabilistic Models",
-                    "(Ho et al., 2020; Nichol \\& Dhariwal, 2021;",
-                    "Rombach et al., 2022; Song et al., 2022)",
+                    "Diffusion models",
                     "have been largely unexplored",
+                    "(Ho et al., 2020; Nichol \\& Dhariwal, 2021; Rombach et al., 2022)"
                 ),
             ),
             font_size=13.5,
@@ -1474,7 +1388,7 @@ class MethodsExistingApproaches(Scene):
 
 
 class MethodsDiffusionOpportunity(Scene):
-    """Chapter 2.4 — diffusion models offered a broader stimulus-design engine."""
+    """Chapter 2.4 — advantages and one remaining limitation of diffusion models."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
@@ -1487,28 +1401,24 @@ class MethodsDiffusionOpportunity(Scene):
 
         entry_specs = (
             {
-                "number": "1",
                 "heading": "Text-to-image synthesis",
                 "bullets": (
                     ("describe image with natural language",),
                 ),
             },
             {
-                "number": "2",
                 "heading": "Output scalability",
                 "bullets": (
                     ("no limitation to existing images",),
                 ),
             },
             {
-                "number": "3",
                 "heading": "Variability",
                 "bullets": (
                     ("possibility to generate images of all kinds",),
                 ),
             },
             {
-                "number": "4",
                 "heading": "Open question",
                 "bullets": (
                     ("less straightforward to generate controlled variations",),
@@ -1517,43 +1427,33 @@ class MethodsDiffusionOpportunity(Scene):
         )
 
         def make_vertical_entry(
-            number: str,
             heading: str,
             bullets: tuple[tuple[str, ...], ...],
             *,
             width: float = 5.55,
         ) -> Group:
-            number_tex = Tex(rf"\textbf{{{number}}}", color=BLACK, font_size=23)
-            number_bg = BackgroundRectangle(
-                number_tex,
-                color=WHITE,
-                fill_opacity=1.0,
-                buff=0.08,
-            )
-            number_bg.set_stroke(width=0)
-            number_group = Group(number_bg, number_tex)
-
             heading_tex = Tex(rf"\textbf{{{heading}}}", color=BLACK, font_size=24)
             if heading_tex.width > width:
                 heading_tex.scale_to_fit_width(width)
-            bullet_group = make_bullet_list(
-                bullets,
+            detail_lines = tuple(
+                line for entry in bullets for line in ((entry,) if isinstance(entry, str) else entry)
+            )
+            detail_block = text_lines(
+                detail_lines,
                 font_size=18,
                 color=BLACK,
-                width=width,
-                item_buff=0.14,
+                max_width=width,
             )
-            text_group = Group(heading_tex, bullet_group).arrange(
+            text_group = Group(heading_tex, detail_block).arrange(
                 DOWN,
                 buff=0.11,
                 aligned_edge=LEFT,
             )
-            return Group(number_group, text_group)
+            return text_group
 
         rows = Group(
             *[
                 make_vertical_entry(
-                    spec["number"],
                     spec["heading"],
                     spec["bullets"],
                 )
@@ -1562,29 +1462,21 @@ class MethodsDiffusionOpportunity(Scene):
         ).arrange(DOWN, buff=0.60)
 
         dots = VGroup()
-        for row in rows:
-            number_group, text_group = row
+        for text_group in rows:
             dot = Dot(radius=0.045, color=BLACK, stroke_width=0)
-            dot.move_to(np.array([0.0, number_group.get_center()[1], 0.0]))
-            number_group.next_to(dot, LEFT, buff=0.15)
-            text_group.next_to(dot, RIGHT, buff=0.58, aligned_edge=UP)
+            dot.move_to(np.array([0.0, text_group[0].get_center()[1], 0.0]))
+            text_group.next_to(dot, RIGHT, buff=0.24, aligned_edge=UP)
             dots.add(dot)
 
-        top_y = max(dot.get_center()[1] for dot in dots) + 0.28
-        bottom_y = min(dot.get_center()[1] for dot in dots) - 0.28
-        timeline_line = Line(
-            np.array([0.0, top_y, 0.0]),
-            np.array([0.0, bottom_y, 0.0]),
-            color=BLACK,
-            stroke_width=1.5,
+        content = Group(dots, rows)
+        available_top = title.get_bottom()[1] - 0.42
+        available_bottom = -config.frame_height / 2 + 0.55
+        content.shift(
+            UP * (((available_top + available_bottom) / 2) - content.get_center()[1])
         )
-        content = Group(timeline_line, dots, rows)
-        target_top_y = title.get_bottom()[1] - 0.74
-        content.shift(UP * (target_top_y - content.get_top()[1]))
-        content.set_x(0.0)
+        content.shift(RIGHT * (0.0 - rows.get_center()[0]))
 
         self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(Create(timeline_line), run_time=0.55)
         for dot, row in zip(dots, rows):
             self.play(
                 FadeIn(dot, scale=0.92),
@@ -1602,9 +1494,9 @@ def _build_diffusion_process_strip(
     process_title: str | tuple[str, ...],
     subtitle_text: str,
     process_formula: str,
-    action_text: str,
-    action_formula: str,
-    process_color: str,
+    action_text: str | tuple[str, ...],
+    action_formula: str | None = None,
+    process_color: str = INK,
     card_height: float = 1.08,
     footer: Mobject | None = None,
     legend: Mobject | None = None,
@@ -1643,7 +1535,7 @@ def _build_diffusion_process_strip(
         *[
             Group(
                 MathTex(latent_text, color=INK, font_size=23),
-                MathTex(sigma_text, color=MGREY, font_size=19),
+                MathTex(sigma_text, color=INK, font_size=19),
             ).arrange(DOWN, buff=0.03)
             for latent_text, sigma_text in state_specs
         ]
@@ -1654,26 +1546,32 @@ def _build_diffusion_process_strip(
     if isinstance(process_title, tuple):
         process_title_block = VGroup(
             *[
-                Tex(rf"\textbf{{{line}}}", color=process_color, font_size=25)
+                Tex(rf"\textbf{{{line}}}", color=INK, font_size=25)
                 for line in process_title
             ]
         ).arrange(DOWN, buff=0.02, aligned_edge=LEFT)
     else:
         process_title_block = Tex(
             rf"\textbf{{{process_title}}}",
-            color=process_color,
+            color=INK,
             font_size=25,
         )
 
     left_text = Group(
         process_title_block,
-        Tex(subtitle_text, color=MGREY, font_size=16),
-        MathTex(process_formula, color=process_color, font_size=23),
+        Tex(subtitle_text, color=INK, font_size=16),
+        MathTex(process_formula, color=INK, font_size=23),
     ).arrange(DOWN, buff=0.08, aligned_edge=LEFT)
-    right_text = Group(
-        Tex(action_text, color=MGREY, font_size=16),
-        MathTex(action_formula, color=process_color, font_size=23),
-    ).arrange(DOWN, buff=0.08, aligned_edge=RIGHT)
+    if isinstance(action_text, tuple):
+        action_text_block = VGroup(
+            *[Tex(line, color=INK, font_size=16) for line in action_text]
+        ).arrange(DOWN, buff=0.02, aligned_edge=LEFT)
+    else:
+        action_text_block = Tex(action_text, color=INK, font_size=16)
+    right_items: list[Mobject] = [action_text_block]
+    if action_formula is not None:
+        right_items.append(MathTex(action_formula, color=INK, font_size=23))
+    right_text = Group(*right_items).arrange(DOWN, buff=0.08, aligned_edge=RIGHT)
 
     left_text.next_to(cards[0], LEFT, buff=0.26)
     left_text.align_to(cards, UP)
@@ -1710,9 +1608,116 @@ def _build_diffusion_process_strip(
     }
 
 
+def _build_diffusion_training_schematic(
+    x_t_source: np.ndarray,
+    *,
+    card_height: float = 0.92,
+) -> dict[str, Mobject]:
+    """Build the training row: x_t card → ε_θ network box → ε̂, with left/right annotations."""
+    card = make_image_card(x_t_source, height=card_height, border_color=LGREY, buff=0.03)
+
+    net_label = MathTex(r"\epsilon_\theta", color=INK, font_size=26)
+    net_rect = RoundedRectangle(
+        width=1.10,
+        height=card_height * 0.78,
+        corner_radius=0.13,
+        stroke_color=GREEN,
+        stroke_width=1.5,
+    ).set_fill("#FAFBFC", opacity=1.0)
+    net_label.move_to(net_rect.get_center())
+    net_box = VGroup(net_rect, net_label)
+
+    eps_hat = MathTex(r"\hat{\epsilon}", color=INK, font_size=28)
+
+    net_box.next_to(card, RIGHT, buff=0.52)
+    eps_hat.next_to(net_box, RIGHT, buff=0.52)
+
+    arrow_in = Arrow(
+        card.get_right() + RIGHT * 0.02,
+        net_rect.get_left() + LEFT * 0.02,
+        color=AMBER,
+        stroke_width=1.6,
+        buff=0.04,
+        tip_length=0.13,
+        tip_shape=StealthTip,
+    )
+    arrow_out = Arrow(
+        net_rect.get_right() + RIGHT * 0.02,
+        eps_hat.get_left() + LEFT * 0.06,
+        color=GREEN,
+        stroke_width=1.6,
+        buff=0.04,
+        tip_length=0.13,
+        tip_shape=StealthTip,
+    )
+
+    t_label = MathTex(r"t\ \text{(step)}", color=INK, font_size=16)
+    c_label = MathTex(r"c\ \text{(prompt)}", color=INK, font_size=16)
+    cond_row = VGroup(t_label, c_label).arrange(RIGHT, buff=0.32)
+    cond_row.next_to(net_rect, DOWN, buff=0.22)
+
+    t_arrow = Arrow(
+        t_label.get_top(),
+        net_rect.get_bottom() + LEFT * 0.16,
+        color=MGREY,
+        stroke_width=1.1,
+        buff=0.05,
+        tip_length=0.08,
+        tip_shape=StealthTip,
+    )
+    c_arrow = Arrow(
+        c_label.get_top(),
+        net_rect.get_bottom() + RIGHT * 0.16,
+        color=MGREY,
+        stroke_width=1.1,
+        buff=0.05,
+        tip_length=0.08,
+        tip_shape=StealthTip,
+    )
+
+    schematic = Group(card, arrow_in, net_box, arrow_out, eps_hat, cond_row, t_arrow, c_arrow)
+
+    left_text = Group(
+        Tex(r"\textbf{Training}", color=INK, font_size=25),
+        MathTex(
+            r"\hat{\epsilon}_{\theta}(x_t,t,c)\approx\epsilon",
+            color=INK,
+            font_size=23,
+        ),
+    ).arrange(DOWN, buff=0.08, aligned_edge=LEFT)
+    left_text.next_to(card, LEFT, buff=0.26)
+    left_text.align_to(card, UP)
+
+    right_text = VGroup(
+        Tex(r"Training: predict the noise", color=INK, font_size=16),
+        Tex(r"component in $x_t$.", color=INK, font_size=16),
+    ).arrange(DOWN, buff=0.02, aligned_edge=LEFT)
+    right_text.next_to(eps_hat, RIGHT, buff=0.46)
+    right_text.align_to(card, UP)
+
+    diagram = Group(schematic, left_text, right_text)
+    return {
+        "card": card,
+        "schematic": schematic,
+        "left_text": left_text,
+        "right_text": right_text,
+        "diagram": diagram,
+    }
+
+
+def _align_diffusion_strip_left_edges(
+    reference_content: dict[str, Mobject],
+    target_content: dict[str, Mobject],
+) -> None:
+    """Align one diffusion row to another using the image-strip left edge."""
+    reference_cards = reference_content["cards"]
+    target_cards = target_content["cards"]
+    target_diagram = target_content["diagram"]
+    target_diagram.shift(RIGHT * (reference_cards.get_left()[0] - target_cards.get_left()[0]))
+
+
 def _play_diffusion_process_sequential(scene: Scene, content: dict[str, Mobject]) -> None:
-    """Animate a diffusion strip one step at a time."""
-    title = content["title"]
+    """Animate a diffusion strip card by card."""
     cards = content["cards"]
     arrows = content["arrows"]
     state_labels = content["state_labels"]
@@ -1721,7 +1726,6 @@ def _play_diffusion_process_sequential(scene: Scene, content: dict[str, Mobject]
     footer = content.get("footer")
     legend = content.get("legend")
 
-    scene.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
     scene.play(
         FadeIn(left_text, shift=RIGHT * 0.04),
         FadeIn(right_text, shift=LEFT * 0.04),
@@ -1737,113 +1741,45 @@ def _play_diffusion_process_sequential(scene: Scene, content: dict[str, Mobject]
             run_time=0.50,
         )
     if footer is not None:
-        scene.play(FadeIn(footer, shift=UP * 0.03), run_time=0.40)
+        scene.play(FadeIn(footer, shift=UP * 0.03), run_time=0.35)
     if legend is not None:
         scene.play(FadeIn(legend, shift=UP * 0.03), run_time=0.35)
-    scene.wait(3.00)
 
 
-def _align_diffusion_diagram_cards(reference_diagram: Group, diagram: Group) -> None:
-    """Shift a diffusion row so its image strip aligns with the reference row."""
-    reference_cards = reference_diagram[0]
-    cards = diagram[0]
-    diagram.shift(RIGHT * (reference_cards.get_center()[0] - cards.get_center()[0]))
+def _fit_rows_below_title(title: Mobject, rows: Group) -> None:
+    """Scale and center a vertical row stack below the title."""
+    available_top = title.get_bottom()[1] - 0.28
+    available_bottom = -config.frame_height / 2 + 0.28
+    available_height = available_top - available_bottom
+    if rows.height > available_height:
+        rows.scale_to_fit_height(available_height)
+    if rows.width > config.frame_width - 0.80:
+        rows.scale_to_fit_width(config.frame_width - 0.80)
+    rows.move_to(np.array([0.0, (available_top + available_bottom) / 2, 0.0]))
 
 
-def _build_diffusion_legend(entries: tuple[tuple[str, str], ...]) -> Group:
-    """Create a compact notation legend for the diffusion explainers."""
-    heading = Tex(r"\textbf{Legend}", color=INK, font_size=16)
-    rows = VGroup(
-        *[
-            VGroup(
-                MathTex(symbol, color=INK, font_size=16),
-                Tex(description, color=MGREY, font_size=14),
-            ).arrange(RIGHT, buff=0.10, aligned_edge=DOWN)
-            for symbol, description in entries
-        ]
-    ).arrange(DOWN, buff=0.06, aligned_edge=LEFT)
-    return VGroup(heading, rows).arrange(DOWN, buff=0.08, aligned_edge=LEFT)
-
-
-def _build_prompt_guidance_callout() -> Group:
-    """Explain what prompt guidance contributes during denoising."""
-    prompt_line = Tex(
-        _DIFFUSION_PROMPT,
-        color=MGREY,
-        font_size=18,
+def _align_training_row_to_forward(
+    forward_content: dict[str, Mobject],
+    training_content: dict[str, Mobject],
+) -> None:
+    """Center the training example card under the first noisy forward checkpoint."""
+    training_content["diagram"].shift(
+        RIGHT
+        * (
+            forward_content["cards"][1].get_center()[0]
+            - training_content["card"].get_center()[0]
+        )
     )
-    guidance_line = Tex(
-        r"\textbf{Text prompt guidance:} biases denoising toward prompt-consistent images",
-        tex_to_color_map={r"\textbf{Text prompt guidance:}": GREEN},
-        color=INK,
-        font_size=19,
-    )
-    block = VGroup(prompt_line, guidance_line).arrange(
-        DOWN,
-        buff=0.06,
-        aligned_edge=ORIGIN,
-    )
-    if block.width > config.frame_width - 1.2:
-        block.scale_to_fit_width(config.frame_width - 1.2)
-    return block
 
 
-class MethodsDiffusionPromptConditioning(Scene):
-    """Chapter 2.5 — diffusion explainer A: forward process."""
+class MethodsDiffusionExplainerA(Scene):
+    """Chapter 2.5 — diffusion explainer A: forward noising and training."""
 
     def construct(self) -> None:
         self.camera.background_color = BG
 
         clean = load_rgb(stim_path(_EXEMPLAR_CODE, 5))
-        pure_noise = build_ddpm_pure_noise_source(clean)
-        forward_sources = [*build_ddpm_forward_sources(clean), pure_noise]
-        legend = _build_diffusion_legend(
-            (
-                (r"x_0", "clean image"),
-                (r"x_t", "noisy image"),
-                (r"\epsilon", "Gaussian noise"),
-                (r"c", "text prompt"),
-            )
-        )
-        content = _build_diffusion_process_strip(
-            title_tex=r"\textbf{Diffusion models}",
-            sources=forward_sources,
-            state_specs=(
-                (r"x_0", r"\bar{\alpha}_0 = 1"),
-                (r"x_{t_1}", r"\bar{\alpha}_{t_1}"),
-                (r"x_{t_2}", r"\bar{\alpha}_{t_2}"),
-                (r"x_T", r"\bar{\alpha}_T \approx 0"),
-                (r"\epsilon", r"\sim \mathcal{N}(0, I)"),
-            ),
-            process_title="Forward pass",
-            subtitle_text="corrupt training set with noise",
-            process_formula=r"x_t=\sqrt{\bar{\alpha}_t}\,x_0+\sqrt{1-\bar{\alpha}_t}\,\epsilon",
-            action_text="model predicts added noise",
-            action_formula=r"\hat{\epsilon}_{\theta}(x_t, t, c)\approx\epsilon",
-            process_color=AMBER,
-            legend=legend,
-        )
-        _play_diffusion_process_sequential(self, content)
-
-
-class MethodsDiffusionTrainVsGenerate(Scene):
-    """Chapter 2.6 — diffusion explainer B: reverse loop."""
-
-    def construct(self) -> None:
-        self.camera.background_color = BG
-
-        clean = load_rgb(stim_path(_EXEMPLAR_CODE, 5))
-        pure_noise = build_ddpm_pure_noise_source(clean)
-        forward_sources = [*build_ddpm_forward_sources(clean), pure_noise]
-        reverse_sources = [pure_noise, *build_ddpm_reverse_sources(clean, seed=7)]
-        reverse_legend = _build_diffusion_legend(
-            (
-                (r"x_0", "clean image"),
-                (r"x_t", "current noisy state"),
-                (r"\hat{\epsilon}_{\theta}", "predicted noise"),
-                (r"c", "text prompt"),
-            )
-        )
+        forward_sources = build_ddpm_checkpoint_sources(clean, seed=7)
 
         forward_content = _build_diffusion_process_strip(
             title_tex=r"\textbf{Diffusion models}",
@@ -1853,117 +1789,117 @@ class MethodsDiffusionTrainVsGenerate(Scene):
                 (r"x_{t_1}", r"\bar{\alpha}_{t_1}"),
                 (r"x_{t_2}", r"\bar{\alpha}_{t_2}"),
                 (r"x_T", r"\bar{\alpha}_T \approx 0"),
-                (r"\epsilon", r"\sim \mathcal{N}(0, I)"),
             ),
-            process_title="Forward pass",
-            subtitle_text="corrupt training set with noise",
+            process_title="Forward process",
+            subtitle_text="corrupt training images",
             process_formula=r"x_t=\sqrt{\bar{\alpha}_t}\,x_0+\sqrt{1-\bar{\alpha}_t}\,\epsilon",
-            action_text="model predicts added noise",
-            action_formula=r"\hat{\epsilon}_{\theta}(x_t, t, c)\approx\epsilon",
+            action_text=("Create noisy versions", "of training images."),
             process_color=AMBER,
         )
 
-        footer = Tex(
-            r"repeat for $t = T, T-1, \dots, 1$",
-            color=BLUE,
-            font_size=18,
+        training_content = _build_diffusion_training_schematic(forward_sources[1])
+
+        title = title_block(r"\textbf{Diffusion models}")
+        title.to_edge(UP, buff=0.28)
+
+        forward_diagram = forward_content["diagram"]
+        training_diagram = training_content["diagram"]
+
+        rows = Group(forward_diagram, training_diagram).arrange(DOWN, buff=0.65)
+        _align_training_row_to_forward(forward_content, training_content)
+        _fit_rows_below_title(title, rows)
+
+        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.60)
+        _play_diffusion_process_sequential(self, forward_content)
+        self.play(FadeIn(training_diagram, shift=UP * 0.03), run_time=0.65)
+        self.wait(3.20)
+
+
+class MethodsDiffusionExplainerB(Scene):
+    """Chapter 2.6 — diffusion explainer B: add sampling beneath the earlier rows."""
+
+    def construct(self) -> None:
+        self.camera.background_color = BG
+
+        clean = load_rgb(stim_path(_EXEMPLAR_CODE, 5))
+        forward_sources = build_ddpm_checkpoint_sources(clean, seed=7)
+        reverse_sources = list(reversed(build_ddpm_checkpoint_sources(clean, seed=13)))
+
+        forward_content = _build_diffusion_process_strip(
+            title_tex=r"\textbf{Diffusion models}",
+            sources=forward_sources,
+            state_specs=(
+                (r"x_0", r"\bar{\alpha}_0 = 1"),
+                (r"x_{t_1}", r"\bar{\alpha}_{t_1}"),
+                (r"x_{t_2}", r"\bar{\alpha}_{t_2}"),
+                (r"x_T", r"\bar{\alpha}_T \approx 0"),
+            ),
+            process_title="Forward process",
+            subtitle_text="corrupt training images",
+            process_formula=r"x_t=\sqrt{\bar{\alpha}_t}\,x_0+\sqrt{1-\bar{\alpha}_t}\,\epsilon",
+            action_text=("Create noisy versions", "of training images."),
+            process_color=AMBER,
         )
+
+        training_content = _build_diffusion_training_schematic(forward_sources[1])
+
         reverse_content = _build_diffusion_process_strip(
             title_tex=r"\textbf{Diffusion models}",
             sources=reverse_sources,
             state_specs=(
-                (r"\epsilon", r"\sim \mathcal{N}(0, I)"),
                 (r"x_T", r"\bar{\alpha}_T \approx 0"),
                 (r"x_{t_2}", r"\bar{\alpha}_{t_2}"),
                 (r"x_{t_1}", r"\bar{\alpha}_{t_1}"),
                 (r"x_0", r"\bar{\alpha}_0 = 1"),
             ),
-            process_title=("Reverse denoising", "loop"),
-            subtitle_text="start from noise and iteratively denoise",
-            process_formula=r"p_{\theta}(x_{t-1} \mid x_t, c)",
-            action_text="predict noise, then sample",
-            action_formula=r"\hat{\epsilon}_{\theta}(x_t, t, c)",
+            process_title="Sampling",
+            subtitle_text=r"$x_T\!\sim\!\mathcal{N}(0,I)$; chain learned reverse steps",
+            process_formula=r"x_{t-1}\sim p_{\theta}(x_{t-1}\mid x_t,c)",
+            action_text=(
+                r"Generate by iterative reverse",
+                r"denoising, conditioned on prompt $c$.",
+            ),
             process_color=BLUE,
-            footer=footer,
-            legend=reverse_legend,
         )
 
-        title = forward_content["title"]
+        title = title_block(r"\textbf{Diffusion models}")
+        title.to_edge(UP, buff=0.28)
+
         forward_diagram = forward_content["diagram"]
+        training_diagram = training_content["diagram"]
         reverse_diagram = reverse_content["diagram"]
-        forward_left = forward_content["left_text"]
-        reverse_left = reverse_content["left_text"]
-        guidance = _build_prompt_guidance_callout()
 
-        shared_left_edge = min(forward_left.get_left()[0], reverse_left.get_left()[0])
-        forward_left.shift(RIGHT * (shared_left_edge - forward_left.get_left()[0]))
-        reverse_left.shift(RIGHT * (shared_left_edge - reverse_left.get_left()[0]))
+        start_rows = Group(forward_diagram, training_diagram).arrange(DOWN, buff=0.65)
+        _align_training_row_to_forward(forward_content, training_content)
+        _fit_rows_below_title(title, start_rows)
 
-        top_target = forward_diagram.copy()
-        bottom_target = reverse_diagram.copy()
-        row_pair = Group(top_target, bottom_target).arrange(DOWN, buff=1.08)
-        _align_diffusion_diagram_cards(top_target, bottom_target)
-
-        target_title = title_block(
-            r"\textbf{Diffusion models}",
+        target_forward = forward_diagram.copy()
+        target_training = training_diagram.copy()
+        target_reverse = reverse_diagram.copy()
+        target_rows = Group(target_forward, target_training, target_reverse).arrange(
+            DOWN, buff=0.52
         )
-        target_title.to_edge(UP, buff=0.28)
-
-        bottom_margin = 0.22
-        top_padding = 0.48
-        bottom_padding = 0.34
-        if guidance.width > config.frame_width - 1.0:
-            guidance.scale_to_fit_width(config.frame_width - 1.0)
-        guidance.to_edge(DOWN, buff=bottom_margin)
-        guidance.move_to(np.array([0.0, guidance.get_center()[1], 0.0]))
-
-        available_top = target_title.get_bottom()[1] - top_padding
-        available_bottom = guidance.get_top()[1] + bottom_padding
-        available_height = available_top - available_bottom
-        if available_height > 0.0 and row_pair.height > available_height:
-            row_pair.scale_to_fit_height(available_height)
-
-        row_pair.move_to(np.array([0.0, (available_top + available_bottom) / 2, 0.0]))
-        row_pair.shift(LEFT * top_target[0].get_center()[0])
-
-        reverse_diagram.move_to(bottom_target.get_center())
-
-        self.add(title, forward_diagram)
-
-        self.play(
-            TransformMatchingTex(title, target_title),
-            forward_diagram.animate.move_to(top_target.get_center()),
-            run_time=0.75,
-        )
-
-        reverse_cards = reverse_content["cards"]
-        reverse_arrows = reverse_content["arrows"]
-        reverse_state_labels = reverse_content["state_labels"]
-        reverse_left = reverse_content["left_text"]
-        reverse_right = reverse_content["right_text"]
-        reverse_footer = reverse_content["footer"]
-        reverse_legend_box = reverse_content["legend"]
-
-        self.play(
-            FadeIn(reverse_left, shift=RIGHT * 0.04),
-            FadeIn(reverse_right, shift=LEFT * 0.04),
-            FadeIn(reverse_cards[0], shift=UP * 0.03),
-            FadeIn(reverse_state_labels[0], shift=UP * 0.03),
-            run_time=0.65,
-        )
-        for idx in range(len(reverse_arrows)):
-            self.play(
-                Create(reverse_arrows[idx]),
-                FadeIn(reverse_cards[idx + 1], shift=RIGHT * 0.03),
-                FadeIn(reverse_state_labels[idx + 1], shift=UP * 0.03),
-                run_time=0.50,
+        target_training.shift(
+            RIGHT
+            * (
+                target_forward[0][1].get_center()[0]
+                - target_training[0][0].get_center()[0]
             )
-        if reverse_footer is not None:
-            self.play(FadeIn(reverse_footer, shift=UP * 0.03), run_time=0.35)
-        if reverse_legend_box is not None:
-            self.play(FadeIn(reverse_legend_box, shift=UP * 0.03), run_time=0.35)
-        self.play(FadeIn(guidance, shift=UP * 0.04), run_time=0.45)
-        self.wait(3.00)
+        )
+        target_reverse.shift(
+            RIGHT * (target_forward[0].get_left()[0] - target_reverse[0].get_left()[0])
+        )
+        _fit_rows_below_title(title, target_rows)
+        reverse_diagram.move_to(target_reverse.get_center())
+
+        self.add(title, forward_diagram, training_diagram)
+        self.play(
+            forward_diagram.animate.move_to(target_forward.get_center()),
+            training_diagram.animate.move_to(target_training.get_center()),
+            run_time=0.70,
+        )
+        _play_diffusion_process_sequential(self, reverse_content)
+        self.wait(3.20)
 
 
 class MethodsProjectPlan(Scene):
@@ -1978,13 +1914,11 @@ class MethodsProjectPlan(Scene):
 
         study1_generate_rows: tuple[str | tuple[str, ...], ...] = (
             (
-                "synthesise stimulus set following",
-                "design requirements",
+                "follow design requirements",
             ),
             (
-                "develop a diffusion-model-based method",
-                "to manipulate stimulus similarity",
-                "along a perceptual continuum",
+                "manipulation of",
+                "stimulus similarity",
             ),
         )
         study1_validate_rows: tuple[str | tuple[str, ...], ...] = (
@@ -2018,24 +1952,9 @@ class MethodsProjectPlan(Scene):
             heading_tex = Tex(rf"\textbf{{{heading}}}", color=INK, font_size=22)
             if heading_tex.width > width:
                 heading_tex.scale_to_fit_width(width)
-
-            body = make_bullet_list(
-                rows,
-                font_size=16,
-                color=INK,
-                width=heading_tex.width,
-                bullet_radius=0.020,
-                line_buff=0.06,
-                item_buff=0.12,
-            )
-            if body.width > heading_tex.width:
-                body.scale_to_fit_width(heading_tex.width)
-            body.next_to(heading_tex, DOWN, buff=0.10, aligned_edge=LEFT)
-            body.align_to(heading_tex, LEFT)
-            text_block = Group(heading_tex, body)
-            icon.next_to(text_block, UP, buff=0.18)
+            icon.next_to(heading_tex, UP, buff=0.18)
             icon.set_x(heading_tex.get_center()[0])
-            return Group(icon, text_block)
+            return Group(icon, heading_tex)
 
         def make_study_bracket(
             left: Mobject,
@@ -2098,7 +2017,7 @@ class MethodsProjectPlan(Scene):
             steps.scale_to_fit_width(config.frame_width - 1.90)
             steps.arrange(RIGHT, buff=1.10, aligned_edge=UP)
 
-        arrow_y = float(np.mean([step[1][0].get_center()[1] for step in steps]))
+        arrow_y = float(np.mean([step[1].get_center()[1] for step in steps]))
         arrows = VGroup(
             *[
                 Arrow(
@@ -2121,8 +2040,7 @@ class MethodsProjectPlan(Scene):
         content = Group(flow, study1_group, study2_group)
         content.move_to(ORIGIN)
 
-        self.play(FadeIn(title, shift=UP * 0.04), run_time=0.75)
-        self.play(FadeIn(steps[0], shift=UP * 0.04), run_time=0.45)
+        self.add(title, steps[0])
         self.play(Create(arrows[0]), FadeIn(steps[1], shift=UP * 0.04), run_time=0.48)
         self.play(Create(arrows[1]), FadeIn(steps[2], shift=UP * 0.04), run_time=0.48)
         self.play(
@@ -2144,8 +2062,8 @@ _METHODS_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
     MethodsStimulusRequirementsC,
     MethodsStimulusRequirementsD,
     MethodsExistingApproaches,
-    MethodsDiffusionPromptConditioning,
-    MethodsDiffusionTrainVsGenerate,
+    MethodsDiffusionExplainerA,
+    MethodsDiffusionExplainerB,
     MethodsDiffusionOpportunity,
     MethodsProjectPlan,
 )

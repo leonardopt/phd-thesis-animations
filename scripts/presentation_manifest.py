@@ -438,6 +438,26 @@ def validate_text_slide(slide_type: str, slide: dict) -> dict:
     }
 
 
+def validate_native_slide(slide: dict, project_root: Path) -> dict:
+    """Validate one native-object slide backed by a JSON layout spec."""
+    raw_path = slide.get("path")
+    if not raw_path:
+        manifest_error("'native' slide requires a path")
+
+    resolved_path = resolve_path(raw_path, project_root)
+    if not resolved_path.is_file():
+        manifest_error(f"'native' slide spec not found: {resolved_path}")
+
+    return {
+        "type": "native",
+        "path": str(resolved_path),
+        "title": slide.get("title", ""),
+        "subtitle": slide.get("subtitle", ""),
+        "body": slide.get("body", ""),
+        "notes": slide.get("notes", ""),
+    }
+
+
 def trim_blank_lines(lines: list[str]) -> str:
     """Remove blank lines from the start/end of a block while preserving content."""
     start_index = 0
@@ -758,6 +778,10 @@ def expand_slides(slides: list[dict], project_root: Path, quality_dir: str) -> l
 
         if slide_type in {"title", "section", "text"}:
             expanded.append(validate_text_slide(slide_type, slide))
+            continue
+
+        if slide_type == "native":
+            expanded.append(validate_native_slide(slide, project_root))
             continue
 
         if slide_type in {"video", "image", "pdf"}:

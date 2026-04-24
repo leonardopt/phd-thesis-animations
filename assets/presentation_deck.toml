@@ -29,7 +29,7 @@ title = "1 Introduction"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/01_intro/1080p60/sections/*.mp4"
+glob = "media/videos/01_intro/{{quality_dir}}/sections/*.mp4"
 
 [[slide]]
 type = "section"
@@ -49,7 +49,7 @@ globs = ["media/videos/03_study1/480p15/sections/00[0-9]_*.mp4", "media/videos/0
 
 [[slide]]
 type = "video_sequence"
-paths = ["media/videos/03_study1/480p15/sections/022_study1_stage3_memory_exp_design.mp4", "media/videos/03_study1/480p15/sections/022_study1_stage3_memory_exp_results.mp4"]
+paths = ["media/videos/03_study1/480p15/sections/017_study1_stage3_memory_exp_design.mp4", "media/videos/03_study1/480p15/sections/018_study1_stage3_memory_repetition_explainer.mp4", "media/videos/03_study1/480p15/sections/019_study1_stage3_memory_exp_results.mp4"]
 
 [[slide]]
 type = "section"
@@ -84,7 +84,7 @@ title = "6 Supplementary Slides"
 
 [[slide]]
 type = "video_sequence"
-paths = ["media/videos/06_supplementary/480p15/sections/000_study1_stage3_memory_intro_a.mp4", "media/videos/06_supplementary/480p15/sections/001_study1_stage3_memory_intro_b.mp4", "media/videos/06_supplementary/480p15/sections/002_study1_stage3_memory_intro_c.mp4", "media/videos/06_supplementary/480p15/sections/003_study1_stage3_memory_intro_d.mp4", "media/videos/06_supplementary/480p15/sections/004_study1_stage3_memory_intro_e.mp4"]
+paths = ["media/videos/06_supplementary/480p15/sections/000_intro_research_question_1.mp4", "media/videos/06_supplementary/480p15/sections/001_intro_research_question_2.mp4", "media/videos/06_supplementary/480p15/sections/002_intro_research_question_3.mp4", "media/videos/06_supplementary/480p15/sections/003_study1_stage3_memory_intro_a.mp4", "media/videos/06_supplementary/480p15/sections/004_study1_stage3_memory_intro_b.mp4", "media/videos/06_supplementary/480p15/sections/005_study1_stage3_memory_intro_c.mp4", "media/videos/06_supplementary/480p15/sections/006_study1_stage3_memory_intro_d.mp4", "media/videos/06_supplementary/480p15/sections/007_study1_stage3_memory_intro_e.mp4"]
 
 # Drop exported PNG/JPEG/PDF slides into assets/slides/ and add them inline:
 #

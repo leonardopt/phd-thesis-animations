@@ -16,6 +16,7 @@ import sys
 
 import numpy as np
 from manim import *
+from PIL import Image
 
 _SCENES_DIR = Path(__file__).resolve().parent
 _SCRIPTS_DIR = _SCENES_DIR.parent / "scripts"
@@ -96,7 +97,7 @@ _HARRISON_TONG_2009_FIG = str(_INTRO_FIG_DIR / "harrisontong2009.png")
 _HARRISON_TONG_2009_PARADIGM_FIG = str(_INTRO_FIG_DIR / "harrisontong2009paradigm.png")
 _CHRISTOPHEL_2012_FIG = str(_INTRO_FIG_DIR / "christophel2012.png")
 _CHRISTOPHEL_2017_FIG = str(_INTRO_FIG_DIR / "christophel2017.png")
-_INTRO_RQ3_NASA_FIG = str(_INTRO_FIG_DIR / "nasa.jpg")
+_INTRO_RQ3_MUSHROOM_FIG = str(_INTRO_FIG_DIR / "mushrooms.png")
 _VISUAL_CORTEX_FIG = str(REPO_ROOT / "assets" / "images" / "visual_cortex_white.png")
 _INTRO_HOOK_TARGET_FISH = str(_INTRO_STIM_DIR / "animal_fish-00.png")
 _INTRO_HOOK_FOIL_FISH = str(_INTRO_STIM_DIR / "animal_fish-05.png")
@@ -133,7 +134,8 @@ _INTRO_QUESTION_BULLET_GAP = 0.44
 _INTRO_QUESTION_TEXT_CENTER_X = -3.35
 _INTRO_QUESTION_VISUAL_CENTER_X = 3.35
 _INTRO_QUESTION_CONTENT_Y = -0.22
-_INTRO_QUESTION_HEADER_LEFT_X = -4.72
+_INTRO_QUESTION_HEADER_DEFAULT_LEFT_X = -4.72
+_INTRO_QUESTION_HEADER_DEFAULT_RIGHT_X = 4.80
 _INTRO_QUESTION_HEADER_Y = 3.5
 _INTRO_QUESTION_HEADER_FONT_SIZE = 28
 _INTRO_QUESTION_CLAIM_FONT_SIZE = 23.5
@@ -194,8 +196,61 @@ def _img(path: str, height: float) -> ImageMobject:
     return img
 
 
+def _bold_tex(text: str) -> str:
+    return text if r"\textbf{" in text else rf"\textbf{{{text}}}"
+
+
+def _wrap_tex_to_lines(
+    text: str,
+    *,
+    max_width: float,
+    font_size: float,
+    tex_environment: str = "flushleft",
+) -> str:
+    wrapped_paragraphs: list[str] = []
+    for paragraph in text.split(r"\\"):
+        words = paragraph.strip().split()
+        if not words:
+            continue
+        lines: list[str] = []
+        current_line: list[str] = []
+        for word in words:
+            candidate = " ".join([*current_line, word])
+            candidate_mob = Tex(candidate, font_size=font_size, tex_environment=tex_environment)
+            if candidate_mob.width <= max_width or not current_line:
+                current_line.append(word)
+            else:
+                lines.append(" ".join(current_line))
+                current_line = [word]
+        if current_line:
+            lines.append(" ".join(current_line))
+        wrapped_paragraphs.append(r"\\ ".join(lines))
+    return r"\\ ".join(wrapped_paragraphs)
+
+
+def _wrapped_tex(
+    text: str,
+    *,
+    max_width: float,
+    color: str,
+    font_size: float,
+    tex_environment: str = "flushleft",
+) -> Tex:
+    return Tex(
+        _wrap_tex_to_lines(
+            text,
+            max_width=max_width,
+            font_size=font_size,
+            tex_environment=tex_environment,
+        ),
+        color=color,
+        font_size=font_size,
+        tex_environment=tex_environment,
+    )
+
+
 def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
-    title = Tex(title_text, color=INK, font_size=34).to_edge(UP, buff=0.34)
+    title = Tex(_bold_tex(title_text), color=INK, font_size=34).to_edge(UP, buff=0.34)
     parts = [title]
     if subtitle_text is not None:
         subtitle = Tex(subtitle_text, color=INK, font_size=21)
@@ -684,11 +739,6 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
     )
     max_col_width = 3.48
 
-    def _fit_width(mob: Mobject, width: float) -> Mobject:
-        if mob.width > width:
-            mob.scale_to_fit_width(width)
-        return mob
-
     def _classical_column(
         title_text: str,
         claim_lines: tuple[str, ...],
@@ -698,38 +748,74 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
         image_height: float = 1.56,
         image_ref_lines: tuple[str, ...] = (),
     ) -> Group:
-        heading = _fit_width(
-            Tex(rf"\textbf{{{title_text}}}", color=AMBER, font_size=18),
-            max_col_width,
+        heading = _wrapped_tex(
+            rf"\textbf{{{title_text}}}",
+            max_width=max_col_width,
+            color=AMBER,
+            font_size=18,
         )
-        parts: list[Mobject] = [heading]
+        centered_parts: list[Mobject] = [heading]
+        image: ImageMobject | None = None
+        image_refs: VGroup | None = None
+        refs: VGroup | None = None
         if image_path is not None:
             image = ImageMobject(image_path)
             image.height = image_height
             if image.width > max_col_width:
                 image.scale_to_fit_width(max_col_width)
-            parts.append(image)
+            centered_parts.append(image)
         if image_ref_lines:
             image_refs = VGroup(
-                *[_fit_width(Tex(line, color=INK, font_size=12), max_col_width) for line in image_ref_lines]
+                *[
+                    _wrapped_tex(
+                        line,
+                        max_width=max_col_width,
+                        color=INK,
+                        font_size=12,
+                    )
+                    for line in image_ref_lines
+                ]
             ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
-            parts.append(image_refs)
+            centered_parts.append(image_refs)
         claim = VGroup(
-            *[_fit_width(Tex(line, color=INK, font_size=15), max_col_width) for line in claim_lines]
+            *[
+                _wrapped_tex(
+                    line,
+                    max_width=max_col_width,
+                    color=INK,
+                    font_size=15,
+                )
+                for line in claim_lines
+            ]
         ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
-        divider = Line(ORIGIN, RIGHT * max_col_width, color=LGREY, stroke_width=0.9)
-        divider.set_opacity(0.7)
-        parts.append(claim)
+        centered_parts.append(claim)
         if ref_lines:
             refs = VGroup(
-                *[_fit_width(Tex(line, color=INK, font_size=12), max_col_width) for line in ref_lines]
+                *[
+                    _wrapped_tex(
+                        line,
+                        max_width=max_col_width,
+                        color=INK,
+                        font_size=12,
+                    )
+                    for line in ref_lines
+                ]
             ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
-            parts.append(refs)
-        parts.append(divider)
-        column = Group(*parts).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
-        anchor_x = column.get_center()[0]
-        for mob in parts:
-            mob.set_x(anchor_x)
+        centered_block = Group(*centered_parts).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+        centered_anchor_x = centered_block.get_center()[0]
+        for mob in centered_parts:
+            mob.set_x(centered_anchor_x)
+
+        column_parts: list[Mobject] = [centered_block]
+        if refs is not None:
+            refs.next_to(centered_block, DOWN, buff=0.10, aligned_edge=LEFT)
+            refs.align_to(claim, LEFT)
+            column_parts.append(refs)
+
+        column = Group(*column_parts)
+        column.centered_block = centered_block
+        column.claim = claim
+        column.refs = refs
         return column
 
     columns = Group(
@@ -786,16 +872,21 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
 
     for column, dot in zip(columns, dots):
         column.next_to(dot, DOWN, buff=0.20)
+        column.centered_block.set_x(dot.get_x())
+        if column.refs is not None:
+            column.refs.align_to(column.claim, LEFT)
 
     content = Group(timeline_line, dots, columns)
-    takeaway = Tex(
-        r"\textbf{Focus} on \textbf{association areas} as primary neural substrates of working memory",
+    takeaway = _wrapped_tex(
+        r"Focus on prefrontal and parietal areas as primary neural substrates of working memory",
+        max_width=content.width + 0.15,
         color=INK,
         font_size=22,
     )
-    takeaway.scale_to_fit_width(min(takeaway.width, content.width + 0.15))
-    takeaway.next_to(columns, DOWN, buff=0.34)
+    takeaway.next_to(columns, DOWN, buff=0.52)
     takeaway.set_x(content.get_center()[0])
+    content_block = Group(content, takeaway)
+    content_block.set_y(0.0)
     return {
         "title": title,
         "timeline_line": timeline_line,
@@ -803,7 +894,7 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
         "columns": columns,
         "content": content,
         "takeaway": takeaway,
-        "final_group": Group(title, content, takeaway),
+        "final_group": Group(title, content_block),
     }
 
 
@@ -813,28 +904,35 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     )
     sensory_accent = "#18324D"
 
-    def _fit_width(mob: Mobject, width: float) -> Mobject:
-        if mob.width > width:
-            mob.scale_to_fit_width(width)
-        return mob
-
     def _sensory_text_entry(
         heading_lines: tuple[str, ...],
         body_lines: tuple[str, ...],
         ref_lines: tuple[str, ...],
-        *,
-        width: float = 4.95,
     ) -> Group:
         heading = VGroup(
-            *[_fit_width(Tex(line, color=sensory_accent, font_size=20), width) for line in heading_lines]
+            *[
+                Tex(line, color=INK, font_size=20, tex_environment="flushleft")
+                for line in heading_lines
+            ]
         ).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
-        body = VGroup(
-            *[_fit_width(Tex(line, color=INK, font_size=16), width) for line in body_lines]
-        ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
-        refs = VGroup(
-            *[_fit_width(Tex(line, color=INK, font_size=13), width) for line in ref_lines]
-        ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
-        return Group(heading, body, refs).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
+        parts: list[Mobject] = [heading]
+        if body_lines:
+            body = VGroup(
+                *[
+                    Tex(line, color=INK, font_size=16, tex_environment="flushleft")
+                    for line in body_lines
+                ]
+            ).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
+            parts.append(body)
+        if ref_lines:
+            refs = VGroup(
+                *[
+                    Tex(line, color=INK, font_size=13, tex_environment="flushleft")
+                    for line in ref_lines
+                ]
+            ).arrange(DOWN, buff=0.03, aligned_edge=LEFT)
+            parts.append(refs)
+        return Group(*parts).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
 
     def _study_figure(
         image_path: str,
@@ -853,39 +951,32 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
 
     what_it_does = _sensory_text_entry(
         (
-            r"\textbf{Sensory areas actively recruited}",
+            r"Sensory areas support",
+            r"working memory",
         ),
+        (),
         (
-            "for working memory maintenance.",
-        ),
-        (
-            r"Awh \& Jonides (2001); Pasternak \& Greenlee (2005)",
-            r"Postle (2006)",
+            r"Awh \& Jonides (2001); Postle (2006)",
         ),
     )
     evidence_source = _sensory_text_entry(
         (
-            r"\textbf{Multivariate Pattern Analysis evidence}",
+            r"MVPA decodes stimulus-specific",
+            r"information during the delay",
         ),
-        (
-            "stimulus-specific features can be decoded",
-            "from sensory cortices during working memory maintenance.",
-        ),
+        (),
         (
             r"Harrison \& Tong (2009); Serences et al. (2009)",
-            r"Christophel et al. (2012)",
         ),
     )
     distributed_function = _sensory_text_entry(
         (
-            r"\textbf{Distributed function}",
+            r"Working memory is distributed",
+            r"across cortex",
         ),
+        (),
         (
-            "working memory reflects distributed cortical",
-            "function rather than a single localized store.",
-        ),
-        (
-            r"Fuster (1997); Christophel et al. (2017)",
+            r"Christophel et al. (2017)",
         ),
     )
     entries = Group(what_it_does, evidence_source, distributed_function).arrange(
@@ -898,16 +989,6 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
         for entry in entries
     ]
     timeline_x = entries.get_left()[0] - 0.88
-    line_margin = 0.82
-    top_y = max(dot_anchor_ys) + line_margin
-    bottom_y = min(dot_anchor_ys) - line_margin
-    timeline_line = Line(
-        np.array([timeline_x, top_y, 0.0]),
-        np.array([timeline_x, bottom_y, 0.0]),
-        color=MGREY,
-        stroke_width=1.5,
-    )
-    timeline_line.set_opacity(0.78)
     dots = VGroup(
         *[
             Dot(radius=0.055, color=sensory_accent, stroke_width=0).move_to(
@@ -921,12 +1002,12 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
         _study_figure(
             _HARRISON_TONG_2009_PARADIGM_FIG,
             None,
-            height=1.84,
+            height=2.10,
         ),
         _study_figure(
             _HARRISON_TONG_2009_FIG,
             None,
-            height=1.84,
+            height=2.10,
         ),
     ).arrange(RIGHT, buff=0.20, aligned_edge=UP)
     top_row_ref = Tex(r"Harrison \& Tong (2009)", color=INK, font_size=12)
@@ -934,27 +1015,21 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     top_row_ref.set_x(top_row.get_center()[0])
     bottom_row = Group(
         _study_figure(
-            _CHRISTOPHEL_2012_FIG,
-            r"Christophel et al. (2012)",
-            height=1.74,
-        ),
-        _study_figure(
             _CHRISTOPHEL_2017_FIG,
             r"Christophel et al. (2017)",
-            height=1.74,
+            height=2.18,
         ),
-    ).arrange(RIGHT, buff=0.20, aligned_edge=UP)
+    )
     bottom_row.next_to(top_row_ref, DOWN, buff=0.42)
     bottom_row.set_x(top_row.get_center()[0])
     figure_column = Group(top_row, top_row_ref, bottom_row)
     figure_column.next_to(entries, RIGHT, buff=1.02, aligned_edge=UP)
     figure_column.set_y(entries.get_center()[1])
     left_column_shift = LEFT * 0.34
-    timeline_line.shift(left_column_shift)
     dots.shift(left_column_shift)
     entries.shift(left_column_shift)
 
-    content = Group(timeline_line, dots, entries, figure_column)
+    content = Group(dots, entries, figure_column)
     content.next_to(title, DOWN, buff=0.34)
     content.set_x(-0.26)
     dot_mid_y = 0.5 * (dots[0].get_center()[1] + dots[-1].get_center()[1])
@@ -962,7 +1037,6 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     return {
         "title": title,
         "hero_figure": hero_figure,
-        "timeline_line": timeline_line,
         "dots": dots,
         "entries": entries,
         "figure_column": figure_column,
@@ -974,8 +1048,23 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
 _INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
     {
         "kicker": "Research question 1",
-        "title": "Representational format",
+        "title": "",
         "subtitle": "Are working memory representations sensory-like?",
+        "header_left_x": -5.00,
+        "header_right_x": config.frame_width / 2 - 0.42,
+        "format_sensory_title": "Sensory-like",
+        "format_sensory_1": "Efficient",
+        "format_sensory_2": "High-fidelity",
+        "format_sensory_2_refs": r"(Pasternak \& Greenlee, 2005; Serences, 2016)",
+        "format_sensory_3": "Evidence of cross-decoding",
+        "format_sensory_3_refs": r"(Harrison \& Tong, 2009; Albers et al., 2013; Rademaker et al., 2019; Iamshchinina et al., 2021; Vo et al., 2022)",
+        "format_memory_title": "Memory-specific",
+        "format_memory_1": "Avoid interference",
+        "format_memory_1_refs": r"(Bettencourt \& Xu, 2016; Libby \& Buschman, 2021)",
+        "format_memory_2": "Evidence of separate formats",
+        "format_memory_2_refs": r"(Duan \& Curtis, 2024)",
+        "format_memory_3": "Dynamic codes",
+        "format_memory_3_refs": r"(Buschman \& Miller, 2022; Deguits et al., 2025)",
         "bullet_1": r"Overlapping neural populations could enable \textbf{efficient and high-fidelity} feature storage.",
         "bullet_1_refs": r"(Pasternak \& Greenlee, 2005; Serences, 2016)",
         "bullet_2": r"Some evidence of \textbf{cross-decoding} suggests shared sensory codes.",
@@ -988,30 +1077,28 @@ _INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
     },
     {
         "kicker": "Research question 2",
-        "title": "Ecological validity",
-        "subtitle": r"Does the sensory recruitment model\\generalize to naturalistic cognition?",
-        "bullet_1": "Standard working memory stimuli are perceptually simple.",
+        "title": "",
+        "subtitle": r"Does sensory recruitment generalize to naturalistic WM?",
+        "header_left_x": -5.00,
+        "header_right_x": config.frame_width / 2 - 0.42,
+        "bullet_1": "Commonly used WM stimuli are simple.",
         "bullet_2": "Real-world settings are perceptually and semantically rich.",
-        "bullet_3": r"Growing interest in naturalistic working-memory.",
-        "bullet_3_refs": r"(Orhan \& Jacobs, 2014; Brady et al., 2019; Bates et al., 2024; Adam et al., 2025)",
-        "bullet_4": "Stimulus type and task demands may influence sensory-memory cross-decoding.",
-        "bullet_4_refs": r"(Duan \& Curtis, 2024) (Serences, 2016; Christophel et al., 2017)",
-        "bullet_5": "Generalisation problem, need for complementary evidence with naturalistic stimuli",
+        "bullet_3": "Stimulus type and task demands may shape cross-decoding.",
+        "bullet_3_refs": r"(Duan \& Curtis, 2024) (Serences, 2016; Christophel et al., 2017)",
         "accent": RQ_RED,
     },
     {
         "kicker": "Research question 3",
         "title": "Long-term memory interaction",
         "subtitle": r"Do pre-existing long-term memory representations\\affect how the early visual cortex represents\\working memory content?",
-        "bullet_1": "Working memory and long-term memory often studied in isolation.",
-        "bullet_1_refs": r"(Schurgin, 2018; Eriksson et al., 2015; Bartsch et al., 2024)",
-        "bullet_2": "Working memory integrates incoming sensory signals with content from long-term memory.",
-        "bullet_2_refs": r"(Singer, 2021)",
-        "bullet_3": "Familiarity and meaning improve working-memory performance and capacity.",
-        "bullet_3_refs": r"(Xie \& Zhang, 2018; Ngiam et al., 2019; Buttle \& Raymond, 2003; Curby \& Gauthier, 2007; Jackson \& Raymond, 2008; Brady \& St{\"o}rmer, 2022)",
-        "bullet_4": "Neuroimaging evidence that maintained WM content and retrieved LTM content share a sensory-like representational format.",
-        "bullet_4_refs": r"(Vo et al., 2022)",
-        "bullet_5": "Long-term memory traces may affect storing of working memory content in early visual cortex.",
+        "header_left_x": -5.00,
+        "header_right_x": config.frame_width / 2 - 0.42,
+        "bullet_1": "WM and LTM are often studied in isolation, despite continuous interaction.",
+        "bullet_1_refs": r"(Schurgin, 2018; Singer, 2021)",
+        "bullet_2": "Familiarity and meaning improve working-memory performance.",
+        "bullet_2_refs": r"(Xie \& Zhang, 2018; Ngiam et al., 2019; Brady \& St{\"o}rmer, 2022)",
+        "bullet_3": r"Shared format?",
+        "bullet_3_refs": r"(Vo et al., 2022)",
         "accent": RQ_GREEN,
     },
 )
@@ -1026,14 +1113,15 @@ def _intro_question_context_block(spec: dict[str, str]) -> VGroup:
 
     cue_lines = VGroup(
         *[
-            Tex(spec[f"bullet_{idx}"], color=INK, font_size=21, tex_environment="flushleft")
+            _wrapped_tex(
+                spec[f"bullet_{idx}"],
+                max_width=5.55,
+                color=INK,
+                font_size=21,
+            )
             for idx in bullet_indices
         ]
     )
-    max_line_width = max(line.width for line in cue_lines)
-    if max_line_width > 5.55:
-        shared_scale = 5.55 / max_line_width
-        cue_lines.scale(shared_scale)
     for line in cue_lines[1:]:
         line.align_to(cue_lines[0], LEFT)
 
@@ -1042,9 +1130,12 @@ def _intro_question_context_block(spec: dict[str, str]) -> VGroup:
         refs_key = f"bullet_{idx}_refs"
         refs_text = spec.get(refs_key)
         if refs_text:
-            refs = Tex(refs_text, color=INK, font_size=13, tex_environment="flushleft")
-            if refs.width > 5.35:
-                refs.scale_to_fit_width(5.35)
+            refs = _wrapped_tex(
+                refs_text,
+                max_width=5.35,
+                color=INK,
+                font_size=13,
+            )
             item = VGroup(line, refs).arrange(DOWN, buff=0.06, aligned_edge=LEFT)
         else:
             item = VGroup(line)
@@ -1074,9 +1165,12 @@ def _intro_question_matrix(
     *,
     cell: float = 0.13,
     scale_factor: float = 1.28,
+    target_width: float | None = None,
 ) -> VGroup:
     cells = _mini_matrix(matrix, cell=cell)
     cells.scale(scale_factor)
+    if target_width is not None:
+        cells.scale_to_fit_width(target_width)
     cells.set_opacity(0.95)
     return cells
 
@@ -1086,6 +1180,7 @@ def _intro_question_visual_chip(
     label_text: str,
     *,
     image_opacity: float = 1.0,
+    hide_label: bool = False,
 ) -> Group:
     image = ImageMobject(image_path)
     image.scale_to_fit_width(0.82)
@@ -1094,6 +1189,10 @@ def _intro_question_visual_chip(
     label = Tex(label_text, color=INK, font_size=15)
     if label.width > 1.90:
         label.scale_to_fit_width(1.90)
+    if hide_label:
+        label = Rectangle(width=0.01, height=label.height).set_stroke(width=0, opacity=0).set_fill(
+            opacity=0
+        )
     return Group(image, label).arrange(DOWN, buff=0.10)
 
 
@@ -1124,19 +1223,66 @@ def _intro_question_image_with_ref(
 
 
 def _build_intro_question_visual_format(spec: dict[str, str]) -> Group:
-    source_matrix = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT)
-    sensory_like_matrix = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT)
-    memory_specific_matrix = _intro_question_matrix(_REPRESENTATION_MEMORY_PATTERN)
+    def _explanation_block(
+        title_text: str,
+        items: tuple[tuple[str, str | None], ...],
+    ) -> VGroup:
+        title = _wrapped_tex(
+            rf"\textbf{{{title_text}}}",
+            max_width=3.12,
+            color=INK,
+            font_size=20,
+        )
+        item_groups = VGroup()
+        for line_text, refs_text in items:
+            bullet = Dot(radius=0.022, color=spec["accent"], stroke_width=0)
+            line = _wrapped_tex(
+                line_text,
+                max_width=2.90,
+                color=INK,
+                font_size=17,
+            )
+            bullet_line = VGroup(bullet, line).arrange(RIGHT, buff=0.12, aligned_edge=UP)
+            if refs_text:
+                refs = _wrapped_tex(
+                    refs_text,
+                    max_width=2.82,
+                    color=INK,
+                    font_size=11.5,
+                )
+                refs.next_to(bullet_line, DOWN, buff=0.04, aligned_edge=LEFT)
+                refs.align_to(line, LEFT)
+                item = VGroup(bullet_line, refs).arrange(DOWN, buff=0.04, aligned_edge=LEFT)
+            else:
+                item = VGroup(bullet_line)
+            item_groups.add(item)
 
-    left_column = Group(
-        _intro_question_visual_chip(_INTRO_HOOK_QUESTION_NORMAL_FISH, "sensory"),
+        item_groups.arrange(DOWN, buff=0.14, aligned_edge=LEFT)
+        return VGroup(title, item_groups).arrange(DOWN, buff=0.16, aligned_edge=LEFT)
+
+    chip_width = 0.82
+    source_matrix = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT, target_width=chip_width)
+    sensory_like_matrix = _intro_question_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT, target_width=chip_width)
+    memory_specific_matrix = _intro_question_matrix(_REPRESENTATION_MEMORY_PATTERN, target_width=chip_width)
+
+    source_pair = Group(
+        _intro_question_visual_chip(
+            _INTRO_HOOK_QUESTION_NORMAL_FISH,
+            "Sensory",
+            hide_label=True,
+        ),
         source_matrix,
     ).arrange(DOWN, buff=0.18)
+    source_side_label = Tex(r"\textbf{Sensory}", color=INK, font_size=20)
+    source_side_label.next_to(source_pair, LEFT, buff=0.18)
+    source_side_label.set_y(source_pair.get_center()[1])
+    left_column = Group(source_side_label, source_pair)
     top_target = Group(
         _intro_question_visual_chip(
             _INTRO_HOOK_QUESTION_FISH,
             "sensory-like",
             image_opacity=0.94,
+            hide_label=True,
         ),
         sensory_like_matrix,
     ).arrange(DOWN, buff=0.18)
@@ -1145,16 +1291,17 @@ def _build_intro_question_visual_format(spec: dict[str, str]) -> Group:
             _INTRO_HOOK_QUESTION_MEMORY_FISH,
             "memory-specific",
             image_opacity=0.46,
+            hide_label=True,
         ),
         memory_specific_matrix,
     ).arrange(DOWN, buff=0.18)
 
-    right_stack_gap = 0.72
+    right_stack_gap = 0.46
     max_target_height = max(top_target.height, bottom_target.height)
     target_center_offset = 0.5 * (max_target_height + right_stack_gap)
     right_stack_x = (
         left_column.get_right()[0]
-        + 0.92
+        + 0.84
         + 0.5 * max(top_target.width, bottom_target.width)
     )
     top_target.set_x(right_stack_x)
@@ -1166,14 +1313,18 @@ def _build_intro_question_visual_format(spec: dict[str, str]) -> Group:
 
     columns = Group(left_column, right_stack)
 
-    source_label = left_column[0][1]
-    top_label = top_target[0][1]
-    bottom_label = bottom_target[0][1]
-    branch_origin = np.array([source_label.get_right()[0] + 0.10, source_label.get_center()[1], 0.0])
-    target_x = min(top_label.get_left()[0], bottom_label.get_left()[0]) - 0.14
-    trunk_x = branch_origin[0] + 0.36 * (target_x - branch_origin[0])
-    trunk_top_y = top_label.get_center()[1]
-    trunk_bottom_y = bottom_label.get_center()[1]
+    source_image = source_pair[0][0]
+    top_image = top_target[0][0]
+    bottom_image = bottom_target[0][0]
+    source_lane_y = 0.5 * (source_image.get_bottom()[1] + source_pair[1].get_top()[1])
+    top_lane_y = 0.5 * (top_image.get_bottom()[1] + top_target[1].get_top()[1])
+    bottom_lane_y = 0.5 * (bottom_image.get_bottom()[1] + bottom_target[1].get_top()[1])
+
+    branch_origin = np.array([source_image.get_right()[0] + 0.10, source_lane_y, 0.0])
+    target_x = min(top_image.get_left()[0], bottom_image.get_left()[0]) - 0.14
+    trunk_x = branch_origin[0] + 0.46 * (target_x - branch_origin[0])
+    trunk_top_y = top_lane_y
+    trunk_bottom_y = bottom_lane_y
 
     lead_out = Line(
         branch_origin,
@@ -1206,7 +1357,59 @@ def _build_intro_question_visual_format(spec: dict[str, str]) -> Group:
         stroke_width=1.2,
     )
     branch = VGroup(lead_out, top_trunk, bottom_trunk, top_branch, bottom_branch).set_stroke(opacity=0.82)
-    root = Group(columns, branch)
+    main_visual = Group(columns, branch)
+    main_visual.shift(LEFT * 0.92)
+
+    top_block = _explanation_block(
+        spec["format_sensory_title"],
+        (
+            (spec["format_sensory_1"], None),
+            (spec["format_sensory_2"], spec["format_sensory_2_refs"]),
+            (spec["format_sensory_3"], spec["format_sensory_3_refs"]),
+        ),
+    )
+    bottom_block = _explanation_block(
+        spec["format_memory_title"],
+        (
+            (spec["format_memory_1"], spec["format_memory_1_refs"]),
+            (spec["format_memory_2"], spec["format_memory_2_refs"]),
+            (spec["format_memory_3"], spec["format_memory_3_refs"]),
+        ),
+    )
+
+    text_left_x = max(top_target.get_right()[0], bottom_target.get_right()[0]) + 1.00
+    for block, lane_y in ((top_block, top_lane_y), (bottom_block, bottom_lane_y)):
+        block.set_x(text_left_x + 0.5 * block.width)
+        block.set_y(lane_y)
+
+    arrow_color = spec["accent"]
+    top_arrow = Arrow(
+        np.array([top_image.get_right()[0] + 0.16, trunk_top_y, 0.0]),
+        np.array([top_block.get_left()[0] - 0.16, trunk_top_y, 0.0]),
+        buff=0.0,
+        stroke_width=1.5,
+        tip_length=0.12,
+        max_stroke_width_to_length_ratio=6.0,
+        color=arrow_color,
+    )
+    bottom_arrow = Arrow(
+        np.array([bottom_image.get_right()[0] + 0.16, trunk_bottom_y, 0.0]),
+        np.array([bottom_block.get_left()[0] - 0.16, trunk_bottom_y, 0.0]),
+        buff=0.0,
+        stroke_width=1.5,
+        tip_length=0.12,
+        max_stroke_width_to_length_ratio=6.0,
+        color=arrow_color,
+    )
+    for arrow in (top_arrow, bottom_arrow):
+        arrow.set_stroke(opacity=0.86)
+
+    root = Group(main_visual, top_arrow, bottom_arrow, top_block, bottom_block)
+    root.main_visual = main_visual
+    root.top_arrow = top_arrow
+    root.bottom_arrow = bottom_arrow
+    root.top_block = top_block
+    root.bottom_block = bottom_block
     root.left_column = left_column
     root.top_target = top_target
     root.bottom_target = bottom_target
@@ -1228,10 +1431,7 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
             for path, ref in _INTRO_RQ2_SIMPLE_STIMULI
         ]
     ).arrange(RIGHT, buff=0.12)
-    simple_block = Group(
-        _row_header(r"Traditional working memory stimuli", font_size=14),
-        simple_cards,
-    ).arrange(DOWN, buff=0.12)
+    simple_block = Group(simple_cards)
 
     intermediate_cards = Group(
         *[
@@ -1239,10 +1439,7 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
             for path, ref in _INTRO_RQ2_INTERMEDIATE_STIMULI
         ]
     ).arrange(RIGHT, buff=0.18)
-    intermediate_block = Group(
-        _row_header(r"Meaningful object stimuli", font_size=14),
-        intermediate_cards,
-    ).arrange(DOWN, buff=0.12)
+    intermediate_block = Group(intermediate_cards)
 
     natural_cards = Group(
         *[
@@ -1253,14 +1450,7 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
     natural_ref = Tex(r"Pettini et al. (2025)", color=INK, font_size=10)
     if natural_ref.width > natural_cards.width:
         natural_ref.scale_to_fit_width(natural_cards.width)
-    natural_block = Group(
-        _row_header(
-            r"Perceptually and semantically rich\\naturalistic cognition",
-            font_size=14,
-        ),
-        natural_cards,
-        natural_ref,
-    ).arrange(DOWN, buff=0.12)
+    natural_block = Group(natural_cards, natural_ref).arrange(DOWN, buff=0.12)
 
     rows = Group(simple_block, intermediate_block, natural_block).arrange(DOWN, buff=0.26)
     rows.simple_block = simple_block
@@ -1271,55 +1461,51 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
 
 def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
     def _build_top_block() -> Group:
-        photo = ImageMobject(_INTRO_RQ3_NASA_FIG)
-        photo_card = framed_visual(photo, width=4.30, height=2.92, corner_radius=0.06)
+        fish_a = ImageMobject(_INTRO_HOOK_TARGET_FISH)
+        fish_a.scale_to_fit_height(0.80)
+        fish_b = ImageMobject(_INTRO_HOOK_FOIL_FISH)
+        fish_b.scale_to_fit_height(0.80)
+        fish_row = Group(fish_a, fish_b).arrange(RIGHT, buff=0.16)
 
-        quote = Tex(
-            r"``\emph{...the darker parts aren't quite in the right place}\\"
-            r"\emph{and something about you senses that is not the Moon}\\"
-            r"\emph{that I'm used to seeing.}''",
+        with Image.open(_INTRO_RQ3_MUSHROOM_FIG) as mushroom_source:
+            mushroom_pixels = np.array(mushroom_source.convert("RGBA"))
+        source_h, source_w = mushroom_pixels.shape[:2]
+        footer_cut = int(source_h * 0.79)
+        center_gap = int(source_w * 0.09)
+        half_w = source_w // 2
+        left_panel = mushroom_pixels[:footer_cut, : half_w - center_gap // 2]
+        right_panel = mushroom_pixels[:footer_cut, half_w + center_gap // 2 :]
+
+        left_mushroom = ImageMobject(left_panel)
+        right_mushroom = ImageMobject(right_panel)
+        mushroom_row = Group(left_mushroom, right_mushroom).arrange(RIGHT, buff=0.16)
+        mushroom_row.scale_to_fit_width(fish_row.width)
+
+        left_label = Tex(r"\textit{Cantharellus cibarius}", color=INK, font_size=10.5)
+        right_label = Tex(r"\textit{Hygrophoropsis aurantiaca}", color=INK, font_size=10.5)
+        left_label.scale_to_fit_width(left_mushroom.width)
+        right_label.scale_to_fit_width(right_mushroom.width)
+        left_label.next_to(left_mushroom, DOWN, buff=0.08)
+        right_label.next_to(right_mushroom, DOWN, buff=0.08)
+        mushroom_labels = Group(left_label, right_label)
+
+        mushroom_credit = Tex(
+            r"Dr.\ Rita L{\"u}der / BLV Verlag",
             color=INK,
-            font_size=16,
-            tex_environment="flushleft",
+            font_size=12,
         )
-        if quote.width > 4.38:
-            quote.scale_to_fit_width(4.38)
-
-        attribution = Tex(
-            r"NASA Astronaut Christina Koch, 5 April 2026",
-            color=INK,
-            font_size=13,
-        )
-        if attribution.width > 4.38:
-            attribution.scale_to_fit_width(4.38)
-
-        photo_credit = Tex(
-            r"Photo credit: NASA",
-            color=INK,
-            font_size=11,
-        )
-        if photo_credit.width > 4.38:
-            photo_credit.scale_to_fit_width(4.38)
-
-        quote_block = VGroup(quote, attribution).arrange(
-            DOWN,
-            buff=0.12,
-            aligned_edge=LEFT,
-        )
-        quote_block.align_to(photo_card, LEFT)
-
-        supporting_text = VGroup(photo_credit, quote_block).arrange(
+        if mushroom_credit.width > mushroom_row.width:
+            mushroom_credit.scale_to_fit_width(mushroom_row.width)
+        mushroom_credit.set_x(mushroom_row.get_center()[0])
+        mushroom_block = Group(mushroom_row, mushroom_labels, mushroom_credit).arrange(
             DOWN,
             buff=0.10,
             aligned_edge=LEFT,
         )
-        supporting_text.align_to(photo_card, LEFT)
+        mushroom_labels.set_x(mushroom_row.get_center()[0])
+        mushroom_credit.set_x(mushroom_row.get_center()[0])
 
-        return Group(photo_card, supporting_text).arrange(
-            DOWN,
-            buff=0.14,
-            aligned_edge=LEFT,
-        )
+        return Group(fish_row, mushroom_block).arrange(DOWN, buff=0.16)
 
     def _matrix_with_label(matrix: np.ndarray, label_text: str) -> Group:
         matrix_mob = _intro_question_matrix(matrix, cell=0.13, scale_factor=1.10)
@@ -1334,10 +1520,7 @@ def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
         label.set_x(matrix_mob.get_center()[0])
 
     top_block_intro = _build_top_block()
-    top_block_intro.move_to(ORIGIN)
-
     top_block_final = _build_top_block()
-    top_block_final.scale(0.88)
 
     sensory_like_matrix = interpolate_matrix(
         _REPRESENTATION_MEMORY_PATTERN,
@@ -1428,12 +1611,13 @@ def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
         bottom_branch,
     )
 
-    matrix_block.next_to(top_block_final, DOWN, buff=0.30, aligned_edge=LEFT)
+    matrix_block.next_to(top_block_final, DOWN, buff=0.30)
 
-    top_shift = 0.5 * (matrix_block.height + 0.30)
+    top_shift = 0.5 * (matrix_block.height + 0.24)
     top_block_final.move_to(UP * top_shift)
-    matrix_block.next_to(top_block_final, DOWN, buff=0.30, aligned_edge=LEFT)
-    matrix_block.set_x(top_block_final[0].get_center()[0])
+    matrix_block.next_to(top_block_final, DOWN, buff=0.30)
+    matrix_block.set_x(top_block_final.get_center()[0])
+    top_block_intro.move_to(top_block_final)
 
     root = Group(top_block_intro, top_block_final, matrix_block)
     root.top_block_intro = top_block_intro
@@ -1452,50 +1636,171 @@ def _build_intro_question_visual(question_idx: int, spec: dict[str, str]) -> VGr
 
 def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
     spec = _INTRO_RESEARCH_QUESTIONS[question_idx]
-    header_left_x = _INTRO_QUESTION_HEADER_LEFT_X
     header_y = _INTRO_QUESTION_HEADER_Y
-
-    header_dot = Dot(radius=0.046, color=spec["accent"], stroke_width=0)
-    header_dot.move_to(np.array([header_left_x, header_y, 0.0]))
-
+    is_rq1 = question_idx == 0
+    question_in_header = question_idx in (0, 1)
     kicker = Tex(spec["kicker"], color=INK, font_size=_INTRO_QUESTION_HEADER_FONT_SIZE)
-    kicker.next_to(header_dot, RIGHT, buff=0.16)
     kicker.set_y(header_y)
 
     header_separator = Line(ORIGIN, RIGHT * 0.54, color=spec["accent"], stroke_width=1.8)
     header_separator.next_to(kicker, RIGHT, buff=0.22)
     header_separator.set_y(header_y)
 
-    header_title = Tex(spec["title"], color=INK, font_size=_INTRO_QUESTION_HEADER_FONT_SIZE)
-    if header_title.width > 3.30:
-        header_title.scale_to_fit_width(3.30)
+    header_title_text = spec["subtitle"] if question_in_header else spec["title"]
+    header_title = Tex(_bold_tex(header_title_text), color=INK, font_size=_INTRO_QUESTION_HEADER_FONT_SIZE)
     header_title.next_to(header_separator, RIGHT, buff=0.22)
     header_title.set_y(header_y)
-
-    header_rule = Line(
-        np.array([header_left_x - 0.02, header_y - 0.36, 0.0]),
-        np.array([4.80, header_y - 0.36, 0.0]),
-        color=LGREY,
-        stroke_width=1.0,
+    header_text_group = VGroup(kicker, header_separator, header_title)
+    header_rule_extension = 0.18
+    header_rule_half_width = 0.5 * header_text_group.width + header_rule_extension
+    header_title_rule = Line(
+        LEFT * header_rule_half_width,
+        RIGHT * header_rule_half_width,
+        color=spec["accent"],
+        stroke_width=1.8,
     )
-    header_rule.set_stroke(opacity=0.72)
-    header = VGroup(header_dot, kicker, header_separator, header_title, header_rule)
+    header_title_rule.next_to(header_text_group, DOWN, buff=0.12)
+    header_title_rule.set_x(header_text_group.get_center()[0])
+    header_title_rule.set_opacity(0.82)
 
-    question_claim = Tex(
-        spec["subtitle"],
-        color=INK,
-        font_size=_INTRO_QUESTION_CLAIM_FONT_SIZE,
-        tex_environment="flushleft",
-    )
-    if question_claim.width > _INTRO_QUESTION_CLAIM_MAX_WIDTH:
-        question_claim.scale_to_fit_width(_INTRO_QUESTION_CLAIM_MAX_WIDTH)
+    frame_half_width = config.frame_width / 2
+    row_half_width = header_rule_half_width
+    row_padding = 0.28
+    min_row_center_x = -frame_half_width + row_padding + row_half_width
+    max_row_center_x = frame_half_width - row_padding - row_half_width
+    header_text_group.set_x(np.clip(0.0, min_row_center_x, max_row_center_x))
+    header_title_rule.set_x(header_text_group.get_center()[0])
+
+    header = VGroup(header_text_group, header_title_rule)
+
+    if is_rq1:
+        question_claim = VGroup()
+        cue_dots = VGroup()
+        bullet_items = VGroup()
+        visual = _build_intro_question_visual(question_idx, spec)
+        visual.scale(0.98)
+        visual.move_to(ORIGIN)
+        question_card = Group(visual)
+        return {
+            "header": header,
+            "question_claim": question_claim,
+            "cue_dots": cue_dots,
+            "bullet_items": bullet_items,
+            "visual": visual,
+            "question_card_without_rule": Group(visual),
+            "question_card": question_card,
+            "content": question_card,
+            "final_group": Group(header, question_card),
+            "visual_left_column": getattr(visual, "left_column", None),
+            "visual_top_target": getattr(visual, "top_target", None),
+            "visual_bottom_target": getattr(visual, "bottom_target", None),
+            "visual_lead_out": getattr(visual, "lead_out", None),
+            "visual_top_trunk": getattr(visual, "top_trunk", None),
+            "visual_bottom_trunk": getattr(visual, "bottom_trunk", None),
+            "visual_top_branch": getattr(visual, "top_branch", None),
+            "visual_bottom_branch": getattr(visual, "bottom_branch", None),
+            "visual_simple_block": getattr(visual, "simple_block", None),
+            "visual_bridge_block": getattr(visual, "bridge_block", None),
+            "visual_natural_block": getattr(visual, "natural_block", None),
+            "visual_top_block_intro": getattr(visual, "top_block_intro", None),
+            "visual_top_block_final": getattr(visual, "top_block_final", None),
+            "visual_matrix_block": getattr(visual, "matrix_block", None),
+        }
 
     context_block = _intro_question_context_block(spec)
     cue_dots = context_block[0]
     bullet_items = context_block[1]
-    context_block.next_to(question_claim, DOWN, buff=0.28)
-    question_claim.align_to(bullet_items, LEFT)
-    text_column = Group(question_claim, context_block)
+    if question_idx == 2:
+        question_claim = VGroup()
+        visual = _build_intro_question_visual(question_idx, spec)
+        visual.scale(1.07)
+
+        visual_top_block_intro = getattr(visual, "top_block_intro")
+        visual_top_block_final = getattr(visual, "top_block_final")
+        visual_matrix_block = getattr(visual, "matrix_block")
+
+        visual_top_block_intro.move_to(np.array([2.35, 1.32, 0.0]))
+        visual_top_block_final.move_to(visual_top_block_intro)
+        visual_matrix_block.next_to(visual_top_block_intro, DOWN, buff=0.36)
+        visual_matrix_block.set_x(0.0)
+
+        top_bullets = VGroup(bullet_items[0], bullet_items[1]).arrange(
+            DOWN,
+            buff=_INTRO_QUESTION_BULLET_GAP,
+            aligned_edge=LEFT,
+        )
+        top_dots = VGroup(cue_dots[0], cue_dots[1])
+        top_dots.next_to(top_bullets, LEFT, buff=0.24)
+        dots_x = top_dots.get_x()
+        for dot, item in zip(top_dots, top_bullets):
+            dot.set_x(dots_x)
+            dot.set_y(item[0].get_center()[1])
+
+        top_block = VGroup(top_dots, top_bullets)
+        top_block.next_to(visual_top_block_intro, LEFT, buff=1.00, aligned_edge=UP)
+        top_block.shift(DOWN * 0.04)
+
+        third_item = bullet_items[2]
+        third_dot = cue_dots[2]
+        if len(third_item) > 1:
+            third_item[1].scale(1.18)
+            third_item.arrange(DOWN, buff=0.04, aligned_edge=LEFT)
+        third_dot.next_to(third_item, LEFT, buff=0.24)
+        third_dot.set_y(third_item[0].get_center()[1])
+        third_block = VGroup(third_dot, third_item)
+        third_block.next_to(visual_matrix_block, DOWN, buff=0.22)
+        third_block.set_x(visual_matrix_block.get_x())
+
+        question_card = Group(top_block, visual_top_block_intro, visual_matrix_block, third_block)
+        question_card.set_x(0.0)
+        question_card.next_to(header, DOWN, buff=0.55)
+        title_center_x = header_title.get_center()[0]
+        visual_matrix_block.set_x(title_center_x)
+        third_block.set_x(title_center_x)
+        return {
+            "header": header,
+            "question_claim": question_claim,
+            "cue_dots": cue_dots,
+            "bullet_items": bullet_items,
+            "visual": visual,
+            "question_card_without_rule": question_card,
+            "question_card": question_card,
+            "content": question_card,
+            "final_group": Group(header, question_card),
+            "visual_left_column": getattr(visual, "left_column", None),
+            "visual_top_target": getattr(visual, "top_target", None),
+            "visual_bottom_target": getattr(visual, "bottom_target", None),
+            "visual_lead_out": getattr(visual, "lead_out", None),
+            "visual_top_trunk": getattr(visual, "top_trunk", None),
+            "visual_bottom_trunk": getattr(visual, "bottom_trunk", None),
+            "visual_top_branch": getattr(visual, "top_branch", None),
+            "visual_bottom_branch": getattr(visual, "bottom_branch", None),
+            "visual_simple_block": getattr(visual, "simple_block", None),
+            "visual_bridge_block": getattr(visual, "bridge_block", None),
+            "visual_natural_block": getattr(visual, "natural_block", None),
+            "visual_top_block_intro": visual_top_block_intro,
+            "visual_top_block_final": visual_top_block_final,
+            "visual_matrix_block": visual_matrix_block,
+        }
+    show_question_claim = (not question_in_header) and question_idx != 2
+    if question_in_header:
+        question_claim = VGroup()
+        text_column = context_block
+    elif show_question_claim:
+        question_claim = Tex(
+            spec["subtitle"],
+            color=INK,
+            font_size=_INTRO_QUESTION_CLAIM_FONT_SIZE,
+            tex_environment="flushleft",
+        )
+        if question_claim.width > _INTRO_QUESTION_CLAIM_MAX_WIDTH:
+            question_claim.scale_to_fit_width(_INTRO_QUESTION_CLAIM_MAX_WIDTH)
+        context_block.next_to(question_claim, DOWN, buff=0.28)
+        question_claim.align_to(bullet_items, LEFT)
+        text_column = Group(question_claim, context_block)
+    else:
+        question_claim = VGroup()
+        text_column = context_block
     visual = _build_intro_question_visual(question_idx, spec)
     visual.scale(1.07)
     visual.move_to(np.array([_INTRO_QUESTION_VISUAL_CENTER_X, _INTRO_QUESTION_CONTENT_Y, 0.0]))
@@ -1510,6 +1815,9 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
     )
 
     question_card = Group(text_group, visual)
+    question_card_without_rule_items: list[Mobject] = [cue_dots, bullet_items, visual]
+    if len(question_claim) > 0:
+        question_card_without_rule_items.insert(0, question_claim)
 
     return {
         "header": header,
@@ -1517,7 +1825,7 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
         "cue_dots": cue_dots,
         "bullet_items": bullet_items,
         "visual": visual,
-        "question_card_without_rule": Group(question_claim, cue_dots, bullet_items, visual),
+        "question_card_without_rule": Group(*question_card_without_rule_items),
         "question_card": question_card,
         "content": question_card,
         "final_group": Group(header, question_card),
@@ -1751,8 +2059,8 @@ class IntroSensoryMemoryRepresentationA(_IntroNumberedScene, ThreeDScene):
             cells = _mini_matrix(matrix, cell=_MATRIX_CELL * 0.72)
             cells.move_to(
                 head.get_center()
-                + LEFT * (0.015 * head.width)
-                + UP * (0.18 * head.height)
+                + LEFT * (0.085 * head.width)
+                + UP * (0.24 * head.height)
             )
             return Group(head, cells)
 
@@ -1776,10 +2084,12 @@ class IntroSensoryMemoryRepresentationA(_IntroNumberedScene, ThreeDScene):
         delay_fish[1].set_z_index(85)
 
         snapshot_scale = 2.1
+        # These stored snapshots are copied out of the live head trace, so they
+        # must use the same matrix family or the handoff visibly morphs.
         snapshot_matrices = VGroup(
-            _mini_matrix(_REPRESENTATION_SENSORY_PATTERN_LEFT, cell=_MATRIX_CELL * 0.72),
-            _mini_matrix(_REPRESENTATION_MEMORY_PATTERN, cell=_MATRIX_CELL * 0.72),
-            _mini_matrix(_REPRESENTATION_SENSORY_PATTERN_RIGHT, cell=_MATRIX_CELL * 0.72),
+            _mini_matrix(_PLOT_SENSORY_PATTERN_LEFT, cell=_MATRIX_CELL * 0.72),
+            _mini_matrix(_PLOT_MEMORY_PATTERN, cell=_MATRIX_CELL * 0.72),
+            _mini_matrix(_PLOT_SENSORY_PATTERN_RIGHT, cell=_MATRIX_CELL * 0.72),
         )
         for matrix in snapshot_matrices:
             matrix.scale(snapshot_scale)
@@ -1977,6 +2287,10 @@ class IntroSensoryMemoryRepresentationA(_IntroNumberedScene, ThreeDScene):
             reveal_items: tuple[Mobject, ...] = (),
         ) -> AnimationGroup:
             moving_copy = source.copy()
+            live_target = target.copy()
+            live_target.save_state()
+            live_target.set_opacity(0.0)
+            live_target.set_z_index(target.z_index)
             center_func = None
             for submob in source.get_family():
                 if submob in self.renderer.camera.fixed_orientation_mobjects:
@@ -1995,15 +2309,21 @@ class IntroSensoryMemoryRepresentationA(_IntroNumberedScene, ThreeDScene):
                     moving_copy.animate(run_time=travel_run_time, rate_func=smooth).scale(snapshot_scale).move_to(
                         target.get_center()
                     ),
-                    ReplacementTransform(
-                        moving_copy,
-                        target,
-                        run_time=morph_run_time,
-                        rate_func=smooth,
+                    AnimationGroup(
+                        FadeOut(
+                            moving_copy,
+                            run_time=morph_run_time,
+                            rate_func=smooth,
+                        ),
+                        Restore(
+                            live_target,
+                            run_time=morph_run_time,
+                            rate_func=smooth,
+                        ),
                     ),
                 )
             ]
-            self.add_fixed_in_frame_mobjects(moving_copy, target)
+            self.add_fixed_in_frame_mobjects(moving_copy, live_target)
             if reveal_items:
                 animations.append(
                     Succession(
@@ -2031,7 +2351,6 @@ class IntroSensoryMemoryRepresentationA(_IntroNumberedScene, ThreeDScene):
             fixed_head,
         )
         self.add_fixed_in_frame_mobjects(
-            *snapshot_matrices,
             snapshot_prefix_group,
             left_set_brace,
             right_set_brace,
@@ -2242,7 +2561,7 @@ def _build_intro_sensmem_b_center_state() -> dict[str, Mobject]:
         matrix_buff=1.16,
     )
     target_row = Group(equation_state["matrices"], equation_state["labels"])
-    target_row.move_to(np.array([0.0, -0.02, 0.0]))
+    target_row.move_to(np.array([0.0, 0.22, 0.0]))
 
     cards = Group(
         framed_visual(_img(_INTRO_HOOK_TARGET_FISH, 1.20)),
@@ -2256,11 +2575,67 @@ def _build_intro_sensmem_b_center_state() -> dict[str, Mobject]:
         card[0].set_z_index(110)
         card[1].set_z_index(111)
 
+    explanation = Tex(
+        r"Maintenance and manipulation of information over short delays",
+        color=INK,
+        font_size=30,
+    )
+    explanation.scale_to_fit_width(min(explanation.width, config.frame_width - 1.30))
+    explanation.move_to(
+        np.array(
+            [
+                target_row.get_center()[0],
+                0.5 * (target_row.get_bottom()[1] - config.frame_height / 2),
+                0.0,
+            ]
+        )
+    )
+    explanation.set_z_index(110)
+
     return {
         "equation_state": equation_state,
         "cards": cards,
-        "final_group": Group(cards, equation_state["matrices"], equation_state["labels"]),
+        "explanation": explanation,
+        "final_group": Group(cards, equation_state["matrices"], equation_state["labels"], explanation),
     }
+
+
+def _build_intro_sensmem_b_contours(matrices: VGroup, *, threshold: float = 0.18) -> VGroup:
+    left_vals = _REPRESENTATION_SENSORY_PATTERN_LEFT.flatten()
+    memory_vals = _REPRESENTATION_MEMORY_PATTERN.flatten()
+    right_vals = _REPRESENTATION_SENSORY_PATTERN_RIGHT.flatten()
+    cell_ids = [
+        index
+        for index, (left_value, memory_value, right_value) in enumerate(
+            zip(left_vals, memory_vals, right_vals)
+        )
+        if max(
+            abs(left_value - memory_value),
+            abs(memory_value - right_value),
+            abs(left_value - right_value),
+        )
+        < threshold
+    ]
+    contour_cells = VGroup(
+        *[
+            matrices[matrix_index][cell_index]
+            for matrix_index in range(len(matrices))
+            for cell_index in cell_ids
+        ]
+    )
+    contour_group = VGroup(
+        *[
+            SurroundingRectangle(
+                cell,
+                color=BLACK,
+                buff=0.02,
+                stroke_width=1.8,
+            )
+            for cell in contour_cells
+        ]
+    )
+    contour_group.set_z_index(120)
+    return contour_group
 
 
 def _build_intro_sensmem_b_end_state() -> dict[str, Mobject]:
@@ -2663,6 +3038,9 @@ class IntroSensoryMemoryRepresentationB(_IntroNumberedScene, ThreeDScene):
             target_card[1].set_opacity(0.0)
         self.add_fixed_in_frame_mobjects(*target_cards)
         self.add(*target_cards)
+        center_state["explanation"].set_opacity(0.0)
+        self.add_fixed_in_frame_mobjects(center_state["explanation"])
+        self.add(center_state["explanation"])
 
         def transport_card(
             source: Group,
@@ -2674,19 +3052,18 @@ class IntroSensoryMemoryRepresentationB(_IntroNumberedScene, ThreeDScene):
             start_center = card.get_center().copy()
 
             def update_card(mob: Group, alpha: float) -> None:
-                reveal_alpha = np.clip(alpha / 0.06, 0.0, 1.0)
-                move_alpha = smooth(np.clip((alpha - 0.06) / 0.94, 0.0, 1.0))
+                move_alpha = smooth(alpha)
                 center = interpolate(start_center, target_center, move_alpha)
                 mob[0].move_to(center)
                 mob[1].move_to(center)
-                mob[0].set_fill(opacity=reveal_alpha)
-                mob[0].set_stroke(opacity=reveal_alpha)
-                mob[1].set_opacity(reveal_alpha)
+                mob[0].set_fill(opacity=1.0)
+                mob[0].set_stroke(opacity=1.0)
+                mob[1].set_opacity(1.0)
 
             return [
                 FadeOut(
                     source,
-                    run_time=0.06,
+                    run_time=0.01,
                 ),
                 UpdateFromAlphaFunc(card, update_card, run_time=run_time),
             ]
@@ -2739,43 +3116,9 @@ class IntroSensoryMemoryRepresentationB(_IntroNumberedScene, ThreeDScene):
             ],
             rate_func=smooth,
         )
+        self.play(FadeIn(center_state["explanation"], shift=UP * 0.04), run_time=0.45)
 
-        def similar_cell_ids(threshold: float = 0.18) -> list[int]:
-            left_vals = _REPRESENTATION_SENSORY_PATTERN_LEFT.flatten()
-            memory_vals = _REPRESENTATION_MEMORY_PATTERN.flatten()
-            right_vals = _REPRESENTATION_SENSORY_PATTERN_RIGHT.flatten()
-            return [
-                index
-                for index, (left_value, memory_value, right_value) in enumerate(
-                    zip(left_vals, memory_vals, right_vals)
-                )
-                if max(
-                    abs(left_value - memory_value),
-                    abs(memory_value - right_value),
-                    abs(left_value - right_value),
-                )
-                < threshold
-            ]
-
-        contour_cells = VGroup(
-            *[
-                equation_state["matrices"][matrix_index][cell_index]
-                for matrix_index in range(3)
-                for cell_index in similar_cell_ids()
-            ]
-        )
-        contour_group = VGroup(
-            *[
-                SurroundingRectangle(
-                    cell,
-                    color=BLACK,
-                    buff=0.02,
-                    stroke_width=1.8,
-                )
-                for cell in contour_cells
-            ]
-        )
-        contour_group.set_z_index(120)
+        contour_group = _build_intro_sensmem_b_contours(equation_state["matrices"])
         self.add_fixed_in_frame_mobjects(*contour_group)
         self.play(
             LaggedStart(
@@ -2785,13 +3128,24 @@ class IntroSensoryMemoryRepresentationB(_IntroNumberedScene, ThreeDScene):
             run_time=3.0,
         )
         self.wait(2.0)
-        self.play(FadeOut(contour_group, run_time=0.25))
-        self._intro_sensmem_b_transition_group = Group(
-            target_cards.copy(),
-            equation_state["matrices"].copy(),
-            equation_state["labels"].copy(),
+        final_state = _build_intro_sensmem_b_center_state()
+        final_contour_group = _build_intro_sensmem_b_contours(final_state["equation_state"]["matrices"])
+        self.remove(
+            target_cards,
+            equation_state["matrices"],
+            equation_state["labels"],
+            center_state["explanation"],
+            contour_group,
         )
-        self.wait(0.75)
+        self.add_fixed_in_frame_mobjects(*final_state["final_group"], *final_contour_group)
+        self.add(final_state["final_group"])
+        self.add(final_contour_group)
+        self._intro_sensmem_b_transition_group = Group(
+            final_state["final_group"].copy(),
+            final_contour_group.copy(),
+        )
+        self._intro_sensmem_b_transition_group.shift(-self.camera.frame_center)
+        self.wait(0.30)
 
 
 class IntroSensoryMemoryRepresentations(Scene):
@@ -2868,7 +3222,6 @@ class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
             previous_state = _build_intro_d_layout()
             self.add(previous_state["final_group"])
             self.wait(0.12)
-        live_timeline_line = previous_state["timeline_line"]
         classical_fade_group = Group(
             previous_state["title"],
             previous_state["dots"],
@@ -2878,17 +3231,7 @@ class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
         self.play(
             FadeIn(state["title"], shift=UP * 0.04),
             FadeOut(classical_fade_group, run_time=0.45),
-        )
-        self.play(
-            Transform(live_timeline_line, state["timeline_line"]),
-            run_time=0.85,
-        )
-        state["timeline_line"] = live_timeline_line
-        state["content"] = Group(
-            state["timeline_line"],
-            state["dots"],
-            state["entries"],
-            state["figure_column"],
+            FadeOut(previous_state["timeline_line"], shift=UP * 0.04, run_time=0.45),
         )
         state["final_group"] = Group(state["title"], state["hero_figure"], state["content"])
         initial_anims = [
@@ -2923,7 +3266,6 @@ class IntroResearchQuestion1(_IntroNumberedScene, Scene):
             self.add(
                 previous_state["title"],
                 previous_state["hero_figure"],
-                previous_state["timeline_line"],
                 previous_state["dots"],
                 previous_state["entries"],
                 previous_state["figure_column"],
@@ -2936,49 +3278,12 @@ class IntroResearchQuestion1(_IntroNumberedScene, Scene):
             previous_state["entries"],
             previous_state["figure_column"],
         )
-        source_group = Group(state["question_claim"], state["visual_left_column"], state["visual_lead_out"])
         self.play(
             FadeOut(sensory_fade_group, shift=UP * 0.04, run_time=0.55),
             FadeIn(state["header"], shift=UP * 0.04, run_time=0.70),
-            FadeIn(source_group, shift=UP * 0.04, run_time=0.90),
-            FadeOut(previous_state["timeline_line"], shift=UP * 0.04, run_time=0.55),
+            FadeIn(state["content"], shift=UP * 0.04, run_time=0.95),
         )
-        self.play(
-            AnimationGroup(
-                Create(state["visual_top_trunk"]),
-                Create(state["visual_top_branch"]),
-                lag_ratio=0.0,
-                run_time=0.70,
-            ),
-            FadeIn(state["visual_top_target"], shift=RIGHT * 0.06, run_time=0.75),
-            LaggedStart(
-                FadeIn(state["cue_dots"][0], scale=0.92),
-                FadeIn(state["bullet_items"][0], shift=UP * 0.03),
-                FadeIn(state["cue_dots"][1], scale=0.92),
-                FadeIn(state["bullet_items"][1], shift=UP * 0.03),
-                lag_ratio=0.10,
-                run_time=0.85,
-            ),
-        )
-        self.wait(4.00)
-        self.play(
-            AnimationGroup(
-                Create(state["visual_bottom_trunk"]),
-                Create(state["visual_bottom_branch"]),
-                lag_ratio=0.0,
-                run_time=0.62,
-            ),
-            FadeIn(state["visual_bottom_target"], shift=RIGHT * 0.06, run_time=0.72),
-            LaggedStart(
-                FadeIn(state["cue_dots"][2], scale=0.92),
-                FadeIn(state["bullet_items"][2], shift=UP * 0.03),
-                FadeIn(state["cue_dots"][3], scale=0.92),
-                FadeIn(state["bullet_items"][3], shift=UP * 0.03),
-                lag_ratio=0.10,
-                run_time=0.82,
-            ),
-        )
-        self.wait(4.25)
+        self.wait(8.25)
 
 
 class IntroResearchQuestion2(_IntroNumberedScene, Scene):
@@ -2986,7 +3291,6 @@ class IntroResearchQuestion2(_IntroNumberedScene, Scene):
         self.camera.background_color = BG
         state = _build_intro_question_layout(1)
         self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
-        self.play(FadeIn(state["question_claim"], shift=UP * 0.04, run_time=0.75))
         self.play(
             FadeIn(state["cue_dots"][0], scale=0.92),
             FadeIn(state["bullet_items"][0], shift=UP * 0.03),
@@ -3017,42 +3321,15 @@ class IntroResearchQuestion3(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(2)
-        intro_group = Group(state["question_claim"], state["visual_top_block_intro"])
-        self.play(
-            FadeIn(state["header"], shift=UP * 0.04, run_time=0.70),
-            FadeIn(intro_group, shift=UP * 0.04, run_time=0.90),
+        full_group = Group(
+            state["header"],
+            state["cue_dots"],
+            state["bullet_items"],
+            state["visual_top_block_intro"],
+            state["visual_matrix_block"],
         )
-        self.wait(4.00)
-        self.play(
-            LaggedStart(
-                FadeIn(state["cue_dots"][0], scale=0.92),
-                FadeIn(state["bullet_items"][0], shift=UP * 0.03),
-                FadeIn(state["cue_dots"][1], scale=0.92),
-                FadeIn(state["bullet_items"][1], shift=UP * 0.03),
-                lag_ratio=0.10,
-                run_time=0.90,
-            ),
-        )
-        self.wait(4.00)
-        remaining_bullet_anims = []
-        for idx in range(2, len(state["bullet_items"])):
-            remaining_bullet_anims.extend(
-                [
-                    FadeIn(state["cue_dots"][idx], scale=0.92),
-                    FadeIn(state["bullet_items"][idx], shift=UP * 0.03),
-                ]
-            )
-        self.play(
-            Transform(
-                state["visual_top_block_intro"],
-                state["visual_top_block_final"].copy(),
-                run_time=1.00,
-                rate_func=smooth,
-            ),
-            FadeIn(state["visual_matrix_block"], shift=UP * 0.05, run_time=0.95),
-            LaggedStart(*remaining_bullet_anims, lag_ratio=0.10, run_time=1.00),
-        )
-        self.wait(4.25)
+        self.play(FadeIn(full_group, run_time=0.10))
+        self.wait(0.90)
 
 
 # Backward-compatible names retained for ad hoc renders.

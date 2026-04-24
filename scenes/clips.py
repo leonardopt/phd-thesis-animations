@@ -70,9 +70,34 @@ def _snake(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
 
 
+def _alias(alias_name: str, target_name: str) -> None:
+    target = globals()[target_name]
+    globals()[alias_name] = type(
+        alias_name,
+        (target,),
+        {
+            "__module__": __name__,
+        },
+    )
+    __all__.append(alias_name)
+
+
 _register("intro",       [(cls, name) for name, cls in _INTRO_SECTION_SCENES])
 _register("methods",     list(zip(_METHODS_MASTER_SECTION_ORDER, _METHODS_SECTION_NAMES, strict=True)))
 _register("study1",      list(zip(_STUDY1_MASTER_SECTION_ORDER, _STUDY1_SECTION_NAMES, strict=True)))
 _register("study2",      list(zip(_STUDY2_MASTER_SECTION_ORDER, _STUDY2_SECTION_NAMES, strict=True)))
 _register("conclusion",  list(zip(_CONCLUSION_MASTER_SECTION_ORDER, _CONCLUSION_SECTION_NAMES, strict=True)))
 _register("supplementary", list(zip(_SUPPLEMENTARY_MASTER_SECTION_ORDER, _SUPPLEMENTARY_SECTION_NAMES, strict=True)))
+
+for _alias_name, _target_name in (
+    ("CognitiveProblemA", "IntroCognitiveProblemA"),
+    ("SensMemRepresentationsA", "IntroSensoryMemoryRepresentationA"),
+    ("SensMemRepresentationsB", "IntroSensoryMemoryRepresentationB"),
+    ("ClassicalView", "IntroClassicalView"),
+    ("SensoryRecruitment", "IntroSensoryRecruitment"),
+    ("ResearchQuestion1", "IntroResearchQuestion1"),
+    ("ResearchQuestion2", "IntroResearchQuestion2"),
+    ("ResearchQuestion3", "IntroResearchQuestion3"),
+):
+    _alias(_alias_name, _target_name)
+del _alias_name, _target_name

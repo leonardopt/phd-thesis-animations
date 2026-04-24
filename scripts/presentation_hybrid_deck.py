@@ -65,18 +65,29 @@ REPORT_ROW_RE = re.compile(
     r"\|\s*(?P<decision>Yes -> Static still|Yes -> Keynote build|No -> Embedded video)\s*"
     r"\|\s*(?P<why>.+?)\s*\|$"
 )
+CONFIG_ROW_RE = re.compile(
+    r"^\|\s*`(?P<stem>[^`]+)`\s*"
+    r"\|\s*`?(?P<decision>static|video|omit)`?\s*\|$",
+    re.IGNORECASE,
+)
 
 
 class HybridDisposition(str, Enum):
     STATIC_STILL = "static_still"
     KEYNOTE_BUILD = "keynote_build"
     EMBEDDED_VIDEO = "embedded_video"
+    OMIT = "omit"
 
 
 REPORT_DECISION_MAP = {
     "Yes -> Static still": HybridDisposition.STATIC_STILL,
     "Yes -> Keynote build": HybridDisposition.KEYNOTE_BUILD,
     "No -> Embedded video": HybridDisposition.EMBEDDED_VIDEO,
+}
+CONFIG_DECISION_MAP = {
+    "static": HybridDisposition.STATIC_STILL,
+    "video": HybridDisposition.EMBEDDED_VIDEO,
+    "omit": HybridDisposition.OMIT,
 }
 
 
@@ -103,6 +114,20 @@ class ExtractedStill:
     timestamp_seconds: float | None
 
 
+FALLBACK_AUDIT_DECISIONS = {
+    "study_1_stage_3_memory_intro_e": AuditDecision(
+        stem="study1_stage3_memory_intro_e",
+        disposition=HybridDisposition.STATIC_STILL,
+        duration_text="",
+        animation_summary="Fallback supplementary still",
+        why="Supplementary follow-on clip not covered by the current audit; defaulting to still.",
+    )
+}
+CANONICAL_STEM_ALIASES = {
+    "study_1_stage_3_memory_repetition_explainer": "study_1_stage_3_memory_intro_c",
+}
+
+
 def latest_hybrid_report_path() -> Path:
     candidates = sorted(DEFAULT_REPORT_DIR.glob("hybrid_keynote_animation_audit_*.md"))
     if not candidates:
@@ -117,15 +142,15 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Generate a hybrid Keynote deck scaffold from the hybrid animation "
-            "audit report, using stills for skippable animations and MP4s only "
-            "for clips marked as indispensable."
+            "audit report or simple clip-disposition config, using stills for "
+            "skippable animations and MP4s only for clips marked as indispensable."
         )
     )
     parser.add_argument(
         "--report",
         type=Path,
         default=latest_hybrid_report_path(),
-        help="Markdown audit report to apply.",
+        help="Markdown audit report or clip-disposition config to apply.",
     )
     parser.add_argument(
         "--source-manifest",
@@ -272,24 +297,68 @@ def rerender_all_sections(quality_folder: str) -> None:
 def parse_report(report_path: Path) -> dict[str, AuditDecision]:
     decisions: dict[str, AuditDecision] = {}
     for line in report_path.read_text(encoding="utf-8").splitlines():
-        match = REPORT_ROW_RE.fullmatch(line.strip())
-        if match is None:
+        stripped = line.strip()
+        report_match = REPORT_ROW_RE.fullmatch(stripped)
+        if report_match is not None:
+            stem = report_match.group("stem")
+            if stem in decisions:
+                raise ValueError(f"Duplicate audit row for clip {stem!r} in {report_path}.")
+            decisions[stem] = AuditDecision(
+                stem=stem,
+                disposition=REPORT_DECISION_MAP[report_match.group("decision")],
+                duration_text=report_match.group("duration").strip(),
+                animation_summary=report_match.group("animation").strip(),
+                why=report_match.group("why").strip(),
+            )
             continue
 
-        stem = match.group("stem")
+        config_match = CONFIG_ROW_RE.fullmatch(stripped)
+        if config_match is None:
+            continue
+
+        stem = config_match.group("stem")
         if stem in decisions:
             raise ValueError(f"Duplicate audit row for clip {stem!r} in {report_path}.")
+        config_decision = config_match.group("decision").strip().lower()
         decisions[stem] = AuditDecision(
             stem=stem,
-            disposition=REPORT_DECISION_MAP[match.group("decision")],
-            duration_text=match.group("duration").strip(),
-            animation_summary=match.group("animation").strip(),
-            why=match.group("why").strip(),
+            disposition=CONFIG_DECISION_MAP[config_decision],
+            duration_text="",
+            animation_summary="",
+            why="",
         )
 
     if not decisions:
-        raise ValueError(f"No audit table rows were found in {report_path}.")
+        raise ValueError(f"No audit/config decision rows were found in {report_path}.")
     return decisions
+
+
+def resolve_audit_decision(
+    audit_decisions: dict[str, AuditDecision],
+    stem: str,
+) -> AuditDecision | None:
+    direct_match = audit_decisions.get(stem)
+    if direct_match is not None:
+        return direct_match
+
+    canonical_stem = presentation_manifest.canonical_media_stem(stem)
+    canonical_stem = CANONICAL_STEM_ALIASES.get(canonical_stem, canonical_stem)
+    matches = [
+        decision
+        for candidate_stem, decision in audit_decisions.items()
+        if CANONICAL_STEM_ALIASES.get(
+            presentation_manifest.canonical_media_stem(candidate_stem),
+            presentation_manifest.canonical_media_stem(candidate_stem),
+        )
+        == canonical_stem
+    ]
+    if not matches:
+        return FALLBACK_AUDIT_DECISIONS.get(canonical_stem)
+    if len(matches) > 1:
+        raise ValueError(
+            f"Multiple audit rows match canonical stem {canonical_stem!r} for slide {stem!r}."
+        )
+    return matches[0]
 
 
 def repo_relative_string(path: Path) -> str:
@@ -340,11 +409,11 @@ def collect_still_jobs(
 
         video_path = Path(slide["path"]).resolve()
         stem = video_path.stem
-        decision = audit_decisions.get(stem)
+        decision = resolve_audit_decision(audit_decisions, stem)
         if decision is None:
             missing_stems.append(stem)
             continue
-        if decision.disposition is HybridDisposition.EMBEDDED_VIDEO:
+        if decision.disposition in {HybridDisposition.EMBEDDED_VIDEO, HybridDisposition.OMIT}:
             continue
         if video_path in seen_video_paths:
             continue
@@ -468,12 +537,15 @@ def build_hybrid_slide_records(
 
         video_path = Path(slide["path"]).resolve()
         stem = video_path.stem
-        decision = audit_decisions.get(stem)
+        decision = resolve_audit_decision(audit_decisions, stem)
         if decision is None:
             raise ValueError(
                 f"No audit decision found for video slide {stem!r} ({video_path})."
             )
         used_stems.add(stem)
+
+        if decision.disposition is HybridDisposition.OMIT:
+            continue
 
         if decision.disposition is HybridDisposition.EMBEDDED_VIDEO:
             hybrid_slides.append(slide_copy)
@@ -494,8 +566,10 @@ def build_hybrid_slide_records(
 
 
 def toml_string(value: str) -> str:
-    if "\n" in value and '"""' not in value:
-        return '"""\n' + value + '\n"""'
+    if "\n" in value:
+        normalized_value = value.replace("\r\n", "\n").replace("\r", "\n")
+        normalized_value = normalized_value.replace('"""', '\\"""')
+        return f'"""\n{normalized_value}\n"""'
     return json.dumps(value, ensure_ascii=False)
 
 
@@ -507,8 +581,8 @@ def append_optional_string(lines: list[str], key: str, value: str) -> None:
 
 def serialize_hybrid_manifest(deck: dict, slides: list[dict], deck_base_name: str) -> str:
     lines = [
-        "# Auto-generated by scripts/presentation_hybrid_deck.py",
-        "# Keynote-build audit rows are currently emitted as still-image placeholders.",
+        "# Auto-generated hybrid presentation manifest.",
+        "# Slide types may include native Keynote content, still images, and embedded video.",
         "",
         "[deck]",
         f"deck_base_name = {toml_string(deck_base_name)}",
@@ -585,7 +659,9 @@ def main() -> int:
     manifest_video_stems = {
         Path(slide["path"]).stem for slide in expanded_slides if slide["type"] == "video"
     }
-    missing_decisions = sorted(manifest_video_stems - set(audit_decisions))
+    missing_decisions = sorted(
+        stem for stem in manifest_video_stems if resolve_audit_decision(audit_decisions, stem) is None
+    )
     if missing_decisions:
         raise ValueError(
             "The audit report does not cover these manifest video slides: "
@@ -599,7 +675,14 @@ def main() -> int:
             + ", ".join(unresolved_stems)
         )
 
-    unused_report_stems = sorted(set(audit_decisions) - manifest_video_stems)
+    manifest_canonical_stems = {
+        presentation_manifest.canonical_media_stem(stem) for stem in manifest_video_stems
+    }
+    unused_report_stems = sorted(
+        stem
+        for stem in audit_decisions
+        if presentation_manifest.canonical_media_stem(stem) not in manifest_canonical_stems
+    )
     if unused_report_stems:
         print(
             "Warning: the audit report contains extra clip rows not present in the "
@@ -661,14 +744,17 @@ def main() -> int:
     write_hybrid_manifest(manifest_output, deck, hybrid_slides, deck_base_name)
 
     disposition_counts = Counter(
-        audit_decisions[stem].disposition for stem in manifest_video_stems
+        resolve_audit_decision(audit_decisions, stem).disposition
+        for stem in manifest_video_stems
+        if resolve_audit_decision(audit_decisions, stem) is not None
     )
     print(f"Wrote hybrid manifest to {repo_relative_string(manifest_output)}")
     print(
         "Applied audit decisions: "
         f"{disposition_counts[HybridDisposition.STATIC_STILL]} static still, "
         f"{disposition_counts[HybridDisposition.KEYNOTE_BUILD]} keynote build placeholder, "
-        f"{disposition_counts[HybridDisposition.EMBEDDED_VIDEO]} embedded video."
+        f"{disposition_counts[HybridDisposition.EMBEDDED_VIDEO]} embedded video, "
+        f"{disposition_counts[HybridDisposition.OMIT]} omitted."
     )
 
     if args.manifest_only:

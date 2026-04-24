@@ -354,10 +354,13 @@ _CONCLUSION_SLIDES: dict[str, dict[str, object]] = {
     },
 }
 
+def _bold_tex(text: str) -> str:
+    return text if r"\textbf{" in text else rf"\textbf{{{text}}}"
+
 
 def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
     """Build a chapter-style title and subtitle block."""
-    title = Tex(title_text, color=INK, font_size=34).to_edge(UP, buff=0.34)
+    title = Tex(_bold_tex(title_text), color=INK, font_size=34).to_edge(UP, buff=0.34)
     parts = [title]
     if subtitle_text is not None:
         subtitle = Tex(subtitle_text, color=INK, font_size=21)

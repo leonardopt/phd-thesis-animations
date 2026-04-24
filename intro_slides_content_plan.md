@@ -110,7 +110,7 @@
 ## What to cut or compress
 
 - References (citations): speak them sparingly, show just author + year on-screen.
-- The LTM background section (WM ↔ LTM literature: familiarity effects, Vo et al. 2022 etc.) — this is thesis detail; introduce LTM only as *why it matters* in RQ3, not as a literature review.
+- The LTM background section (WM ↔ LTM literature: familiarity effects; shared-code work such as Vo et al. 2022; etc.) — this is thesis detail; introduce LTM only as *why it matters* in RQ3, not as a literature review.
 - The distraction/interference debate in sensory recruitment — mention it at most as one bullet in Slide 3 ("controversy").
 - PFC-vs-sensory cortex debate nuances — enough to say "question remains open".
 

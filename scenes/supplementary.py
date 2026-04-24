@@ -20,6 +20,11 @@ for _import_dir in (_SCENES_DIR, _SCRIPTS_DIR):
     if str(_import_dir) not in sys.path:
         sys.path.insert(0, str(_import_dir))
 
+from intro import (
+    IntroResearchQuestion1,
+    IntroResearchQuestion2,
+    IntroResearchQuestion3,
+)
 from utils import section_output_dir, simplify_manim_section_video_names
 from study1 import (
     Study1Stage3MemoryIntroA,
@@ -50,6 +55,9 @@ def _ensure_supplementary_output_dirs(output_name: str | None = None) -> None:
 
 
 _SUPPLEMENTARY_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
+    IntroResearchQuestion1,
+    IntroResearchQuestion2,
+    IntroResearchQuestion3,
     Study1Stage3MemoryIntroA,
     Study1Stage3MemoryIntroB,
     Study1Stage3MemoryIntroC,
@@ -57,6 +65,9 @@ _SUPPLEMENTARY_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
     Study1Stage3MemoryIntroE,
 )
 _SUPPLEMENTARY_SECTION_NAMES: tuple[str, ...] = (
+    "intro_research_question_1",
+    "intro_research_question_2",
+    "intro_research_question_3",
     "study1_stage3_memory_intro_a",
     "study1_stage3_memory_intro_b",
     "study1_stage3_memory_intro_c",
@@ -105,7 +116,7 @@ class Supplementary(Scene):
         *,
         carry_previous_frame: bool,
     ) -> None:
-        """Replay one imported Study 1 intro scene inside this chapter."""
+        """Replay one imported section scene inside this chapter."""
         self.next_section(section_name)
         if carry_previous_frame:
             self._hold_previous_section_frame()

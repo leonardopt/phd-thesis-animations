@@ -234,7 +234,7 @@ class Study1Stage1Step1a(Scene):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_step1_BG
-        title = Tex('\\textbf{Stimulus set design}', color=_s1_step1_INK, font_size=40)
+        title = Tex('\\textbf{Stimulus set design}', color=_s1_step1_INK, font_size=28)
         title.to_edge(UP, buff=0.36)
         tree = _s1_step1__build_stimulus_tree()
         root = tree['root']
@@ -273,7 +273,7 @@ class Study1Stage1Step1b(Scene):
         object_rect_lbl = tree['object_rect_lbl']
         total_lbl = tree['total_lbl']
         self.add(tree_group)
-        title = Tex('\\textbf{Prompt design}', color=_s1_step1_INK, font_size=30)
+        title = Tex('\\textbf{Prompt design}', color=_s1_step1_INK, font_size=28)
         subtitle = Tex('each object-scene is defined with a single text prompt', color=_s1_step1_INK, font_size=22)
         title_block = VGroup(title, subtitle).arrange(DOWN, buff=0.16)
         title_block.to_edge(UP, buff=0.28)
@@ -363,6 +363,28 @@ _s1_step2_IMG_DIR = env_path('EXEMPLAR_FISH_DIR', REPO_ROOT / 'assets' / 'images
 _s1_step2_N_SWAPS = 59
 _s1_step2_SWAP_TOTAL_DUR = 10
 _s1_step2_PROMPT_LINES = ['``award-winning marine photo', 'of a colorful fish in a coral reef,', 'centered in the scene, vibrant', "underwater scene, high detail''"]
+_s1_step2_SDXL_IMAGE_PATH = REPO_ROOT / 'assets' / 'images' / 'stablediffusionxl.png'
+_s1_step2_SDXL_CITE_TEX = r'\textit{Podell et al.} (2023)'
+
+def _s1_step2_make_sdxl_reference(
+    *,
+    ink: str,
+    accent: str,
+    label_font_size: float = 22,
+    cite_font_size: float = 11,
+    cite_width_ratio: float = 0.72,
+) -> dict[str, Mobject]:
+    """Create the shared SDXL label, diagram, and citation used in Stage 1."""
+    sdxl_tex = Tex(r'\textbf{Stable Diffusion XL}', color=ink, font_size=label_font_size)
+    sdxl_image = ImageMobject(str(_s1_step2_SDXL_IMAGE_PATH))
+    sdxl_image.scale_to_fit_width(sdxl_tex.width)
+    cite_tex = Tex(_s1_step2_SDXL_CITE_TEX, color=accent, font_size=cite_font_size)
+    cite_tex.scale_to_fit_width(sdxl_tex.width * cite_width_ratio)
+    return dict(
+        sdxl_tex=sdxl_tex,
+        sdxl_image=sdxl_image,
+        cite_tex=cite_tex,
+    )
 
 def _s1_step2_noise_magma(seed: int, sz: int=128) -> np.ndarray:
     """Generate a deterministic magma-coloured noise image for one seed."""
@@ -518,14 +540,21 @@ class Study1Stage1Step2(Scene):
             tip_length=0.22,
             max_stroke_width_to_length_ratio=20,
         )
-        sdxl_tex = Tex('\\textbf{Stable Diffusion XL}', color=_s1_step2_INK, font_size=22)
-        sdxl_tex.next_to(arrow_mob, UP, buff=0.16)
-        sdxl_pipeline_ref = ImageMobject(
-            str(REPO_ROOT / 'assets' / 'images' / 'references' / 'sdxl_pipeline_podell_2023_pipeline_only.png')
+        sdxl_ref = _s1_step2_make_sdxl_reference(
+            ink=_s1_step2_INK,
+            accent=_s1_step2_GREY,
+            label_font_size=22,
+            cite_font_size=10,
+            cite_width_ratio=0.528,
         )
-        sdxl_pipeline_ref.scale_to_fit_width(sdxl_tex.width)
-        sdxl_pipeline_ref.next_to(arrow_mob, DOWN, buff=0.42)
+        sdxl_tex = sdxl_ref['sdxl_tex']
+        sdxl_tex.next_to(arrow_mob, UP, buff=0.16)
+        sdxl_pipeline_ref = sdxl_ref['sdxl_image']
+        sdxl_pipeline_ref.next_to(arrow_mob, DOWN, buff=0.34)
         sdxl_pipeline_ref.set_x(sdxl_tex.get_center()[0])
+        sdxl_cite = sdxl_ref['cite_tex']
+        sdxl_cite.next_to(sdxl_pipeline_ref, DOWN, buff=0.08)
+        sdxl_cite.set_x(sdxl_pipeline_ref.get_center()[0])
 
         ACTIVE_ROW_Y = pipeline_y
         active_row_positions = [
@@ -591,6 +620,7 @@ class Study1Stage1Step2(Scene):
                     GrowArrow(arrow_mob),
                     FadeIn(sdxl_tex, shift=UP * 0.04),
                     FadeIn(sdxl_pipeline_ref, shift=DOWN * 0.03),
+                    FadeIn(sdxl_cite, shift=DOWN * 0.03),
                     run_time=0.85,
                 )
                 arrow_revealed = True
@@ -649,6 +679,7 @@ class Study1Stage1Step2(Scene):
             arrow_mob=arrow_mob,
             sdxl_tex=sdxl_tex,
             sdxl_pipeline_ref=sdxl_pipeline_ref,
+            sdxl_cite=sdxl_cite,
             completed_rows=completed_rows,
             final_vdots=final_vdots,
             row_indices=row_indices,
@@ -693,19 +724,6 @@ _s1_step2_showcase_SHOWCASE = [
         ],
     ),
     dict(
-        category='landscape_element',
-        folder='lake_island',
-        glob='LAN-LAK-*.png',
-        label='lake island',
-        prompt_lines=[
-            '``film shot of a towering',
-            'rocky lake island',
-            'in the center, hilly',
-            'meadows on the horizon,',
-            "high resolution photography''",
-        ],
-    ),
-    dict(
         category='building',
         folder='observatory',
         glob='BUI-OBS-*.png',
@@ -716,32 +734,6 @@ _s1_step2_showcase_SHOWCASE = [
             'hilly landscape,',
             'high resolution photography,',
             "exploratory, cinematic''",
-        ],
-    ),
-    dict(
-        category='vehicle',
-        folder='campervan',
-        glob='VEH-CAM-*.png',
-        label='camper van',
-        prompt_lines=[
-            '``photo of a solitary',
-            'vintage camper van',
-            'in a countryside camping spot,',
-            'mountains in the background,',
-            "high resolution photography''",
-        ],
-    ),
-    dict(
-        category='item',
-        folder='sofa',
-        glob='ITE-SOF-*.png',
-        label='sofa',
-        prompt_lines=[
-            '``film shot of an',
-            'art deco sofa,',
-            'minimalistic background,',
-            'high resolution',
-            "photography''",
         ],
     ),
 ]
@@ -913,15 +905,22 @@ def _s1_step2_showcase_make_static_frame(n_cloud: int) -> dict:
         tip_length=0.22,
         max_stroke_width_to_length_ratio=20,
     )
-    sdxl_tex = Tex('\\textbf{Stable Diffusion XL}', color=_s1_step2_showcase_INK, font_size=22)
-    sdxl_tex.next_to(sdxl_arrow, UP, buff=0.16)
-    sdxl_pipeline_ref = ImageMobject(
-        str(REPO_ROOT / 'assets' / 'images' / 'references' / 'sdxl_pipeline_podell_2023_pipeline_only.png')
+    sdxl_ref = _s1_step2_make_sdxl_reference(
+        ink=_s1_step2_showcase_INK,
+        accent=_s1_step2_showcase_GREY,
+        label_font_size=22,
+        cite_font_size=10,
+        cite_width_ratio=0.528,
     )
-    sdxl_pipeline_ref.scale_to_fit_width(sdxl_tex.width)
+    sdxl_tex = sdxl_ref['sdxl_tex']
+    sdxl_tex.next_to(sdxl_arrow, UP, buff=0.16)
+    sdxl_pipeline_ref = sdxl_ref['sdxl_image']
     sdxl_pipeline_ref.next_to(sdxl_arrow, DOWN, buff=0.28)
     sdxl_pipeline_ref.set_x(sdxl_tex.get_center()[0])
-    sdxl_group = Group(sdxl_arrow, sdxl_tex, sdxl_pipeline_ref)
+    sdxl_cite = sdxl_ref['cite_tex']
+    sdxl_cite.next_to(sdxl_pipeline_ref, DOWN, buff=0.08)
+    sdxl_cite.set_x(sdxl_pipeline_ref.get_center()[0])
+    sdxl_group = Group(sdxl_arrow, sdxl_tex, sdxl_pipeline_ref, sdxl_cite)
     base_sdxl_center_x, _ = _s1_step2_showcase_layout_x(rbrace, sdxl_group, n_cloud)
     base_group_center_x = sdxl_group.get_center()[0]
     base_block_left = base_sdxl_center_x + (sdxl_group.get_left()[0] - base_group_center_x)
@@ -947,6 +946,7 @@ def _s1_step2_showcase_make_static_frame(n_cloud: int) -> dict:
         sdxl_arrow=sdxl_arrow,
         sdxl_tex=sdxl_tex,
         sdxl_pipeline_ref=sdxl_pipeline_ref,
+        sdxl_cite=sdxl_cite,
         c_sub=c_sub,
         thumb_positions=thumb_positions,
         cloud_cx=cloud_cx,
@@ -971,6 +971,7 @@ def _s1_step2_showcase_build_static_frame(scene: Scene, n_cloud: int) -> list:
         frame['sdxl_arrow'],
         frame['sdxl_tex'],
         frame['sdxl_pipeline_ref'],
+        frame['sdxl_cite'],
         frame['c_sub'],
     )
     return frame['thumb_positions']
@@ -1001,6 +1002,7 @@ def _s1_step2_showcase_animate_from_step2(scene: Scene, step2_state: dict, entry
         ReplacementTransform(step2_state['arrow_mob'], frame['sdxl_arrow']),
         FadeTransform(step2_state['sdxl_tex'], frame['sdxl_tex']),
         FadeTransform(step2_state['sdxl_pipeline_ref'], frame['sdxl_pipeline_ref']),
+        FadeTransform(step2_state['sdxl_cite'], frame['sdxl_cite']),
         FadeIn(frame['lbrace'], shift=RIGHT * 0.03),
         FadeIn(frame['dots_tex'], shift=RIGHT * 0.03),
         FadeIn(frame['rbrace'], shift=LEFT * 0.03),
@@ -1125,6 +1127,7 @@ def _s1_step2_showcase_build_final_frame() -> Group:
         frame['sdxl_arrow'],
         frame['sdxl_tex'],
         frame['sdxl_pipeline_ref'],
+        frame['sdxl_cite'],
         frame['c_sub'],
         thumbs,
         c_title,
@@ -1310,7 +1313,7 @@ class _Study1Step3Base(Scene):
         MATRIX_SIDE = 4.1
         MATRIX_C = np.array([1.05, -0.28, 0.0])
         cloud_pts = _s1_step3_cloud_positions(n, cx=CLOUD_CX, cy=CLOUD_CY)
-        demo_pairs = _s1_step3_choose_demo_pairs(cloud_pts, cx=CLOUD_CX, cy=CLOUD_CY, selected_pair=selected_pair, excluded_indices={anchor_idx, guide_idx}, count=8)
+        demo_pairs = _s1_step3_choose_demo_pairs(cloud_pts, cx=CLOUD_CX, cy=CLOUD_CY, selected_pair=selected_pair, excluded_indices={anchor_idx, guide_idx}, count=5)
         cloud_imgs = [ImageMobject(pixels[i]).scale_to_fit_height(IMG_CLOUD_H).move_to(RIGHT * x + UP * y) for i, (x, y) in enumerate(cloud_pts)]
         cloud_title = Tex('\\textbf{60 exemplars} — \\textit{fish}', color=_s1_step3_INK, font_size=24).move_to(RIGHT * CLOUD_CX + UP * 3.2)
         matrix_title_text = VGroup(
@@ -1611,15 +1614,31 @@ class _Study1Step3Base(Scene):
             if hasattr(self, '_study1_prev_section_group'):
                 del self._study1_prev_section_group
 
+        animate_nn_icon_in_selection = self.segment != 'selection'
+
         def play_selection_sequence() -> None:
             """Animate the anchor-guide selection sequence."""
             self.play(FadeIn(algo_panel, shift=UP * 0.04), run_time=0.95)
             self.wait(0.45)
-            self.play(FadeIn(search_cell), FadeIn(algo_scan_arrow), nn_activation_sweep(), run_time=0.45)
+            self.play(
+                FadeIn(search_cell),
+                FadeIn(algo_scan_arrow),
+                *([nn_activation_sweep()] if animate_nn_icon_in_selection else []),
+                run_time=0.45,
+            )
             self.wait(0.2)
             for pair in search_path[1:]:
-                self.play(Transform(search_cell, pair_cell(*pair, color=YELLOW).set_z_index(4)), nn_activation_sweep(), run_time=0.34)
-            self.play(Transform(search_cell, selected_cell), FadeOut(algo_scan_arrow), nn_activation_sweep(), run_time=0.45)
+                self.play(
+                    Transform(search_cell, pair_cell(*pair, color=YELLOW).set_z_index(4)),
+                    *([nn_activation_sweep()] if animate_nn_icon_in_selection else []),
+                    run_time=0.34,
+                )
+            self.play(
+                Transform(search_cell, selected_cell),
+                FadeOut(algo_scan_arrow),
+                *([nn_activation_sweep()] if animate_nn_icon_in_selection else []),
+                run_time=0.45,
+            )
             self.wait(0.35)
             self.play(AnimationGroup(GrowFromCenter(selected_row_band), GrowFromCenter(selected_col_band), lag_ratio=0.18), FadeIn(cloud_anchor_box, cloud_guide_box), run_time=0.9)
             self.wait(0.35)
@@ -1745,6 +1764,7 @@ _s1_step4_COMPACT_ALPHA_START = 0.0
 _s1_step4_COMPACT_ALPHA_END = 1.0
 _s1_step4_COMPACT_ENDPOINT_Z = 10
 _s1_step4_COMPACT_FOLLOW_Z = 20
+_s1_step4_INTERPOLATION_RUN_TIME = 5.0
 
 class Study1Stage1Step4Detailed(ThreeDScene):
     """Show the full 3-D SLERP interpolation story alongside the generated image preview."""
@@ -1832,7 +1852,7 @@ class Study1Stage1Step4Detailed(ThreeDScene):
         self.play(Write(panel_title), Create(arc_3d), FadeIn(vec_za), FadeIn(lab_za_3d), Create(arrow_dn), Write(lab_fn), run_time=1.0)
         self.wait(0.3)
         self.add_fixed_in_frame_mobjects(img_display, img_frame, title_img, bar_bg, lab_al0, lab_al1, bar_fill)
-        self.play(FadeIn(img_display), FadeIn(img_frame), Write(title_img), FadeIn(bar_bg), FadeIn(bar_fill), Write(lab_al0), Write(lab_al1), alpha.animate.set_value(1.0), run_time=10.0, rate_func=linear)
+        self.play(FadeIn(img_display), FadeIn(img_frame), Write(title_img), FadeIn(bar_bg), FadeIn(bar_fill), Write(lab_al0), Write(lab_al1), alpha.animate.set_value(1.0), run_time=_s1_step4_INTERPOLATION_RUN_TIME, rate_func=linear)
         self.wait(0.8)
 
 class _Study1Step4CompactBase(ThreeDScene):
@@ -1931,7 +1951,7 @@ class _Study1Step4CompactBase(ThreeDScene):
         self.add(state['img_follow'], state['img_follow_border'])
         self.play(Create(state['arc_3d']), FadeIn(state['vec_za']), FadeIn(state['lab_za']), run_time=0.9)
         self.wait(0.2)
-        self.play(state['alpha'].animate.set_value(_s1_step4_COMPACT_ALPHA_END), run_time=10.0, rate_func=linear)
+        self.play(state['alpha'].animate.set_value(_s1_step4_COMPACT_ALPHA_END), run_time=_s1_step4_INTERPOLATION_RUN_TIME, rate_func=linear)
         self.wait(0.8)
 
 class Study1Stage1Step4Setup(_Study1Step4CompactBase):
@@ -2097,7 +2117,7 @@ class _Study1Step5Base(ThreeDScene):
         selected_indices = _s1_step5_SELECTED_INDICES
         pixels = _s1_step5_load_pixels(_s1_step5__INTERP_DIR, image_names, sz=256)
         N = len(pixels)
-        title = Tex('Selecting Interpolation Steps', color=_s1_step5_INK, font_size=36).to_edge(UP, buff=0.36)
+        title = Tex(r'\textbf{Selecting Interpolation Steps}', color=_s1_step5_INK, font_size=28).to_edge(UP, buff=0.36)
         anchor_simple = ImageMobject(pixels[0]).scale_to_fit_height(P1_IMG_H).move_to([P1_ANCHOR_X, P1_IMG_Y, 0.0])
         guide_simple = ImageMobject(pixels[-1]).scale_to_fit_height(P1_IMG_H).move_to([P1_INTERP_X, P1_IMG_Y, 0.0])
         anchor_grp = Group(anchor_simple)
@@ -2327,7 +2347,7 @@ class _Study1Step5Base(ThreeDScene):
         endpoint_indices = {0, st['N'] - 1}
         selected_thumbs = [_s1_step5_find_thumb(deck, i) for i in selected_indices if i not in endpoint_indices]
         other_thumbs = [t for t in deck if t not in selected_thumbs and t.img_idx not in endpoint_indices]
-        title = Tex('\\textbf{Model-based preselection}', color=_s1_step5_INK, font_size=30)
+        title = Tex('\\textbf{Model-based preselection}', color=_s1_step5_INK, font_size=28)
         title.to_edge(UP, buff=0.36)
         selected_boxes = VGroup(*[SurroundingRectangle(t, color=_s1_step5_ORNG, stroke_width=2.5, buff=0.02).set_z_index(t.z_index + 0.1) for t in selected_thumbs])
         placeholder = st.get('_placeholder')
@@ -2442,7 +2462,9 @@ class Study1StimulusSetShowcase(Scene):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stimshow_BG
-        title = Tex('\\textbf{Model-based preselected sets of 10 images for each object-scene}', color=_s1_stimshow_INK, font_size=24)
+        title = Tex('\\textbf{Model-based preselected sets of 10 images for each object-scene}', color=_s1_stimshow_INK, font_size=28)
+        if title.width > config.frame_width - 0.6:
+            title.scale_to_fit_width(config.frame_width - 0.6)
         title.to_edge(UP, buff=0.18)
         row_specs = [_s1_stimshow_build_row(_s1_stimshow_resolve_strip_paths(display_name, image_code)) for display_name, image_code in _s1_stimshow_SHOWCASE_TARGETS]
         anchor_mobs = Group()
@@ -2553,8 +2575,8 @@ class Study1Stage2TripletTask(Scene):
         self.camera.background_color = _s1_stage2_BG
         si_pos, sj_pos, sk_pos = self._positions()
         IMG_H = self._IMG_H
-        trial_specs = [{'ref': 0, 'left': 2, 'right': 7, 'selected': 'left'}, {'ref': 4, 'left': 8, 'right': 3, 'selected': 'right'}, {'ref': 6, 'left': 1, 'right': 9, 'selected': 'left'}, {'ref': 8, 'left': 5, 'right': 2, 'selected': 'right'}]
-        title = Tex('Psychophysical Validation', color=_s1_stage2_INK, font_size=38).move_to(ORIGIN)
+        trial_specs = [{'ref': 0, 'left': 2, 'right': 7, 'selected': 'left'}, {'ref': 4, 'left': 8, 'right': 3, 'selected': 'right'}, {'ref': 6, 'left': 1, 'right': 9, 'selected': 'left'}]
+        title = Tex(r'\textbf{Psychophysical Validation}', color=_s1_stage2_INK, font_size=28).move_to(ORIGIN)
         title_top_target = title.copy().to_edge(UP, buff=0.28)
         subtitle = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_INK, font_size=24).next_to(title_top_target, DOWN, buff=0.1)
         question = VGroup(Tex('Does the model-based preselection capture', color=_s1_stage2_INK, font_size=24), Tex('a human-perceived perceptual continuum?', color=_s1_stage2_INK, font_size=24)).arrange(DOWN, buff=0.08).next_to(subtitle, DOWN, buff=0.16)
@@ -2648,8 +2670,8 @@ class Study1Stage2TripletTask2(Study1Stage2TripletTask):
         self.camera.background_color = _s1_stage2_BG
         si_pos, sj_pos, sk_pos = self._positions()
         IMG_H = self._IMG_H
-        trial_specs = [{'ref': 0, 'left': 2, 'right': 7, 'selected': 'left'}, {'ref': 4, 'left': 8, 'right': 3, 'selected': 'right'}, {'ref': 6, 'left': 1, 'right': 9, 'selected': 'left'}, {'ref': 8, 'left': 5, 'right': 2, 'selected': 'right'}]
-        title = Tex('Psychophysical Validation', color=_s1_stage2_INK, font_size=38).to_edge(UP, buff=0.28)
+        trial_specs = [{'ref': 0, 'left': 2, 'right': 7, 'selected': 'left'}, {'ref': 4, 'left': 8, 'right': 3, 'selected': 'right'}, {'ref': 6, 'left': 1, 'right': 9, 'selected': 'left'}]
+        title = Tex(r'\textbf{Psychophysical Validation}', color=_s1_stage2_INK, font_size=28).to_edge(UP, buff=0.28)
         subtitle = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_INK, font_size=24).next_to(title, DOWN, buff=0.1)
         question = VGroup(Tex('Does the model-based preselection capture', color=_s1_stage2_INK, font_size=24), Tex('a human-perceived perceptual continuum?', color=_s1_stage2_INK, font_size=24)).arrange(DOWN, buff=0.08).next_to(subtitle, DOWN, buff=0.16)
         lbl_h = 0.38
@@ -2748,7 +2770,7 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage2_BG
-        title_prev = Tex('Psychophysical Validation', color=_s1_stage2_INK, font_size=38).to_edge(UP, buff=0.28)
+        title_prev = Tex(r'\textbf{Psychophysical Validation}', color=_s1_stage2_INK, font_size=28).to_edge(UP, buff=0.28)
         subtitle_prev = Tex('Triplet similarity task \\quad $N = 1{,}113$ participants', color=_s1_stage2_INK, font_size=24).next_to(title_prev, DOWN, buff=0.1)
         question_prev = VGroup(Tex('Does the model-based preselection capture', color=_s1_stage2_INK, font_size=24), Tex('a human-perceived perceptual continuum?', color=_s1_stage2_INK, font_size=24)).arrange(DOWN, buff=0.08).next_to(subtitle_prev, DOWN, buff=0.16)
         math_prev = VGroup(Tex('Given a set of images $\\mathcal{S} = \\{s_1, s_2, \\ldots, s_n\\}$,', color=_s1_stage2_INK, font_size=26), Tex('participants view triplets $(s_i,\\, s_j,\\, s_k)$', color=_s1_stage2_INK, font_size=26), Tex('and select which probe is more similar', color=_s1_stage2_INK, font_size=26), Tex('to the reference image $s_i$.', color=_s1_stage2_INK, font_size=26)).arrange(DOWN, aligned_edge=LEFT, buff=0.12)
@@ -2770,18 +2792,18 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
         math_prev.next_to(trial_frame, LEFT, buff=0.55)
         math_prev.align_to(trial_frame, UP).shift(DOWN * 0.82)
         computer_icon = ImageMobject(str(_s1_stage2_STAGE2_ASSET_DIR / 'computer.png')).scale_to_fit_width(0.56).move_to(trial_center + UP * (trial_frame_side / 2 + 0.42))
-        si_img = ImageMobject(_s1_stage2_fish_path(8)).scale_to_fit_height(img_h).move_to(si_pos)
-        sj_img = ImageMobject(_s1_stage2_fish_path(5)).scale_to_fit_height(img_h).move_to(sj_pos)
-        sk_img = ImageMobject(_s1_stage2_fish_path(2)).scale_to_fit_height(img_h).move_to(sk_pos)
+        si_img = ImageMobject(_s1_stage2_fish_path(6)).scale_to_fit_height(img_h).move_to(si_pos)
+        sj_img = ImageMobject(_s1_stage2_fish_path(1)).scale_to_fit_height(img_h).move_to(sj_pos)
+        sk_img = ImageMobject(_s1_stage2_fish_path(9)).scale_to_fit_height(img_h).move_to(sk_pos)
         si_bdr = SurroundingRectangle(si_img, color=_s1_stage2_LGREY, stroke_width=1.5, buff=0.05)
-        sj_bdr = SurroundingRectangle(sj_img, color=_s1_stage2_LGREY, stroke_width=1.5, buff=0.05)
-        sk_bdr = SurroundingRectangle(sk_img, color=_s1_stage2_AMBER, stroke_width=4.2, buff=0.07)
-        si_lbl = MathTex('s_{9}', color=_s1_stage2_INK, font_size=28).next_to(si_img, DOWN, buff=0.16)
-        sj_lbl = MathTex('s_{6}', color=_s1_stage2_INK, font_size=28).next_to(sj_img, DOWN, buff=0.16).set_opacity(0.28)
-        sk_lbl = MathTex('s_{3}', color=_s1_stage2_INK, font_size=28).next_to(sk_img, DOWN, buff=0.16)
-        sj_img.set_opacity(0.28)
-        sj_bdr.set_stroke(opacity=0.12)
-        response_rows = VGroup(self._mini_response_row(1, 3, 8), self._mini_response_row(5, 4, 9), self._mini_response_row(7, 2, 10), self._mini_response_row(9, 3, 6)).arrange(DOWN, aligned_edge=LEFT, buff=0.24)
+        sj_bdr = SurroundingRectangle(sj_img, color=_s1_stage2_AMBER, stroke_width=4.2, buff=0.07)
+        sk_bdr = SurroundingRectangle(sk_img, color=_s1_stage2_LGREY, stroke_width=1.5, buff=0.05)
+        si_lbl = MathTex('s_{7}', color=_s1_stage2_INK, font_size=28).next_to(si_img, DOWN, buff=0.16)
+        sj_lbl = MathTex('s_{2}', color=_s1_stage2_INK, font_size=28).next_to(sj_img, DOWN, buff=0.16)
+        sk_lbl = MathTex('s_{10}', color=_s1_stage2_INK, font_size=28).next_to(sk_img, DOWN, buff=0.16).set_opacity(0.28)
+        sk_img.set_opacity(0.28)
+        sk_bdr.set_stroke(opacity=0.12)
+        response_rows = VGroup(self._mini_response_row(1, 3, 8), self._mini_response_row(5, 4, 9), self._mini_response_row(7, 2, 10)).arrange(DOWN, aligned_edge=LEFT, buff=0.24)
         response_lhs = MathTex('\\mathit{T} \\; =', color=_s1_stage2_INK, font_size=30).next_to(response_rows, LEFT, buff=0.16).align_to(response_rows[0], UP)
         response_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=24)
         response_stack = VGroup(response_lhs, response_rows)
@@ -2789,8 +2811,11 @@ class Study1Stage2SimilarityJudgementsExamples(Scene):
         continuation_dots = MathTex('\\vdots', color=_s1_stage2_INK, font_size=30).next_to(response_rows[-1], DOWN, buff=0.16)
         continuation_dots.move_to([response_rows[-1].get_center()[0], continuation_dots.get_center()[1], 0.0])
         response_group = VGroup(response_title, response_lhs, response_rows, continuation_dots).move_to([4.35, -0.68, 0.0])
-        previous_scene_group = Group(title_prev, subtitle_prev, question_prev, math_prev, trial_frame, computer_icon, si_img, si_bdr, si_lbl, sj_img, sj_bdr, sj_lbl, sk_img, sk_bdr, sk_lbl, response_group)
-        title = Tex('Similarity judgements within object-scenes', color=_s1_stage2_INK, font_size=34).to_edge(UP, buff=0.3)
+        si_group = Group(si_img, si_bdr, si_lbl)
+        sj_group = Group(sj_img, sj_bdr, sj_lbl)
+        sk_group = Group(sk_img, sk_bdr, sk_lbl)
+        previous_scene_group = Group(title_prev, subtitle_prev, question_prev, math_prev, trial_frame, computer_icon, si_group, sj_group, sk_group, response_group)
+        title = Tex(r'\textbf{Similarity judgements within object-scenes}', color=_s1_stage2_INK, font_size=28).to_edge(UP, buff=0.3)
         categories = [('landscape_element_tropical_karst', 'Tropical karst', (1, 4, 8)), ('item_sofa', 'Sofa', (0, 3, 7)), ('vehicle_campervan', 'Campervan', (2, 5, 9)), ('plant_pine_med', 'Pine med', (1, 6, 8))]
 
         def mini_triplet(prefix: str, label: str, indices: tuple[int, int, int], center: np.ndarray) -> Group:
@@ -2856,7 +2881,7 @@ class Study1Stage2OrdinalEmbedding(Scene):
         self.camera.background_color = _s1_stage2_BG
         xs, y, IMG_H = (self._XS, self._Y, self._IMG_H)
         scramble = self._SCRAMBLE
-        title = Tex('Ordinal Embedding', color=_s1_stage2_INK, font_size=38).to_edge(UP, buff=0.28)
+        title = Tex(r'\textbf{Ordinal Embedding}', color=_s1_stage2_INK, font_size=28).to_edge(UP, buff=0.28)
         cards = [self._card(scramble[i], IMG_H).move_to([xs[i], y, 0.0]) for i in range(10)]
         target_xs = [xs[scramble[i]] for i in range(10)]
         axis_y = y - IMG_H / 2 - 0.18
@@ -2911,7 +2936,7 @@ class Study1Stage2EmbeddingResult(Scene):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage2_BG
-        title = Tex('From behavioural responses to perceptual embedding', color=_s1_stage2_INK, font_size=34).to_edge(UP, buff=0.28)
+        title = Tex(r'\textbf{From behavioural responses to perceptual embedding}', color=_s1_stage2_INK, font_size=28).to_edge(UP, buff=0.28)
         responses_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=28)
         responses_main = MathTex('\\mathit{T}=\\{(i,j,k)\\}', color=_s1_stage2_INK, font_size=36)
         responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_INK, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_INK, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_INK, font_size=25), MathTex('\\vdots', color=_s1_stage2_INK, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
@@ -3027,7 +3052,7 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
 
     def _embedding_result_snapshot(self) -> Group:
         """Build the held end state of the previous embedding-result scene."""
-        title = Tex('From behavioural responses to perceptual embedding', color=_s1_stage2_INK, font_size=34).to_edge(UP, buff=0.28)
+        title = Tex(r'\textbf{From behavioural responses to perceptual embedding}', color=_s1_stage2_INK, font_size=28).to_edge(UP, buff=0.28)
         responses_title = Tex('Behavioural responses', color=_s1_stage2_INK, font_size=28)
         responses_main = MathTex('\\mathit{T}=\\{(i,j,k)\\}', color=_s1_stage2_INK, font_size=36)
         responses_examples = VGroup(MathTex('(1,3,8)', color=_s1_stage2_INK, font_size=25), MathTex('(5,4,9)', color=_s1_stage2_INK, font_size=25), MathTex('(7,2,10)', color=_s1_stage2_INK, font_size=25), MathTex('\\vdots', color=_s1_stage2_INK, font_size=25)).arrange(DOWN, aligned_edge=LEFT, buff=0.1)
@@ -3077,7 +3102,7 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
         self.wait(0.25)
         self.play(FadeOut(previous_scene), run_time=0.6)
         category_specs = [('pine_med', ('pine', 'med')), ('bottle', ('bottle',)), ('moorland_tor', ('moorland', 'tor')), ('train', ('train',)), ('modern_building', ('modern', 'building')), ('observatory', ('observatory',))]
-        title = Tex('Behaviourally reordered sets', color=_s1_stage2_INK, font_size=30).to_edge(UP, buff=0.35)
+        title = Tex(r'\textbf{Behaviourally reordered sets}', color=_s1_stage2_INK, font_size=28).to_edge(UP, buff=0.35)
         category_rows = Group(*[self._category_row(self._select_category_paths(keywords, n=10), image_height=0.65) for _, keywords in category_specs])
         category_rows.arrange(DOWN, buff=0.2)
         category_rows.move_to([0.0, -0.28, 0.0])
@@ -3090,7 +3115,11 @@ class Study1Stage2ModelOrderToHeatmap(Scene):
         heatmap.to_edge(RIGHT, buff=0.35).shift(DOWN * 0.06)
         heatmap_title = Tex('LPIPS vs embedding orders', color=_s1_stage2_INK, font_size=24).next_to(heatmap, UP, buff=0.14)
         heatmap_group = Group(heatmap_title, heatmap)
-        agreement_text = VGroup(Tex('Strong agreement', color=_s1_stage2_INK, font_size=24), Tex('($\\mathrm{Spearman\\ rank\\ correlation}$ of $\\rho = 0.73$)', color=_s1_stage2_INK, font_size=20), Tex('between LPIPS-based order and human similarity judgements', color=_s1_stage2_INK, font_size=20)).arrange(DOWN, buff=0.1, aligned_edge=LEFT)
+        agreement_text = Tex(
+            r'Strong LPIPS-behaviour alignment ($\rho = 0.73$)',
+            color=_s1_stage2_INK,
+            font_size=22,
+        )
         agreement_text.next_to(heatmap, DOWN, buff=0.28)
         agreement_text.align_to(heatmap, LEFT)
         self.play(FadeIn(title, shift=UP * 0.05), LaggedStart(*[FadeIn(row, shift=UP * 0.05, scale=1.03) for row in category_rows], lag_ratio=0.08), run_time=1.2)
@@ -3249,9 +3278,10 @@ class Study1Stage3MemoryIntro(Scene):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage3_BG
-        title = Tex('Memory validation task', color=_s1_stage3_INK, font_size=40).move_to(ORIGIN)
+        title = Tex(r'\textbf{Memory validation task}', color=_s1_stage3_INK, font_size=28).move_to(ORIGIN)
         title_top_target = title.copy().to_edge(UP, buff=0.28)
-        question = VGroup(Tex('Does proximity along the perceptual continua', color=_s1_stage3_INK, font_size=26), Tex('of our image sets predict memory performance?', color=_s1_stage3_INK, font_size=26)).arrange(DOWN, buff=0.1).next_to(title_top_target, DOWN, buff=0.24)
+        question = VGroup(Tex('Does proximity along the perceptual continua', color=_s1_stage3_INK, font_size=26), 
+                          Tex('predict memory performance?', color=_s1_stage3_INK, font_size=26)).arrange(DOWN, buff=0.1).next_to(title_top_target, DOWN, buff=0.24)
 
         def set_image(prefix: str, idx: int, height: float, pos: tuple[float, float, float]) -> ImageMobject:
             """Load and position one Stage 3 exemplar image."""
@@ -3438,7 +3468,7 @@ class Study1Stage3MemoryExpDesignLegacy(Scene):
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
         self.camera.background_color = _s1_stage3_BG
-        title = Tex('Memory validation task', color=_s1_stage3_INK, font_size=40).to_edge(UP, buff=0.28)
+        title = Tex(r'\textbf{Memory validation task}', color=_s1_stage3_INK, font_size=28).to_edge(UP, buff=0.28)
         question = VGroup(Tex('Does proximity along the perceptual continua', color=_s1_stage3_INK, font_size=26), Tex('of our image sets predict memory performance?', color=_s1_stage3_INK, font_size=26)).arrange(DOWN, buff=0.1).next_to(title, DOWN, buff=0.24)
         lookup = _s1_stage3_load_stimulus_lookup()
         set_specs = [('plant', 'pine_med'), ('landscape_element', 'lake_island'), ('building', 'observatory'), ('item', 'sofa')]
@@ -3616,7 +3646,7 @@ class Study1Stage3MemoryExpDesignB(Scene):
     def construct(self) -> None:
         """Annotate the parked trial strip with difficulty, timing, and sample size."""
         self.camera.background_color = _s1_stage3_BG
-        title = Tex('Memory validation task', color=_s1_stage3_INK, font_size=40).to_edge(UP, buff=0.28)
+        title = Tex(r'\textbf{Memory validation task}', color=_s1_stage3_INK, font_size=28).to_edge(UP, buff=0.28)
         question = VGroup(Tex('Does proximity along the perceptual continua', color=_s1_stage3_INK, font_size=26), Tex('of our image sets predict memory performance?', color=_s1_stage3_INK, font_size=26)).arrange(DOWN, buff=0.1).next_to(title, DOWN, buff=0.24)
         lookup = _s1_stage3_load_stimulus_lookup()
         set_specs = [('plant', 'pine_med'), ('landscape_element', 'lake_island'), ('building', 'observatory'), ('item', 'sofa')]
@@ -3742,7 +3772,7 @@ class Study1Stage3MemoryExpResults(Scene):
         previous_scene = _build_memory_exp_design_final_frame()
         self.add(previous_scene)
         self.wait(0.2)
-        title = Tex('Memory validation results', color=_s1_stage3_INK, font_size=40).to_edge(UP, buff=0.28)
+        title = Tex(r'\textbf{Memory validation results}', color=_s1_stage3_INK, font_size=28).to_edge(UP, buff=0.28)
         plot_height = 0.7 * (2 * config.frame_height / 3)
         agg_img = _s1_stage3_load_visible_svg(self.AGG_IMG, height=plot_height)
         block_img = _s1_stage3_load_visible_svg(self.BLOCK_IMG, height=plot_height)
@@ -3839,7 +3869,7 @@ class Study1Stage2(Study1Stage2TripletTask):
 
 
 class Study1Stage3(Scene):
-    """Scenes 18–24 merged: MemoryIntroA–E, MemoryExpDesign, MemoryExpResults."""
+    """Scenes 18–20 merged: MemoryExpDesign, RepetitionExplainer, MemoryExpResults."""
 
     # The merged scene replays Study1Stage3MemoryExpResults on itself, so it
     # needs the same asset paths that results scene expects on `self`.
@@ -3847,24 +3877,12 @@ class Study1Stage3(Scene):
     BLOCK_IMG = Study1Stage3MemoryExpResults.BLOCK_IMG
 
     def construct(self) -> None:
-        self.next_section("18_MemoryIntroA")
-        Study1Stage3MemoryIntroA.construct(self)
-        self.next_section("19_MemoryIntroB")
-        self.clear()
-        Study1Stage3MemoryIntroB.construct(self)
-        self.next_section("20_MemoryIntroC")
-        self.clear()
-        Study1Stage3MemoryIntroC.construct(self)
-        self.next_section("21_MemoryIntroD")
+        self.next_section("17_MemoryExpDesign")
+        Study1Stage3MemoryExpDesign.construct(self)
+        self.next_section("18_RepetitionExplainer")
         self.clear()
         Study1Stage3MemoryIntroD.construct(self)
-        self.next_section("22_MemoryIntroE")
-        self.clear()
-        Study1Stage3MemoryIntroE.construct(self)
-        self.next_section("23_MemoryExpDesign")
-        self.clear()
-        Study1Stage3MemoryExpDesign.construct(self)
-        self.next_section("24_MemoryExpResults")
+        self.next_section("19_MemoryExpResults")
         self.clear()
         Study1Stage3MemoryExpResults.construct(self)
 
@@ -3996,7 +4014,7 @@ _MEMORY_INTRO_SECOND_TARGET_MEAN = 0.80
 _MEMORY_INTRO_SECOND_TARGET_REPEATED_MEAN = 1.25
 _MEMORY_INTRO_SECOND_TARGET_LABEL_X = 1.39
 _MEMORY_INTRO_B_CLAIM = r"Perceptual dissimilarity enhances discriminability"
-_MEMORY_INTRO_C_CLAIM = r"Repeated exposure enhances memory discriminability"
+_MEMORY_INTRO_C_CLAIM = r"Experimental logic of repetition"
 _MEMORY_INTRO_TARGET_COLOR = "#5B7493"
 _MEMORY_INTRO_FOIL_COLOR = "#B67A5D"
 _MEMORY_INTRO_AXIS_COLOR = "#C7CDD4"
@@ -4202,12 +4220,13 @@ def _build_memory_intro_claim_title(
     text: str,
     *,
     anchor: np.ndarray,
+    font_size: float = 28,
 ) -> Tex:
     """Return a centered claim title that scales down to stay within frame bounds."""
     claim = Tex(
-        text,
+        rf"\textbf{{{text}}}",
         color=INK,
-        font_size=40,
+        font_size=font_size,
     )
     max_width = config.frame_width - 1.2
     if claim.width > max_width:
@@ -4248,6 +4267,8 @@ def _build_memory_intro_repetition_label(
     iteration: int,
     *,
     anchor_group: Group,
+    buff: float = _MEMORY_INTRO_REPETITION_LABEL_BUFF,
+    right_shift_factor: float = _MEMORY_INTRO_REPETITION_LABEL_RIGHT_SHIFT_FACTOR,
 ) -> Tex:
     """Return the repetition counter label positioned above the stacked plots."""
     label = Tex(
@@ -4255,12 +4276,8 @@ def _build_memory_intro_repetition_label(
         color=_MEMORY_INTRO_REPETITION_COLOR,
         font_size=22,
     )
-    label.next_to(anchor_group, UP, buff=_MEMORY_INTRO_REPETITION_LABEL_BUFF)
-    label.shift(
-        RIGHT
-        * anchor_group.width
-        * _MEMORY_INTRO_REPETITION_LABEL_RIGHT_SHIFT_FACTOR
-    )
+    label.next_to(anchor_group, UP, buff=buff)
+    label.shift(RIGHT * anchor_group.width * right_shift_factor)
     label.set_z_index(7)
     return label
 
@@ -4441,9 +4458,9 @@ def _build_memory_intro_core(
     continuum rows that later collapse into target-versus-foil summaries.
     """
     title = Tex(
-        r"Memory validation task",
+        r"\textbf{Memory validation task}",
         color=INK,
-        font_size=40,
+        font_size=28,
     ).move_to(ORIGIN)
     title_top_target = title.copy().to_edge(UP, buff=0.28)
 
@@ -5095,13 +5112,20 @@ class Study1Stage3MemoryIntroA(Scene):
             top_target_label_x=_MEMORY_INTRO_A_TOP_TARGET_LABEL_X,
             top_criterion_x=criterion_intersection_x,
         )
-        plot = ctx["plot"]
+        question_top_target = ctx["question"].copy()
+        ctx["question"].next_to(ctx["title"], DOWN, buff=0.24)
 
-        self.play(Write(ctx["title"]), run_time=0.70)
-        self.wait(0.15)
-        self.play(ctx["title"].animate.move_to(ctx["title_top_target"]), run_time=0.55)
-        self.play(FadeIn(ctx["question"], shift=UP * 0.12), run_time=0.60)
-        self.wait(0.60)
+        self.play(
+            Write(ctx["title"]),
+            FadeIn(ctx["question"], shift=UP * 0.12),
+            run_time=0.80,
+        )
+        self.wait(4.00)
+        self.play(
+            ctx["title"].animate.move_to(ctx["title_top_target"]),
+            ctx["question"].animate.move_to(question_top_target.get_center()),
+            run_time=0.70,
+        )
 
         self.play(
             FadeIn(ctx["example_target"], scale=0.96),
@@ -5322,26 +5346,42 @@ class Study1Stage3MemoryIntroD(Scene):
         ctx = end_state["ctx"]
         followup = end_state["followup"]
         repetition_tracker = ValueTracker(0.0)
-        top_plot = _build_memory_intro_dynamic_plot(
-            ctx["plot"],
-            repetition_tracker=repetition_tracker,
-        )
+        followup["second_plot"]["memory_strength_label"].set_opacity(1.0)
         second_plot = _build_memory_intro_dynamic_plot(
             followup["second_plot"],
             repetition_tracker=repetition_tracker,
         )
-        dissimilarity_claim = _build_memory_intro_claim_title(
-            _MEMORY_INTRO_B_CLAIM,
-            anchor=ctx["title_top_target"].get_center(),
+        second_example_target_label = ctx["example_target_label"].copy()
+        second_example_target_label.next_to(
+            followup["second_example_target"],
+            UP,
+            buff=0.28,
         )
+        second_example_target_label.set_z_index(6)
+        second_example_foil_label = ctx["example_foil_label"].copy()
+        second_example_foil_label.next_to(
+            followup["second_example_foil"],
+            UP,
+            buff=0.28,
+        )
+        second_example_foil_label.set_z_index(6)
+        centered_content = Group(
+            followup["second_example_target"],
+            followup["second_example_foil"],
+            second_example_target_label,
+            second_example_foil_label,
+            second_plot["group"],
+        )
+        centered_content.move_to(ORIGIN)
         repetition_claim = _build_memory_intro_claim_title(
             _MEMORY_INTRO_C_CLAIM,
             anchor=ctx["title_top_target"].get_center(),
+            font_size=28,
         )
         repeated_frame = _build_memory_intro_repeated_frame(
-            target_examples=(ctx["example_target"], followup["second_example_target"]),
+            target_examples=(followup["second_example_target"],),
         )
-        repetition_label_anchor = Group(ctx["plot"]["axes"], followup["second_plot"]["axes"])
+        repetition_label_anchor = Group(followup["second_plot"]["axes"])
         repetition_index_tracker = ValueTracker(1.0)
         repetition_label_pulse_tracker = ValueTracker(0.0)
         repetition_label_opacity_tracker = ValueTracker(0.0)
@@ -5349,6 +5389,8 @@ class Study1Stage3MemoryIntroD(Scene):
             lambda: _build_memory_intro_repetition_label(
                 max(1, int(round(repetition_index_tracker.get_value()))),
                 anchor_group=repetition_label_anchor,
+                buff=0.52,
+                right_shift_factor=0.0,
             )
             .scale(
                 1.0
@@ -5359,23 +5401,15 @@ class Study1Stage3MemoryIntroD(Scene):
         )
 
         self.add(
-            dissimilarity_claim,
-            ctx["example_target"],
-            ctx["example_foil"],
-            ctx["example_target_label"],
-            ctx["example_foil_label"],
-            top_plot["group"],
+            repetition_claim,
             followup["second_example_target"],
             followup["second_example_foil"],
+            second_example_target_label,
+            second_example_foil_label,
             second_plot["group"],
             repetition_label,
         )
-        self.wait(0.40)
-        self.play(
-            FadeOut(dissimilarity_claim, shift=UP * 0.06),
-            FadeIn(repetition_claim, shift=UP * 0.06),
-            run_time=0.60,
-        )
+        self.wait(1.00)
         self.wait(2.00)
         self.play(
             Create(repeated_frame),
@@ -5427,6 +5461,7 @@ class Study1Stage3MemoryIntroE(Scene):
         repetition_claim = _build_memory_intro_claim_title(
             _MEMORY_INTRO_C_CLAIM,
             anchor=ctx["title_top_target"].get_center(),
+            font_size=28,
         )
         repeated_frame = _build_memory_intro_repeated_frame(
             target_examples=(ctx["example_target"], followup["second_example_target"]),
@@ -5536,6 +5571,9 @@ class Study1Stage3MemoryExpDesign(Scene):
         end_state = _build_memory_intro_c_end_state()
         ctx = end_state["ctx"]
         overlay = end_state["overlay"]
+        question_top_target = ctx["question"].copy()
+        ctx["title"].move_to(ORIGIN)
+        ctx["question"].next_to(ctx["title"], DOWN, buff=0.24)
         difficulty_annotations = _build_memory_foil_difficulty_annotations(
             overlay["collapsed_cards"],
             overlay["continuation_marks"],
@@ -5561,18 +5599,33 @@ class Study1Stage3MemoryExpDesign(Scene):
         lake_target_card = selected_card_lookup[("landscape_element", "lake_island", 0)]
         lake_d3_card = selected_card_lookup[("landscape_element", "lake_island", 3)]
 
-        self.add(
-            ctx["title"],
-            ctx["question"],
-            *collapsed_cards,
-            continuation_marks,
-            target_rect,
-            foil_rect,
-            target_label,
-            foil_label,
-            dissimilar_arrow,
-            dissimilar_text,
-            difficulty_annotations["annotations"],
+        self.play(
+            Write(ctx["title"]),
+            FadeIn(ctx["question"], shift=UP * 0.12),
+            run_time=0.80,
+        )
+        self.wait(4.00)
+        self.play(
+            ctx["title"].animate.move_to(ctx["title_top_target"]),
+            ctx["question"].animate.move_to(question_top_target.get_center()),
+            run_time=0.70,
+        )
+        self.play(
+            FadeIn(
+                Group(
+                    *collapsed_cards,
+                    continuation_marks,
+                    target_rect,
+                    foil_rect,
+                    target_label,
+                    foil_label,
+                    dissimilar_arrow,
+                    dissimilar_text,
+                    difficulty_annotations["annotations"],
+                ),
+                shift=DOWN * 0.06,
+            ),
+            run_time=0.75,
         )
 
         # Phase 1: compact the target-versus-foil summary into the left panel so
@@ -5875,12 +5928,8 @@ _STUDY1_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
     Study1Stage2SimilarityJudgementsExamples,
     Study1Stage2EmbeddingResult,
     Study1Stage2ModelOrderToHeatmap,
-    Study1Stage3MemoryIntroA,
-    Study1Stage3MemoryIntroB,
-    Study1Stage3MemoryIntroC,
-    Study1Stage3MemoryIntroD,
-    Study1Stage3MemoryIntroE,
     Study1Stage3MemoryExpDesign,
+    Study1Stage3MemoryIntroD,
     Study1Stage3MemoryExpResults,
 )
 _STUDY1_SECTION_NAMES: tuple[str, ...] = (
@@ -5901,12 +5950,8 @@ _STUDY1_SECTION_NAMES: tuple[str, ...] = (
     "study1_stage2_similarity_judgements_examples",
     "study1_stage2_embedding_result",
     "study1_stage2_model_order_to_heatmap",
-    "study1_stage3_memory_intro_a",
-    "study1_stage3_memory_intro_b",
-    "study1_stage3_memory_intro_c",
-    "study1_stage3_memory_intro_d",
-    "study1_stage3_memory_intro_e",
     "study1_stage3_memory_exp_design",
+    "study1_stage3_memory_repetition_explainer",
     "study1_stage3_memory_exp_results",
 )
 
@@ -5954,6 +5999,12 @@ class Study1(
         zip(_STUDY1_SECTION_NAMES, _STUDY1_MASTER_SECTION_ORDER)
     )
     _SCENE_INSTANCE_OVERRIDES: tuple[str, ...] = ("segment",)
+    _SECTIONS_WITHOUT_PREVIOUS_FRAME: frozenset[str] = frozenset(
+        {
+            "study1_stage3_memory_repetition_explainer",
+            "study1_stage3_memory_exp_results",
+        }
+    )
 
     def _reset_master_scene_state(self, *, clear_scene: bool = True) -> None:
         """Reset camera placement, optionally preserving prior section mobjects."""
@@ -6022,7 +6073,10 @@ class Study1(
             self._render_section(
                 section_name,
                 scene_cls,
-                carry_previous_frame=idx > 0,
+                carry_previous_frame=(
+                    idx > 0
+                    and section_name not in self._SECTIONS_WITHOUT_PREVIOUS_FRAME
+                ),
             )
 
 _HIDDEN_STUDY1_SCENES: tuple[type[Scene], ...] = tuple(
