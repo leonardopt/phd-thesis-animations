@@ -23,13 +23,37 @@ export UV_CACHE_DIR="${UV_CACHE_DIR:-$SCRIPT_DIR/.uv-cache}"
 export MPLCONFIGDIR="${MPLCONFIGDIR:-$SCRIPT_DIR/.mplconfig}"
 mkdir -p "$UV_CACHE_DIR" "$MPLCONFIGDIR"
 
-# Clear stale section clips from previous narrative layouts before rendering.
-find media/videos/02_methods -path "*/sections/*" -type f -delete 2>/dev/null || true
+normalize_quality_dir() {
+    case "$1" in
+        -ql|ql|low|480p15)
+            echo "480p15"
+            ;;
+        -qm|qm|medium|720p30)
+            echo "720p30"
+            ;;
+        -qh|qh|high|1080p60)
+            echo "1080p60"
+            ;;
+        -qk|qk|4k|2160p60)
+            echo "2160p60"
+            ;;
+        *)
+            echo "Unsupported quality: $1" >&2
+            echo "Use -ql, -qm, -qh, -qk or 480p15/720p30/1080p60/2160p60." >&2
+            exit 1
+            ;;
+    esac
+}
+
+QUALITY_DIR="$(normalize_quality_dir "$QUALITY")"
+
+# Clear stale section clips only for the selected quality before rendering.
+find "media/videos/02_methods/$QUALITY_DIR/sections" -type f -delete 2>/dev/null || true
 
 echo "[1/1] Methods -> methods (sectioned)"
 uv run manim scenes/methods.py Methods "$QUALITY" --save_sections
 
 # Remove the combined scene render and keep only per-section files.
-find media/videos/02_methods -maxdepth 2 -name "*.mp4" -not -path "*/sections/*" -delete 2>/dev/null || true
+find "media/videos/02_methods/$QUALITY_DIR" -maxdepth 1 -name "*.mp4" -delete 2>/dev/null || true
 
-echo "Done. Section videos saved to media/videos/02_methods/*/sections/"
+echo "Done. Section videos saved to media/videos/02_methods/$QUALITY_DIR/sections/"

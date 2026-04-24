@@ -35,6 +35,7 @@ SECTION_ORDER_HINTS = (
     section_output_dir("study1"),
     section_output_dir("study2"),
     section_output_dir("conclusion"),
+    section_output_dir("supplementary"),
     "intro_visual_memory",
     "intro_diffusion_explainer",
 )

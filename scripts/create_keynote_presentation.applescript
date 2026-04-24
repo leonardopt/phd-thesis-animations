@@ -1,14 +1,17 @@
 use AppleScript version "2.4"
 use framework "Foundation"
+use framework "AppKit"
 use scripting additions
 
 -- Usage:
 --   osascript scripts/create_keynote_presentation.applescript
+--   osascript scripts/create_keynote_presentation.applescript --quality-folder auto
 --   osascript scripts/create_keynote_presentation.applescript -qh
 --   osascript scripts/create_keynote_presentation.applescript --quality-folder 1080p60
+--   osascript scripts/create_keynote_presentation.applescript --manifest assets/presentation_hybrid_deck.toml --no-dialog
 
 property projectRoot : "/Users/leonardo/phd-thesis-animations"
-property manifestPath : "/Users/leonardo/phd-thesis-animations/assets/presentation_deck.toml"
+property defaultManifestPath : "/Users/leonardo/phd-thesis-animations/assets/presentation_deck.toml"
 
 -- Ensure a destination directory exists before Keynote or export helpers write into it.
 -- posixPath: absolute POSIX path string.
@@ -18,6 +21,12 @@ on ensureDirectoryExists(posixPath)
 	set {created, createError} to fileManager's createDirectoryAtURL:directoryURL withIntermediateDirectories:true attributes:(missing value) |error|:(reference)
 	if (created as boolean) is false then error ((createError's localizedDescription()) as text)
 end ensureDirectoryExists
+
+-- Return true when a filesystem path already exists.
+on fileExistsAtPath(posixPath)
+	set fileManager to current application's NSFileManager's defaultManager()
+	return (fileManager's fileExistsAtPath:posixPath) as boolean
+end fileExistsAtPath
 
 -- Fail early when a manifest or media path that the deck depends on is missing.
 -- Returns no value; raises an AppleScript error with the provided label.
@@ -76,32 +85,71 @@ end runCommandInDirectory
 
 -- Resolve the requested Manim quality folder from CLI arguments.
 -- Accepts either the short quality flag or an explicit --quality-folder value.
-on qualityFolderFromArgs(argv)
-	if (count of argv) is 0 then return "480p15"
+on resolveManifestPath(rawManifestPath)
+	set candidatePath to rawManifestPath as text
+	if candidatePath does not start with "/" then set candidatePath to projectRoot & "/" & candidatePath
+	return ((current application's NSString's stringWithString:candidatePath)'s stringByStandardizingPath()) as text
+end resolveManifestPath
+
+-- Parse optional manifest overrides and dialog suppression flags alongside quality.
+-- Returns {qualityFolder, manifestPath, showDialog}.
+on parseCliArgs(argv)
+	set qualityFolder to "auto"
+	set selectedManifestPath to defaultManifestPath
+	set showDialog to true
+	set argCount to count of argv
+	set argIndex to 1
 	
-	set currentArg to (item 1 of argv) as text
-	if currentArg is "--quality-folder" then
-		if (count of argv) < 2 then error "Missing folder name after --quality-folder."
-		return my normalizeQualityValue((item 2 of argv) as text)
-	else if currentArg starts with "--quality-folder=" then
-		return my normalizeQualityValue(text ((length of "--quality-folder=") + 1) thru -1 of currentArg)
-	else
-		return my normalizeQualityValue(currentArg)
-	end if
-end qualityFolderFromArgs
+	repeat while argIndex is less than or equal to argCount
+		set currentArg to (item argIndex of argv) as text
+		if currentArg is "--manifest" then
+			if argIndex is argCount then error "Missing path after --manifest."
+			set argIndex to argIndex + 1
+			set selectedManifestPath to my resolveManifestPath((item argIndex of argv) as text)
+		else if currentArg starts with "--manifest=" then
+			set selectedManifestPath to my resolveManifestPath(text ((length of "--manifest=") + 1) thru -1 of currentArg)
+		else if currentArg is "--quality-folder" then
+			if argIndex is argCount then error "Missing folder name after --quality-folder."
+			set argIndex to argIndex + 1
+			set qualityFolder to my normalizeQualityValue((item argIndex of argv) as text)
+		else if currentArg starts with "--quality-folder=" then
+			set qualityFolder to my normalizeQualityValue(text ((length of "--quality-folder=") + 1) thru -1 of currentArg)
+		else if currentArg is "--no-dialog" or currentArg is "--suppress-dialog" then
+			set showDialog to false
+		else
+			set qualityFolder to my normalizeQualityValue(currentArg)
+		end if
+		set argIndex to argIndex + 1
+	end repeat
+	
+	return {qualityFolder, selectedManifestPath, showDialog}
+end parseCliArgs
 
 -- Normalize supported quality aliases onto the folder names used in media/videos.
 on normalizeQualityValue(rawValue)
 	set trimmedValue to rawValue as text
-	if trimmedValue is "" then return "480p15"
+	if trimmedValue is "" then return "auto"
 	
+	if trimmedValue is "auto" or trimmedValue is "mixed" or trimmedValue is "existing" then return "auto"
 	if trimmedValue is "-ql" or trimmedValue is "ql" or trimmedValue is "480p15" then return "480p15"
 	if trimmedValue is "-qm" or trimmedValue is "qm" or trimmedValue is "720p30" then return "720p30"
 	if trimmedValue is "-qh" or trimmedValue is "qh" or trimmedValue is "1080p60" then return "1080p60"
 	if trimmedValue is "-qk" or trimmedValue is "qk" or trimmedValue is "2160p60" then return "2160p60"
 	
-	error "Unsupported quality argument: " & trimmedValue & ". Use -ql, -qm, -qh, -qk, or a folder like 480p15."
+	error "Unsupported quality argument: " & trimmedValue & ". Use auto, -ql, -qm, -qh, -qk, or a folder like 480p15."
 end normalizeQualityValue
+
+-- Return a short filename suffix for the selected render quality.
+-- The saved Keynote deck uses the presentation shorthand rather than the
+-- full Manim quality folder so filenames stay compact and easy to scan.
+on qualityFilenameTag(qualityFolder)
+	if qualityFolder is "auto" then return "auto"
+	if qualityFolder is "480p15" then return "480"
+	if qualityFolder is "720p30" then return "720"
+	if qualityFolder is "1080p60" then return "1080"
+	if qualityFolder is "2160p60" then return "2160"
+	return qualityFolder
+end qualityFilenameTag
 
 -- Load the serialized deck spec produced by the Python manifest flattener.
 -- Returns {outputDir, deckBaseName, slideWidth, slideHeight, slideSpecs}.
@@ -248,6 +296,35 @@ on addImageToSlide(aSlide, imagePath, slideWidth, slideHeight)
 	end tell
 end addImageToSlide
 
+-- Add a non-full-slide image centered horizontally near the top edge.
+on addTopCenteredImageToSlide(aSlide, imagePath, slideWidth, topInset, maxWidth, maxHeight)
+	set imageFileAlias to (POSIX file imagePath) as alias
+	set loadedImage to current application's NSImage's alloc()'s initWithContentsOfFile:imagePath
+	if loadedImage is missing value then error "Unable to load overlay image: " & imagePath
+	
+	set nativeSize to loadedImage's |size|()
+	set nativeWidth to (nativeSize's width) as real
+	set nativeHeight to (nativeSize's height) as real
+	if nativeWidth is less than or equal to 0 or nativeHeight is less than or equal to 0 then error "Overlay image has invalid dimensions: " & imagePath
+	
+	set scaleFactor to maxWidth / nativeWidth
+	if (nativeHeight * scaleFactor) > maxHeight then set scaleFactor to maxHeight / nativeHeight
+	if scaleFactor > 1 then set scaleFactor to 1
+	
+	set targetWidth to nativeWidth * scaleFactor
+	set targetHeight to nativeHeight * scaleFactor
+	set originX to (slideWidth - targetWidth) / 2
+	
+	tell application "Keynote"
+		tell aSlide
+			set imageRef to make new image with properties {file:imageFileAlias}
+			set position of imageRef to {originX, topInset}
+			set width of imageRef to targetWidth
+			set height of imageRef to targetHeight
+		end tell
+	end tell
+end addTopCenteredImageToSlide
+
 -- Populate one slide from a normalized manifest tuple.
 -- slideSpec order is {slideType, mediaPath, titleText, subtitleText, bodyText, notesText}.
 -- Text-oriented records leave mediaPath empty; media-oriented records may leave
@@ -281,6 +358,11 @@ on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, tit
 		-- content are merged into the single Keynote body field.
 		my prepareSlide(aSlide, titleLayout, true, true)
 		my setSlideText(aSlide, titleText, my combinedBodyText(subtitleText, bodyText), notesText)
+		set titleLogoPath to projectRoot & "/assets/logo.png"
+		if my fileExistsAtPath(titleLogoPath) then
+			-- Keep the logo high and compact so the title placeholder remains unobstructed.
+			my addTopCenteredImageToSlide(aSlide, titleLogoPath, slideWidth, 26, 1160, 108)
+		end if
 		return
 	end if
 	if slideType is "section" then
@@ -307,12 +389,13 @@ on populateSlide(aSlide, slideSpec, blankLayout, titleLayout, sectionLayout, tit
 end populateSlide
 
 -- Build a new Keynote document from the normalized manifest and export it.
--- argv accepts the same quality selection forms as the render shell scripts.
+-- argv accepts the same quality selection forms as the render shell scripts,
+-- plus `auto` to pick the best existing section clips per sequence.
 on run argv
-	set qualityFolder to my qualityFolderFromArgs(argv)
-	set {outputDir, deckBaseName, slideWidth, slideHeight, slideSpecs} to my loadDeckSpec(projectRoot, manifestPath, qualityFolder)
+	set {qualityFolder, selectedManifestPath, showDialog} to my parseCliArgs(argv)
+	set {outputDir, deckBaseName, slideWidth, slideHeight, slideSpecs} to my loadDeckSpec(projectRoot, selectedManifestPath, qualityFolder)
 	set ts to my timestampString()
-	set outputName to deckBaseName & "_" & ts & ".key"
+	set outputName to deckBaseName & "_" & my qualityFilenameTag(qualityFolder) & "_" & ts & ".key"
 	set outputPath to outputDir & "/" & outputName
 	
 	my ensureDirectoryExists(outputDir)
@@ -353,6 +436,6 @@ on run argv
 		error "Keynote export succeeded, but CMU font post-processing failed. " & errMsg number errNum
 	end try
 	
-	display dialog "Created " & outputName & " using video folder " & qualityFolder & " with " & (count of slideSpecs) & " slides at " & outputPath buttons {"OK"} default button "OK"
+	if showDialog then display dialog "Created " & outputName & " using video selection " & qualityFolder & " with " & (count of slideSpecs) & " slides at " & outputPath buttons {"OK"} default button "OK"
 	return outputPath
 end run

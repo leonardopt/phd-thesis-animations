@@ -28,6 +28,8 @@ except ModuleNotFoundError:  # pragma: no cover - macOS system Python can be < 3
 RECORD_SEPARATOR = "\x1e"
 FIELD_SEPARATOR = "\x1f"
 NUMBERED_SECTION_VIDEO_RE = re.compile(r"(?P<prefix>\d{3})_(?P<name>.+)$")
+KNOWN_QUALITY_DIRS = ("480p15", "720p30", "1080p60", "2160p60")
+AUTO_QUALITY_PREFERENCE = ("1080p60", "720p30", "480p15", "2160p60")
 
 
 def parse_args() -> argparse.Namespace:
@@ -39,8 +41,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-root", required=True, help="Repository root")
     parser.add_argument(
         "--quality-dir",
-        default="480p15",
-        help="Video-quality directory to substitute into {{quality_dir}} placeholders.",
+        default="auto",
+        help=(
+            "Video-quality directory to substitute into {{quality_dir}} placeholders. "
+            "Use 'auto' to keep explicit mixed-quality manifest paths and to pick "
+            "the best existing clips for {{quality_dir}} placeholders. Use a "
+            "concrete quality such as 2160p60 to override explicit media/video "
+            "quality folders too."
+        ),
     )
     return parser.parse_args()
 
@@ -63,15 +71,133 @@ def render_template(value: str, quality_dir: str) -> str:
     return value.replace("{{quality_dir}}", quality_dir)
 
 
+def replace_explicit_quality_dir(value: str, quality_dir: str) -> str | None:
+    """Replace one concrete quality directory inside a media path or glob."""
+    parts = value.split("/")
+    for index, part in enumerate(parts):
+        if part in KNOWN_QUALITY_DIRS:
+            updated_parts = list(parts)
+            updated_parts[index] = quality_dir
+            return "/".join(updated_parts)
+    return None
+
+
+def render_value_for_quality(value: str, quality_dir: str) -> str:
+    """Render one path or glob against a concrete quality selection."""
+    if "{{quality_dir}}" in value:
+        return render_template(value, quality_dir)
+
+    overridden = replace_explicit_quality_dir(value, quality_dir)
+    if overridden is not None:
+        return overridden
+    return value
+
+
+def quality_dir_candidates(quality_dir: str) -> tuple[str, ...]:
+    """Return the ordered concrete quality directories to try for one lookup."""
+    if quality_dir == "auto":
+        return AUTO_QUALITY_PREFERENCE
+    return (quality_dir,)
+
+
+def render_template_candidates(value: str, quality_dir: str) -> list[str]:
+    """Render one path or glob against the requested quality selection."""
+    if quality_dir == "auto":
+        if "{{quality_dir}}" not in value:
+            return [value]
+        return [render_template(value, candidate) for candidate in quality_dir_candidates(quality_dir)]
+
+    return [render_value_for_quality(value, quality_dir)]
+
+
+def available_quality_dirs_for_value(
+    value: str,
+    project_root: Path,
+    *,
+    require_matches: bool,
+) -> list[str]:
+    """Report which concrete quality folders currently satisfy one templated value."""
+    if "{{quality_dir}}" not in value and replace_explicit_quality_dir(value, KNOWN_QUALITY_DIRS[0]) is None:
+        return []
+
+    available: list[str] = []
+    for candidate in KNOWN_QUALITY_DIRS:
+        rendered_value = render_value_for_quality(value, candidate)
+        resolved_path = resolve_path(rendered_value, project_root)
+        if require_matches:
+            matches = [
+                Path(match).resolve()
+                for match in glob.glob(str(resolved_path))
+                if include_media_path(Path(match).resolve())
+            ]
+            if matches:
+                available.append(candidate)
+            continue
+
+        if resolved_path.is_file():
+            available.append(candidate)
+
+    return available
+
+
+def resolve_media_path(raw_path: str, project_root: Path, quality_dir: str, slide_type: str) -> Path:
+    """Resolve one manifest media path, optionally auto-selecting an existing quality."""
+    for rendered_path in render_template_candidates(raw_path, quality_dir):
+        resolved_path = resolve_path(rendered_path, project_root)
+        if resolved_path.is_file():
+            return resolved_path
+
+    if quality_dir != "auto":
+        available_quality_dirs = available_quality_dirs_for_value(
+            raw_path,
+            project_root,
+            require_matches=False,
+        )
+        if available_quality_dirs:
+            manifest_error(
+                f"{slide_type!r} slide path not found for quality {quality_dir}: "
+                f"{resolve_path(render_template(raw_path, quality_dir), project_root)} "
+                f"(available qualities: {', '.join(available_quality_dirs)})"
+            )
+
+    manifest_error(
+        f"{slide_type!r} slide path not found: "
+        f"{resolve_path(render_template_candidates(raw_path, quality_dir)[0], project_root)}"
+    )
+
+
+def ordered_paths_for_sequence(slide: dict, project_root: Path, quality_dir: str) -> list[Path]:
+    """Resolve an explicit ordered path list for one video sequence slide."""
+    ordered_matches: list[Path] = []
+    for raw_path in slide["paths"]:
+        ordered_matches.append(resolve_media_path(raw_path, project_root, quality_dir, "video_sequence"))
+    return ordered_matches
+
+
+def matches_for_pattern(pattern: str, project_root: Path, quality_dir: str) -> list[Path]:
+    """Expand one media glob, optionally auto-selecting the first quality with clips."""
+    for rendered_pattern in render_template_candidates(pattern, quality_dir):
+        absolute_pattern = str(resolve_path(rendered_pattern, project_root))
+        matches = [
+            Path(path).resolve()
+            for path in glob.glob(absolute_pattern)
+            if include_media_path(Path(path).resolve())
+        ]
+        if matches:
+            return matches
+        if quality_dir != "auto":
+            break
+    return []
+
+
 def ordered_media_paths(patterns: list[str], project_root: Path, quality_dir: str) -> list[Path]:
     """Expand media globs, de-duplicate matches, and return them in slide order."""
     matches: list[Path] = []
     for pattern in patterns:
-        absolute_pattern = str(resolve_path(render_template(pattern, quality_dir), project_root))
-        matches.extend(Path(p).resolve() for p in glob.glob(absolute_pattern))
+        matches.extend(matches_for_pattern(pattern, project_root, quality_dir))
 
     unique_matches = sorted(set(matches), key=slide_sort_key)
-    return [path for path in unique_matches if path.is_file() and include_media_path(path)]
+    return [path for path in unique_matches if path.is_file()]
 
 
 def include_media_path(path: Path) -> bool:
@@ -283,9 +409,7 @@ def validate_media_slide(
     if not raw_path:
         manifest_error(f"{slide_type!r} slide requires a path")
 
-    resolved_path = resolve_path(render_template(raw_path, quality_dir), project_root)
-    if not resolved_path.is_file():
-        manifest_error(f"{slide_type!r} slide path not found: {resolved_path}")
+    resolved_path = resolve_media_path(raw_path, project_root, quality_dir, slide_type)
     if slide_type == "video":
         validate_deck_video_path(resolved_path)
 
@@ -417,32 +541,46 @@ def media_path_aliases(path: Path, project_root: Path, quality_dir: str) -> set[
         return aliases
 
     aliases.add(relative_path.as_posix())
-    templated_path = quality_placeholder_path(relative_path, quality_dir)
+    templated_path = quality_placeholder_path(relative_path)
     if templated_path is not None:
         aliases.add(templated_path)
 
     return aliases
 
 
-def quality_placeholder_path(relative_path: Path, quality_dir: str) -> str | None:
+def quality_placeholder_path(relative_path: Path) -> str | None:
     """Replace one concrete quality directory with `{{quality_dir}}` when present."""
     path_parts = list(relative_path.parts)
-    try:
-        quality_index = path_parts.index(quality_dir)
-    except ValueError:
-        return None
-
-    path_parts[quality_index] = "{{quality_dir}}"
-    return Path(*path_parts).as_posix()
+    for index, path_part in enumerate(path_parts):
+        if path_part in KNOWN_QUALITY_DIRS:
+            path_parts[index] = "{{quality_dir}}"
+            return Path(*path_parts).as_posix()
+    return None
 
 
 def presenter_note_aliases(raw_target: str, project_root: Path, quality_dir: str) -> set[str]:
     """Normalize one presenter-notes target into comparable aliases."""
-    rendered_target = render_template(raw_target, quality_dir)
-    aliases = {raw_target, rendered_target}
-    aliases.update(
-        media_path_aliases(resolve_path(rendered_target, project_root), project_root, quality_dir)
-    )
+    aliases = {raw_target}
+    for rendered_target in render_template_candidates(raw_target, quality_dir):
+        aliases.add(rendered_target)
+        aliases.update(
+            media_path_aliases(
+                resolve_path(rendered_target, project_root),
+                project_root,
+                quality_dir,
+            )
+        )
+    return {alias for alias in aliases if alias}
+
+
+def presenter_note_exact_aliases(
+    raw_target: str, project_root: Path, quality_dir: str
+) -> set[str]:
+    """Return only exact-path aliases for one presenter-notes target."""
+    aliases = {raw_target}
+    for rendered_target in render_template_candidates(raw_target, quality_dir):
+        aliases.add(rendered_target)
+        aliases.add(str(resolve_path(rendered_target, project_root)))
     return {alias for alias in aliases if alias}
 
 
@@ -556,7 +694,16 @@ def merge_presenter_notes(
 
     notes_by_slide_path: dict[str, str] = {}
     for entry in note_entries:
-        matched_paths = [
+        exact_aliases = presenter_note_exact_aliases(
+            entry["target"], project_root, quality_dir
+        )
+        exact_matched_paths = [
+            slide_path
+            for slide_path, aliases in eligible_slide_aliases.items()
+            if aliases & exact_aliases
+        ]
+
+        matched_paths = exact_matched_paths or [
             slide_path
             for slide_path, aliases in eligible_slide_aliases.items()
             if aliases & entry["aliases"]
@@ -624,15 +771,28 @@ def expand_slides(slides: list[dict], project_root: Path, quality_dir: str) -> l
             if "globs" in slide:
                 patterns.extend(slide["globs"])
             if "paths" in slide:
-                ordered_paths = [
-                    str(resolve_path(render_template(path, quality_dir), project_root))
-                    for path in slide["paths"]
-                ]
-                matches = [Path(path) for path in ordered_paths]
+                matches = ordered_paths_for_sequence(slide, project_root, quality_dir)
             else:
                 matches = ordered_media_paths(patterns, project_root, quality_dir)
 
             if not matches:
+                if quality_dir != "auto":
+                    available_quality_dirs = sorted(
+                        {
+                            available_quality_dir
+                            for pattern in patterns
+                            for available_quality_dir in available_quality_dirs_for_value(
+                                pattern,
+                                project_root,
+                                require_matches=True,
+                            )
+                        }
+                    )
+                    if available_quality_dirs:
+                        manifest_error(
+                            "video_sequence slide did not match any files for quality "
+                            f"{quality_dir} (available qualities: {', '.join(available_quality_dirs)})"
+                        )
                 manifest_error("video_sequence slide did not match any files")
 
             for match in matches:
@@ -698,6 +858,7 @@ def main() -> int:
     args = parse_args()
     project_root = Path(args.project_root).resolve()
     manifest_path = resolve_path(args.manifest, project_root)
+    quality_dir = args.quality_dir
 
     manifest = load_manifest(manifest_path)
     deck = manifest.get("deck", {})
@@ -705,8 +866,8 @@ def main() -> int:
     if not isinstance(slides, list) or not slides:
         manifest_error("manifest must contain at least one [[slide]] entry")
 
-    expanded_slides = expand_slides(slides, project_root, args.quality_dir)
-    expanded_slides = merge_presenter_notes(deck, expanded_slides, project_root, args.quality_dir)
+    expanded_slides = expand_slides(slides, project_root, quality_dir)
+    expanded_slides = merge_presenter_notes(deck, expanded_slides, project_root, quality_dir)
     if not expanded_slides:
         manifest_error("manifest expanded to zero slides")
 

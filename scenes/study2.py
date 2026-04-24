@@ -3487,9 +3487,73 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             12 * len(fold_error_counts)
         )
 
-        # Model the class regions as Voronoi cells around the moving class
-        # centres. Clipping against pairwise bisectors keeps the synthetic
-        # decision boundary stable as the fold-specific point clouds shift.
+        train_point_radius = 0.055
+        test_point_radius = 0.070
+        train_active_opacity = 0.88
+        train_inactive_opacity = 0.18
+        test_active_opacity = 0.92
+        test_inactive_opacity = 0.16
+        point_class_order = ["blue", "green", "amber"]
+        fixed_class_centers = {
+            "blue": (-1.25, -0.02),
+            "green": (0.05, 0.96),
+            "amber": (1.18, -0.06),
+        }
+        run_offset_scales = {
+            "blue": (0.34, 0.22, 0.12),
+            "green": (0.28, 0.18, 0.55),
+            "amber": (0.34, 0.22, -0.18),
+        }
+        replicate_offsets = {
+            "blue": [
+                (-0.18, 0.20),
+                (-0.08, 0.08),
+                (0.14, 0.08),
+                (0.24, -0.02),
+            ],
+            "green": [
+                (-0.12, 0.18),
+                (0.04, 0.08),
+                (0.16, -0.08),
+                (-0.08, -0.02),
+            ],
+            "amber": [
+                (-0.18, 0.14),
+                (-0.08, 0.04),
+                (0.10, -0.10),
+                (0.22, -0.02),
+            ],
+        }
+
+        def _build_master_point_specs() -> list[dict[str, float | int | str]]:
+            """Return one fixed synthetic dataset shared across all CV folds."""
+            specs: list[dict[str, float | int | str]] = []
+            for class_name in point_class_order:
+                base_x, base_y = fixed_class_centers[class_name]
+                x_scale, y_scale, phase = run_offset_scales[class_name]
+                for run_idx in range(8):
+                    angle = TAU * run_idx / 8.0 + phase
+                    run_dx = x_scale * np.cos(angle)
+                    run_dy = y_scale * np.sin(angle)
+                    for replicate_idx, (rep_dx, rep_dy) in enumerate(
+                        replicate_offsets[class_name]
+                    ):
+                        specs.append(
+                            {
+                                "class_name": class_name,
+                                "run_idx": run_idx,
+                                "replicate_idx": replicate_idx,
+                                "x": base_x + run_dx + rep_dx,
+                                "y": base_y + run_dy + rep_dy,
+                            }
+                        )
+            return specs
+
+        master_point_specs = _build_master_point_specs()
+
+        # Model the class regions as Voronoi cells around slowly moving class
+        # centres. The dataset stays fixed while the fold-specific classifier
+        # shifts slightly as one run is held out.
         def _decision_shift(fold_idx: int) -> tuple[float, float]:
             """Return the decision shift."""
             return 0.13 * np.sin(0.72 * fold_idx), 0.09 * np.cos(0.86 * fold_idx)
@@ -3502,56 +3566,6 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 "green": (0.05 + 0.56 * x_shift, 0.96 + 1.05 * y_shift),
                 "amber": (1.18 + 0.44 * x_shift, -0.06 + 0.22 * y_shift),
             }
-
-        def make_train_plot_state(
-            fold_idx: int,
-        ) -> tuple[VGroup, VGroup, VGroup, VGroup]:
-            """Build the current train-plot state."""
-            centers = _class_centers(fold_idx)
-            blue_pts = [
-                (-1.88 + 0.11 * np.sin(0.70 * fold_idx), 0.98 + 0.10 * np.cos(0.52 * fold_idx)),
-                (-1.56 + 0.10 * np.cos(0.94 * fold_idx), 0.56 + 0.10 * np.sin(0.82 * fold_idx)),
-                (-1.42 + 0.11 * np.sin(0.78 * fold_idx), -0.06 + 0.10 * np.cos(1.02 * fold_idx)),
-                (-1.72 + 0.085 * np.cos(0.60 * fold_idx), -0.64 + 0.085 * np.sin(0.76 * fold_idx)),
-                (-1.12 + 0.11 * np.sin(1.02 * fold_idx), 0.34 + 0.10 * np.cos(0.74 * fold_idx)),
-                (-0.76 + 0.10 * np.cos(0.86 * fold_idx), -0.26 + 0.085 * np.sin(0.66 * fold_idx)),
-                (-0.52 + 0.10 * np.sin(0.90 * fold_idx), 0.12 + 0.085 * np.cos(0.80 * fold_idx)),
-                (-0.40 + 0.10 * np.cos(0.74 * fold_idx), -0.38 + 0.085 * np.sin(0.88 * fold_idx)),
-            ]
-            green_pts = [
-                (-0.12 + 0.10 * np.cos(0.86 * fold_idx), 1.34 + 0.075 * np.sin(0.60 * fold_idx)),
-                (0.22 + 0.085 * np.sin(0.84 * fold_idx), 1.06 + 0.085 * np.cos(0.74 * fold_idx)),
-                (0.58 + 0.10 * np.cos(0.92 * fold_idx), 0.78 + 0.085 * np.sin(0.66 * fold_idx)),
-                (0.10 + 0.085 * np.sin(0.70 * fold_idx), 0.62 + 0.085 * np.cos(0.88 * fold_idx)),
-                (0.42 + 0.10 * np.cos(0.98 * fold_idx), 0.44 + 0.085 * np.sin(0.72 * fold_idx)),
-                (-0.20 + 0.085 * np.sin(0.90 * fold_idx), 0.86 + 0.075 * np.cos(0.78 * fold_idx)),
-                (0.72 + 0.10 * np.cos(0.76 * fold_idx), 0.22 + 0.075 * np.sin(0.90 * fold_idx)),
-                (-0.34 + 0.075 * np.sin(0.82 * fold_idx), 0.42 + 0.085 * np.cos(0.84 * fold_idx)),
-            ]
-            amber_pts = [
-                (1.06 + 0.11 * np.cos(0.82 * fold_idx), 0.84 + 0.10 * np.sin(0.70 * fold_idx)),
-                (1.42 + 0.10 * np.sin(0.88 * fold_idx), 0.34 + 0.10 * np.cos(0.64 * fold_idx)),
-                (1.80 + 0.10 * np.cos(1.12 * fold_idx), -0.18 + 0.085 * np.sin(0.88 * fold_idx)),
-                (1.52 + 0.11 * np.sin(0.72 * fold_idx), -0.76 + 0.10 * np.cos(0.98 * fold_idx)),
-                (1.02 + 0.10 * np.cos(1.00 * fold_idx), 0.06 + 0.10 * np.sin(0.84 * fold_idx)),
-                (0.74 + 0.11 * np.sin(1.06 * fold_idx), -0.42 + 0.10 * np.cos(0.90 * fold_idx)),
-                (0.52 + 0.10 * np.cos(0.76 * fold_idx), -0.02 + 0.075 * np.sin(0.86 * fold_idx)),
-                (0.34 + 0.10 * np.sin(0.84 * fold_idx), -0.54 + 0.075 * np.cos(0.72 * fold_idx)),
-            ]
-            blue_group = VGroup(*[
-                Dot(train_ax.c2p(x, y), radius=0.055, color=class_one_col, fill_opacity=0.88)
-                for x, y in blue_pts
-            ])
-            green_group = VGroup(*[
-                Dot(train_ax.c2p(x, y), radius=0.055, color=class_two_col, fill_opacity=0.88)
-                for x, y in green_pts
-            ])
-            amber_group = VGroup(*[
-                Dot(train_ax.c2p(x, y), radius=0.055, color=class_three_col, fill_opacity=0.88)
-                for x, y in amber_pts
-            ])
-            regions = _decision_regions(train_ax, centers)
-            return regions, blue_group, green_group, amber_group
 
         def _region_fill(col: str) -> ManimColor:
             """Return the region fill."""
@@ -3647,67 +3661,170 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 mark.set_stroke(opacity=0.0)
             return mark
 
+        def _make_panel_points(
+            ax: Axes,
+            fold_idx: int,
+            *,
+            mode: str,
+            active_opacity: float,
+            inactive_opacity: float,
+            radius: float,
+        ) -> tuple[VGroup, VGroup, VGroup]:
+            """Build one fixed dataset view with fold-specific emphasis."""
+            color_map = {
+                "blue": class_one_col,
+                "green": class_two_col,
+                "amber": class_three_col,
+            }
+            points_by_class = {class_name: VGroup() for class_name in point_class_order}
+            for spec in master_point_specs:
+                is_active = (
+                    spec["run_idx"] != fold_idx
+                    if mode == "train"
+                    else spec["run_idx"] == fold_idx
+                )
+                opacity = active_opacity if is_active else inactive_opacity
+                point = Dot(
+                    ax.c2p(float(spec["x"]), float(spec["y"])),
+                    radius=radius,
+                    color=color_map[str(spec["class_name"])],
+                    fill_opacity=opacity,
+                )
+                point.set_z_index(2 if is_active else 1)
+                points_by_class[str(spec["class_name"])].add(point)
+            return (
+                points_by_class["blue"],
+                points_by_class["green"],
+                points_by_class["amber"],
+            )
+
+        def _decision_margin(
+            spec: dict[str, float | int | str],
+            centers: dict[str, tuple[float, float]],
+        ) -> float:
+            """Return the minimum distance from one point to any class boundary."""
+            point = np.array([float(spec["x"]), float(spec["y"])], dtype=float)
+            class_name = str(spec["class_name"])
+            c_i = np.array(centers[class_name], dtype=float)
+            margins: list[float] = []
+            for other_label, other_center in centers.items():
+                if other_label == class_name:
+                    continue
+                c_j = np.array(other_center, dtype=float)
+                normal = c_j - c_i
+                offset = 0.5 * (float(np.dot(c_j, c_j)) - float(np.dot(c_i, c_i)))
+                denom = max(float(np.linalg.norm(normal)), 1e-6)
+                margins.append(abs(offset - float(np.dot(normal, point))) / denom)
+            return min(margins) if margins else 0.0
+
+        def _support_vector_ring(center: np.ndarray, *, visible: bool) -> Circle:
+            """Return one support-vector highlight ring."""
+            ring = Circle(
+                radius=train_point_radius + 0.045,
+                color=train_col,
+                stroke_width=1.8,
+            ).move_to(center)
+            ring.set_fill(opacity=0.0)
+            ring.set_z_index(5)
+            if not visible:
+                ring.set_stroke(opacity=0.0)
+            return ring
+
+        def make_support_vector_marks(
+            fold_idx: int,
+            blue_group: VGroup,
+            green_group: VGroup,
+            amber_group: VGroup,
+        ) -> VGroup:
+            """Highlight conceptual support vectors among the active training points."""
+            centers = _class_centers(fold_idx)
+            active_specs = [
+                spec for spec in master_point_specs if spec["run_idx"] != fold_idx
+            ]
+            ranked_by_class = {
+                class_name: sorted(
+                    [spec for spec in active_specs if spec["class_name"] == class_name],
+                    key=lambda spec: _decision_margin(spec, centers),
+                )
+                for class_name in point_class_order
+            }
+            selected_specs: list[dict[str, float | int | str]] = []
+            for class_name in point_class_order:
+                if ranked_by_class[class_name]:
+                    selected_specs.append(ranked_by_class[class_name][0])
+            remainder = sorted(
+                [spec for spec in active_specs if spec not in selected_specs],
+                key=lambda spec: _decision_margin(spec, centers),
+            )
+            if remainder:
+                selected_specs.append(remainder[0])
+
+            point_groups = {
+                "blue": blue_group,
+                "green": green_group,
+                "amber": amber_group,
+            }
+            marks = VGroup()
+            for spec in selected_specs[:4]:
+                point_idx = int(spec["run_idx"]) * 4 + int(spec["replicate_idx"])
+                point = point_groups[str(spec["class_name"])][point_idx]
+                marks.add(_support_vector_ring(point.get_center(), visible=True))
+            return marks
+
         def make_test_plot_state(
             fold_idx: int,
         ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
-            """Build the current test-plot state."""
+            """Build the current held-out plot state."""
             centers = _class_centers(fold_idx)
+            blue_group, green_group, amber_group = _make_panel_points(
+                test_ax,
+                fold_idx,
+                mode="test",
+                active_opacity=test_active_opacity,
+                inactive_opacity=test_inactive_opacity,
+                radius=test_point_radius,
+            )
             misclassified = fold_misclassified[fold_idx]
-            blue_pts = [
-                (-1.62 + 0.05 * np.sin(0.72 * fold_idx), 0.86 + 0.05 * np.cos(0.52 * fold_idx)),
-                (-1.30 + 0.05 * np.cos(0.82 * fold_idx), 0.46 + 0.05 * np.sin(0.74 * fold_idx)),
-                (-1.10 + 0.05 * np.sin(0.88 * fold_idx), -0.08 + 0.04 * np.cos(0.80 * fold_idx)),
-                (-0.90 + 0.04 * np.cos(0.78 * fold_idx), 0.18 + 0.05 * np.sin(0.70 * fold_idx)),
-            ]
-            green_pts = [
-                (-0.08 + 0.05 * np.cos(0.84 * fold_idx), 1.18 + 0.05 * np.sin(0.66 * fold_idx)),
-                (0.28 + 0.04 * np.sin(0.78 * fold_idx), 0.94 + 0.05 * np.cos(0.80 * fold_idx)),
-                (0.56 + 0.05 * np.cos(0.88 * fold_idx), 0.62 + 0.04 * np.sin(0.72 * fold_idx)),
-                (-0.18 + 0.04 * np.sin(0.82 * fold_idx), 0.74 + 0.04 * np.cos(0.74 * fold_idx)),
-            ]
-            amber_pts = [
-                (1.24 + 0.05 * np.cos(0.78 * fold_idx), 0.72 + 0.05 * np.sin(0.66 * fold_idx)),
-                (1.44 + 0.04 * np.sin(0.84 * fold_idx), 0.20 + 0.05 * np.cos(0.70 * fold_idx)),
-                (1.52 + 0.05 * np.sin(0.90 * fold_idx), -0.34 + 0.05 * np.cos(0.82 * fold_idx)),
-                (0.98 + 0.04 * np.cos(0.76 * fold_idx), -0.08 + 0.04 * np.sin(0.68 * fold_idx)),
-            ]
-            wrong_positions = {
-                ("blue", 2): (0.42, 0.24),
-                ("blue", 3): (0.98, -0.08),
-                ("green", 0): (1.04, 0.08),
-                ("green", 1): (-0.92, 0.24),
-                ("green", 2): (1.10, -0.18),
-                ("amber", 0): (-0.14, 0.80),
-                ("amber", 1): (-0.88, 0.10),
-                ("amber", 2): (0.28, 0.34),
+            error_lookup = {
+                "blue": blue_group,
+                "green": green_group,
+                "amber": amber_group,
             }
-            point_lookup = {"blue": blue_pts, "green": green_pts, "amber": amber_pts}
-            for class_name, idx in misclassified:
-                base_x, base_y = wrong_positions[(class_name, idx)]
-                point_lookup[class_name][idx] = (
-                    base_x + 0.04 * np.sin(0.88 * fold_idx + idx),
-                    base_y + 0.04 * np.cos(0.76 * fold_idx + idx),
-                )
-            blue_group = VGroup(*[
-                Dot(test_ax.c2p(x, y), radius=0.070, color=class_one_col, fill_opacity=0.92)
-                for x, y in blue_pts
-            ])
-            green_group = VGroup(*[
-                Dot(test_ax.c2p(x, y), radius=0.070, color=class_two_col, fill_opacity=0.92)
-                for x, y in green_pts
-            ])
-            amber_group = VGroup(*[
-                Dot(test_ax.c2p(x, y), radius=0.070, color=class_three_col, fill_opacity=0.92)
-                for x, y in amber_pts
-            ])
             error_marks = VGroup()
-            error_lookup = {"blue": blue_group, "green": green_group, "amber": amber_group}
             for class_name, idx in misclassified:
-                error_marks.add(_error_mark(error_lookup[class_name][idx].get_center(), visible=True))
+                point_idx = 4 * fold_idx + idx
+                error_marks.add(
+                    _error_mark(
+                        error_lookup[class_name][point_idx].get_center(),
+                        visible=True,
+                    )
+                )
             regions = _decision_regions(test_ax, centers)
             return regions, blue_group, green_group, amber_group, error_marks
 
-        train_regions, train_blue_pts, train_green_pts, train_amber_pts = make_train_plot_state(0)
+        def make_train_plot_state(
+            fold_idx: int,
+        ) -> tuple[VGroup, VGroup, VGroup, VGroup, VGroup]:
+            """Build the current training-plot state."""
+            centers = _class_centers(fold_idx)
+            blue_group, green_group, amber_group = _make_panel_points(
+                train_ax,
+                fold_idx,
+                mode="train",
+                active_opacity=train_active_opacity,
+                inactive_opacity=train_inactive_opacity,
+                radius=train_point_radius,
+            )
+            regions = _decision_regions(train_ax, centers)
+            support_marks = make_support_vector_marks(
+                fold_idx,
+                blue_group,
+                green_group,
+                amber_group,
+            )
+            return regions, blue_group, green_group, amber_group, support_marks
+
+        train_regions, train_blue_pts, train_green_pts, train_amber_pts, train_support_marks = make_train_plot_state(0)
         test_regions, test_blue_pts, test_green_pts, test_amber_pts, test_error_marks = make_test_plot_state(0)
         fold_label = Tex("held-out run 1 / 8", color=INK, font_size=20).move_to(
             np.array([plot_column_x, -2.42 + right_block_y_shift, 0.0])
@@ -3744,6 +3861,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             FadeIn(train_blue_pts),
             FadeIn(train_green_pts),
             FadeIn(train_amber_pts),
+            FadeIn(train_support_marks),
             FadeIn(test_blue_pts),
             FadeIn(test_green_pts),
             FadeIn(test_amber_pts),
@@ -3891,7 +4009,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 color=INK,
                 font_size=20,
             ).move_to(fold_label.get_center())
-            new_train_regions, new_train_blue_pts, new_train_green_pts, new_train_amber_pts = make_train_plot_state(fold_idx)
+            new_train_regions, new_train_blue_pts, new_train_green_pts, new_train_amber_pts, new_train_support_marks = make_train_plot_state(fold_idx)
             new_test_regions, new_test_blue_pts, new_test_green_pts, new_test_amber_pts, new_test_error_marks = make_test_plot_state(fold_idx)
             new_train_overlays = make_train_overlays(fold_idx)
             new_accuracy_display = make_accuracy_display(fold_idx + 1)
@@ -3910,6 +4028,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                     Transform(train_blue_pts, new_train_blue_pts),
                     Transform(train_green_pts, new_train_green_pts),
                     Transform(train_amber_pts, new_train_amber_pts),
+                    Transform(train_support_marks, new_train_support_marks),
                     Transform(test_regions, new_test_regions),
                     Transform(test_blue_pts, new_test_blue_pts),
                     Transform(test_green_pts, new_test_green_pts),
@@ -3948,6 +4067,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             FadeOut(current_train_overlays),
             FadeOut(train_title),
             FadeOut(test_title),
+            FadeOut(train_support_marks),
             FadeOut(train_x_label),
             FadeOut(train_y_label),
             FadeOut(test_x_label),
@@ -13209,10 +13329,10 @@ class Study2(
         carry_previous_frame: bool,
     ) -> None:
         """Replay one existing Study 2 scene inside the master section render."""
-        self.next_section(section_name)
-        if carry_previous_frame:
+        if carry_previous_frame and not config.save_sections:
             self._hold_previous_section_frame()
         self._reset_master_scene_state()
+        self.next_section(section_name)
         scene_cls.construct(self._legacy_scene_proxy(scene_cls))
 
     def construct(self) -> None:

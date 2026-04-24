@@ -287,9 +287,10 @@ class Study1Stage1Step1b(Scene):
         self.wait(0.2)
         keep_group = VGroup(nat_hdr, animals_label, fish_word, nat_hl, animal_hl, fish_hl)
         fade_group = VGroup(*[m for m in tree_group if m not in keep_group and m is not nat_hdr and (m is not animals_label) and (m is not fish_word) and (m is not object_rect) and (m is not object_rect_lbl) and (m is not total_lbl)])
-        LEFT_COL_X = -4.0
-        MID_COL_X = 0.0
-        RIGHT_COL_X = 4.6
+        FINAL_LAYOUT_SHIFT_X = -0.35
+        LEFT_COL_X = -4.0 + FINAL_LAYOUT_SHIFT_X
+        MID_COL_X = 0.0 + FINAL_LAYOUT_SHIFT_X
+        RIGHT_COL_X = 4.6 + FINAL_LAYOUT_SHIFT_X
         COL_CENTER_Y = -0.06
         path_nat = nat_hdr.copy().set_color(_s1_step1_INK)
         path_animal = animals_label.copy().set_color(_s1_step1_INK)
@@ -1739,6 +1740,12 @@ def _study1_tracking_border(
         .set_z_index(mob.z_index + 1)
     )
 
+
+_s1_step4_COMPACT_ALPHA_START = 0.0
+_s1_step4_COMPACT_ALPHA_END = 1.0
+_s1_step4_COMPACT_ENDPOINT_Z = 10
+_s1_step4_COMPACT_FOLLOW_Z = 20
+
 class Study1Stage1Step4Detailed(ThreeDScene):
     """Show the full 3-D SLERP interpolation story alongside the generated image preview."""
     def construct(self) -> None:
@@ -1789,7 +1796,7 @@ class Study1Stage1Step4Detailed(ThreeDScene):
         border1 = _study1_tracking_border(thumb1, color=_s1_step4_C_Z1)
         lab_z0_3d = MathTex('\\mathbf{z}_0', '\\text{(anchor)}', color=_s1_step4_C_Z0, font_size=30).arrange(DOWN, buff=0.06).move_to(tip0 + z0_dir * z0_label_dist)
         lab_z1_3d = MathTex('\\mathbf{z}_1', '\\text{(guide)}', color=_s1_step4_C_Z1, font_size=30).arrange(DOWN, buff=0.06).move_to(thumb1.get_center() + z1_label_offset)
-        alpha = ValueTracker(0.0)
+        alpha = ValueTracker(_s1_step4_COMPACT_ALPHA_START)
         vec_za = always_redraw(lambda: _s1_step4_vec3(ORIGIN, R * _s1_step4_slerp(z0_dir, z1_dir, alpha.get_value()), _s1_step4_C_ZA, sw=4.0, tl=0.22))
         lab_za_3d = MathTex('\\mathbf{z}_\\alpha', color=_s1_step4_C_ZA, font_size=36)
         lab_za_3d.move_to(R * _s1_step4_slerp(z0_dir, z1_dir, 0.0) * ZA_LABEL_SCALE)
@@ -1856,9 +1863,11 @@ class _Study1Step4CompactBase(ThreeDScene):
         arc_3d = ParametricFunction(lambda t: R * _s1_step4_slerp(z0_dir, z1_dir, t), t_range=[0.0, 1.0, 0.005], color=_s1_step4_C_ARC, stroke_width=4)
         thumb_h = 0.95
         thumb0 = ImageMobject(pixels[0]).scale_to_fit_height(thumb_h).move_to(tip0 + z0_dir * 0.92)
+        thumb0.set_z_index(_s1_step4_COMPACT_ENDPOINT_Z)
         border0 = _study1_tracking_border(thumb0, color=_s1_step4_C_Z0)
         thumb1_offset = np.array([thumb_h / 2 + 0.05, thumb_h / 2, 0.16])
         thumb1 = ImageMobject(pixels[-1]).scale_to_fit_height(thumb_h).move_to(tip1 + thumb1_offset)
+        thumb1.set_z_index(_s1_step4_COMPACT_ENDPOINT_Z)
         border1 = _study1_tracking_border(thumb1, color=_s1_step4_C_Z1)
         lab_z0 = Tex('\\text{anchor}', color=_s1_step4_C_Z0, font_size=30)
         lab_z0.move_to(thumb0.get_center() + np.array([0.0, 0.0, thumb_h / 2 + 0.26]))
@@ -1875,13 +1884,21 @@ class _Study1Step4CompactBase(ThreeDScene):
 
         def follow_center(t: float) -> np.ndarray:
             """Return the moving image centre for the current interpolation value."""
-            # Interpolate the thumbnail offset as well as the latent tip so the
-            # moving image stays visually attached to the labeled endpoints.
             tip = R * _s1_step4_slerp(z0_dir, z1_dir, t)
             offset = (1 - t) * follow_start_offset + t * follow_end_offset
             return tip + offset
-        img_follow = ImageMobject(pixels[0]).scale_to_fit_height(thumb_h)
-        img_follow.add_updater(lambda mob: mob.become(ImageMobject(pixels[np.clip(int(round(alpha.get_value() * (N - 1))), 0, N - 1)]).scale_to_fit_height(thumb_h).move_to(follow_center(alpha.get_value()))))
+
+        def update_follow_image(mob: ImageMobject) -> None:
+            frame_idx = np.clip(int(round(alpha.get_value() * (N - 1))), 0, N - 1)
+            mob.become(
+                ImageMobject(pixels[frame_idx])
+                .scale_to_fit_height(thumb_h)
+                .move_to(follow_center(alpha.get_value()))
+                .set_z_index(_s1_step4_COMPACT_FOLLOW_Z)
+            )
+
+        img_follow = ImageMobject(pixels[0]).scale_to_fit_height(thumb_h).set_z_index(_s1_step4_COMPACT_FOLLOW_Z)
+        img_follow.add_updater(update_follow_image)
         img_follow.move_to(follow_center(0.0))
         img_follow_border = _study1_tracking_border(img_follow, color=_s1_step4_C_ZA)
         scene_title = Tex('\\textit{Noise latent space} ($\\mathbb{R}^n$)', color=_s1_step4_INK, font_size=24).to_corner(UL, buff=0.45).shift(RIGHT * 1.8)
@@ -1898,7 +1915,8 @@ class _Study1Step4CompactBase(ThreeDScene):
         self.add_fixed_in_frame_mobjects(state['scene_title'], state['prompt_bg'], state['p_title'], state['p_lines'])
         self.play(Create(state['ax_x']), Create(state['ax_y']), Create(state['ax_z']), Write(state['lab_x']), Write(state['lab_y']), Write(state['lab_z']), Write(state['scene_title']), FadeIn(state['prompt_bg']), Write(state['p_title']), Write(state['p_lines']), run_time=1.0)
         self.add_fixed_orientation_mobjects(state['thumb0'], state['border0'], state['lab_z0'], state['thumb1'], state['border1'], state['lab_z1'])
-        self.play(Create(state['vec_z0']), FadeIn(state['thumb0']), FadeIn(state['border0']), Write(state['lab_z0']), Create(state['vec_z1']), FadeIn(state['thumb1']), FadeIn(state['border1']), Write(state['lab_z1']), run_time=1.2)
+        self.add(state['thumb0'], state['border0'], state['thumb1'], state['border1'])
+        self.play(Create(state['vec_z0']), Write(state['lab_z0']), Create(state['vec_z1']), Write(state['lab_z1']), run_time=1.2)
 
     def add_setup_static(self, state: dict[str, object]) -> None:
         """Add the compact latent-space setup without animation."""
@@ -1910,9 +1928,10 @@ class _Study1Step4CompactBase(ThreeDScene):
     def play_interpolation(self, state: dict[str, object]) -> None:
         """Animate the compact interpolation sequence."""
         self.add_fixed_orientation_mobjects(state['lab_za'], state['img_follow'], state['img_follow_border'])
-        self.play(Create(state['arc_3d']), FadeIn(state['vec_za']), FadeIn(state['lab_za']), FadeIn(state['img_follow']), FadeIn(state['img_follow_border']), run_time=0.9)
+        self.add(state['img_follow'], state['img_follow_border'])
+        self.play(Create(state['arc_3d']), FadeIn(state['vec_za']), FadeIn(state['lab_za']), run_time=0.9)
         self.wait(0.2)
-        self.play(state['alpha'].animate.set_value(1.0), run_time=10.0, rate_func=linear)
+        self.play(state['alpha'].animate.set_value(_s1_step4_COMPACT_ALPHA_END), run_time=10.0, rate_func=linear)
         self.wait(0.8)
 
 class Study1Stage1Step4Setup(_Study1Step4CompactBase):
@@ -2207,7 +2226,7 @@ class _Study1Step5Base(ThreeDScene):
         vec_z0 = _s1_step5__vec3(ORIGIN, tip0, _s1_step5_BLUE, sw=4.2, tl=0.28)
         vec_z1 = _s1_step5__vec3(ORIGIN, tip1, _s1_step5__C_Z1, sw=4.2, tl=0.28)
         arc_3d = ParametricFunction(lambda t: R * _s1_step5__slerp(z0_dir, z1_dir, t), t_range=[0.0, 1.0, 0.005], color=_s1_step5__C_ARC, stroke_width=4)
-        tip_a = R * _s1_step5__slerp(z0_dir, z1_dir, 1.0)
+        tip_a = R * _s1_step5__slerp(z0_dir, z1_dir, _s1_step4_COMPACT_ALPHA_END)
         vec_za = _s1_step5__vec3(ORIGIN, tip_a, _s1_step5__C_ZA, sw=4.2, tl=0.28)
         lab_za = MathTex('\\mathbf{z}_\\alpha', color=_s1_step5__C_ZA, font_size=36).move_to(tip_a * 1.3)
         THUMB_H = 0.95
@@ -2222,7 +2241,12 @@ class _Study1Step5Base(ThreeDScene):
         lab_z0.move_to(thumb0.get_center() + np.array([0.0, 0.0, THUMB_H / 2 + 0.26]))
         lab_z1 = Tex('\\text{guide}', color=_s1_step5__C_Z1, font_size=30).set_z_index(10)
         lab_z1.move_to(thumb1.get_center() + np.array([0.0, 0.0, -(THUMB_H / 2 + 0.28)]))
-        img_follow = ImageMobject(pixels[-1]).scale_to_fit_height(THUMB_H).move_to(thumb1.get_center())
+        img_follow = (
+            ImageMobject(pixels[-1])
+            .scale_to_fit_height(THUMB_H)
+            .move_to(thumb1.get_center())
+            .set_z_index(st['guide_grp'][0].z_index + _s1_step4_COMPACT_FOLLOW_Z)
+        )
         img_follow_border = _study1_tracking_border(img_follow, color=_s1_step5__C_ZA)
         _prompt_lines = ('``award-winning marine photo', 'of a colorful fish in a coral reef,', 'centered in the scene,', 'vibrant underwater scene,', "high detail''")
         scene_title = Tex('\\textit{Noise latent space} ($\\mathbb{R}^n$)', color=_s1_step5_INK, font_size=24).to_corner(UL, buff=0.45).shift(RIGHT * 1.8)
@@ -3815,7 +3839,7 @@ class Study1Stage2(Study1Stage2TripletTask):
 
 
 class Study1Stage3(Scene):
-    """Scenes 18–23 merged: MemoryIntroA–D, MemoryExpDesign, MemoryExpResults."""
+    """Scenes 18–24 merged: MemoryIntroA–E, MemoryExpDesign, MemoryExpResults."""
 
     # The merged scene replays Study1Stage3MemoryExpResults on itself, so it
     # needs the same asset paths that results scene expects on `self`.
@@ -3834,10 +3858,13 @@ class Study1Stage3(Scene):
         self.next_section("21_MemoryIntroD")
         self.clear()
         Study1Stage3MemoryIntroD.construct(self)
-        self.next_section("22_MemoryExpDesign")
+        self.next_section("22_MemoryIntroE")
+        self.clear()
+        Study1Stage3MemoryIntroE.construct(self)
+        self.next_section("23_MemoryExpDesign")
         self.clear()
         Study1Stage3MemoryExpDesign.construct(self)
-        self.next_section("23_MemoryExpResults")
+        self.next_section("24_MemoryExpResults")
         self.clear()
         Study1Stage3MemoryExpResults.construct(self)
 
@@ -4867,7 +4894,7 @@ def _build_memory_exp_stage_content(
 
 
 def _build_memory_exp_design_final_frame() -> Group:
-    """Build the exact held end-state for the design scene and 021 -> 022 handoff."""
+    """Build the exact held end-state for the design scene and 022 -> 023 handoff."""
     end_state = _build_memory_intro_c_end_state()
     ctx = end_state["ctx"]
     overlay = end_state["overlay"]
@@ -5054,10 +5081,10 @@ def _build_memory_intro_c_end_state() -> dict[str, object]:
 
 
 class Study1Stage3MemoryIntroA(Scene):
-    """Introduce the memory task and resolve it into a single SDT-style schematic."""
+    """Introduce the memory task and stop once the target/foil mountain images are shown."""
 
     def construct(self) -> None:
-        """Animate the title, exemplar alternation, and first annotated SDT plot."""
+        """Animate the title question and first pair of mountain images."""
         self.camera.background_color = BG
         criterion_intersection_x = _normal_curve_intersection_x(
             left_mean=_MEMORY_INTRO_TOP_FOIL_MEAN,
@@ -5080,6 +5107,32 @@ class Study1Stage3MemoryIntroA(Scene):
             FadeIn(ctx["example_target"], scale=0.96),
             FadeIn(ctx["example_foil"], scale=0.96),
             run_time=0.70,
+        )
+
+
+class Study1Stage3MemoryIntroB(Scene):
+    """Continue from the two-image intro into the single SDT-style schematic."""
+
+    def construct(self) -> None:
+        """Resume once both mountain images are visible and finish the old Intro A flow."""
+        self.camera.background_color = BG
+        criterion_intersection_x = _normal_curve_intersection_x(
+            left_mean=_MEMORY_INTRO_TOP_FOIL_MEAN,
+            right_mean=_MEMORY_INTRO_A_TOP_TARGET_MEAN,
+        )
+        ctx = _build_memory_intro_core(
+            top_target_mean=_MEMORY_INTRO_A_TOP_TARGET_MEAN,
+            top_target_label_x=_MEMORY_INTRO_A_TOP_TARGET_LABEL_X,
+            top_criterion_x=criterion_intersection_x,
+        )
+        plot = ctx["plot"]
+        ctx["title"].move_to(ctx["title_top_target"])
+
+        self.add(
+            ctx["title"],
+            ctx["question"],
+            ctx["example_target"],
+            ctx["example_foil"],
         )
         self.wait(2.00)
         self.play(
@@ -5141,7 +5194,7 @@ class Study1Stage3MemoryIntroA(Scene):
             ctx["example_foil_label"].animate.set_opacity(0.35),
             plot["foil_curve"].animate.set_stroke(opacity=0.28),
             plot["foil_area"].animate.set_fill(opacity=0.08),
-            plot["target_curve_label"].animate.set_opacity(0.35),
+            plot["target_curve_label"].animate.scale(1.18).set_opacity(1.0),
             plot["foil_curve_label"].animate.set_opacity(0.25),
             run_time=0.80,
         )
@@ -5154,7 +5207,7 @@ class Study1Stage3MemoryIntroA(Scene):
             ctx["example_foil_label"].animate.set_opacity(1.0),
             plot["foil_curve"].animate.set_stroke(width=2.2, opacity=0.28),
             plot["foil_area"].animate.set_fill(opacity=0.08),
-            plot["target_curve_label"].animate.set_opacity(0.25),
+            plot["target_curve_label"].animate.scale(1 / 1.18).set_opacity(0.25),
             plot["foil_curve_label"].animate.set_opacity(0.35),
             run_time=0.30,
         )
@@ -5162,6 +5215,7 @@ class Study1Stage3MemoryIntroA(Scene):
             ctx["example_foil_label"].animate.scale(1.18),
             plot["foil_curve"].animate.set_stroke(width=4.8, opacity=1.0),
             plot["foil_area"].animate.set_fill(opacity=0.34),
+            plot["foil_curve_label"].animate.scale(1.18).set_opacity(1.0),
             run_time=0.85,
         )
         self.wait(0.40)
@@ -5174,13 +5228,13 @@ class Study1Stage3MemoryIntroA(Scene):
             plot["foil_curve"].animate.set_stroke(width=2.2, opacity=1.0),
             plot["foil_area"].animate.set_fill(opacity=0.16),
             plot["target_curve_label"].animate.set_opacity(1.0),
-            plot["foil_curve_label"].animate.set_opacity(1.0),
+            plot["foil_curve_label"].animate.scale(1 / 1.18).set_opacity(1.0),
             run_time=0.85,
         )
         self.wait(1.00)
 
 
-class Study1Stage3MemoryIntroB(Scene):
+class Study1Stage3MemoryIntroC(Scene):
     """Stack a second SDT example to make the dissimilarity comparison explicit."""
 
     def construct(self) -> None:
@@ -5258,7 +5312,7 @@ class Study1Stage3MemoryIntroB(Scene):
         self.wait(1.10)
 
 
-class Study1Stage3MemoryIntroC(Scene):
+class Study1Stage3MemoryIntroD(Scene):
     """Convert the two-example layout into a repeated-exposure discriminability story."""
 
     def construct(self) -> None:
@@ -5351,7 +5405,7 @@ class Study1Stage3MemoryIntroC(Scene):
         self.wait(0.40)
 
 
-class Study1Stage3MemoryIntroD(Scene):
+class Study1Stage3MemoryIntroE(Scene):
     """Collapse the continuum rows into grouped targets and graded foil columns."""
 
     def construct(self) -> None:
@@ -5825,6 +5879,7 @@ _STUDY1_MASTER_SECTION_ORDER: tuple[type[Scene], ...] = (
     Study1Stage3MemoryIntroB,
     Study1Stage3MemoryIntroC,
     Study1Stage3MemoryIntroD,
+    Study1Stage3MemoryIntroE,
     Study1Stage3MemoryExpDesign,
     Study1Stage3MemoryExpResults,
 )
@@ -5850,6 +5905,7 @@ _STUDY1_SECTION_NAMES: tuple[str, ...] = (
     "study1_stage3_memory_intro_b",
     "study1_stage3_memory_intro_c",
     "study1_stage3_memory_intro_d",
+    "study1_stage3_memory_intro_e",
     "study1_stage3_memory_exp_design",
     "study1_stage3_memory_exp_results",
 )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
 
 
@@ -50,16 +51,19 @@ class PresentationManifestAliasTests(unittest.TestCase):
         )
 
     def test_validate_media_slide_rejects_non_section_video_path(self) -> None:
-        with self.assertRaisesRegex(
-            SystemExit,
-            "deck videos must point at numbered section clips under a /sections/ directory",
-        ):
-            presentation_manifest.validate_media_slide(
-                "video",
-                {"path": "media/videos/04_study2/480p15/study2.mp4"},
-                REPO_ROOT,
-                "480p15",
-            )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            invalid_video = Path(tmp_dir) / "study2.mp4"
+            invalid_video.write_bytes(b"")
+            with self.assertRaisesRegex(
+                SystemExit,
+                "deck videos must point at numbered section clips under a /sections/ directory",
+            ):
+                presentation_manifest.validate_media_slide(
+                    "video",
+                    {"path": str(invalid_video)},
+                    REPO_ROOT,
+                    "480p15",
+                )
 
     def test_current_manifest_video_slides_all_use_sections(self) -> None:
         manifest = presentation_manifest.load_manifest(
@@ -68,7 +72,7 @@ class PresentationManifestAliasTests(unittest.TestCase):
         expanded = presentation_manifest.expand_slides(
             manifest["slide"],
             REPO_ROOT,
-            "480p15",
+            "auto",
         )
 
         for slide in expanded:
@@ -78,6 +82,127 @@ class PresentationManifestAliasTests(unittest.TestCase):
                 presentation_manifest.is_numbered_section_video_path(Path(slide["path"])),
                 slide["path"],
             )
+
+    def test_auto_quality_mode_uses_existing_mixed_section_outputs(self) -> None:
+        manifest = presentation_manifest.load_manifest(
+            REPO_ROOT / "assets" / "presentation_deck.toml"
+        )
+        expanded = presentation_manifest.expand_slides(
+            manifest["slide"],
+            REPO_ROOT,
+            "auto",
+        )
+        video_paths = [slide["path"] for slide in expanded if slide["type"] == "video"]
+
+        self.assertTrue(
+            any("/01_intro/1080p60/sections/" in path for path in video_paths),
+            video_paths[:5],
+        )
+        self.assertTrue(
+            any("/03_study1/480p15/sections/" in path for path in video_paths),
+            video_paths[:5],
+        )
+
+    def test_explicit_quality_override_rewrites_mixed_manifest_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_root = Path(tmp_dir)
+            high_path = (
+                project_root
+                / "media"
+                / "videos"
+                / "01_intro"
+                / "1080p60"
+                / "sections"
+                / "001_intro.mp4"
+            )
+            qk_path = (
+                project_root
+                / "media"
+                / "videos"
+                / "01_intro"
+                / "2160p60"
+                / "sections"
+                / "001_intro.mp4"
+            )
+            high_path.parent.mkdir(parents=True, exist_ok=True)
+            qk_path.parent.mkdir(parents=True, exist_ok=True)
+            high_path.write_bytes(b"high")
+            qk_path.write_bytes(b"qk")
+
+            resolved = presentation_manifest.resolve_media_path(
+                "media/videos/01_intro/1080p60/sections/001_intro.mp4",
+                project_root,
+                "2160p60",
+                "video",
+            )
+
+        self.assertEqual(resolved, qk_path.resolve())
+
+    def test_study1_memory_intro_clips_live_in_supplementary_section(self) -> None:
+        manifest = presentation_manifest.load_manifest(
+            REPO_ROOT / "assets" / "presentation_deck.toml"
+        )
+        expanded = presentation_manifest.expand_slides(
+            manifest["slide"],
+            REPO_ROOT,
+            "auto",
+        )
+
+        study2_index = next(
+            index
+            for index, slide in enumerate(expanded)
+            if slide["type"] == "section" and slide["title"].endswith("Study 2")
+        )
+        acknowledgments_index = next(
+            index
+            for index, slide in enumerate(expanded)
+            if slide["type"] == "text" and slide["title"] == "Acknowledgments"
+        )
+        supplementary_index = next(
+            index
+            for index, slide in enumerate(expanded)
+            if slide["type"] == "section" and slide["title"].endswith("Supplementary Slides")
+        )
+
+        intro_indices = {
+            Path(slide["path"]).stem: index
+            for index, slide in enumerate(expanded)
+            if slide["type"] == "video"
+            and "study1_stage3_memory_intro" in Path(slide["path"]).stem
+        }
+
+        self.assertEqual(
+            set(intro_indices),
+            {
+                "000_study1_stage3_memory_intro_a",
+                "001_study1_stage3_memory_intro_b",
+                "002_study1_stage3_memory_intro_c",
+                "003_study1_stage3_memory_intro_d",
+                "004_study1_stage3_memory_intro_e",
+            },
+        )
+        self.assertLess(study2_index, acknowledgments_index)
+        self.assertLess(acknowledgments_index, supplementary_index)
+        self.assertTrue(
+            all(index > supplementary_index for index in intro_indices.values()),
+            intro_indices,
+        )
+        self.assertTrue(
+            all(
+                "/06_supplementary/" in slide["path"]
+                for slide in expanded
+                if slide["type"] == "video"
+                and "study1_stage3_memory_intro" in Path(slide["path"]).stem
+            )
+        )
+
+        exp_design_index = next(
+            index
+            for index, slide in enumerate(expanded)
+            if slide["type"] == "video"
+            and Path(slide["path"]).stem == "022_study1_stage3_memory_exp_design"
+        )
+        self.assertLess(exp_design_index, study2_index)
 
 
 if __name__ == "__main__":

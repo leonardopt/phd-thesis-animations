@@ -73,6 +73,7 @@ section_dirs=(
     "03_study1"
     "04_study2"
     "05_conclusion"
+    "06_supplementary"
 )
 
 concat_list="$(mktemp)"

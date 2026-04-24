@@ -956,7 +956,7 @@ _METHODS_REQUIREMENT_SPECS: tuple[dict[str, object], ...] = (
         "bullets": (
             (
                 "Approximate perceptual and",
-                "semantic richness in",
+                "semantic richness of",
                 "naturalistic vision",
             ),
         ),
@@ -966,18 +966,16 @@ _METHODS_REQUIREMENT_SPECS: tuple[dict[str, object], ...] = (
         "accent": AMBER,
         "image_path": _METHODS_REQUIREMENTS_B_PNG_PATH,
         "bullets": (
+
             (
-                "Dissociate perceptual",
-                "similarity from",
+                "Vary fine-grained",
+                "perceptual details",
+            ), (
+                "Maintain overall",
                 "semantic identity",
             ),
             (
-                "Vary fine-grained",
-                "visual details, not",
-                "semantic content",
-            ),
-            (
-                "Allow controlled",
+                "Controlled",
                 "manipulation of overall",
                 "similarity",
             ),
@@ -990,14 +988,15 @@ _METHODS_REQUIREMENT_SPECS: tuple[dict[str, object], ...] = (
         "image_text_buff": 0.30,
         "bullets": (
             (
+                "Perceptual task demands",
+            ),            
+            (
                 "Limit semantic rehearsal",
-                "while preserving",
-                "perceptual demands",
             ),
+
             (
                 "Measure WM and LTM",
-                "sensitively, avoiding",
-                "floor and ceiling effects",
+                "with adequate sensitivity",
             ),
         ),
     },
@@ -1007,16 +1006,15 @@ _METHODS_REQUIREMENT_SPECS: tuple[dict[str, object], ...] = (
         "custom_visual_builder": _build_methods_requirement_d_visual,
         "bullets": (
             (
-                "Perceptual variability",
-                "evokes distinct cortical",
-                "patterns in V1-V3",
+                "Distinct cortical patterns",
+                "in V1-V3",
             ),
             (
-                "Support multivariate",
+                "Support robust multivariate",
                 "decoding analyses",
             ),
             (
-                "Enable comparison of",
+                "Sensitive comparison of",
                 "sensory and memory",
                 "representations",
             ),
@@ -1029,8 +1027,6 @@ _METHODS_REQUIREMENT_FOCUS_GAP = 0.20
 def _build_methods_stimulus_requirement_state(active_idx: int) -> dict[str, Mobject]:
     title = title_block(
         r"\textbf{Design requirements for naturalistic stimuli}",
-        "Objective: delayed match-to-sample task with long-term memory component",
-        subtitle_color=INK,
     )
 
     columns = VGroup(
@@ -1316,8 +1312,8 @@ class MethodsExistingApproaches(Scene):
         manual_body = Group(
             make_bullet_list(
                 (
-                    ("time consuming",),
-                    ("limited ecological validity",),
+                    ("Time consuming",),
+                    ("Limited ecological validity",),
                 ),
                 font_size=17,
                 width=2.75,
@@ -1375,10 +1371,10 @@ class MethodsExistingApproaches(Scene):
         scraping_body = Group(
             make_bullet_list(
                 (
-                    ("limited experimental control",),
-                    ("perceptually very dissimilar",),
-                    ("limited number of exemplars",),
-                    ("variable resolution and quality",),
+                    ("Limited experimental control",),
+                    ("Perceptually very dissimilar",),
+                    ("Limited number of exemplars",),
+                    ("Variable resolution and quality",),
                 ),
                 font_size=16,
                 width=2.95,
@@ -1415,12 +1411,12 @@ class MethodsExistingApproaches(Scene):
         gan_bullets = make_bullet_list(
             (
                 (
-                    "Generative Adversarial Networks",
+                    "Generative Adversarial Networks (GANs)",
                     "(Goodfellow et al., 2014)",
                     "have been explored",
-                    "to synthesise stimuli",
+                    "to synthesise stimuli (Goetschalckx et al., 2021; Son et al., 2022)",
                 ),
-                ("limited flexibility",),
+                ("Limited flexibility",),
                 (
                     "Denoising Diffusion Probabilistic Models",
                     "(Ho et al., 2020; Nichol \\& Dhariwal, 2021;",
@@ -1820,7 +1816,7 @@ class MethodsDiffusionPromptConditioning(Scene):
                 (r"\epsilon", r"\sim \mathcal{N}(0, I)"),
             ),
             process_title="Forward pass",
-            subtitle_text="sample a noisy state directly",
+            subtitle_text="corrupt training set with noise",
             process_formula=r"x_t=\sqrt{\bar{\alpha}_t}\,x_0+\sqrt{1-\bar{\alpha}_t}\,\epsilon",
             action_text="model predicts added noise",
             action_formula=r"\hat{\epsilon}_{\theta}(x_t, t, c)\approx\epsilon",
@@ -1860,7 +1856,7 @@ class MethodsDiffusionTrainVsGenerate(Scene):
                 (r"\epsilon", r"\sim \mathcal{N}(0, I)"),
             ),
             process_title="Forward pass",
-            subtitle_text="sample a noisy state directly",
+            subtitle_text="corrupt training set with noise",
             process_formula=r"x_t=\sqrt{\bar{\alpha}_t}\,x_0+\sqrt{1-\bar{\alpha}_t}\,\epsilon",
             action_text="model predicts added noise",
             action_formula=r"\hat{\epsilon}_{\theta}(x_t, t, c)\approx\epsilon",
@@ -1883,7 +1879,7 @@ class MethodsDiffusionTrainVsGenerate(Scene):
                 (r"x_0", r"\bar{\alpha}_0 = 1"),
             ),
             process_title=("Reverse denoising", "loop"),
-            subtitle_text="during sampling",
+            subtitle_text="start from noise and iteratively denoise",
             process_formula=r"p_{\theta}(x_{t-1} \mid x_t, c)",
             action_text="predict noise, then sample",
             action_formula=r"\hat{\epsilon}_{\theta}(x_t, t, c)",

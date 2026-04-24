@@ -16,6 +16,7 @@ SECTION_OUTPUT_DIRS: dict[str, str] = {
     "study1": "03_study1",
     "study2": "04_study2",
     "conclusion": "05_conclusion",
+    "supplementary": "06_supplementary",
 }
 SECTION_DISPLAY_NAMES: dict[str, str] = {
     "intro": "Intro",
@@ -23,6 +24,7 @@ SECTION_DISPLAY_NAMES: dict[str, str] = {
     "study1": "Study 1",
     "study2": "Study 2",
     "conclusion": "Conclusion",
+    "supplementary": "Supplementary",
 }
 _SECTION_KEYS_BY_OUTPUT_DIR = {value: key for key, value in SECTION_OUTPUT_DIRS.items()}
 

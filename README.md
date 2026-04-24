@@ -108,9 +108,14 @@ Use the Keynote builder when the rendered videos are ready and you want a deck a
 
 ```bash
 osascript scripts/create_keynote_presentation.applescript
+osascript scripts/create_keynote_presentation.applescript --quality-folder auto
 osascript scripts/create_keynote_presentation.applescript -qh
 osascript scripts/create_keynote_presentation.applescript --quality-folder 1080p60
 ```
+
+Running the builder with no quality argument now defaults to `auto`, which
+selects the best existing section clips per sequence. Use an explicit quality
+only when all five numbered section folders exist for that quality.
 
 Presenter notes for media slides can live in `assets/presenter_notes.md`. The
 builder reads that file through `presenter_notes_path` in the deck manifest and

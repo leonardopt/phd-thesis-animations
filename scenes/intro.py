@@ -110,6 +110,10 @@ _INTRO_RQ2_SIMPLE_STIMULI = (
     (str(_INTRO_FIG_DIR / "harrison_stimulus.png"), r"Harrison \& Tong (2009)"),
     (str(_INTRO_FIG_DIR / "christophel2012_stimulus.png"), r"Christophel et al. (2012)"),
 )
+_INTRO_RQ2_INTERMEDIATE_STIMULI = (
+    (str(_INTRO_FIG_DIR / "lee_2013.png"), r"Lee et al. (2013)"),
+    (str(_INTRO_FIG_DIR / "xu_2023.png"), r"Xu (2023)"),
+)
 _INTRO_RQ2_NATURALISTIC_STIMULI = (
     str(_INTRO_STIM_DIR / "landscape_element_mountain_ridge-00.png"),
     str(_INTRO_STIM_DIR / "plant_bristlecone-00.png"),
@@ -733,15 +737,14 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
             "Monkey lesion studies",
             (
                 "Delayed-response deficits after",
-                "prefrontal lesions in monkeys",
+                "prefrontal ablations",
             ),
             ("Jacobsen (1936)",),
         ),
         _classical_column(
             "Sustained activation",
             (
-                "Persistent delay-period firing in dorsolateral PFC",
-                "as neural signature of active maintenance",
+                "Persistent delay-period neural firing in dorsolateral PFC",
             ),
             ("Goldman-Rakic (1995)", r"Constantinidis \& Procyk (2004)"),
             image_path=_FUNAHASHI_1989_FIG,
@@ -751,9 +754,8 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
         _classical_column(
             "Early human neuroimaging",
             (
-                "Early PET and fMRI studies reported",
-                "activations in frontal and parietal",
-                "regions",
+                "Early PET and fMRI activations in",
+                "frontal and parietal regions",
             ),
             (
                 r"D'Esposito et al. (1995)",
@@ -851,7 +853,7 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
 
     what_it_does = _sensory_text_entry(
         (
-            r"\textbf{Sensory areas are actively recruited}",
+            r"\textbf{Sensory areas actively recruited}",
         ),
         (
             "for working memory maintenance.",
@@ -863,18 +865,34 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     )
     evidence_source = _sensory_text_entry(
         (
-            r"\textbf{Multivariate Pattern Analysis studies}",
+            r"\textbf{Multivariate Pattern Analysis evidence}",
         ),
         (
-            "show that remembered visual information can be decoded",
-            "from visual cortex during maintenance.",
+            "stimulus-specific features can be decoded",
+            "from sensory cortices during working memory maintenance.",
         ),
         (
             r"Harrison \& Tong (2009); Serences et al. (2009)",
-            r"Christophel et al. (2012; 2017)",
+            r"Christophel et al. (2012)",
         ),
     )
-    entries = Group(what_it_does, evidence_source).arrange(DOWN, buff=1.28, aligned_edge=LEFT)
+    distributed_function = _sensory_text_entry(
+        (
+            r"\textbf{Distributed function}",
+        ),
+        (
+            "working memory reflects distributed cortical",
+            "function rather than a single localized store.",
+        ),
+        (
+            r"Fuster (1997); Christophel et al. (2017)",
+        ),
+    )
+    entries = Group(what_it_does, evidence_source, distributed_function).arrange(
+        DOWN,
+        buff=0.92,
+        aligned_edge=LEFT,
+    )
     dot_anchor_ys = [
         Group(entry[0], entry[1]).get_center()[1] + 0.16
         for entry in entries
@@ -898,13 +916,7 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
             for dot_y in dot_anchor_ys
         ]
     )
-    hero_figure = _study_figure(
-        _VISUAL_CORTEX_FIG,
-        None,
-        height=0.78,
-    )
-    hero_figure.next_to(title, DOWN, buff=0.18)
-    hero_figure.match_x(title)
+    hero_figure = Group()
     top_row = Group(
         _study_figure(
             _HARRISON_TONG_2009_PARADIGM_FIG,
@@ -943,9 +955,9 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     entries.shift(left_column_shift)
 
     content = Group(timeline_line, dots, entries, figure_column)
-    content.next_to(hero_figure, DOWN, buff=0.24)
+    content.next_to(title, DOWN, buff=0.34)
     content.set_x(-0.26)
-    dot_mid_y = 0.5 * (dots[0].get_center()[1] + dots[1].get_center()[1])
+    dot_mid_y = 0.5 * (dots[0].get_center()[1] + dots[-1].get_center()[1])
     content.shift(DOWN * dot_mid_y)
     return {
         "title": title,
@@ -964,12 +976,12 @@ _INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
         "kicker": "Research question 1",
         "title": "Representational format",
         "subtitle": "Are working memory representations sensory-like?",
-        "bullet_1": r"Reuse of the same neuronal codes for \textbf{efficient and high-fidelity} feature storage.",
+        "bullet_1": r"Overlapping neural populations could enable \textbf{efficient and high-fidelity} feature storage.",
         "bullet_1_refs": r"(Pasternak \& Greenlee, 2005; Serences, 2016)",
         "bullet_2": r"Some evidence of \textbf{cross-decoding} suggests shared sensory codes.",
         "bullet_2_refs": r"(Harrison \& Tong, 2009; Albers et al., 2013; Rademaker et al., 2019; Iamshchinina et al., 2021; Vo et al., 2022)",
-        "bullet_3": r"Recent work suggests no sensory-to-memory generalization and \textbf{dynamic codes} during working memory maintenance.",
-        "bullet_3_refs": r"(Buschman \& Miller, 2022; Duan and Curtis, 2024)",
+        "bullet_3": r"Recent work reports no sensory-to-memory generalization and \textbf{dynamic codes} during working memory maintenance.",
+        "bullet_3_refs": r"(Buschman \& Miller, 2022; Duan and Curtis, 2024; Deguits et al., 2025)",
         "bullet_4": r"\textbf{Memory-specific} code may limit interference with sensory processing.",
         "bullet_4_refs": r"(Bettencourt \& Xu, 2016; Libby \& Buschman, 2021)",
         "accent": RQ_BLUE,
@@ -979,26 +991,27 @@ _INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
         "title": "Ecological validity",
         "subtitle": r"Does the sensory recruitment model\\generalize to naturalistic cognition?",
         "bullet_1": "Standard working memory stimuli are perceptually simple.",
-        "bullet_2": "Naturalistic settings require the brain to process and retain a vast amount of complex visual information.",
+        "bullet_2": "Real-world settings are perceptually and semantically rich.",
         "bullet_3": r"Growing interest in naturalistic working-memory.",
         "bullet_3_refs": r"(Orhan \& Jacobs, 2014; Brady et al., 2019; Bates et al., 2024; Adam et al., 2025)",
-        "bullet_4": "Whether sensory and memory representations share a code might depend on the characteristics of the stimuli and task demands.",
+        "bullet_4": "Stimulus type and task demands may influence sensory-memory cross-decoding.",
         "bullet_4_refs": r"(Duan \& Curtis, 2024) (Serences, 2016; Christophel et al., 2017)",
+        "bullet_5": "Generalisation problem, need for complementary evidence with naturalistic stimuli",
         "accent": RQ_RED,
     },
     {
         "kicker": "Research question 3",
         "title": "Long-term memory interaction",
         "subtitle": r"Do pre-existing long-term memory representations\\affect how the early visual cortex represents\\working memory content?",
-        "bullet_1": "Working memory and long-term memory are often studied in isolation, despite their interaction.",
+        "bullet_1": "Working memory and long-term memory often studied in isolation.",
         "bullet_1_refs": r"(Schurgin, 2018; Eriksson et al., 2015; Bartsch et al., 2024)",
-        "bullet_2": "Working memory integrates incoming sensory signals with information stored in long-term memory.",
+        "bullet_2": "Working memory integrates incoming sensory signals with content from long-term memory.",
         "bullet_2_refs": r"(Singer, 2021)",
         "bullet_3": "Familiarity and meaning improve working-memory performance and capacity.",
         "bullet_3_refs": r"(Xie \& Zhang, 2018; Ngiam et al., 2019; Buttle \& Raymond, 2003; Curby \& Gauthier, 2007; Jackson \& Raymond, 2008; Brady \& St{\"o}rmer, 2022)",
         "bullet_4": "Neuroimaging evidence that maintained WM content and retrieved LTM content share a sensory-like representational format.",
         "bullet_4_refs": r"(Vo et al., 2022)",
-        "bullet_5": "Long-term memory traces may affect the formatting of working memory representations.",
+        "bullet_5": "Long-term memory traces may affect storing of working memory content in early visual cortex.",
         "accent": RQ_GREEN,
     },
 )
@@ -1041,25 +1054,19 @@ def _intro_question_context_block(spec: dict[str, str]) -> VGroup:
     for item in bullet_items[1:]:
         item.align_to(bullet_items[0], LEFT)
 
-    cue_rule = Line(UP * 0.5, DOWN * 0.5, color=spec["accent"], stroke_width=1.4)
-    cue_rule.set_stroke(opacity=0.52)
     cue_dots = VGroup(
         *[
             Dot(radius=0.028, color=spec["accent"], stroke_width=0)
             for _ in cue_lines
         ]
     )
-    cue_anchor = VGroup(cue_rule, cue_dots)
-    cue_anchor.next_to(bullet_items, LEFT, buff=0.24)
-    cue_anchor.set_y(bullet_items.get_center()[1])
+    cue_dots.next_to(bullet_items, LEFT, buff=0.24)
+    cue_dots.set_y(bullet_items.get_center()[1])
+    dots_x = cue_dots.get_x()
     for dot, line in zip(cue_dots, cue_lines):
-        dot.set_x(cue_rule.get_x())
+        dot.set_x(dots_x)
         dot.set_y(line.get_center()[1])
-    cue_rule.put_start_and_end_on(
-        np.array([cue_rule.get_x(), cue_dots[0].get_y() + 0.28, 0.0]),
-        np.array([cue_rule.get_x(), cue_dots[-1].get_y() - 0.28, 0.0]),
-    )
-    return VGroup(cue_anchor, bullet_items)
+    return VGroup(cue_dots, bullet_items)
 
 
 def _intro_question_matrix(
@@ -1226,6 +1233,17 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
         simple_cards,
     ).arrange(DOWN, buff=0.12)
 
+    intermediate_cards = Group(
+        *[
+            _intro_question_image_with_ref(path, ref, width=1.10, height=0.90)
+            for path, ref in _INTRO_RQ2_INTERMEDIATE_STIMULI
+        ]
+    ).arrange(RIGHT, buff=0.18)
+    intermediate_block = Group(
+        _row_header(r"Meaningful object stimuli", font_size=14),
+        intermediate_cards,
+    ).arrange(DOWN, buff=0.12)
+
     natural_cards = Group(
         *[
             _intro_question_image_card(path, width=1.18, height=1.02)
@@ -1244,8 +1262,9 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
         natural_ref,
     ).arrange(DOWN, buff=0.12)
 
-    rows = Group(simple_block, natural_block).arrange(DOWN, buff=0.34)
+    rows = Group(simple_block, intermediate_block, natural_block).arrange(DOWN, buff=0.26)
     rows.simple_block = simple_block
+    rows.bridge_block = intermediate_block
     rows.natural_block = natural_block
     return rows
 
@@ -1472,9 +1491,7 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
         question_claim.scale_to_fit_width(_INTRO_QUESTION_CLAIM_MAX_WIDTH)
 
     context_block = _intro_question_context_block(spec)
-    cue_anchor = context_block[0]
-    cue_rule = cue_anchor[0]
-    cue_dots = cue_anchor[1]
+    cue_dots = context_block[0]
     bullet_items = context_block[1]
     context_block.next_to(question_claim, DOWN, buff=0.28)
     question_claim.align_to(bullet_items, LEFT)
@@ -1497,7 +1514,6 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
     return {
         "header": header,
         "question_claim": question_claim,
-        "cue_rule": cue_rule,
         "cue_dots": cue_dots,
         "bullet_items": bullet_items,
         "visual": visual,
@@ -1514,6 +1530,7 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
         "visual_top_branch": getattr(visual, "top_branch", None),
         "visual_bottom_branch": getattr(visual, "bottom_branch", None),
         "visual_simple_block": getattr(visual, "simple_block", None),
+        "visual_bridge_block": getattr(visual, "bridge_block", None),
         "visual_natural_block": getattr(visual, "natural_block", None),
         "visual_top_block_intro": getattr(visual, "top_block_intro", None),
         "visual_top_block_final": getattr(visual, "top_block_final", None),
@@ -2844,8 +2861,8 @@ class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_e_layout()
-        first_dot, second_dot = state["dots"]
-        first_entry, second_entry = state["entries"]
+        dots = list(state["dots"])
+        entries = list(state["entries"])
         previous_state = getattr(self, "_intro_classical_state", None)
         if previous_state is None:
             previous_state = _build_intro_d_layout()
@@ -2874,19 +2891,24 @@ class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
             state["figure_column"],
         )
         state["final_group"] = Group(state["title"], state["hero_figure"], state["content"])
-        self.play(
-            FadeIn(state["hero_figure"], shift=UP * 0.03),
-            FadeIn(first_dot, scale=0.92),
-            FadeIn(first_entry, shift=RIGHT * 0.08),
-            run_time=0.75,
-        )
+        initial_anims = [
+            FadeIn(dots[0], scale=0.92),
+            FadeIn(entries[0], shift=RIGHT * 0.08),
+        ]
+        if len(entries) == 1:
+            initial_anims.append(FadeIn(state["figure_column"], shift=RIGHT * 0.10))
+        self.play(*initial_anims, run_time=0.75)
         self.wait(4.00)
-        self.play(
-            FadeIn(second_dot, scale=0.92),
-            FadeIn(second_entry, shift=RIGHT * 0.08),
-            FadeIn(state["figure_column"], shift=RIGHT * 0.10),
-            run_time=0.90,
-        )
+        for idx in range(1, len(entries)):
+            reveal_anims = [
+                FadeIn(dots[idx], scale=0.92),
+                FadeIn(entries[idx], shift=RIGHT * 0.08),
+            ]
+            if idx == len(entries) - 1:
+                reveal_anims.append(FadeIn(state["figure_column"], shift=RIGHT * 0.10))
+            self.play(*reveal_anims, run_time=0.90 if idx == len(entries) - 1 else 0.78)
+            if idx < len(entries) - 1:
+                self.wait(2.25)
         self._intro_sensory_recruitment_state = state
         self.wait(4.50)
 
@@ -2919,7 +2941,7 @@ class IntroResearchQuestion1(_IntroNumberedScene, Scene):
             FadeOut(sensory_fade_group, shift=UP * 0.04, run_time=0.55),
             FadeIn(state["header"], shift=UP * 0.04, run_time=0.70),
             FadeIn(source_group, shift=UP * 0.04, run_time=0.90),
-            ReplacementTransform(previous_state["timeline_line"], state["cue_rule"], run_time=0.85),
+            FadeOut(previous_state["timeline_line"], shift=UP * 0.04, run_time=0.55),
         )
         self.play(
             AnimationGroup(
@@ -2964,10 +2986,7 @@ class IntroResearchQuestion2(_IntroNumberedScene, Scene):
         self.camera.background_color = BG
         state = _build_intro_question_layout(1)
         self.play(FadeIn(state["header"], shift=UP * 0.04), run_time=0.70)
-        self.play(
-            FadeIn(state["question_claim"], shift=UP * 0.04, run_time=0.75),
-            Create(state["cue_rule"], run_time=0.80),
-        )
+        self.play(FadeIn(state["question_claim"], shift=UP * 0.04, run_time=0.75))
         self.play(
             FadeIn(state["cue_dots"][0], scale=0.92),
             FadeIn(state["bullet_items"][0], shift=UP * 0.03),
@@ -2983,7 +3002,12 @@ class IntroResearchQuestion2(_IntroNumberedScene, Scene):
                 ]
             )
         self.play(
-            FadeIn(state["visual_natural_block"], shift=RIGHT * 0.06, run_time=0.90),
+            LaggedStart(
+                FadeIn(state["visual_bridge_block"], shift=RIGHT * 0.06),
+                FadeIn(state["visual_natural_block"], shift=RIGHT * 0.06),
+                lag_ratio=0.16,
+                run_time=0.95,
+            ),
             LaggedStart(*remaining_bullet_anims, lag_ratio=0.10, run_time=1.00),
         )
         self.wait(4.25)
@@ -3000,7 +3024,6 @@ class IntroResearchQuestion3(_IntroNumberedScene, Scene):
         )
         self.wait(4.00)
         self.play(
-            Create(state["cue_rule"], run_time=0.80),
             LaggedStart(
                 FadeIn(state["cue_dots"][0], scale=0.92),
                 FadeIn(state["bullet_items"][0], shift=UP * 0.03),

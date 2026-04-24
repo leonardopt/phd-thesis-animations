@@ -27,9 +27,11 @@ from manim import Scene, config
 from utils import section_output_dir
 
 from intro import _INTRO_SECTION_SCENES
+from methods import _METHODS_MASTER_SECTION_ORDER, _METHODS_SECTION_NAMES
 from study1 import _STUDY1_MASTER_SECTION_ORDER, _STUDY1_SECTION_NAMES
 from study2 import _STUDY2_MASTER_SECTION_ORDER, _STUDY2_SECTION_NAMES
 from conclusion import _CONCLUSION_MASTER_SECTION_ORDER, _CONCLUSION_SECTION_NAMES
+from supplementary import _SUPPLEMENTARY_MASTER_SECTION_ORDER, _SUPPLEMENTARY_SECTION_NAMES
 
 __all__: list[str] = []
 
@@ -69,6 +71,8 @@ def _snake(name: str) -> str:
 
 
 _register("intro",       [(cls, name) for name, cls in _INTRO_SECTION_SCENES])
+_register("methods",     list(zip(_METHODS_MASTER_SECTION_ORDER, _METHODS_SECTION_NAMES, strict=True)))
 _register("study1",      list(zip(_STUDY1_MASTER_SECTION_ORDER, _STUDY1_SECTION_NAMES, strict=True)))
 _register("study2",      list(zip(_STUDY2_MASTER_SECTION_ORDER, _STUDY2_SECTION_NAMES, strict=True)))
 _register("conclusion",  list(zip(_CONCLUSION_MASTER_SECTION_ORDER, _CONCLUSION_SECTION_NAMES, strict=True)))
+_register("supplementary", list(zip(_SUPPLEMENTARY_MASTER_SECTION_ORDER, _SUPPLEMENTARY_SECTION_NAMES, strict=True)))

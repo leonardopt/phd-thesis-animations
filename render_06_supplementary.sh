@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Render the unified conclusion production scene and keep the section clips.
+# Render the supplementary production scene and keep the section clips.
 # Usage:
-#   ./render_05_conclusion.sh        # low quality (480p15, fast preview)
-#   ./render_05_conclusion.sh -qh    # high quality (1080p60)
-#   ./render_05_conclusion.sh -qm    # medium quality
+#   ./render_06_supplementary.sh        # low quality (480p15, fast preview)
+#   ./render_06_supplementary.sh -qh    # high quality (1080p60)
+#   ./render_06_supplementary.sh -qm    # medium quality
 
 set -euo pipefail
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    echo "Usage: ./render_05_conclusion.sh [QUALITY]"
+    echo "Usage: ./render_06_supplementary.sh [QUALITY]"
     echo
-    echo "Render the unified conclusion production scene and keep section clips."
+    echo "Render the supplementary production scene and keep section clips."
     echo "Defaults to -ql when no quality is provided."
     exit 0
 fi
@@ -47,13 +47,11 @@ normalize_quality_dir() {
 
 QUALITY_DIR="$(normalize_quality_dir "$QUALITY")"
 
-# Clear stale section clips only for the selected quality before rendering.
-find "media/videos/05_conclusion/$QUALITY_DIR/sections" -type f -delete 2>/dev/null || true
+find "media/videos/06_supplementary/$QUALITY_DIR/sections" -type f -delete 2>/dev/null || true
 
-echo "[1/1] Conclusion -> conclusion (sectioned)"
-uv run manim scenes/conclusion.py Conclusion "$QUALITY" --save_sections
+echo "[1/1] Supplementary -> supplementary (sectioned)"
+uv run manim scenes/supplementary.py Supplementary "$QUALITY" --save_sections
 
-# Remove the combined scene render and keep only per-section files.
-find "media/videos/05_conclusion/$QUALITY_DIR" -maxdepth 1 -name "*.mp4" -delete 2>/dev/null || true
+find "media/videos/06_supplementary/$QUALITY_DIR" -maxdepth 1 -name "*.mp4" -delete 2>/dev/null || true
 
-echo "Done. Section videos saved to media/videos/05_conclusion/$QUALITY_DIR/sections/"
+echo "Done. Section videos saved to media/videos/06_supplementary/$QUALITY_DIR/sections/"

@@ -5,66 +5,67 @@ slide_width = 1920
 slide_height = 1080
 presenter_notes_path = "assets/presenter_notes.md"
 
-# Video sequences use the {{quality_dir}} placeholder.
-# The AppleScript maps standard Manim flags like -ql/-qm/-qh/-qk
-# to folders such as 480p15/720p30/1080p60/2160p60.
+# Video sequences can use the {{quality_dir}} placeholder, or point to an
+# explicit render folder when different sections currently live at mixed
+# qualities.
 # Presenter notes for media slides can live in assets/presenter_notes.md.
 # Use one `## media/path.mp4` section per slide in that file.
 
 [[slide]]
 type = "title"
-title = "Perception and Memory in Rich Visual Settings"
-subtitle = "Sensory recruitment, naturalistic stimuli, and long-term memory interactions"
+title = """
+Assessing Neural Representations of
+Naturalistic Images Across Perception and Memory
+Using Deep Generative Modelling
+"""
 body = """
+27.04.2026
 Leonardo Pettini
-PhD Defence
-23 April 2026
 """
 
 [[slide]]
 type = "section"
-title = "Introduction"
-subtitle = "Working memory, sensory recruitment, and the thesis questions"
+title = "1 Introduction"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/01_intro/{{quality_dir}}/sections/*.mp4"
+glob = "media/videos/01_intro/1080p60/sections/*.mp4"
 
 [[slide]]
 type = "section"
-title = "Methods"
-subtitle = "Stimulus requirements, diffusion pipeline, and study plan"
+title = "2 Methodological Approach"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/02_methods/{{quality_dir}}/sections/*.mp4"
+glob = "media/videos/02_methods/1080p60/sections/*.mp4"
 
 [[slide]]
 type = "section"
-title = "Study 1"
-subtitle = "Core animation sequence"
+title = "3 Study 1"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/03_study1/{{quality_dir}}/sections/*.mp4"
+globs = ["media/videos/03_study1/480p15/sections/00[0-9]_*.mp4", "media/videos/03_study1/480p15/sections/01[0-6]_*.mp4"]
+
+[[slide]]
+type = "video_sequence"
+paths = ["media/videos/03_study1/480p15/sections/022_study1_stage3_memory_exp_design.mp4", "media/videos/03_study1/480p15/sections/022_study1_stage3_memory_exp_results.mp4"]
 
 [[slide]]
 type = "section"
-title = "Study 2"
-subtitle = "Core animation sequence"
+title = "4 Study 2"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/04_study2/{{quality_dir}}/sections/*.mp4"
+glob = "media/videos/04_study2/1080p60/sections/*.mp4"
 
 [[slide]]
 type = "section"
-title = "Conclusions"
-subtitle = "Questions revisited, main results, and future directions"
+title = "5 Conclusion"
 
 [[slide]]
 type = "video_sequence"
-glob = "media/videos/05_conclusion/{{quality_dir}}/sections/*.mp4"
+glob = "media/videos/05_conclusion/480p15/sections/*.mp4"
 
 [[slide]]
 type = "text"
@@ -79,8 +80,11 @@ Friends and family
 
 [[slide]]
 type = "section"
-title = "Appendix"
-subtitle = "Add static slides or backup animations below"
+title = "6 Supplementary Slides"
+
+[[slide]]
+type = "video_sequence"
+paths = ["media/videos/06_supplementary/480p15/sections/000_study1_stage3_memory_intro_a.mp4", "media/videos/06_supplementary/480p15/sections/001_study1_stage3_memory_intro_b.mp4", "media/videos/06_supplementary/480p15/sections/002_study1_stage3_memory_intro_c.mp4", "media/videos/06_supplementary/480p15/sections/003_study1_stage3_memory_intro_d.mp4", "media/videos/06_supplementary/480p15/sections/004_study1_stage3_memory_intro_e.mp4"]
 
 # Drop exported PNG/JPEG/PDF slides into assets/slides/ and add them inline:
 #

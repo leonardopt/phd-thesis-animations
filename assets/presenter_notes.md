@@ -9,78 +9,83 @@ filename, such as `Study 1 - Stage 1 - Step 1a`.
 
 ## media/videos/01_intro/{{quality_dir}}/sections/000_intro_cognitive_problem.mp4
 
-Consider a simple visual working memory task. You’re viewing at the image of an object, for example this fish in a coral reef, which you have to memorize over a short delay period in which the screen goes blank. Then the picture of the fish appears again and you have to tell whether it is the same one. 
+Consider a simple task. You’re viewing at the image of an object, for example this fish in a coral reef, which you have to memorize over a short delay period in which the screen goes blank. Then another fish appears again and you have to tell whether it is the same one or a different fish. 
 
 ## media/videos/01_intro/{{quality_dir}}/sections/001_sens-mem-representations_a.mp4
 
 During perception, the brain builds stimulus-specific visual representations on incoming sensory input. 
 
-When the stimulus is not avialble to perception anymore, visual working memory acts as a bridge over time, maintaining the visual information active over time.
+When the stimulus is not avialble to perception anymore, visual working memory acts as a bridge over time, maintaining the visual information available to online processing.
+
+When the second stimulus appears again, the brain processes new sensory input.
 
 ## media/videos/01_intro/{{quality_dir}}/sections/002_sens-mem-representations_b.mp4
 
-This is the visual hook for the representational-format question.
-
-If the working-memory code is still sensory-like, the delay pattern should
-substantially overlap with the sensory pattern. But if working memory preserves
-the information in a transformed format, the delay pattern can remain
-stimulus-specific while looking visibly different from perception.
-
-
+In order to perform this task correctly. The brain here needs to represent the visual information faithfully both during sensory stimulation, and also in absence of it. Working memory is the cognitive function that allows the brain to maintain this information over short delays and to compare it with incoming sensory input.    
 
 ## media/videos/01_intro/{{quality_dir}}/sections/003_intro_classical_view.mp4
 
-The localisation of working memory function in the brain has long been debated.
+The localisation of working memory function in the brain has long been debated. For a long time in the past century, the predominant view was that working memory is a prefrontal process.
 
-Early lesion studies in non-human primates found that injuries to prefrontal areas caused significant short-term memory deficits (Jacobsen, 1936; Harlow et al., 1952). This inspired successive single-unit recording studies, which recorded from prefrontal areas while monkeys were performing delayed response tasks.  They found that neurons in the prefrontal cortex (PFC) exhibit persistent excitatory discharge throughout the delay period of a working memory task. Early PET and
-fMRI extended this into a broader frontoparietal association-cortex account. In
-that framework, early sensory cortex was not treated as the main substrate of
-maintenance.
+Early lesion studies like Jacobsen's in non-human primates found that prefrontal ablations caused significant short-term memory deficits (Jacobsen, 1936). 
+
+This inspired successive single-unit recording studies, like Funahashi's for example, who here recorded from dorsolateral prefrontal areas while monkeys were performing delayed response tasks.  Studies like Funahashi's found that single neurons in PFC exhibited persistent excitatory discharge throughout working memory delay.
+
+Early PET and fMRI corroborated these findings by reporting mostly activations in association areas. In that framework, early sensory cortex was not treated as the main substrate of maintenance.
 
 The classical view on the neural substrates supporting working memory largely focused on prefrontal, parietal, and temporal areas as primary neural substrates. 
 
 
 ## media/videos/01_intro/{{quality_dir}}/sections/004_intro_sensory_recruitment.mp4
 
-The sensory-recruitment account challenged that emphasis. Theory papers argued
-that working memory could reuse sensory circuits, and MVPA made it possible to
-detect feature information in distributed voxel patterns that mean activation
-can miss. Landmark studies then showed that remembered visual features were
-decodable from early visual cortex during the delay, but that still left open
-whether the mnemonic code is truly sensory-like.
+More recently, it has been proposed that sensory areas also play a role. 
+
+According to the sensory recruitment model, sensory areas not only process sensory information, but they are also actively recruited to maintain working-memory content. 
+
+Evidence for this model mostly comes from fMRI studies using MVPA, like the seminal study from Harrison and Tong 2009 or from our lab Christophel 2012. Such studies showed that it was possible to decode stimulus-specific information from sensory areas during working-memory delays. 
+
+Importantly, MVPA makes it possible to detect feature information in distributed voxel patterns, that mean univariate activation
+can miss.
+
+The model has become highly influential in working memory research and the image that emerges from it is the one of working memory as a function that is distributed across the cortical hierachy, rather than localized in a domain-specific region. 
+
+Nonetheless several questions remain unresolved. 
 
 ## media/videos/01_intro/{{quality_dir}}/sections/005_intro_research_question_1.mp4
 
-The first question is about representational format. The strongest early
-evidence for sensory-like working-memory codes came from cross-decoding studies:
-classifiers trained on perception generalized to the delay in Harrison and Tong
-(2009), Albers et al. (2013), Rademaker et al. (2019), and related work.
+A first question is about representational format. If sensory areas represent stimulus-specific information, it is not clear whether they do so using a code that is a copy of the perceptual one or if the reformat the information in a different way. 
 
-But that interpretation is no longer straightforward. Sensory-trained decoders
-are often weaker than memory-trained ones, Lorenc et al. (2020) reported weak
-or absent cross-decoding, and Duan et al. (2024) argues that working-memory
-codes may be more abstract than perceptual ones. Dynamic-coding work such as
-Buschman et al. (2022) and Li et al. (2023) also suggests that the code may
-change across the delay.
+Storing working memory content in a sensory format would have the computational advantage of reusing similar neuronal networks, and to maintain fine-grained, detailed representations. 
+
+The main line of evidence suggesting this comes from sensory-memory cross-decoding, in which decoders can be trained on sensory brain responses to predict mnemonic responses. I will talk more about this later. 
+
+However, the interpretation is no longer straightforward. Sensory-trained decoders
+are often weaker than memory-trained ones, with recent work showing that it is sometimes not possible at all,  Duan et al. (2024). Dynamic-coding work such as Buschman et al. (2022) and Li et al. (2023) also suggests that the memory code may
+undergo a dynamic change across the delay.
 
 So our first key question is not just whether content is decodable in
 early visual cortex, but whether the maintained code is still sensory-like. The
 critical design feature is the separate perceptual session, which gives me an
 independent sensory training set for a direct format comparison.
 
-However, reuse of the same neuronal codes may support the storage of perceptual features efficiently and with high fidelity
-How can sensory cortices process incoming sensory input and memory information at the same time? Naturalistic settings have no blank period. Do they coexist or are orthogonalized? 
+In fact, one open question how sensory cortices can maintain memory information and also memory information at the same time. Naturalistic settings rarely have no blank period. It is possible that memory representations need to be orthogonalized by the brain to avoid interference. 
+
+So our first research question here is to find out whether wm representations are sensory-like or not. 
 
 
 ## media/videos/01_intro/{{quality_dir}}/sections/006_intro_research_question_2.mp4
 
-The second question is about ecological validity. Most sensory-recruitment
-studies used simple stimuli such as orientations, colors, or spatial locations.
-That gives excellent control, but that is not how naturalistic cognition looks like. This raises a problem of generalisability of the sensory recruitment results. 
+A second question is about ecological validity. 
 
-Especially stimulus properties may affect whether sensory and memory codes look similar at all. Duan et al. (2024) already suggests that conclusions from orientation stimuli may not generalize cleanly. Type of stimuli may be a more decisive factor than previously thought in determining to what extent sensory and memory codes share the same format. 
+Most sensory-recruitment studies used simple stimuli such as orientations, colors, or spatial locations. By design they aim to control for semantic strategies.
 
-Task demands might determine what sensory areas are recruited
+But this is not how naturalistic cognition looks like. 
+
+This raises a problem of generalisability of the sensory recruitment results. 
+
+Especially stimulus properties may affect whether sensory and memory codes look similar at all. Duan et al. (2024) showed that if you control for vignetting effects when using orientation stimuli, sensory-memory cross-decoding is at chance. 
+
+Anothe point is that sensory recruitment might be dependent on task demands. 
 
 Naturalistic work is still limited. Challenge to find suitable naturalistic stimuli stimuli for wm tasks.
 
@@ -89,17 +94,21 @@ Naturalistic work is still limited. Challenge to find suitable naturalistic stim
 
 EXAMPLE CHRISTINA KOCH. 
 
-The third question concerns the interaction between working memory and long-term
-memory. The field often studies them separately, but in naturalistic cognition, wm integrates constantly ltm information.
+A third question is about the interaction with long-term memory. 
 
-Familiarity can speed up or improve working memory, as shown for example by Xie et al. (2018), and meaningful stimuli can also improve performance, as in Brady et al. (2022).
+Here I would start with something astronaut Christina Koch said in the recent Artemis II mission to the far side of the moon. She said * read quote * 
 
-These findings suggest that pre-existing long-term traces may support short-term
-maintenance.
+I don't know if other people would feel similarly, but certainly somebody like Christina Koch has probably looked at the moon many many times, and her brain has accumulated a vast amount of fine-grained perceptual details. When new sensory input mismatched her long-term memory representation of the moon, she felt that something wasn't quite right.
 
-Vo et al. (2022) who found that working memory and long-term memory retrieval can share a sensory-like code in retinotopic cortex. 
+Memory systems are often studied separately in cognitive neuroscience them separately, but in naturalistic cognition, wm integrates constantly ltm information. 
 
-That motivates our question: does the presence of stimulus-specific long-term memory traces modulate how working-memory content is represented in early visual cortex? 
+We could ask how Christina Koch's brain would represent the image of the moon during working memory maintenance.
+
+We know that pre-existing long-term traces improve working memory performance, as shown by many studies like for example by Xie et al. (2018).
+
+Vo et al. (2022) found that working memory representations and long-term memory retrieval shared a sensory-like code in retinotopic areas. 
+
+That motivates our question: does the presence of stimulus-specific long-term memory traces modulate how working-memory content is represented in early visual cortex? Does Christina Koch's brain represent the Moon in a way that is more similar to perception?
 
 It is plausible that stronger ltm traces would make the wm code more sensory-like, but it also possible that the information processing shifts elsewhere in the brain, like in higher order regions. 
 
@@ -108,21 +117,22 @@ It is plausible that stronger ltm traces would make the wm code more sensory-lik
 
 ## media/videos/02_methods/{{quality_dir}}/sections/000_methods_stimulus_requirements_a.mp4
 
-A primary reason why these questions have been rarely tested directly is because of methodological constraints. The main difficulty is to design an experimental paradigm, and a corresponding set of naturalistic stimuli, suitable for studying sensory recruitment and its interaction with long-term memory
+A primary reason why these questions have been rarely tested directly is because of methodological constraints. The main difficulty is to design an experimental paradigm suitable for studying sensory recruitment and its interaction with long-term memory together. We ourselves struggled to find the right design for a long time, failing several pilot studies. 
 
-- The first requirement was that the stimuli had to be naturalistic.
-- The thesis is about perception and memory in rich visual settings, so abstract lab features would not be enough.
-- I needed object-scenes that look like real visual episodes rather than simplified placeholders.
+We asked what kind of stimuli and task we would need to answer these research questions. 
+
+- The first requirement was ecological validity .
+- We want to study perception and memory in rich visual settings, so we aimed for stimuli that approximate real-world experience
 
 ## media/videos/02_methods/{{quality_dir}}/sections/001_methods_stimulus_requirements_b.mp4
 
-- The second requirement was control.
-- The stimuli had to preserve semantic identity while varying in fine perceptual detail.
-- So the goal was not just realism, but a family of controlled within-concept variations.
+- The second requirement was experimetal control
+- The stimuli should preserve semantic identity while varying in fine perceptual detail
 
 ## media/videos/02_methods/{{quality_dir}}/sections/002_methods_stimulus_requirements_c.mp4
 
-- The third requirement was suitability for the actual working-memory and fMRI analyses.
+- This because we intend also to study long-term memory interactions. So the stimuli and the paradigm need to be suitable for studying working memory and long-term memory in a unified paradigm
+
 - The images had to permit threshold-level discrimination, not just coarse category judgements.
 - They also had to be informative for early visual cortex analyses, where subtle perceptual differences matter.
 
@@ -295,28 +305,28 @@ A primary reason why these questions have been rarely tested directly is because
 - So LPIPS was useful for coarse ordering, but human judgements confirmed and refined the final scale.
 - At this point, the continua are no longer just model-defined; they are psychophysically grounded.
 
-## media/videos/03_study1/{{quality_dir}}/sections/017_study1_stage3_memory_intro_a.mp4
+## media/videos/06_supplementary/{{quality_dir}}/sections/000_study1_stage3_memory_intro_a.mp4
 
 - Stage 3 asks whether the validated perceptual continuum matters functionally for working memory.
 - I now move from similarity judgements to a delayed match-to-sample task.
 - The core prediction is that target-foil proximity on the continuum should determine discrimination difficulty.
 - If the continuum is meaningful, memory performance should vary gradually with similarity.
 
-## media/videos/03_study1/{{quality_dir}}/sections/018_study1_stage3_memory_intro_b.mp4
+## media/videos/06_supplementary/{{quality_dir}}/sections/001_study1_stage3_memory_intro_b.mp4
 
 - This slide makes the Stage 3 prediction explicit.
 - When target and foil are perceptually close, discriminability should be low.
 - When they are farther apart on the continuum, performance should improve.
 - So perceptual similarity becomes the operational definition of task difficulty.
 
-## media/videos/03_study1/{{quality_dir}}/sections/019_study1_stage3_memory_intro_c.mp4
+## media/videos/06_supplementary/{{quality_dir}}/sections/002_study1_stage3_memory_intro_c.mp4
 
 - I then add repetition to probe long-term-memory contributions to working memory.
 - The logic is that repeated exposure should strengthen stimulus-specific long-term-memory traces.
 - If that happens, performance should improve beyond the pure target-foil similarity effect.
 - This is the conceptual bridge from perceptual validation to the working-memory and long-term-memory interaction question.
 
-## media/videos/03_study1/{{quality_dir}}/sections/020_study1_stage3_memory_intro_d.mp4
+## media/videos/06_supplementary/{{quality_dir}}/sections/003_study1_stage3_memory_intro_d.mp4
 
 - Here the conceptual logic becomes the actual stimulus grouping.
 - For each object-scene, I select one target and three foils with increasing perceptual dissimilarity.
