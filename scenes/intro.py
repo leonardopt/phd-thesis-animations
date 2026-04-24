@@ -138,6 +138,7 @@ _INTRO_QUESTION_HEADER_DEFAULT_LEFT_X = -4.72
 _INTRO_QUESTION_HEADER_DEFAULT_RIGHT_X = 4.80
 _INTRO_QUESTION_HEADER_Y = 3.5
 _INTRO_QUESTION_HEADER_FONT_SIZE = 28
+_INTRO_QUESTION_BULLET_FONT_SIZE = 21
 _INTRO_QUESTION_CLAIM_FONT_SIZE = 23.5
 _INTRO_QUESTION_CLAIM_MAX_WIDTH = 5.35
 
@@ -1117,7 +1118,7 @@ def _intro_question_context_block(spec: dict[str, str]) -> VGroup:
                 spec[f"bullet_{idx}"],
                 max_width=5.55,
                 color=INK,
-                font_size=21,
+                font_size=_INTRO_QUESTION_BULLET_FONT_SIZE,
             )
             for idx in bullet_indices
         ]
@@ -1481,23 +1482,21 @@ def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
         mushroom_row = Group(left_mushroom, right_mushroom).arrange(RIGHT, buff=0.16)
         mushroom_row.scale_to_fit_width(fish_row.width)
 
-        left_label = Tex(r"\textit{Cantharellus cibarius}", color=INK, font_size=10.5)
-        right_label = Tex(r"\textit{Hygrophoropsis aurantiaca}", color=INK, font_size=10.5)
-        left_label.scale_to_fit_width(left_mushroom.width)
-        right_label.scale_to_fit_width(right_mushroom.width)
-        left_label.next_to(left_mushroom, DOWN, buff=0.08)
-        right_label.next_to(right_mushroom, DOWN, buff=0.08)
+        left_label = Tex(r"edible", color=INK, font_size=_INTRO_QUESTION_BULLET_FONT_SIZE)
+        right_label = Tex(r"poisonous", color=INK, font_size=_INTRO_QUESTION_BULLET_FONT_SIZE)
+        left_label.move_to(np.array([left_mushroom.get_center()[0], left_mushroom.get_top()[1] + 0.08 + left_label.height / 2, 0.0]))
+        right_label.move_to(np.array([right_mushroom.get_center()[0], right_mushroom.get_top()[1] + 0.08 + right_label.height / 2, 0.0]))
         mushroom_labels = Group(left_label, right_label)
 
         mushroom_credit = Tex(
-            r"Dr.\ Rita L{\"u}der / BLV Verlag",
+            r"\textit{Dr.\ Rita L{\"u}der / BLV Verlag}",
             color=INK,
             font_size=12,
         )
         if mushroom_credit.width > mushroom_row.width:
             mushroom_credit.scale_to_fit_width(mushroom_row.width)
         mushroom_credit.set_x(mushroom_row.get_center()[0])
-        mushroom_block = Group(mushroom_row, mushroom_labels, mushroom_credit).arrange(
+        mushroom_block = Group(mushroom_labels, mushroom_row, mushroom_credit).arrange(
             DOWN,
             buff=0.10,
             aligned_edge=LEFT,
@@ -1505,7 +1504,7 @@ def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
         mushroom_labels.set_x(mushroom_row.get_center()[0])
         mushroom_credit.set_x(mushroom_row.get_center()[0])
 
-        return Group(fish_row, mushroom_block).arrange(DOWN, buff=0.16)
+        return Group(fish_row, mushroom_block).arrange(DOWN, buff=0.26)
 
     def _matrix_with_label(matrix: np.ndarray, label_text: str) -> Group:
         matrix_mob = _intro_question_matrix(matrix, cell=0.13, scale_factor=1.10)
@@ -1718,11 +1717,12 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
         visual_top_block_intro = getattr(visual, "top_block_intro")
         visual_top_block_final = getattr(visual, "top_block_final")
         visual_matrix_block = getattr(visual, "matrix_block")
+        matrix_center_x = header.get_center()[0]
 
         visual_top_block_intro.move_to(np.array([2.35, 1.32, 0.0]))
         visual_top_block_final.move_to(visual_top_block_intro)
         visual_matrix_block.next_to(visual_top_block_intro, DOWN, buff=0.36)
-        visual_matrix_block.set_x(0.0)
+        visual_matrix_block.set_x(matrix_center_x)
 
         top_bullets = VGroup(bullet_items[0], bullet_items[1]).arrange(
             DOWN,
@@ -1749,14 +1749,13 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
         third_dot.set_y(third_item[0].get_center()[1])
         third_block = VGroup(third_dot, third_item)
         third_block.next_to(visual_matrix_block, DOWN, buff=0.22)
-        third_block.set_x(visual_matrix_block.get_x())
+        third_block.set_x(matrix_center_x)
 
         question_card = Group(top_block, visual_top_block_intro, visual_matrix_block, third_block)
         question_card.set_x(0.0)
         question_card.next_to(header, DOWN, buff=0.55)
-        title_center_x = header_title.get_center()[0]
-        visual_matrix_block.set_x(title_center_x)
-        third_block.set_x(title_center_x)
+        visual_matrix_block.set_x(matrix_center_x)
+        third_block.set_x(matrix_center_x)
         return {
             "header": header,
             "question_claim": question_claim,

@@ -2961,68 +2961,45 @@ class Study2DecodingSummary(Study2DecodingOverviewC):
     """
 
     _SUMMARY_TITLE = r"\textbf{Decoding Summary}"
-    _SUMMARY_MEMORY_CASES = [
-        ("train", "memory", "none"),
-        ("predict", "memory", "cat"),
-    ]
-    _SUMMARY_COLUMN_GAP = 1.02
-    _SUMMARY_MEMORY_SCALE = 0.90
+    _SUMMARY_BULLETS = (
+        "sensory-trained classifiers could decode early in the trial",
+        "no generalisation throughout the delay phase",
+        "result consistent in higher order visual areas",
+        "same result using correlational measures",
+    )
 
     def construct(self) -> None:
-        """Show a static copy of the current three-row decoding schema."""
+        """Show the Study 2 decoding summary as a text-only slide."""
         self.camera.background_color = BG
         title = Tex(
             self._SUMMARY_TITLE,
             color=INK,
             font_size=28,
         ).to_edge(UP, buff=0.28)
+        bullets = VGroup()
+        for text in self._SUMMARY_BULLETS:
+            dot = Dot(radius=0.05, color=INK, stroke_width=0)
+            line = Tex(text, color=INK, font_size=24, tex_environment="flushleft")
+            item = VGroup(dot, line).arrange(RIGHT, buff=0.22, aligned_edge=UP)
+            bullets.add(item)
+        bullets.arrange(DOWN, buff=0.52, aligned_edge=LEFT)
 
-        sensory_ctx = self._build_schema_block(
-            cases=self._SCHEMA_SUMMARY_CASES,
-            top_limit=title.get_bottom()[1] - 0.22,
-            bottom_limit=-config.frame_height / 2 + 0.24,
-        )
-        memory_ctx = self._build_schema_block(
-            cases=self._SUMMARY_MEMORY_CASES,
-            top_limit=title.get_bottom()[1] - 0.22,
-            bottom_limit=-config.frame_height / 2 + 0.24,
-        )
-
-        sensory_block = sensory_ctx["schema_block"]
-        sensory_rows = sensory_ctx["rows"]
-        memory_block = memory_ctx["schema_block"]
-        memory_rows = memory_ctx["rows"]
-        memory_block.scale(self._SUMMARY_MEMORY_SCALE)
-
-        upper_right_anchor = max(
-            sensory_rows[0].decoder.get_right()[0],
-            sensory_rows[1].output_target.get_right()[0],
-        )
-        memory_target_left = upper_right_anchor + self._SUMMARY_COLUMN_GAP
-        memory_block.shift(
-            RIGHT * (memory_target_left - memory_rows[0].layout_anchor.get_left()[0])
-        )
-        memory_block.shift(
-            UP * (sensory_rows[0].get_center()[1] - memory_rows[0].get_center()[1])
-        )
-
-        summary_group = Group(sensory_block, memory_block)
-        top_limit = title.get_bottom()[1] - 0.22
-        bottom_limit = -config.frame_height / 2 + 0.24
-        available_height = top_limit - bottom_limit
-        if summary_group.height > available_height:
-            summary_group.scale_to_fit_height(available_height)
-        available_width = config.frame_width - 0.70
-        if summary_group.width > available_width:
-            summary_group.scale_to_fit_width(available_width)
-        summary_group.move_to(np.array([0.0, 0.5 * (top_limit + bottom_limit), 0.0]))
-        if summary_group.get_top()[1] > top_limit:
-            summary_group.shift(DOWN * (summary_group.get_top()[1] - top_limit))
-        if summary_group.get_bottom()[1] < bottom_limit:
-            summary_group.shift(UP * (bottom_limit - summary_group.get_bottom()[1]))
+        content = bullets
+        max_width = config.frame_width - 1.40
+        max_height = config.frame_height - title.height - 1.10
+        if content.width > max_width:
+            content.scale_to_fit_width(max_width)
+        if content.height > max_height:
+            content.scale_to_fit_height(max_height)
+        content.next_to(title, DOWN, buff=0.58)
+        content.align_to(title, LEFT)
+        content.shift(RIGHT * 0.18)
 
         self.play(FadeIn(title, shift=UP * 0.06), run_time=0.45)
-        self.play(FadeIn(summary_group, shift=UP * 0.08), run_time=0.9)
+        self.play(
+            LaggedStart(*[FadeIn(item, shift=UP * 0.05) for item in bullets], lag_ratio=0.16),
+            run_time=1.0,
+        )
         self.wait(2.0)
 
 
@@ -3525,7 +3502,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
         )
         train_title = Tex("training runs", color=train_col, font_size=18).next_to(train_ax, UP, buff=0.08)
         ovr_label = Tex(
-            r"one-vs-rest: 3 binary classifiers",
+            "one-vs-rest: one classifier per class",
             color=_D_MGREY,
             font_size=12,
         ).next_to(train_title, UP, buff=0.04)
@@ -3535,12 +3512,12 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             test_frame,
             test_col,
         )
-        train_x_label = Tex("voxel 1", color=INK, font_size=18).next_to(train_ax, DOWN, buff=0.10)
-        train_y_label = Tex("voxel 2", color=INK, font_size=18).rotate(PI / 2).next_to(
+        train_x_label = Tex("feature dim. 1", color=INK, font_size=18).next_to(train_ax, DOWN, buff=0.10)
+        train_y_label = Tex("feature dim. 2", color=INK, font_size=18).rotate(PI / 2).next_to(
             train_ax, LEFT, buff=0.08
         )
-        test_x_label = Tex("voxel 1", color=INK, font_size=18).next_to(test_ax, DOWN, buff=0.10)
-        test_y_label = Tex("voxel 2", color=INK, font_size=18).rotate(PI / 2).next_to(
+        test_x_label = Tex("feature dim. 1", color=INK, font_size=18).next_to(test_ax, DOWN, buff=0.10)
+        test_y_label = Tex("feature dim. 2", color=INK, font_size=18).rotate(PI / 2).next_to(
             test_ax, LEFT, buff=0.08
         )
         class_example_paths = [CAT, OBS, VASE]
@@ -3564,6 +3541,11 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
         class_examples.arrange(RIGHT, buff=0.15).move_to(
             np.array([plot_column_x, train_ax.get_top()[1] + 0.76, 0.0])
         )
+        schematic_label = Tex(
+            "2D schematic projection of high-dimensional voxel space",
+            color=_D_MGREY,
+            font_size=10,
+        ).next_to(class_examples, UP, buff=0.04)
 
         points_per_class_per_run = 2
 
@@ -3626,7 +3608,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
         master_point_specs = _build_master_point_specs()
 
         # Fit one LinearSVC (OvR) per fold so decision regions, boundary lines,
-        # and support-vector highlights are derived from the actual max-margin classifier.
+        # and boundary-adjacent marks are derived from the actual max-margin classifier.
         def _fit_fold_svm(fold_idx: int) -> LinearSVC:
             train_specs = [s for s in master_point_specs if s["run_idx"] != fold_idx]
             X = np.array([[float(s["x"]), float(s["y"])] for s in train_specs])
@@ -3715,7 +3697,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             return regions
 
         def _svm_boundary_lines(ax: Axes, clf: LinearSVC) -> VGroup:
-            """Draw the 3 pairwise OvR decision boundaries as explicit lines."""
+            """Draw multiclass score-equality boundaries between one-vs-rest decision scores."""
             x_min, x_max = -2.45, 2.45
             y_min, y_max = -1.35, 1.55
             lines = VGroup()
@@ -3804,7 +3786,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             )
 
         def _support_vector_ring(center: np.ndarray, *, visible: bool) -> Circle:
-            """Return one support-vector highlight ring."""
+            """Return one boundary-adjacent highlight ring."""
             ring = Circle(
                 radius=train_point_radius + 0.045,
                 color=train_col,
@@ -3816,13 +3798,16 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 ring.set_stroke(opacity=0.0)
             return ring
 
-        def make_support_vector_marks(
+        def make_boundary_adjacent_marks(
             fold_idx: int,
             blue_group: VGroup,
             green_group: VGroup,
             amber_group: VGroup,
         ) -> VGroup:
-            """Ring the training points closest to each pairwise SVM boundary."""
+            """Ring training points closest to the displayed multiclass score boundaries.
+
+            # These are schematic boundary-adjacent examples, not exact support vectors from LinearSVC.
+            """
             clf = fold_svms[fold_idx]
             active_specs = [s for s in master_point_specs if s["run_idx"] != fold_idx]
             X = np.array([[float(s["x"]), float(s["y"])] for s in active_specs])
@@ -3895,10 +3880,10 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             )
             regions = _decision_regions(train_ax, clf)
             boundary_lines = _svm_boundary_lines(train_ax, clf)
-            support_marks = make_support_vector_marks(fold_idx, blue_group, green_group, amber_group)
-            return regions, boundary_lines, blue_group, green_group, amber_group, support_marks
+            train_boundary_marks = make_boundary_adjacent_marks(fold_idx, blue_group, green_group, amber_group)
+            return regions, boundary_lines, blue_group, green_group, amber_group, train_boundary_marks
 
-        train_regions, train_boundary_lines, train_blue_pts, train_green_pts, train_amber_pts, train_support_marks = make_train_plot_state(0)
+        train_regions, train_boundary_lines, train_blue_pts, train_green_pts, train_amber_pts, train_boundary_marks = make_train_plot_state(0)
         test_regions, test_blue_pts, test_green_pts, test_amber_pts, test_error_marks = make_test_plot_state(0)
         fold_label = Tex("held-out run 1 / 8", color=INK, font_size=20).move_to(
             np.array([plot_column_x, -2.42 + right_block_y_shift, 0.0])
@@ -3909,6 +3894,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             FadeIn(merged_decoder_target, shift=RIGHT * 0.06),
             GrowArrow(data_arrow),
             FadeIn(class_examples),
+            FadeIn(schematic_label),
             Create(train_ax),
             FadeIn(train_frame),
             FadeIn(train_regions),
@@ -3928,7 +3914,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             FadeIn(train_blue_pts),
             FadeIn(train_green_pts),
             FadeIn(train_amber_pts),
-            FadeIn(train_support_marks),
+            FadeIn(train_boundary_marks),
             FadeIn(test_blue_pts),
             FadeIn(test_green_pts),
             FadeIn(test_amber_pts),
@@ -4075,7 +4061,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                 color=INK,
                 font_size=20,
             ).move_to(fold_label.get_center())
-            new_train_regions, new_train_boundary_lines, new_train_blue_pts, new_train_green_pts, new_train_amber_pts, new_train_support_marks = make_train_plot_state(fold_idx)
+            new_train_regions, new_train_boundary_lines, new_train_blue_pts, new_train_green_pts, new_train_amber_pts, new_train_boundary_marks = make_train_plot_state(fold_idx)
             new_test_regions, new_test_blue_pts, new_test_green_pts, new_test_amber_pts, new_test_error_marks = make_test_plot_state(fold_idx)
             new_train_overlays = make_train_overlays(fold_idx)
 
@@ -4092,7 +4078,7 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
                     Transform(train_blue_pts, new_train_blue_pts),
                     Transform(train_green_pts, new_train_green_pts),
                     Transform(train_amber_pts, new_train_amber_pts),
-                    Transform(train_support_marks, new_train_support_marks),
+                    Transform(train_boundary_marks, new_train_boundary_marks),
                     Transform(test_regions, new_test_regions),
                     Transform(test_blue_pts, new_test_blue_pts),
                     Transform(test_green_pts, new_test_green_pts),
@@ -4128,7 +4114,8 @@ class Study2WithinSession2DecodingSetup(Study2DecodingOverviewC):
             FadeOut(train_title),
             FadeOut(ovr_label),
             FadeOut(test_title),
-            FadeOut(train_support_marks),
+            FadeOut(schematic_label),
+            FadeOut(train_boundary_marks),
             FadeOut(train_x_label),
             FadeOut(train_y_label),
             FadeOut(test_x_label),
@@ -4479,7 +4466,7 @@ class Study2WithinSession2DecodingResults(Study2WithinSession2DecodingSetup):
             return regions
 
         def _svm_boundary_lines(ax: Axes, clf: LinearSVC) -> VGroup:
-            """Draw the 3 pairwise OvR decision boundaries as explicit lines."""
+            """Draw multiclass score-equality boundaries between one-vs-rest decision scores."""
             x_min, x_max = -2.45, 2.45
             y_min, y_max = -1.35, 1.55
             lines = VGroup()
@@ -5601,6 +5588,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
     _MINI_MATRIX_SCALE = 1.5
     _TIMERES_TRACE_IDX = 60
     _TIMERES_SCHEMA_IDXS = {67, 68, 69, 70, 71, 72}
+    _TIMERES_SWEEP_SECONDS_PER_STEP = 0.18
 
     def _make_small_results_matrix(
         self,
@@ -7335,7 +7323,7 @@ class Study2CrossSessionDecodingResultsCombined(Study2CrossSessionDecodingSetup)
         self.add(ctx["sweep_test_label"])
         self.play(
             ctx["step_tracker"].animate.set_value(len(ctx["time_bins"]) - 1),
-            run_time=0.5 * (len(ctx["time_bins"]) - 1),
+            run_time=self._TIMERES_SWEEP_SECONDS_PER_STEP * (len(ctx["time_bins"]) - 1),
             rate_func=linear,
         )
         sweep_arrow_static = ctx["sweep_arrow"].copy()
@@ -7463,6 +7451,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
     _RATIONALE_PHASE_FONT_SIZE = 18
     _RATIONALE_ROLE_FONT_SIZE = 16
     _RATIONALE_PHASE_LABEL_BUFF = 0.18
+    _TEMPGEN_DEMO_FILL_TOTAL_SECONDS = 4.5
 
     def _make_results_heading(
         self,
@@ -10063,7 +10052,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         self.add(ctx["train_selector"])
         self.play(
             ctx["step_tracker"].animate.set_value(len(ctx["time_bins"]) - 1),
-            run_time=0.5 * (len(ctx["time_bins"]) - 1),
+            run_time=self._TIMERES_SWEEP_SECONDS_PER_STEP * (len(ctx["time_bins"]) - 1),
             rate_func=linear,
         )
 
@@ -10672,7 +10661,7 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
         diagonal_transfer_trace.set_z_index(4.85)
 
         demo_column_count = min(10, cell_count)
-        demo_fill_durations = [
+        demo_fill_base_durations = [
             1.55,
             0.94,
             0.84,
@@ -10683,7 +10672,12 @@ class _Study2WithinSession1DecodingBase(Study2CrossSessionDecodingResultsCombine
             0.50,
             0.46,
             0.42,
-        ][:demo_column_count]
+        ]
+        demo_fill_scale = self._TEMPGEN_DEMO_FILL_TOTAL_SECONDS / sum(demo_fill_base_durations)
+        demo_fill_durations = [
+            duration * demo_fill_scale
+            for duration in demo_fill_base_durations[:demo_column_count]
+        ]
         demo_shift_durations = [
             0.28,
             0.25,

@@ -1333,8 +1333,7 @@ class MethodsExistingApproaches(Scene):
                 ),
                 ("Limited flexibility",),
                 (
-                    "Diffusion models",
-                    "have been largely unexplored",
+                    "Diffusion models have been largely unexplored",
                     "(Ho et al., 2020; Nichol \\& Dhariwal, 2021; Rombach et al., 2022)"
                 ),
             ),
