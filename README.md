@@ -7,8 +7,7 @@ Source repository for my PhD defence presentation built with [Manim](https://www
 
 - `scenes/`: production Manim scenes and clip wrappers
 - `assets/`: tracked figures, manifests, presenter notes, and documented sync targets
-- `scripts/`: deck assembly, packaging, probes, and other project tooling
-- `docs/`: planning notes and project-local documentation
+- `scripts/`: deck assembly, packaging, and project tooling
 
 Supporting project configuration lives at the repository root in `pyproject.toml`, `uv.lock`, `manim.cfg`, and `.env.example`.
 
@@ -69,8 +68,6 @@ The underlying production scene modules are:
 - `scenes/study2.py`
 - `scenes/conclusion.py`
 - `scenes/supplementary.py`
-
-Archived prototypes live under `archive/scenes/`.
 
 ## Building The Deck
 

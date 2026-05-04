@@ -25,10 +25,7 @@ DEFAULT_VIDEOS_ROOT = REPO_ROOT / "media" / "videos"
 DEFAULT_REPORT_DIR = REPO_ROOT / "media" / "reports"
 DEFAULT_EXCLUDED_SECTIONS = (
     "old",
-    "svg_probe",
-    "frame_selection_probe",
     "clips",
-    "intro_representation_test",
 )
 SECTION_ORDER_HINTS = (
     section_output_dir("intro"),
