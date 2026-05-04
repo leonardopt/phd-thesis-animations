@@ -4,7 +4,7 @@ from manim import *
 
 config.background_color = WHITE
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SIMPLE_FIGURE_PATH = ROOT / "assets" / "images" / "study1_stage3" / "behavior_agg_manim.svg"
 STUDY2_TIMERES_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01timeres.svg"
 STUDY2_GLM_PATH = ROOT / "assets" / "images" / "study2" / "study2_results_ses02ses01glm.svg"

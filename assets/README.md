@@ -27,7 +27,7 @@ These asset groups are populated through `scripts/sync_external_assets.py` and a
   - Study 1 stimulus-task showcase subset
   - Study 1 memory-task example images and `stimuli_info.csv`
   - Study 2 task/training stimulus subset
-  - `test_svg.py` reference SVGs
+  - `scripts/probes/svg_probe.py` reference SVGs
 - `study1-exemplars`
   - exemplar image folders used by Study 1 Step 2, Step 3, and showcase scenes
 - `study1-interpolations`

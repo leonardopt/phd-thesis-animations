@@ -285,7 +285,12 @@ def resolve_effective_quality_folder(
 
 
 def rerender_all_sections(quality_folder: str) -> None:
-    command = [str((REPO_ROOT / "render_all.sh").resolve()), quality_flag_for_folder(quality_folder)]
+    command = [
+        sys.executable,
+        str((REPO_ROOT / "scripts" / "render" / "cli.py").resolve()),
+        "all",
+        quality_flag_for_folder(quality_folder),
+    ]
     result = subprocess.run(command, cwd=REPO_ROOT, check=False)
     if result.returncode != 0:
         raise RuntimeError(

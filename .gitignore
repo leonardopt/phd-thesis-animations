@@ -1,6 +1,7 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
+.pytest_cache/
 build/
 dist/
 wheels/
@@ -14,6 +15,8 @@ wheels/
 # macOS / editor-local
 .DS_Store
 .claude/
+.Rhistory
+*.Rhistory
 
 # Matplotlib / Manim local caches
 .mplconfig/
@@ -34,7 +37,6 @@ presentation_narration.txt
 # Local preview/debug captures
 *_check*.png
 slerp_follow_prompt_check*.png
-scenes/old/__pycache__/
 media/videos/old
 
 # Generated native-slide / hybrid-deck intermediates

@@ -6,6 +6,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +19,21 @@ SPEC.loader.exec_module(presentation_hybrid_deck)
 
 
 class PresentationHybridDeckTests(unittest.TestCase):
+    def test_rerender_all_sections_uses_python_cli(self) -> None:
+        completed = mock.Mock(returncode=0)
+        with mock.patch.object(
+            presentation_hybrid_deck.subprocess,
+            "run",
+            return_value=completed,
+        ) as run:
+            presentation_hybrid_deck.rerender_all_sections("1080p60")
+
+        command = run.call_args.args[0]
+        self.assertEqual(command[0], sys.executable)
+        self.assertTrue(command[1].endswith("scripts/render/cli.py"))
+        self.assertEqual(command[2:], ["all", "-qh"])
+        self.assertNotIn("render_all.sh", " ".join(command))
+
     def test_parse_report_extracts_hybrid_decisions(self) -> None:
         report_text = textwrap.dedent(
             """

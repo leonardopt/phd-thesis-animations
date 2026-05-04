@@ -13,8 +13,10 @@ This repository contains the Manim scene source, tracked presentation assets, an
 | Area | Purpose |
 |---|---|
 | `scenes/` | Public Manim entrypoints and shared scene logic |
+| `archive/` | Archived scene experiments kept out of the active source path |
 | `assets/` | Tracked presentation figures, slide manifests, and documented sync targets |
-| `scripts/` | Deck assembly, render helpers, fallback generation, packaging, and audit tooling |
+| `docs/` | Planning notes and repo-local project documents that are not part of the public API |
+| `scripts/` | Render CLI, refresh pipeline, deck assembly, probes, packaging, and audit tooling |
 | `tests/` | Source-only tests that do not require tracked render outputs |
 | `media/` | Local-only generated output such as renders, reports, and deck exports |
 
@@ -56,18 +58,19 @@ Asset categories, provenance notes, and expected sibling repositories are docume
 ### Render numbered presentation sections
 
 ```bash
-./render_01_intro.sh -qh
-./render_02_methods.sh -qh
-./render_03_study1.sh -qh
-./render_04_study2.sh -qh
-./render_05_conclusion.sh -qh
-./render_all.sh -qh
+uv run python scripts/render/cli.py section intro -qh
+uv run python scripts/render/cli.py section methods -qh
+uv run python scripts/render/cli.py section study1 -qh
+uv run python scripts/render/cli.py section study2 -qh
+uv run python scripts/render/cli.py section conclusion -qh
+uv run python scripts/render/cli.py section supplementary -qh
+uv run python scripts/render/cli.py all -qh
 ```
 
 If you want one concatenated presentation MP4 built from the numbered section clips, use:
 
 ```bash
-./render_single_video.sh -qh
+uv run python scripts/render/cli.py single-video -qh
 ```
 
 ### Render one scene directly
@@ -77,7 +80,7 @@ uv run manim scenes/study1.py Study1Stage1Step1a -qh
 uv run manim scenes/study2.py Study2ExperimentalDesign -qh
 ```
 
-The active public scene entrypoints are `scenes/intro.py`, `scenes/methods.py`, `scenes/study1.py`, `scenes/study2.py`, and `scenes/conclusion.py`.
+The active public scene entrypoints are `scenes/intro.py`, `scenes/methods.py`, `scenes/study1.py`, `scenes/study2.py`, `scenes/conclusion.py`, and `scenes/supplementary.py`. Archived prototypes live under `archive/scenes/`.
 
 ### Build the Keynote deck
 
@@ -95,6 +98,7 @@ The deck builder reads `assets/presentation_deck.toml` and resolves only numbere
 ### Optional fallback and packaging commands
 
 ```bash
+uv run python scripts/pipeline/refresh_presentation.py -qh
 uv run python scripts/build_static_rescue_deck.py
 uv run python scripts/presentation_preflight.py --presentation-file /path/to/deck.key
 uv run python scripts/package_emergency_bundle.py --presentation-file /path/to/deck.key
