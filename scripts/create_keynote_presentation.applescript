@@ -8,10 +8,31 @@ use scripting additions
 --   osascript scripts/create_keynote_presentation.applescript --quality-folder auto
 --   osascript scripts/create_keynote_presentation.applescript -qh
 --   osascript scripts/create_keynote_presentation.applescript --quality-folder 1080p60
---   osascript scripts/create_keynote_presentation.applescript --manifest assets/presentation_hybrid_deck.toml --no-dialog
+--   osascript scripts/create_keynote_presentation.applescript --manifest /path/to/generated_manifest.toml --no-dialog
 
-property projectRoot : "/Users/leonardo/phd-thesis-animations"
-property defaultManifestPath : "/Users/leonardo/phd-thesis-animations/assets/presentation_deck.toml"
+property projectRoot : missing value
+property defaultManifestPath : missing value
+
+on standardizedPosixPath(rawPath)
+	return ((current application's NSString's stringWithString:(rawPath as text))'s stringByStandardizingPath()) as text
+end standardizedPosixPath
+
+on repositoryRootFromInvocation()
+	try
+		set scriptPath to POSIX path of (path to me)
+		set scriptDir to ((current application's NSString's stringWithString:scriptPath)'s stringByDeletingLastPathComponent()) as text
+		set repoRoot to ((current application's NSString's stringWithString:scriptDir)'s stringByDeletingLastPathComponent()) as text
+		return my standardizedPosixPath(repoRoot)
+	on error
+		set currentDirectory to ((current application's NSFileManager's defaultManager()'s currentDirectoryPath()) as text)
+		return my standardizedPosixPath(currentDirectory)
+	end try
+end repositoryRootFromInvocation
+
+on initializeRepositoryDefaults()
+	set my projectRoot to my repositoryRootFromInvocation()
+	set my defaultManifestPath to my projectRoot & "/assets/presentation_deck.toml"
+end initializeRepositoryDefaults
 
 -- Ensure a destination directory exists before Keynote or export helpers write into it.
 -- posixPath: absolute POSIX path string.
@@ -534,6 +555,7 @@ end populateSlide
 -- argv accepts the same quality selection forms as the render shell scripts,
 -- plus `auto` to pick the best existing section clips per sequence.
 on run argv
+	my initializeRepositoryDefaults()
 	set {qualityFolder, selectedManifestPath, showDialog} to my parseCliArgs(argv)
 	set {outputDir, deckBaseName, slideWidth, slideHeight, slideSpecs} to my loadDeckSpec(projectRoot, selectedManifestPath, qualityFolder)
 	set ts to my timestampString()

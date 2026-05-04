@@ -14,6 +14,17 @@ presentation_manifest = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(presentation_manifest)
 
 
+def _slide_media_references(slide: dict) -> list[str]:
+    values: list[str] = []
+    for key in ("path", "glob"):
+        value = slide.get(key)
+        if value:
+            values.append(value)
+    for key in ("paths", "globs"):
+        values.extend(slide.get(key, []))
+    return values
+
+
 class PresentationManifestAliasTests(unittest.TestCase):
     def test_old_camel_case_presenter_note_targets_match_current_sectioned_stems(self) -> None:
         old_target = "media/videos/04_study2/{{quality_dir}}/03c_Study2DecodingOverviewC.mp4"
@@ -69,19 +80,13 @@ class PresentationManifestAliasTests(unittest.TestCase):
         manifest = presentation_manifest.load_manifest(
             REPO_ROOT / "assets" / "presentation_deck.toml"
         )
-        expanded = presentation_manifest.expand_slides(
-            manifest["slide"],
-            REPO_ROOT,
-            "auto",
-        )
-
-        for slide in expanded:
-            if slide["type"] != "video":
+        for slide in manifest["slide"]:
+            if slide.get("type") not in {"video", "video_sequence"}:
                 continue
-            self.assertTrue(
-                presentation_manifest.is_numbered_section_video_path(Path(slide["path"])),
-                slide["path"],
-            )
+            for reference in _slide_media_references(slide):
+                self.assertIn("/sections/", reference, reference)
+                self.assertTrue(reference.endswith(".mp4"), reference)
+                self.assertNotIn("_autocreated.mp4", reference, reference)
 
     def test_auto_quality_mode_uses_existing_mixed_section_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -173,55 +178,59 @@ glob = "media/videos/03_study1/480p15/sections/*.mp4"
         manifest = presentation_manifest.load_manifest(
             REPO_ROOT / "assets" / "presentation_deck.toml"
         )
-        expanded = presentation_manifest.expand_slides(
-            manifest["slide"],
-            REPO_ROOT,
-            "auto",
-        )
+        slides = manifest["slide"]
 
         study2_index = next(
             index
-            for index, slide in enumerate(expanded)
+            for index, slide in enumerate(slides)
             if slide["type"] == "section" and slide["title"].endswith("Study 2")
         )
         acknowledgments_index = next(
             index
-            for index, slide in enumerate(expanded)
+            for index, slide in enumerate(slides)
             if slide["type"] == "text" and slide["title"] == "Acknowledgments"
         )
         supplementary_index = next(
             index
-            for index, slide in enumerate(expanded)
+            for index, slide in enumerate(slides)
             if slide["type"] == "section" and slide["title"].endswith("Supplementary Slides")
         )
-        exp_design_index = next(
-            index
-            for index, slide in enumerate(expanded)
-            if slide["type"] == "video"
-            and Path(slide["path"]).stem == "017_study1_stage3_memory_exp_design"
+        study1_memory_results_slide = next(
+            slide
+            for slide in slides
+            if slide.get("type") == "video_sequence"
+            and slide.get("paths")
+            and any(
+                path.endswith("017_study1_stage3_memory_exp_design.mp4")
+                for path in slide["paths"]
+            )
         )
-        repetition_explainer_index = next(
-            index
-            for index, slide in enumerate(expanded)
-            if slide["type"] == "video"
-            and Path(slide["path"]).stem == "018_study1_stage3_memory_repetition_explainer"
+        supplementary_slide = next(
+            slide
+            for slide in slides
+            if slide.get("type") == "video_sequence"
+            and slide.get("paths")
+            and any("/06_supplementary/" in path for path in slide["paths"])
         )
-        exp_results_index = next(
-            index
-            for index, slide in enumerate(expanded)
-            if slide["type"] == "video"
-            and Path(slide["path"]).stem == "019_study1_stage3_memory_exp_results"
-        )
-
-        intro_indices = {
-            Path(slide["path"]).stem: index
-            for index, slide in enumerate(expanded)
-            if slide["type"] == "video"
-            and "study1_stage3_memory_intro" in Path(slide["path"]).stem
+        study1_memory_results = [
+            Path(path).stem for path in study1_memory_results_slide["paths"]
+        ]
+        supplementary_stems = [
+            Path(path).stem for path in supplementary_slide["paths"]
+        ]
+        supplementary_intro_stems = {
+            stem for stem in supplementary_stems if "study1_stage3_memory_intro" in stem
+        }
+        nonsupplementary_intro_stems = {
+            Path(path).stem
+            for slide in slides
+            if slide is not supplementary_slide
+            for path in _slide_media_references(slide)
+            if "study1_stage3_memory_intro" in Path(path).stem
         }
 
         self.assertEqual(
-            set(intro_indices),
+            supplementary_intro_stems,
             {
                 "003_study1_stage3_memory_intro_a",
                 "004_study1_stage3_memory_intro_b",
@@ -232,43 +241,18 @@ glob = "media/videos/03_study1/480p15/sections/*.mp4"
         )
         self.assertLess(study2_index, acknowledgments_index)
         self.assertLess(acknowledgments_index, supplementary_index)
-        self.assertLess(exp_design_index, repetition_explainer_index)
-        self.assertLess(repetition_explainer_index, exp_results_index)
+        self.assertEqual(
+            study1_memory_results,
+            [
+                "017_study1_stage3_memory_exp_design",
+                "018_study1_stage3_memory_repetition_explainer",
+                "019_study1_stage3_memory_exp_results",
+            ],
+        )
         self.assertTrue(
-            all(
-                "/06_supplementary/" in slide["path"]
-                for slide in expanded
-                if slide["type"] == "video"
-                and Path(slide["path"]).stem in {
-                    "003_study1_stage3_memory_intro_a",
-                    "004_study1_stage3_memory_intro_b",
-                    "005_study1_stage3_memory_intro_c",
-                    "006_study1_stage3_memory_intro_d",
-                    "007_study1_stage3_memory_intro_e",
-                }
-            )
+            all("/06_supplementary/" in path for path in supplementary_slide["paths"])
         )
-        self.assertEqual(
-            [
-                Path(slide["path"]).stem
-                for slide in expanded
-                if slide["type"] == "video"
-                and "/06_supplementary/" not in slide["path"]
-                and "study1_stage3_memory_intro" in Path(slide["path"]).stem
-            ],
-            [],
-        )
-        self.assertEqual(
-            [
-                Path(slide["path"]).stem
-                for slide in expanded
-                if slide["type"] == "video"
-                and "/06_supplementary/" not in slide["path"]
-                and Path(slide["path"]).stem == "018_study1_stage3_memory_repetition_explainer"
-            ],
-            ["018_study1_stage3_memory_repetition_explainer"],
-        )
-        self.assertLess(exp_results_index, study2_index)
+        self.assertEqual(nonsupplementary_intro_stems, set())
 
 
 if __name__ == "__main__":

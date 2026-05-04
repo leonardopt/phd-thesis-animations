@@ -15,14 +15,34 @@ wheels/
 .DS_Store
 .claude/
 
-# Manim outputs and caches
+# Matplotlib / Manim local caches
+.mplconfig/
+
+# Generated presentation outputs and local build scratch
 media/
+tmp/
+.tmp_*
+fallback_pdf.pdf
+study_static_rescue_deck.pdf
+phd-defence-presentation_*.pdf
+pres_to_transform.key.key
+conclusion_narration.txt
+presentation_narration.txt
+*.key
+*.pptx
 
 # Local preview/debug captures
 *_check*.png
 slerp_follow_prompt_check*.png
 scenes/old/__pycache__/
 media/videos/old
+
+# Generated native-slide / hybrid-deck intermediates
+assets/native_specs/
+assets/hybrid_wtext_deck.toml
+assets/presentation_hybrid_deck.toml
+assets/presentation_hybrid_native_deck.toml
+assets/presentation_hybrid_text_deck.toml
 
 # Large synced external assets (recreated via scripts/sync_external_assets.py)
 assets/images/stimuli_reordered/

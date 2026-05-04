@@ -5,7 +5,7 @@ Recommended formats:
 - `PDF` for vector/static figure slides
 - `JPEG` if the source is photographic
 
-Then reference them from [presentation_deck.toml](/Users/leonardo/phd-thesis-animations/assets/presentation_deck.toml) with:
+Then reference them from [presentation_deck.toml](../presentation_deck.toml) with:
 
 ```toml
 [[slide]]

@@ -1,80 +1,59 @@
 # Thesis Defence Animations
 
-This repository contains the Manim scenes, presentation assets, and build helpers used to produce animated material for my PhD defence talk. It includes the tooling needed to assemble a presentation deck, generate static fallbacks, and package backups for live delivery.
+This repository contains the Manim scene source, tracked presentation assets, and build helpers used to produce animated material for a PhD defence talk. It is published as a source-first repository: scene code, manifests, and curated small assets live here, while rendered videos, Keynote decks, PDFs, reports, and other build products are generated locally and kept out of Git.
 
-The project is organized around my thesis chapters, with a set of scripts that turn rendered clips into presentation-ready artifacts. The result is a reproducible workflow from scene source to numbered videos, Keynote decks, backup PDFs, and emergency bundles.
+## Supported Workflows
 
-At a glance:
+- Fresh source checkout and test run
+- Optional local asset sync for larger study inputs
+- Optional local rendering and macOS/Keynote deck assembly
 
-- Render the full five-part presentation sequence in numbered narrative order.
-- Build a Keynote deck from a manifest instead of placing videos by hand.
-- Generate static rescue PDFs, frame screeners, and emergency presentation bundles.
-- Keep local asset sync and scene numbering reproducible across rerenders.
+## Repository Layout
 
-## Overview
-
-The core of the repository is a set of Manim entrypoints: `scenes/intro.py`, `scenes/methods.py`, `scenes/study1.py`, `scenes/study2.py`, and `scenes/conclusion.py`. These define the numbered public scene sequences used for rendering the current presentation, and together they provide the stable public rendering interface for the end-to-end build pipeline.
-
-Downstream scripts assume that rendered clips follow a consistent numbered naming scheme and live under numbered section folders such as `media/videos/01_intro/<quality>/`, `media/videos/02_methods/<quality>/`, `media/videos/03_study1/<quality>/`, `media/videos/04_study2/<quality>/`, and `media/videos/05_conclusion/<quality>/`. That convention is then reused by the presentation builder, backup generators, preflight checks, and bundle-packaging helpers. Assets follow a similar model: some are tracked directly in the repo, while larger study inputs are synced locally into expected locations under `assets/`.
-
-## Repository Structure
-
-| Area | Purpose | Key Paths |
-|---|---|---|
-| Scene source | Public scene entrypoints and shared scene code | `scenes/intro.py`, `scenes/methods.py`, `scenes/study1.py`, `scenes/study2.py`, `scenes/conclusion.py`, `scenes/utils.py` |
-| Assets | Tracked presentation figures, repo-local sync targets, and presentation manifests | `assets/`, `assets/presentation_deck.toml`, `assets/presentation_frame_overrides.toml` |
-| Tooling | Render helpers, deck assembly, backup generation, preflight, packaging, renumbering | `render_01_intro.sh`, `render_02_methods.sh`, `render_03_study1.sh`, `render_04_study2.sh`, `render_05_conclusion.sh`, `render_all.sh`, `render_single_video.sh`, `scripts/` |
-| Generated outputs | Rendered videos, stills, PDFs, reports, and Keynote exports | `media/videos/`, `media/images/`, `media/pdfs/`, `media/reports/`, `media/keynote/` |
+| Area | Purpose |
+|---|---|
+| `scenes/` | Public Manim entrypoints and shared scene logic |
+| `assets/` | Tracked presentation figures, slide manifests, and documented sync targets |
+| `scripts/` | Deck assembly, render helpers, fallback generation, packaging, and audit tooling |
+| `tests/` | Source-only tests that do not require tracked render outputs |
+| `media/` | Local-only generated output such as renders, reports, and deck exports |
 
 Supporting configuration lives at the repository root in `pyproject.toml`, `uv.lock`, `manim.cfg`, and `.env.example`.
 
-## Core Workflows
+## 1. Fresh Checkout And Tests
 
-The main workflows in this repository are:
-
-- Environment setup: install the Python environment and ensure the local machine has the runtime dependencies required by Manim and, optionally, Keynote.
-- Asset sync: populate the repo-local asset locations that the scenes expect, either with the small tracked/copied groups or with the larger study-specific sync targets as needed.
-- Rendering: render one presentation section, the entire presentation section sequence, or one-off scene rerenders during iteration.
-- Presentation build: assemble a Keynote deck from `assets/presentation_deck.toml`, using the numbered rendered videos as slide media.
-- Backup and recovery: generate static rescue decks, screeners, preflight reports, and transport bundles for live presentation fallback.
-
-The next section gives the main operator path for each of those workflows.
-
-## Running the Project
-
-### Prerequisites
-
-Use this repository with Python 3.12+, `uv`, and a working LaTeX installation for Manim text rendering. Building a Keynote deck also requires macOS with Keynote installed.
-
-### Environment Setup
-
-Use this once on a fresh checkout to create the local Python environment and install pinned dependencies.
+Use Python 3.12+ with `uv`. Rendering also requires the native dependencies that Manim expects on your platform, and Keynote deck assembly additionally requires macOS with Keynote installed.
 
 ```bash
-uv sync
+uv sync --group dev
+uv run python -m pytest -q
 ```
 
-### Asset Sync
+Copy `.env.example` to `.env` only if you need to override the default repo-local asset paths.
 
-Use the small sync group for the normal portable setup. Use `--all` only when you need the larger Study 1 asset sets that are intentionally not committed into the repository.
+## 2. Local Asset Sync (Optional)
+
+The public repository keeps only the small tracked assets needed for the core scene source. Larger study inputs are synced locally when needed.
 
 ```bash
 uv run python scripts/sync_external_assets.py --groups small
 uv run python scripts/sync_external_assets.py --all
 ```
 
-### Quality Flags
+Use `--groups small` for the normal portable setup. Use `--all` only when you need the larger Study 1 sync targets that are intentionally not committed here.
 
-Use the same Manim quality flags across the render helpers and the Keynote builder:
+Asset categories, provenance notes, and expected sibling repositories are documented in [assets/README.md](assets/README.md).
+
+## 3. Rendering And Deck Build (Optional)
+
+### Quality flags
 
 - `-ql`: low quality, outputs to `480p15/`
 - `-qm`: medium quality, outputs to `720p30/`
 - `-qh`: high quality, outputs to `1080p60/`
 - `-qk`: 4K quality, outputs to `2160p60/`
 
-### Render Sequences
-
-Use these when you want the numbered study sequences rather than one-off scene renders.
+### Render numbered presentation sections
 
 ```bash
 ./render_01_intro.sh -qh
@@ -85,26 +64,24 @@ Use these when you want the numbered study sequences rather than one-off scene r
 ./render_all.sh -qh
 ```
 
-`render_all.sh` runs every top-level section render helper in the repository. If you specifically want one concatenated presentation MP4 built from the numbered section clips, use:
+If you want one concatenated presentation MP4 built from the numbered section clips, use:
 
 ```bash
 ./render_single_video.sh -qh
 ```
 
-### Render a Single Scene
-
-Use direct `manim` commands during development when you only want to rerender one scene instead of a full numbered sequence.
+### Render one scene directly
 
 ```bash
 uv run manim scenes/study1.py Study1Stage1Step1a -qh
 uv run manim scenes/study2.py Study2ExperimentalDesign -qh
 ```
 
-`scenes/intro.py`, `scenes/methods.py`, and `scenes/conclusion.py` are active public entrypoints in the same way as `scenes/study1.py` and `scenes/study2.py`.
+The active public scene entrypoints are `scenes/intro.py`, `scenes/methods.py`, `scenes/study1.py`, `scenes/study2.py`, and `scenes/conclusion.py`.
 
-### Build the Presentation
+### Build the Keynote deck
 
-Use the Keynote builder when the rendered videos are ready and you want a deck assembled from the manifest in `assets/presentation_deck.toml`.
+Use the Keynote builder after the required section clips exist locally:
 
 ```bash
 osascript scripts/create_keynote_presentation.applescript
@@ -113,20 +90,9 @@ osascript scripts/create_keynote_presentation.applescript -qh
 osascript scripts/create_keynote_presentation.applescript --quality-folder 1080p60
 ```
 
-Running the builder with no quality argument now defaults to `auto`, which
-selects the best existing section clips per sequence. Use an explicit quality
-only when all five numbered section folders exist for that quality.
+The deck builder reads `assets/presentation_deck.toml` and resolves only numbered section clips under `media/videos/**/sections/`. Presenter notes can live in `assets/presenter_notes.md`, using repo-relative media targets such as `## media/videos/03_study1/{{quality_dir}}/sections/000_study1_scene.mp4`.
 
-Presenter notes for media slides can live in `assets/presenter_notes.md`. The
-builder reads that file through `presenter_notes_path` in the deck manifest and
-matches each `## media-target` section onto the corresponding rendered slide.
-Use a repo-relative templated path such as
-`## media/videos/03_study1/{{quality_dir}}/sections/000_study1_scene.mp4` when you want the
-same notes to work across qualities.
-
-### Optional Backup and Recovery Commands
-
-Use these when you want a static fallback deck, a readiness check, or a portable presentation bundle.
+### Optional fallback and packaging commands
 
 ```bash
 uv run python scripts/build_static_rescue_deck.py
@@ -134,29 +100,12 @@ uv run python scripts/presentation_preflight.py --presentation-file /path/to/dec
 uv run python scripts/package_emergency_bundle.py --presentation-file /path/to/deck.key
 ```
 
-## Outputs and Conventions
+## Generated Outputs
 
-Rendered videos are written as numbered section clips under paths such as `media/videos/03_study1/<quality>/sections/000_*.mp4`. The presentation builder, fallback PDF scripts, and backup tooling read only those numbered section clips and ignore stray files outside that convention. Other generated artifacts are grouped alongside them in matching numbered directories under `media/images/`, plus `media/pdfs/`, `media/reports/`, and `media/keynote/`.
+- `media/` is disposable local build output. It holds renders, stills, reports, fallback bundles, and Keynote exports and is intentionally ignored by Git.
+- `assets/native_specs/` and the hybrid deck manifest variants are generated local intermediates for native-slide experiments and are also ignored by Git.
+- Final `.key`, `.pptx`, and exported `.pdf` deliverables should be published as GitHub Release assets, not committed into repository history.
 
-The numbered output convention is intentional. The unified render scenes emit section clips into filenames such as `sections/000_section_name.mp4`, and the presentation and backup tooling assumes that convention rather than trying to infer order from ad hoc filenames.
+## Asset Provenance And License Status
 
-The Keynote builder is manifest-driven. `assets/presentation_deck.toml` defines the slide sequence and can mix text slides, static image/PDF slides, and video sequences sourced from the numbered render outputs. Deck-level presenter notes for media slides can be authored separately in `assets/presenter_notes.md` instead of being embedded into the TOML slide definitions.
-
-The detailed current rendered order lives in [media/reports/presentation_video_order.md](media/reports/presentation_video_order.md). It is kept out of the main README on purpose so the landing page stays focused on structure and workflow rather than current build state.
-
-## Additional Tools
-
-- `scripts/export_last_frames_pdf.py`: build a last-frame backup PDF from rendered videos.
-- `scripts/export_frame_screener_pdf.py`: build screener PDFs from stable frames rather than arbitrary timestamps.
-- `scripts/presentation_preflight.py`: check that required videos and backup artifacts exist and can be opened.
-- `scripts/package_emergency_bundle.py`: assemble a portable bundle containing videos, backup PDFs, and reports.
-- `scripts/renumber_scene_order.py`: update numbered study ordering when scenes are removed or compacted.
-- `assets/presentation_frame_overrides.toml`: store manual frame-pick overrides for static rescue deck generation.
-
-## Reproducibility and Assets
-
-This repository uses a mixed asset model. Small reference files and presentation assets are tracked directly in `assets/`, while larger study-specific inputs are expected to be synced locally into repo-local directories. That keeps the public repository usable without silently depending on machine-specific absolute paths while still avoiding large committed binary datasets where they are not appropriate.
-
-Asset provenance, sync groups, and expected sibling source repositories are documented in [assets/README.md](assets/README.md). Start there if you need to understand where a local asset set comes from or why a particular folder is a sync target instead of a committed source directory.
-
-Runtime defaults point to repo-local asset paths. If your local setup differs, copy `.env.example` to `.env` and override the relevant directories there. Generated output under `media/` should be treated as disposable build output: rerender or regenerate it rather than editing it by hand.
+Asset provenance, sync groups, and redistribution notes live in [assets/README.md](assets/README.md). The repository does not yet ship a top-level open-source license while the asset-rights audit is still in progress, so treat code and non-code assets separately until that audit is complete.
