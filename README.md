@@ -6,7 +6,7 @@ This repository contains the Manim scene source, tracked presentation assets, an
 
 - Fresh source checkout and test run
 - Optional local asset sync for larger study inputs
-- Optional local rendering and macOS/Keynote deck assembly
+- Optional local clip rendering and macOS/Keynote deck assembly
 
 ## Repository Layout
 
@@ -16,7 +16,7 @@ This repository contains the Manim scene source, tracked presentation assets, an
 | `archive/` | Archived scene experiments kept out of the active source path |
 | `assets/` | Tracked presentation figures, slide manifests, and documented sync targets |
 | `docs/` | Planning notes and repo-local project documents that are not part of the public API |
-| `scripts/` | Render CLI, refresh pipeline, deck assembly, probes, packaging, and audit tooling |
+| `scripts/` | Deck assembly, probes, packaging, and audit tooling |
 | `tests/` | Source-only tests that do not require tracked render outputs |
 | `media/` | Local-only generated output such as renders, reports, and deck exports |
 
@@ -46,7 +46,7 @@ Use `--groups small` for the normal portable setup. Use `--all` only when you ne
 
 Asset categories, provenance notes, and expected sibling repositories are documented in [assets/README.md](assets/README.md).
 
-## 3. Rendering And Deck Build (Optional)
+## 3. Clip Rendering And Deck Build (Optional)
 
 ### Quality flags
 
@@ -55,32 +55,18 @@ Asset categories, provenance notes, and expected sibling repositories are docume
 - `-qh`: high quality, outputs to `1080p60/`
 - `-qk`: 4K quality, outputs to `2160p60/`
 
-### Render numbered presentation sections
+### Render numbered section clips
 
 ```bash
-uv run python scripts/render/cli.py section intro -qh
-uv run python scripts/render/cli.py section methods -qh
-uv run python scripts/render/cli.py section study1 -qh
-uv run python scripts/render/cli.py section study2 -qh
-uv run python scripts/render/cli.py section conclusion -qh
-uv run python scripts/render/cli.py section supplementary -qh
-uv run python scripts/render/cli.py all -qh
+uv run manim scenes/clips.py IntroCognitiveProblemA -qh
+uv run manim scenes/clips.py Study1Stage1Step2 -qh
+uv run manim scenes/clips.py Study2CrossSessionDecodingSetup -qh
+uv run manim scenes/clips.py ConclusionResults -qh
 ```
 
-If you want one concatenated presentation MP4 built from the numbered section clips, use:
+`scenes/clips.py` re-exports the production clips and writes them directly into the numbered `media/videos/**/sections/` folders with the production filenames, so the rendered MP4 can be dropped into the deck workflow without any rename step.
 
-```bash
-uv run python scripts/render/cli.py single-video -qh
-```
-
-### Render one scene directly
-
-```bash
-uv run manim scenes/study1.py Study1Stage1Step1a -qh
-uv run manim scenes/study2.py Study2ExperimentalDesign -qh
-```
-
-The active public scene entrypoints are `scenes/intro.py`, `scenes/methods.py`, `scenes/study1.py`, `scenes/study2.py`, `scenes/conclusion.py`, and `scenes/supplementary.py`. Archived prototypes live under `archive/scenes/`.
+The active production scene modules remain `scenes/intro.py`, `scenes/methods.py`, `scenes/study1.py`, `scenes/study2.py`, `scenes/conclusion.py`, and `scenes/supplementary.py`. Archived prototypes live under `archive/scenes/`.
 
 ### Build the Keynote deck
 
@@ -98,7 +84,6 @@ The deck builder reads `assets/presentation_deck.toml` and resolves only numbere
 ### Optional fallback and packaging commands
 
 ```bash
-uv run python scripts/pipeline/refresh_presentation.py -qh
 uv run python scripts/build_static_rescue_deck.py
 uv run python scripts/presentation_preflight.py --presentation-file /path/to/deck.key
 uv run python scripts/package_emergency_bundle.py --presentation-file /path/to/deck.key
