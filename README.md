@@ -1,15 +1,13 @@
 # Thesis Defence Animations
 
-Source repository for a PhD defence presentation built with [Manim](https://www.manim.community/). The project contains the scene code, presentation manifests, and curated assets used to produce the final talk, which is organised into an introduction, methods, two main study sections, a conclusion, and supplementary material.
+Source repository for my PhD defence presentation built with [Manim](https://www.manim.community/). The project contains the scene code and curated assets used to produce videos and keynote slides. The talk was organised into an introduction, methods, two main study sections, a conclusion, and supplementary material.
 
-This is a source-first repository. Code, manifests, and small public assets are tracked here; rendered videos, Keynote decks, PDFs, reports, and other build outputs are generated locally and intentionally kept out of Git.
 
 ## What This Repository Contains
 
 - `scenes/`: production Manim scenes and clip wrappers
 - `assets/`: tracked figures, manifests, presenter notes, and documented sync targets
 - `scripts/`: deck assembly, packaging, probes, and other project tooling
-- `archive/`: older scene experiments kept out of the active render path
 - `docs/`: planning notes and project-local documentation
 
 Supporting project configuration lives at the repository root in `pyproject.toml`, `uv.lock`, `manim.cfg`, and `.env.example`.
