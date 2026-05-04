@@ -144,6 +144,7 @@ _INTRO_QUESTION_CLAIM_MAX_WIDTH = 5.35
 
 
 def _seeded_pattern(seed: int) -> np.ndarray:
+    """Return a deterministic 4x4 pattern matrix for small visual motifs."""
     rng = np.random.default_rng(seed)
     return rng.uniform(-1.0, 1.0, size=(4, 4))
 
@@ -180,10 +181,12 @@ _REPRESENTATION_SENSORY_PATTERN_RIGHT = np.array(
 
 
 def stim_path(code: str, idx: int) -> str:
+    """Return the absolute path for one intro stimulus exemplar image."""
     return str(_INTRO_STIM_DIR / f"{code}-{idx:02d}.png")
 
 
 def preferred_path(*candidates: Path | str) -> str:
+    """Return the first existing path from the candidate list."""
     for candidate in candidates:
         path = Path(candidate)
         if path.exists():
@@ -192,12 +195,14 @@ def preferred_path(*candidates: Path | str) -> str:
 
 
 def _img(path: str, height: float) -> ImageMobject:
+    """Load an image mobject and normalize it to the requested height."""
     img = ImageMobject(path)
     img.height = height
     return img
 
 
 def _bold_tex(text: str) -> str:
+    """Wrap plain text in `\\textbf{}` unless it is already bolded."""
     return text if r"\textbf{" in text else rf"\textbf{{{text}}}"
 
 
@@ -208,6 +213,7 @@ def _wrap_tex_to_lines(
     font_size: float,
     tex_environment: str = "flushleft",
 ) -> str:
+    """Greedily wrap TeX text into lines that fit a measured width."""
     wrapped_paragraphs: list[str] = []
     for paragraph in text.split(r"\\"):
         words = paragraph.strip().split()
@@ -237,6 +243,7 @@ def _wrapped_tex(
     font_size: float,
     tex_environment: str = "flushleft",
 ) -> Tex:
+    """Build a `Tex` object after width-aware line wrapping."""
     return Tex(
         _wrap_tex_to_lines(
             text,
@@ -251,6 +258,7 @@ def _wrapped_tex(
 
 
 def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
+    """Build the standard intro title and optional subtitle block."""
     title = Tex(_bold_tex(title_text), color=INK, font_size=34).to_edge(UP, buff=0.34)
     parts = [title]
     if subtitle_text is not None:
@@ -262,6 +270,7 @@ def title_block(title_text: str, subtitle_text: str | None = None) -> VGroup:
 
 
 def make_callout(text: str, color: str, *, font_size: float = 23) -> VGroup:
+    """Build a short underlined takeaway callout."""
     line = Tex(text, color=INK, font_size=font_size)
     underline = Line(
         line.get_left() + DOWN * 0.12,
@@ -283,6 +292,7 @@ def make_info_card(
     subtitle_font_size: float = 16,
     subtitle_color: str = INK,
 ) -> VGroup:
+    """Build a framed info card with a colored accent rail."""
     frame = RoundedRectangle(
         width=width,
         height=height,
@@ -322,6 +332,7 @@ def make_summary_panel(
     body_font_size: float = 18,
     ref_font_size: float = 15,
 ) -> VGroup:
+    """Build a stacked headline/body/reference summary panel."""
     frame = RoundedRectangle(
         width=width,
         height=height,
@@ -368,6 +379,7 @@ def make_literature_entry(
     accent: str,
     divider_width: float = 4.60,
 ) -> VGroup:
+    """Build one literature-review entry with claims, references, and divider."""
     title_row = VGroup(
         Dot(radius=0.045, color=accent),
         Tex(rf"\textbf{{{title_text}}}", color=accent, font_size=18),
@@ -392,6 +404,7 @@ def make_paper_snapshot(
     accent: str,
     height: float = 1.56,
 ) -> Group:
+    """Build a framed paper thumbnail with label and citation text."""
     image = ImageMobject(image_path)
     image.height = height
     image_card = RoundedRectangle(
@@ -409,6 +422,7 @@ def make_paper_snapshot(
 
 
 def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.0) -> dict[str, Mobject]:
+    """Return the brain icon plus a highlighted early-visual-cortex overlay."""
     brain = ImageMobject(str(_BRAIN_ICON_PATH)).scale_to_fit_height(2.85 * scale_factor)
     highlight_center = (
         brain.get_center()
@@ -437,12 +451,14 @@ def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.
 
 
 def brain_render(*, scale_factor: float = 1.0) -> ImageMobject:
+    """Return the rendered head-and-brain illustration at a standard scale."""
     brain = ImageMobject(str(_HEAD_BRAIN_PATH))
     brain.scale_to_fit_height(2.85 * scale_factor)
     return brain
 
 
 def _pattern_color(value: float) -> ManimColor:
+    """Map signed pattern values onto the intro red/blue diverging palette."""
     clipped = max(-1.0, min(1.0, float(value)))
     if clipped < 0:
         return interpolate_color(ManimColor(PATTERN_WHITE), ManimColor(PATTERN_BLUE), abs(clipped))
@@ -450,6 +466,7 @@ def _pattern_color(value: float) -> ManimColor:
 
 
 def _mini_matrix(matrix: np.ndarray, *, cell: float = 0.12) -> VGroup:
+    """Render a small colored square grid from a 2D pattern matrix."""
     rows, cols = matrix.shape
     cells = VGroup()
     for row in range(rows):
@@ -465,6 +482,7 @@ def _mini_matrix(matrix: np.ndarray, *, cell: float = 0.12) -> VGroup:
 
 
 def patterned_head(matrix: np.ndarray, *, scale_factor: float = 1.0) -> Group:
+    """Overlay a miniature pattern matrix onto the rendered head graphic."""
     head = brain_render(scale_factor=scale_factor)
     cells = _mini_matrix(matrix, cell=_MATRIX_CELL * scale_factor)
     cells.move_to(
@@ -485,6 +503,7 @@ def framed_visual(
     height: float = 1.42,
     corner_radius: float = 0.08,
 ) -> Group:
+    """Place a visual inside a rounded card with standard intro padding."""
     card = RoundedRectangle(
         width=width,
         height=height,
@@ -503,12 +522,14 @@ def framed_visual(
 
 
 def interpolate_matrix(a: np.ndarray, b: np.ndarray, alpha: float) -> np.ndarray:
+    """Linearly interpolate between two pattern matrices."""
     return (1.0 - alpha) * a + alpha * b
 
 
 # ── Layout builders ───────────────────────────────────────────────────────────
 
 def _build_intro_a_end_state() -> dict[str, Mobject]:
+    """Build the final hook layout with the probe-choice question and two images."""
     question = Tex(r"Which probe matches?", color=INK, font_size=44)
     probe_target = _img(stim_path(_HOOK_CODE, 5), 2.40)
     probe_foil = _img(stim_path(_HOOK_CODE, 8), 2.40)
@@ -524,6 +545,7 @@ def _build_intro_a_end_state() -> dict[str, Mobject]:
 
 
 def _build_intro_b_layout() -> dict[str, Mobject]:
+    """Build the timeline layout comparing sensory input, delay, and reinstatement."""
     def _vertical_dotted_line(height: float, *, color: str, radius: float = 0.020, spacing: float = 0.125) -> VGroup:
         count = max(2, int(height / spacing) + 1)
         dots = VGroup(
@@ -646,6 +668,7 @@ def _build_intro_b_layout() -> dict[str, Mobject]:
 
 
 def _build_intro_c_layout() -> dict[str, Mobject]:
+    """Build the LTM-modulation slide linking prior exposure to the WM trace."""
     title = title_block(
         r"\textbf{Long-term memory modulates the maintained trace}",
         r"Prior exposure shapes the WM representation --- without replacing it",
@@ -735,6 +758,7 @@ def _build_intro_c_layout() -> dict[str, Mobject]:
 
 
 def _build_intro_d_layout() -> dict[str, Mobject]:
+    """Build the classical working-memory slide with its historical milestones."""
     title = title_block(
         r"\textbf{Classical view on the neural substrates of working memory}",
     )
@@ -900,6 +924,7 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
 
 
 def _build_intro_e_layout() -> dict[str, Mobject]:
+    """Build the sensory-recruitment slide with evidence and exemplar figures."""
     title = title_block(
         r"\textbf{Sensory recruitment model}",
     )
@@ -1106,6 +1131,7 @@ _INTRO_RESEARCH_QUESTIONS: tuple[dict[str, str], ...] = (
 
 
 def _intro_question_context_block(spec: dict[str, str]) -> VGroup:
+    """Build the left-column bullet list and citations for one research question."""
     bullet_indices: list[int] = []
     bullet_idx = 1
     while f"bullet_{bullet_idx}" in spec:
@@ -1168,6 +1194,7 @@ def _intro_question_matrix(
     scale_factor: float = 1.28,
     target_width: float | None = None,
 ) -> VGroup:
+    """Build a scaled matrix visual used in the research-question slides."""
     cells = _mini_matrix(matrix, cell=cell)
     cells.scale(scale_factor)
     if target_width is not None:
@@ -1183,6 +1210,7 @@ def _intro_question_visual_chip(
     image_opacity: float = 1.0,
     hide_label: bool = False,
 ) -> Group:
+    """Build a compact image-plus-label chip for question visuals."""
     image = ImageMobject(image_path)
     image.scale_to_fit_width(0.82)
     image.set_opacity(image_opacity)
@@ -1204,6 +1232,7 @@ def _intro_question_image_card(
     height: float,
     image_opacity: float = 1.0,
 ) -> Group:
+    """Build a framed image card for one research-question example."""
     image = ImageMobject(image_path)
     image.set_opacity(image_opacity)
     return framed_visual(image, width=width, height=height, corner_radius=0.06)
@@ -1216,6 +1245,7 @@ def _intro_question_image_with_ref(
     width: float,
     height: float,
 ) -> Group:
+    """Build an image card with a citation line underneath."""
     card = _intro_question_image_card(image_path, width=width, height=height)
     ref = Tex(ref_text, color=INK, font_size=10)
     if ref.width > width + 0.22:
@@ -1224,6 +1254,7 @@ def _intro_question_image_with_ref(
 
 
 def _build_intro_question_visual_format(spec: dict[str, str]) -> Group:
+    """Build the visual for the first question about representational format."""
     def _explanation_block(
         title_text: str,
         items: tuple[tuple[str, str | None], ...],
@@ -1423,6 +1454,7 @@ def _build_intro_question_visual_format(spec: dict[str, str]) -> Group:
 
 
 def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
+    """Build the visual for the second question spanning simple to naturalistic stimuli."""
     def _row_header(text: str, *, font_size: float = 15) -> Tex:
         return Tex(text, color=INK, font_size=font_size)
 
@@ -1461,6 +1493,7 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
 
 
 def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
+    """Build the visual for the third question about long-term-memory influences."""
     def _build_top_block() -> Group:
         fish_a = ImageMobject(_INTRO_HOOK_TARGET_FISH)
         fish_a.scale_to_fit_height(0.80)
@@ -1626,6 +1659,7 @@ def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
 
 
 def _build_intro_question_visual(question_idx: int, spec: dict[str, str]) -> VGroup:
+    """Dispatch to the question-specific visual builder for the given index."""
     if question_idx == 0:
         return _build_intro_question_visual_format(spec)
     if question_idx == 1:
@@ -1634,6 +1668,7 @@ def _build_intro_question_visual(question_idx: int, spec: dict[str, str]) -> VGr
 
 
 def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
+    """Assemble the full header, bullets, and visual layout for one question slide."""
     spec = _INTRO_RESEARCH_QUESTIONS[question_idx]
     header_y = _INTRO_QUESTION_HEADER_Y
     is_rq1 = question_idx == 0
@@ -1848,6 +1883,7 @@ def _build_intro_question_layout(question_idx: int) -> dict[str, Mobject]:
 # ── B → C transition ──────────────────────────────────────────────────────────
 
 def _transition_b_to_c(scene: Scene, b_state: dict[str, Mobject]) -> None:
+    """Animate the transition from the sensory-memory strip into the LTM slide."""
     c_state = _build_intro_c_layout()
     scene.play(
         FadeOut(b_state["time_label"], shift=UP * 0.03),
@@ -1901,6 +1937,7 @@ def _transition_b_to_c(scene: Scene, b_state: dict[str, Mobject]) -> None:
 # ── Standalone scenes ─────────────────────────────────────────────────────────
 
 class IntroCognitiveProblemA(_IntroNumberedScene, Scene):
+    """Present the opening probe-matching hook with a blank retention interval."""
     def construct(self) -> None:
         self.camera.background_color = BG
 
@@ -1929,6 +1966,7 @@ class IntroCognitiveProblemA(_IntroNumberedScene, Scene):
 
 
 class IntroSensoryMemoryRepresentationA(_IntroNumberedScene, ThreeDScene):
+    """Animate the 3D perception-memory-perception trajectory and snapshot handoff."""
     def construct(self) -> None:
         self.camera.background_color = BG
         self.set_camera_orientation(
@@ -2443,6 +2481,7 @@ def _build_intro_sensmem_equation(
     anchor_corner: bool,
     matrix_buff: float = 0.62,
 ) -> dict[str, Mobject]:
+    """Build the fixed-frame equation summarizing perception-memory-perception traces."""
     snapshot_scale = 2.1
     base_cell = _MATRIX_CELL * 0.72
     matrices = VGroup(
@@ -2554,6 +2593,7 @@ def _build_intro_sensmem_equation(
 
 
 def _build_intro_sensmem_b_center_state() -> dict[str, Mobject]:
+    """Build the centered equation-and-card layout for the second sensory-memory slide."""
     equation_state = _build_intro_sensmem_equation(
         labels_below=True,
         anchor_corner=False,
@@ -2600,6 +2640,7 @@ def _build_intro_sensmem_b_center_state() -> dict[str, Mobject]:
 
 
 def _build_intro_sensmem_b_contours(matrices: VGroup, *, threshold: float = 0.18) -> VGroup:
+    """Highlight cells whose values stay similar across the three pattern snapshots."""
     left_vals = _REPRESENTATION_SENSORY_PATTERN_LEFT.flatten()
     memory_vals = _REPRESENTATION_MEMORY_PATTERN.flatten()
     right_vals = _REPRESENTATION_SENSORY_PATTERN_RIGHT.flatten()
@@ -2638,6 +2679,7 @@ def _build_intro_sensmem_b_contours(matrices: VGroup, *, threshold: float = 0.18
 
 
 def _build_intro_sensmem_b_end_state() -> dict[str, Mobject]:
+    """Build the two-case comparison between sensory-like and memory-specific codes."""
     def _build_matrix(matrix: np.ndarray) -> VGroup:
         cells = _mini_matrix(matrix, cell=_MATRIX_CELL * 0.72)
         cells.scale(2.85)
@@ -2725,6 +2767,7 @@ def _build_intro_sensmem_b_end_state() -> dict[str, Mobject]:
 
 
 def _build_intro_sensmem_b_hook_state() -> dict[str, Mobject]:
+    """Build the hook-state variant of the two-case WM-code comparison layout."""
     def _build_matrix(matrix: np.ndarray) -> VGroup:
         cells = _mini_matrix(matrix, cell=_MATRIX_CELL * 0.72)
         cells.scale(3.35)
@@ -2812,6 +2855,7 @@ def _build_intro_sensmem_b_hook_state() -> dict[str, Mobject]:
 
 
 def _build_intro_sensmem_a_plot_state(scene: ThreeDScene) -> dict[str, Mobject]:
+    """Build the 3D sensory-memory trajectory plot and attached stimulus markers."""
     x_step = 3.35
     x0 = np.array([-8.6, 0.0, 0.0])
     x1 = np.array([-x_step, 0.0, 0.0])
@@ -2977,6 +3021,7 @@ def _build_intro_sensmem_a_plot_state(scene: ThreeDScene) -> dict[str, Mobject]:
 
 
 def _project_fixed_orientation_copy(scene: ThreeDScene, source: Mobject) -> Mobject:
+    """Project a copy of a fixed-orientation mobject into current screen coordinates."""
     projected = source.copy()
     center_func = None
     for submob in source.get_family():
@@ -2992,6 +3037,7 @@ def _project_fixed_orientation_copy(scene: ThreeDScene, source: Mobject) -> Mobj
 
 
 class IntroSensoryMemoryRepresentationB(_IntroNumberedScene, ThreeDScene):
+    """Flatten the trajectory into a fixed-frame equation and compare code structure."""
     def construct(self) -> None:
         self.camera.background_color = BG
         self.set_camera_orientation(
@@ -3148,6 +3194,7 @@ class IntroSensoryMemoryRepresentationB(_IntroNumberedScene, ThreeDScene):
 
 
 class IntroSensoryMemoryRepresentations(Scene):
+    """Play the simplified sensory-memory timeline before transitioning onward."""
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_b_layout()
@@ -3185,6 +3232,7 @@ class IntroSensoryMemoryRepresentations(Scene):
 
 
 class IntroClassicalView(_IntroNumberedScene, Scene):
+    """Introduce the classical prefrontal account of working-memory substrates."""
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_d_layout()
@@ -3211,6 +3259,7 @@ class IntroClassicalView(_IntroNumberedScene, Scene):
 
 
 class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
+    """Introduce the sensory-recruitment account and its supporting studies."""
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_e_layout()
@@ -3256,6 +3305,7 @@ class IntroSensoryRecruitment(_IntroNumberedScene, Scene):
 
 
 class IntroResearchQuestion1(_IntroNumberedScene, Scene):
+    """Present the first research question about the maintained representation format."""
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(0)
@@ -3286,6 +3336,7 @@ class IntroResearchQuestion1(_IntroNumberedScene, Scene):
 
 
 class IntroResearchQuestion2(_IntroNumberedScene, Scene):
+    """Present the second research question about stimulus ecology and realism."""
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(1)
@@ -3317,6 +3368,7 @@ class IntroResearchQuestion2(_IntroNumberedScene, Scene):
 
 
 class IntroResearchQuestion3(_IntroNumberedScene, Scene):
+    """Present the third research question about long-term-memory influences."""
     def construct(self) -> None:
         self.camera.background_color = BG
         state = _build_intro_question_layout(2)
@@ -3333,22 +3385,27 @@ class IntroResearchQuestion3(_IntroNumberedScene, Scene):
 
 # Backward-compatible names retained for ad hoc renders.
 class IntroSensoryRepresentation(IntroSensoryMemoryRepresentationA):
+    """Backward-compatible alias for `IntroSensoryMemoryRepresentationA`."""
     pass
 
 
 class IntroMemoryRepresentation(IntroSensoryMemoryRepresentationB):
+    """Backward-compatible alias for `IntroSensoryMemoryRepresentationB`."""
     pass
 
 
 class IntroCognitiveProblemB(IntroSensoryMemoryRepresentationA):
+    """Backward-compatible alias for `IntroSensoryMemoryRepresentationA`."""
     pass
 
 
 class IntroCognitiveProblemC(IntroSensoryMemoryRepresentationB):
+    """Backward-compatible alias for `IntroSensoryMemoryRepresentationB`."""
     pass
 
 
 class IntroResearchQuestions(IntroResearchQuestion1):
+    """Backward-compatible alias for the first intro research-question scene."""
     pass
 
 
@@ -3367,6 +3424,7 @@ _INTRO_SECTION_SCENES: tuple[tuple[str, type[Scene]], ...] = (
 
 
 class Introduction(ThreeDScene):
+    """Render the intro chapter as sequential save-section subscenes."""
     def _reset_section_scene_state(self, *, preserve_mobjects: bool = False) -> None:
         self.animations = None
         self.stop_condition = None

@@ -355,6 +355,7 @@ _CONCLUSION_SLIDES: dict[str, dict[str, object]] = {
 }
 
 def _bold_tex(text: str) -> str:
+    """Wrap plain text in `\\textbf{}` unless it is already bolded."""
     return text if r"\textbf{" in text else rf"\textbf{{{text}}}"
 
 
@@ -735,6 +736,7 @@ def make_section_column(
     width: float,
     buff: float = 0.24,
 ) -> VGroup:
+    """Stack preconfigured section blocks into one aligned conclusion column."""
     return VGroup(
         *[
             make_section_block(
@@ -1019,6 +1021,7 @@ def _build_conclusion_three_panel_layout(
     callout_color: str,
     callout_font_size: float,
 ) -> dict[str, Mobject]:
+    """Build a standard three-panel conclusion slide layout."""
     title = title_block(title_text, subtitle_text)
     content = three_panel_row(left_panel, middle_panel, right_panel, buff=row_buff)
     content.next_to(title, DOWN, buff=title_buff)
@@ -1057,6 +1060,7 @@ def _build_conclusion_two_column_layout(
     callout_color: str,
     callout_font_size: float,
 ) -> dict[str, Mobject]:
+    """Build a standard two-column conclusion slide layout."""
     title = title_block(title_text, subtitle_text)
     content = split_columns(left_column, right_column, buff=column_buff)
     content.next_to(title, DOWN, buff=title_buff)
@@ -1084,6 +1088,7 @@ def _build_conclusion_two_column_layout(
 
 
 def _build_conclusion_questions_layout() -> dict[str, Mobject]:
+    """Build the opening conclusion slide that restates the three questions."""
     slide = _CONCLUSION_SLIDES["questions"]
     question_panels = [
         make_question_panel(
@@ -1109,6 +1114,7 @@ def _build_conclusion_questions_layout() -> dict[str, Mobject]:
 
 
 def _build_conclusion_approach_layout() -> dict[str, Mobject]:
+    """Build the project-summary slide with the three-step study flow."""
     slide = _CONCLUSION_SLIDES["summary"]
     title = title_block(slide["title"], slide["subtitle"])
 
@@ -1251,6 +1257,7 @@ def _build_conclusion_approach_layout() -> dict[str, Mobject]:
 
 
 def _build_conclusion_theoretical_implications_layout() -> dict[str, Mobject]:
+    """Build the slide summarizing the project's theoretical implications."""
     slide = _CONCLUSION_SLIDES["theoretical_implications"]
     title = title_block(slide["title"], slide["subtitle"])
     left_width = 3.55
@@ -1399,6 +1406,7 @@ def _build_conclusion_theoretical_implications_layout() -> dict[str, Mobject]:
 
 
 def _build_conclusion_limitations_layout() -> dict[str, Mobject]:
+    """Build the slide summarizing the project's main limitations."""
     slide = _CONCLUSION_SLIDES["limitations"]
     block_width = 4.80
     row_buff = 0.34
@@ -1511,6 +1519,7 @@ def _build_conclusion_limitations_layout() -> dict[str, Mobject]:
 
 
 def _build_conclusion_future_directions_layout() -> dict[str, Mobject]:
+    """Build the future-directions slide with open questions and looping exemplar videos."""
     slide = _CONCLUSION_SLIDES["future_directions"]
     left_column = make_section_column(slide["left_blocks"], width=4.55, buff=0.28)
     video_loop_count = int(slide["video_loop_count"])

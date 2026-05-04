@@ -138,6 +138,7 @@ TTL_SIZE = 30      # section title font size
 
 
 def _bold_tex(text: str) -> str:
+    """Wrap plain text in `\\textbf{}` unless it is already bolded."""
     return text if r"\textbf{" in text else rf"\textbf{{{text}}}"
 
 

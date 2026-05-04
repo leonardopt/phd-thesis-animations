@@ -15,7 +15,7 @@ Tracked assets in this repository are limited to items that are small enough and
 - compact binary inputs that live scenes still reference directly, such as the retained Study 2 NIfTI overlays and `assets/images/fish_video.mp4`
 - public manifests and presenter-note inputs such as `assets/presentation_deck.toml`, `assets/presentation_frame_overrides.toml`, and `assets/presenter_notes.md`
 
-The pre-publication cleanup removed generated outputs, native-slide spec dumps, and the oversized tracked files that were not part of the live source boundary.
+The pre-publication cleanup removed generated outputs and the oversized tracked files that were not part of the live source boundary.
 
 ## Synced Locally, Not Tracked
 
@@ -39,11 +39,6 @@ These asset groups are populated through `scripts/sync_external_assets.py` and a
 The following paths are generated locally and should never be committed:
 
 - `media/`
-- `assets/native_specs/`
-- `assets/presentation_hybrid_deck.toml`
-- `assets/hybrid_wtext_deck.toml`
-- `assets/presentation_hybrid_native_deck.toml`
-- `assets/presentation_hybrid_text_deck.toml`
 - exported `.key`, `.pptx`, and fallback `.pdf` deliverables at the repository root
 
 Final presentation exports belong in GitHub Releases or another artifact store, not in Git history.

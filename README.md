@@ -57,8 +57,12 @@ Examples:
 uv run manim scenes/clips.py IntroCognitiveProblemA -qh
 uv run manim scenes/clips.py Study1Stage1Step2 -qh
 uv run manim scenes/clips.py Study2CrossSessionDecodingSetup -qh
-uv run manim scenes/clips.py ConclusionResults -qh
+uv run manim scenes/clips.py ConclusionApproach -qh
+uv run manim scenes/clips.py SupplementaryIntroResearchQuestion1 -qh
 ```
+
+Supplementary wrappers that reuse intro or study-1 scene classes are prefixed
+with `Supplementary` so each clip name resolves to exactly one output path.
 
 The underlying production scene modules are:
 
@@ -94,7 +98,7 @@ uv run python scripts/package_emergency_bundle.py --presentation-file /path/to/d
 
 `media/` is disposable local build output and is ignored by Git. It holds rendered clips, stills, reports, fallback bundles, and Keynote exports.
 
-Generated native-slide intermediates such as `assets/native_specs/` and hybrid deck variants are also ignored. Final `.key`, `.pptx`, and exported `.pdf` deliverables should be published as release artifacts, not committed into repository history.
+Final `.key`, `.pptx`, and exported `.pdf` deliverables should be published as release artifacts, not committed into repository history.
 
 ## License Status
 

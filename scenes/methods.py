@@ -180,6 +180,7 @@ def stim_path(code: str, idx: int) -> str:
 
 
 def _bold_tex(text: str) -> str:
+    """Wrap plain text in `\\textbf{}` unless it is already bolded."""
     return text if r"\textbf{" in text else rf"\textbf{{{text}}}"
 
 
@@ -939,6 +940,7 @@ _METHODS_REQUIREMENT_FOCUS_GAP = 0.20
 
 
 def _build_methods_stimulus_requirement_state(active_idx: int) -> dict[str, Mobject]:
+    """Build the scaffold and highlighted state for one requirement focus step."""
     title = title_block(
         r"\textbf{Design requirements for naturalistic stimuli}",
     )
@@ -1130,6 +1132,7 @@ def _build_methods_stimulus_requirement_state(active_idx: int) -> dict[str, Mobj
 
 
 class _MethodsStimulusRequirementScene(Scene):
+    """Base scene for stepping through the stimulus-requirements sequence."""
     requirement_index: int = 0
 
     def construct(self) -> None:
@@ -1164,22 +1167,27 @@ class _MethodsStimulusRequirementScene(Scene):
 
 
 class MethodsStimulusRequirementsA(_MethodsStimulusRequirementScene):
+    """Show the first highlighted stimulus requirement."""
     requirement_index = 0
 
 
 class MethodsStimulusRequirementsB(_MethodsStimulusRequirementScene):
+    """Show the second highlighted stimulus requirement."""
     requirement_index = 1
 
 
 class MethodsStimulusRequirementsC(_MethodsStimulusRequirementScene):
+    """Show the third highlighted stimulus requirement."""
     requirement_index = 2
 
 
 class MethodsStimulusRequirementsD(_MethodsStimulusRequirementScene):
+    """Show the fourth highlighted stimulus requirement."""
     requirement_index = 3
 
 
 class MethodsStimulusRequirements(MethodsStimulusRequirementsA):
+    """Alias the first stimulus-requirement scene as the chapter entrypoint."""
     pass
 
 class MethodsExistingApproaches(Scene):

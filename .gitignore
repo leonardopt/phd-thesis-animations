@@ -39,15 +39,7 @@ presentation_narration.txt
 slerp_follow_prompt_check*.png
 media/videos/old
 
-# Generated native-slide / hybrid-deck intermediates
-assets/native_specs/
-assets/hybrid_wtext_deck.toml
-assets/presentation_hybrid_deck.toml
-assets/presentation_hybrid_native_deck.toml
-assets/presentation_hybrid_text_deck.toml
-
 # Large synced external assets (recreated via scripts/sync_external_assets.py)
 assets/images/stimuli_reordered/
 assets/images/study1/exemplar_images/
 assets/images/study1/fish_interpolations/
-archive/scenes
