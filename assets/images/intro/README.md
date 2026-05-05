@@ -16,7 +16,8 @@ The scene code reads these paths by default:
 - `assets/images/intro/repeat`
 - `assets/images/intro/scene.mp4`
 
-You can override them locally through `.env`:
+You can override them locally through environment variables or an untracked
+`.env` file:
 
 - `INTRO_FRAME_DIR`
 - `INTRO_PROBE_DIR`

@@ -22,8 +22,8 @@ no presentation-content changes.
 - System Manim dependencies, including a LaTeX installation for `Tex`
 - `ffmpeg` and `ffprobe` for video reports, backup PDFs, and preflight checks
 - macOS with Keynote for `scripts/create_keynote_presentation.applescript`
-- Optional external source repositories configured through `.env` for the
-  sync-only asset groups
+- Optional external source repositories configured through environment variables
+  or an untracked `.env` file for the sync-only asset groups
 
 ## Release Artifact Checks
 

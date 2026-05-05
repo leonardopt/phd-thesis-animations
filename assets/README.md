@@ -56,7 +56,8 @@ By default, `scripts/sync_external_assets.py` looks for source repositories unde
 - `~/sd-wltm-fmri-experiment`
 - `~/visual-memory-task-analysis`
 
-If your local paths differ, set these variables in `.env`:
+If your local paths differ, set these variables in your shell or in an
+untracked `.env` file:
 
 - `SIMILARITY_JUDGMENT_TASK_ANALYSIS_ROOT`
 - `STABLE_VISUAL_MEMORY_DESIGN_ROOT`

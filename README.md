@@ -9,7 +9,7 @@ Source repository for my PhD defence presentation built with [Manim](https://www
 - `assets/`: tracked restricted figures, videos, manifests, presenter notes, and documented sync targets
 - `scripts/`: deck assembly, packaging, and project tooling
 
-Supporting project configuration lives at the repository root in `pyproject.toml`, `uv.lock`, `manim.cfg`, and `.env.example`.
+Supporting project configuration lives at the repository root in `pyproject.toml`, `uv.lock`, and `manim.cfg`.
 
 For the public-release readiness checklist, see [PUBLICATION_REVIEW.md](PUBLICATION_REVIEW.md).
 
@@ -23,7 +23,9 @@ usual Manim system dependencies, including LaTeX for `Tex`, plus `ffmpeg` and
 uv sync
 ```
 
-Copy `.env.example` to `.env` only if you need to override default local asset paths or source-repository roots.
+Most paths work from repo-local defaults. If your private source repositories
+live somewhere else, set the documented override variables in your shell or in
+an untracked `.env` file.
 
 ## Asset Model
 
