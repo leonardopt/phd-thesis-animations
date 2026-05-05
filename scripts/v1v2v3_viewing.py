@@ -9,7 +9,7 @@ config.background_color = WHITE
 config.output_file = "v1v2v3_viewing"
 
 ROOT = Path(__file__).resolve().parents[1]
-V1V2V3_PATH = ROOT / "assets" / "images" / "v1v2v3.png"
+V1V2V3_PATH = ROOT / "assets" / "images" / "anatomy" / "v1v2v3.png"
 
 BLUE = "#2563EB"
 

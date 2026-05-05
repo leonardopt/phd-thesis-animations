@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 from collections import defaultdict
 from dataclasses import dataclass
@@ -12,6 +13,46 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HOME = Path.home()
+ENV_FILE = REPO_ROOT / ".env"
+
+
+def _load_env_file() -> dict[str, str]:
+    data: dict[str, str] = {}
+    if not ENV_FILE.exists():
+        return data
+    for raw_line in ENV_FILE.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        data[key.strip()] = value.strip().strip("'").strip('"')
+    return data
+
+
+def configured_path(env_name: str, default: Path) -> Path:
+    raw = os.environ.get(env_name) or _load_env_file().get(env_name)
+    path = Path(raw).expanduser() if raw else default
+    if not path.is_absolute():
+        path = (REPO_ROOT / path).resolve()
+    return path
+
+
+SIMILARITY_JUDGMENT_ROOT = configured_path(
+    "SIMILARITY_JUDGMENT_TASK_ANALYSIS_ROOT",
+    HOME / "similarity-judgment-task-analysis",
+)
+STABLE_VISUAL_MEMORY_ROOT = configured_path(
+    "STABLE_VISUAL_MEMORY_DESIGN_ROOT",
+    HOME / "stable-visual-memory-design",
+)
+SD_WLTM_FMRI_ROOT = configured_path(
+    "SD_WLTM_FMRI_EXPERIMENT_ROOT",
+    HOME / "sd-wltm-fmri-experiment",
+)
+VISUAL_MEMORY_TASK_ROOT = configured_path(
+    "VISUAL_MEMORY_TASK_ANALYSIS_ROOT",
+    HOME / "visual-memory-task-analysis",
+)
 
 
 @dataclass(frozen=True)
@@ -28,25 +69,25 @@ ITEMS: tuple[SyncItem, ...] = (
     SyncItem(
         "small",
         "file",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "anchor_images" / "anchor-animal-fish.png",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "anchor_images" / "anchor-animal-fish.png",
         REPO_ROOT / "assets" / "images" / "study1" / "anchor_images" / "anchor-animal-fish.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "dataset_info" / "similarity_scores_anchors" / "lpips-squeeze-mat-animal-fish.csv",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "dataset_info" / "similarity_scores_anchors" / "lpips-squeeze-mat-animal-fish.csv",
         REPO_ROOT / "assets" / "data" / "study1" / "lpips-squeeze-mat-animal-fish.csv",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "dataset_info" / "similarity_scores_interpolations" / "lpips-squeeze-mat-interpols-animal-fish.csv",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "dataset_info" / "similarity_scores_interpolations" / "lpips-squeeze-mat-interpols-animal-fish.csv",
         REPO_ROOT / "assets" / "data" / "study1" / "lpips-squeeze-mat-interpols-animal-fish.csv",
     ),
     SyncItem(
         "small",
         "glob",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "stimuli_task",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "stimuli_task",
         REPO_ROOT / "assets" / "images" / "study1" / "stimuli_task",
         (
             "LAN-TRP-*.png",
@@ -59,140 +100,140 @@ ITEMS: tuple[SyncItem, ...] = (
     SyncItem(
         "small",
         "file",
-        HOME / "stable-visual-memory-design" / "stimuli_task" / "LAN-MOU-T00.png",
+        STABLE_VISUAL_MEMORY_ROOT / "stimuli_task" / "LAN-MOU-T00.png",
         REPO_ROOT / "assets" / "images" / "study1" / "memory_task" / "LAN-MOU-T00.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "stable-visual-memory-design" / "stimuli_task" / "LAN-MOU-D01.png",
+        STABLE_VISUAL_MEMORY_ROOT / "stimuli_task" / "LAN-MOU-D01.png",
         REPO_ROOT / "assets" / "images" / "study1" / "memory_task" / "LAN-MOU-D01.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "stable-visual-memory-design" / "stimuli_task" / "LAN-MOU-D03.png",
+        STABLE_VISUAL_MEMORY_ROOT / "stimuli_task" / "LAN-MOU-D03.png",
         REPO_ROOT / "assets" / "images" / "study1" / "memory_task" / "LAN-MOU-D03.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "stable-visual-memory-design" / "stimuli_task" / "stimuli_info.csv",
+        STABLE_VISUAL_MEMORY_ROOT / "stimuli_task" / "stimuli_info.csv",
         REPO_ROOT / "assets" / "data" / "study1" / "stimuli_info.csv",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "visual-memory-task-analysis" / "figures" / "manim" / "p2_manim.svg",
+        VISUAL_MEMORY_TASK_ROOT / "figures" / "manim" / "p2_manim.svg",
         REPO_ROOT / "assets" / "images" / "references" / "p2_manim.svg",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "visual-memory-task-analysis" / "figures" / "manim" / "p3_manim.svg",
+        VISUAL_MEMORY_TASK_ROOT / "figures" / "manim" / "p3_manim.svg",
         REPO_ROOT / "assets" / "images" / "references" / "p3_manim.svg",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "sd-wltm-fmri-experiment" / "images" / "stimuli_task" / "LAN-LAK-T00.png",
+        SD_WLTM_FMRI_ROOT / "images" / "stimuli_task" / "LAN-LAK-T00.png",
         REPO_ROOT / "assets" / "images" / "study2" / "stimuli_task" / "LAN-LAK-T00.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "sd-wltm-fmri-experiment" / "images" / "stimuli_task" / "LAN-LAK-D01.png",
+        SD_WLTM_FMRI_ROOT / "images" / "stimuli_task" / "LAN-LAK-D01.png",
         REPO_ROOT / "assets" / "images" / "study2" / "stimuli_task" / "LAN-LAK-D01.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "sd-wltm-fmri-experiment" / "images" / "stimuli_task" / "LAN-LAK-D02.png",
+        SD_WLTM_FMRI_ROOT / "images" / "stimuli_task" / "LAN-LAK-D02.png",
         REPO_ROOT / "assets" / "images" / "study2" / "stimuli_task" / "LAN-LAK-D02.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "sd-wltm-fmri-experiment" / "images" / "stimuli_task" / "PLA-PIN-T00.png",
+        SD_WLTM_FMRI_ROOT / "images" / "stimuli_task" / "PLA-PIN-T00.png",
         REPO_ROOT / "assets" / "images" / "study2" / "stimuli_task" / "PLA-PIN-T00.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "sd-wltm-fmri-experiment" / "images" / "stimuli_task" / "BUI-OBS-T00.png",
+        SD_WLTM_FMRI_ROOT / "images" / "stimuli_task" / "BUI-OBS-T00.png",
         REPO_ROOT / "assets" / "images" / "study2" / "stimuli_task" / "BUI-OBS-T00.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "sd-wltm-fmri-experiment" / "images" / "stimuli_task" / "ANI-CAT-T00.png",
+        SD_WLTM_FMRI_ROOT / "images" / "stimuli_task" / "ANI-CAT-T00.png",
         REPO_ROOT / "assets" / "images" / "study2" / "stimuli_task" / "ANI-CAT-T00.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "sd-wltm-fmri-experiment" / "images" / "stimuli_task" / "ITE-VAS-T00.png",
+        SD_WLTM_FMRI_ROOT / "images" / "stimuli_task" / "ITE-VAS-T00.png",
         REPO_ROOT / "assets" / "images" / "study2" / "stimuli_task" / "ITE-VAS-T00.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "sd-wltm-fmri-experiment" / "images" / "stimuli_task" / "PLA-BRI-T00.png",
+        SD_WLTM_FMRI_ROOT / "images" / "stimuli_task" / "PLA-BRI-T00.png",
         REPO_ROOT / "assets" / "images" / "study2" / "stimuli_task" / "PLA-BRI-T00.png",
     ),
     SyncItem(
         "small",
         "file",
-        HOME / "sd-wltm-fmri-experiment" / "images" / "stimuli_training" / "ITE-SOF-T00.png",
+        SD_WLTM_FMRI_ROOT / "images" / "stimuli_training" / "ITE-SOF-T00.png",
         REPO_ROOT / "assets" / "images" / "study2" / "stimuli_training" / "ITE-SOF-T00.png",
     ),
     # Heavy Study 1 assets kept as a sync workflow rather than committed defaults.
     SyncItem(
         "study1-exemplars",
         "tree",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "exemplar_images" / "animal" / "fish",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "exemplar_images" / "animal" / "fish",
         REPO_ROOT / "assets" / "images" / "study1" / "exemplar_images" / "animal" / "fish",
     ),
     SyncItem(
         "study1-exemplars",
         "tree",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "exemplar_images" / "plant" / "sequoia",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "exemplar_images" / "plant" / "sequoia",
         REPO_ROOT / "assets" / "images" / "study1" / "exemplar_images" / "plant" / "sequoia",
     ),
     SyncItem(
         "study1-exemplars",
         "tree",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "exemplar_images" / "landscape_element" / "lake_island",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "exemplar_images" / "landscape_element" / "lake_island",
         REPO_ROOT / "assets" / "images" / "study1" / "exemplar_images" / "landscape_element" / "lake_island",
     ),
     SyncItem(
         "study1-exemplars",
         "tree",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "exemplar_images" / "building" / "observatory",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "exemplar_images" / "building" / "observatory",
         REPO_ROOT / "assets" / "images" / "study1" / "exemplar_images" / "building" / "observatory",
     ),
     SyncItem(
         "study1-exemplars",
         "tree",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "exemplar_images" / "vehicle" / "campervan",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "exemplar_images" / "vehicle" / "campervan",
         REPO_ROOT / "assets" / "images" / "study1" / "exemplar_images" / "vehicle" / "campervan",
     ),
     SyncItem(
         "study1-exemplars",
         "tree",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "exemplar_images" / "item" / "sofa",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "exemplar_images" / "item" / "sofa",
         REPO_ROOT / "assets" / "images" / "study1" / "exemplar_images" / "item" / "sofa",
     ),
     SyncItem(
         "study1-interpolations",
         "tree",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "fish_interpolations",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "fish_interpolations",
         REPO_ROOT / "assets" / "images" / "study1" / "fish_interpolations",
     ),
     SyncItem(
         "study1-reordered",
         "tree",
-        HOME / "similarity-judgment-task-analysis" / "data" / "assets" / "images" / "stimuli_reordered",
+        SIMILARITY_JUDGMENT_ROOT / "data" / "assets" / "images" / "stimuli_reordered",
         REPO_ROOT / "assets" / "images" / "stimuli_reordered",
     ),
 )

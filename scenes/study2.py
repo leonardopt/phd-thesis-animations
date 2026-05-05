@@ -43,6 +43,8 @@ config.output_file = "study2"
 simplify_manim_section_video_names(
     lambda _output_name, index, name, ext: f"{index:03}_{name}{ext}"
 )
+_SHARED_IMAGE_DIR = REPO_ROOT / "assets" / "images" / "shared"
+_ANATOMY_IMAGE_DIR = REPO_ROOT / "assets" / "images" / "anatomy"
 _STUDY2_ASSET_DIR = REPO_ROOT / "assets" / "images" / "study2"
 _STUDY2_STIM_DIR = _STUDY2_ASSET_DIR / "stimuli_task"
 _STUDY2_TRAINING_DIR = _STUDY2_ASSET_DIR / "stimuli_training"
@@ -120,7 +122,7 @@ CAT = str(_STIM / "ANI-CAT-T00.png")
 VASE = str(_STIM / "ITE-VAS-T00.png")
 BRI = str(_STIM / "PLA-BRI-T00.png")
 SOFA = str(_STUDY2_TRAINING_DIR / "ITE-SOF-T00.png")
-FIX = str(REPO_ROOT / "assets" / "images" / "fixation_target.png")
+FIX = str(_SHARED_IMAGE_DIR / "fixation_target.png")
 
 # ── Layout constants ──────────────────────────────────────────────────────────
 BOX_W    = 1.18    # box width
@@ -556,9 +558,9 @@ def _identity_colors(image_paths: list[str]) -> list[str]:
 
 # Brain icon used in the decoding overview
 _BRAIN_PNG_PATH = _STUDY2_ASSET_DIR / "brain_icon_sagittal.png"
-_OVERVIEW_BRAIN_PNG_PATH = REPO_ROOT / "assets" / "images" / "v1v2v3_multiplanar.png"
+_OVERVIEW_BRAIN_PNG_PATH = _ANATOMY_IMAGE_DIR / "v1v2v3_multiplanar.png"
 _MRI_SCANNER_PNG_PATH = _STUDY2_ASSET_DIR / "MRIscanner.png"
-_V1V2V3_VIEWING_PNG_PATH = REPO_ROOT / "assets" / "images" / "v1v2v3_viewing.png"
+_V1V2V3_VIEWING_PNG_PATH = _ANATOMY_IMAGE_DIR / "v1v2v3_viewing.png"
 _SVM_CLASSIFIER_SVG_PATH = REPO_ROOT / "assets" / "images" / "references" / "svm_classifier_schematic.svg"
 _SVM_CLASSIFIER_GREYSCALE_SVG_PATH = REPO_ROOT / "assets" / "images" / "references" / "svm_classifier_schematic_greyscale.svg"
 _OVERVIEW_BRAIN_ASSET_W = 1520.0
@@ -13011,7 +13013,7 @@ class Study2SupplementalRoiTempGenMats(Study2SupplementalRoiTimecoursesCombined)
 # Study2Searchlight
 # ══════════════════════════════════════════════════════════════════════════════
 
-_SEARCHLIGHT_ASSET_DIR = Path(__file__).resolve().parent.parent / "assets" / "images" / "study2"
+_SEARCHLIGHT_ASSET_DIR = _STUDY2_ASSET_DIR
 _SEARCHLIGHT_LILAC = "#66023C"
 _SEARCHLIGHT_CUT_COORDS_Z = (-12, 0, 10, 21, 32, 46, 61)
 _SEARCHLIGHT_DELAY_BRAIN_PNG = _SEARCHLIGHT_ASSET_DIR / "searchlight_delay_ses01.png"

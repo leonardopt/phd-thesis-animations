@@ -363,7 +363,7 @@ _s1_step2_IMG_DIR = env_path('EXEMPLAR_FISH_DIR', REPO_ROOT / 'assets' / 'images
 _s1_step2_N_SWAPS = 59
 _s1_step2_SWAP_TOTAL_DUR = 10
 _s1_step2_PROMPT_LINES = ['``award-winning marine photo', 'of a colorful fish in a coral reef,', 'centered in the scene, vibrant', "underwater scene, high detail''"]
-_s1_step2_SDXL_IMAGE_PATH = REPO_ROOT / 'assets' / 'images' / 'stablediffusionxl.png'
+_s1_step2_SDXL_IMAGE_PATH = REPO_ROOT / 'assets' / 'images' / 'shared' / 'stablediffusionxl.png'
 _s1_step2_SDXL_CITE_TEX = r'\textit{Podell et al.} (2023)'
 
 def _s1_step2_make_sdxl_reference(
@@ -2525,7 +2525,7 @@ _s1_stage2_MGREY = '#9CA3AF'
 _s1_stage2_BLUE = '#2563EB'
 _s1_stage2_AMBER = '#D97706'
 _s1_stage2_STIM_DIR = env_path('STIMULI_REORDERED_DIR', REPO_ROOT / 'assets' / 'images' / 'stimuli_reordered')
-_s1_stage2_STAGE2_ASSET_DIR = REPO_ROOT / 'assets' / 'images' / 'study1_stage2'
+_s1_stage2_STAGE2_ASSET_DIR = REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage2'
 
 def _s1_stage2_fish_path(idx: int) -> str:
     """Return the fish stimulus path for one index."""
@@ -3139,7 +3139,7 @@ _s1_stage3_MGREY = '#9CA3AF'
 _s1_stage3_STIM_DIR = env_path('STIMULI_REORDERED_DIR', REPO_ROOT / 'assets' / 'images' / 'stimuli_reordered')
 _s1_stage3_MEMORY_TASK_STIM_DIR = env_path('MEMORY_TASK_STIM_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'memory_task')
 _s1_stage3_STIM_INFO_CSV = env_path('STIM_INFO_CSV', REPO_ROOT / 'assets' / 'data' / 'study1' / 'stimuli_info.csv')
-_s1_stage3_FIXATION_PATH = str(REPO_ROOT / 'assets' / 'images' / 'fixation_target.png')
+_s1_stage3_FIXATION_PATH = str(REPO_ROOT / 'assets' / 'images' / 'shared' / 'fixation_target.png')
 
 def _s1_stage3_stimulus_path(prefix: str, idx: int) -> str:
     """Return the reordered-study stimulus path for one continuum image."""
@@ -3763,8 +3763,8 @@ class Study1Stage3MemoryExpDesignB(Scene):
 
 class Study1Stage3MemoryExpResults(Scene):
     """Show the behavioural results of the memory validation task."""
-    AGG_IMG = str(REPO_ROOT / 'assets' / 'images' / 'study1_stage3' / 'behavior_agg_manim.svg')
-    BLOCK_IMG = str(REPO_ROOT / 'assets' / 'images' / 'study1_stage3' / 'behaviour_block_manim.svg')
+    AGG_IMG = str(REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage3' / 'behavior_agg_manim.svg')
+    BLOCK_IMG = str(REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage3' / 'behaviour_block_manim.svg')
 
     def construct(self) -> None:
         """Run the animation sequence for this scene."""
@@ -3948,7 +3948,7 @@ STIM_INFO_CSV = env_path(
     "STIM_INFO_CSV",
     REPO_ROOT / "assets" / "data" / "study1" / "stimuli_info.csv",
 )
-FIXATION_PATH = str(REPO_ROOT / "assets" / "images" / "fixation_target.png")
+FIXATION_PATH = str(REPO_ROOT / "assets" / "images" / "shared" / "fixation_target.png")
 
 
 def stimulus_path(prefix: str, idx: int) -> str:

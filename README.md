@@ -6,7 +6,7 @@ Source repository for my PhD defence presentation built with [Manim](https://www
 ## What This Repository Contains
 
 - `scenes/`: production Manim scenes and clip wrappers
-- `assets/`: tracked figures, manifests, presenter notes, and documented sync targets
+- `assets/`: tracked figures, videos, manifests, presenter notes, and documented sync targets
 - `scripts/`: deck assembly, packaging, and project tooling
 
 Supporting project configuration lives at the repository root in `pyproject.toml`, `uv.lock`, `manim.cfg`, and `.env.example`.
@@ -19,13 +19,13 @@ Use Python 3.12+ with `uv`.
 uv sync
 ```
 
-Copy `.env.example` to `.env` only if you need to override default local asset paths.
+Copy `.env.example` to `.env` only if you need to override default local asset paths or source-repository roots.
 
 ## Asset Model
 
 The public repository keeps the scene source self-contained where possible, but some larger study inputs are intentionally not committed.
 
-- Tracked in Git: scene-adjacent figures, manifests, presenter notes, and compact public assets
+- Tracked in Git: scene-adjacent figures, videos, manifests, presenter notes, and compact public assets
 - Synced locally: larger study inputs restored through `scripts/sync_external_assets.py`
 - Generated locally: `media/`, Keynote exports, PDFs, reports, and other disposable build products
 

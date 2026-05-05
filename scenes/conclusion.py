@@ -31,7 +31,7 @@ for _import_dir in (_SCENES_DIR, _SCRIPTS_DIR):
     if str(_import_dir) not in sys.path:
         sys.path.insert(0, str(_import_dir))
 
-from utils import section_output_dir, simplify_manim_section_video_names
+from utils import REPO_ROOT, env_path, section_output_dir, simplify_manim_section_video_names
 
 
 _SECTION_OUTPUT_DIR = section_output_dir("conclusion")
@@ -74,29 +74,34 @@ RQ_BLUE = "#4E647F"
 RQ_RED = "#7A2E3A"
 RQ_GREEN = "#2F5D50"
 SOFT_GREY = "#6B7280"
-_FISH_VIDEO_PATH = _SCENES_DIR.parent / "assets" / "images" / "fish_video.mp4"
-_FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR = Path.home() / "anchor_images_videos_60fps"
+_ANATOMY_IMAGE_DIR = REPO_ROOT / "assets" / "images" / "anatomy"
+_FISH_VIDEO_PATH = REPO_ROOT / "assets" / "videos" / "fish_video.mp4"
+_FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR = env_path(
+    "FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR",
+    "assets/videos/future_directions_anchor",
+)
 _CONCLUSION_PROJECT_SUMMARY_MODEL_ICON_PATH = (
     _SCENES_DIR.parent / "assets" / "images" / "references" / "neural_network_schematic.svg"
 )
 _CONCLUSION_PROJECT_SUMMARY_VALIDATION_ICON_PATH = (
-    _SCENES_DIR.parent / "assets" / "images" / "study1_stage2" / "computer.png"
+    REPO_ROOT / "assets" / "images" / "study1" / "stage2" / "computer.png"
 )
 _CONCLUSION_PROJECT_SUMMARY_NEURO_ICON_PATH = (
-    _SCENES_DIR.parent / "assets" / "images" / "visual cortex.png"
+    _ANATOMY_IMAGE_DIR / "visual_cortex.png"
 )
 _CONCLUSION_PROJECT_SUMMARY_STIM_DIR = (
     _SCENES_DIR.parent / "assets" / "images" / "stimuli_reordered"
 )
 _CONCLUSION_PROJECT_SUMMARY_VALIDATION_HEATMAP_PDF = (
-    _SCENES_DIR.parent
+    REPO_ROOT
     / "assets"
     / "images"
-    / "study1_stage2"
+    / "study1"
+    / "stage2"
     / "lpips_vs_embedding_orders_heatmap.pdf"
 )
 _CONCLUSION_PROJECT_SUMMARY_BEHAVIOUR_BLOCK = (
-    _SCENES_DIR.parent / "assets" / "images" / "study1_stage3" / "behaviour_block.png"
+    REPO_ROOT / "assets" / "images" / "study1" / "stage3" / "behaviour_block.png"
 )
 _CONCLUSION_PROJECT_SUMMARY_NEURO_TIMERES = (
     _SCENES_DIR.parent
@@ -1523,6 +1528,11 @@ def _build_conclusion_future_directions_layout() -> dict[str, Mobject]:
     slide = _CONCLUSION_SLIDES["future_directions"]
     left_column = make_section_column(slide["left_blocks"], width=4.55, buff=0.28)
     video_loop_count = int(slide["video_loop_count"])
+
+    def _anchor_video(filename: str) -> Path:
+        path = _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / filename
+        return path if path.exists() else _FISH_VIDEO_PATH
+
     video_specs = {
         "fish": {
             "path": _FISH_VIDEO_PATH,
@@ -1530,52 +1540,52 @@ def _build_conclusion_future_directions_layout() -> dict[str, Mobject]:
             "frame_width_px": 320,
         },
         "cat": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-animal-cat.mp4",
+            "path": _anchor_video("anchor-animal-cat.mp4"),
             "width": 0.82,
             "frame_width_px": 180,
         },
         "coffee_mug": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-item-coffee_mug.mp4",
+            "path": _anchor_video("anchor-item-coffee_mug.mp4"),
             "width": 0.80,
             "frame_width_px": 180,
         },
         "sofa": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-item-sofa.mp4",
+            "path": _anchor_video("anchor-item-sofa.mp4"),
             "width": 0.84,
             "frame_width_px": 180,
         },
         "sailboat": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-vehicle-sailboat.mp4",
+            "path": _anchor_video("anchor-vehicle-sailboat.mp4"),
             "width": 0.88,
             "frame_width_px": 180,
         },
         "palm": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-plant-palm.mp4",
+            "path": _anchor_video("anchor-plant-palm.mp4"),
             "width": 0.84,
             "frame_width_px": 180,
         },
         "polar_iceberg": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-landscape_element-polar_iceberg.mp4",
+            "path": _anchor_video("anchor-landscape_element-polar_iceberg.mp4"),
             "width": 0.92,
             "frame_width_px": 180,
         },
         "bristlecone": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-plant-bristlecone.mp4",
+            "path": _anchor_video("anchor-plant-bristlecone.mp4"),
             "width": 0.88,
             "frame_width_px": 180,
         },
         "campervan": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-vehicle-campervan.mp4",
+            "path": _anchor_video("anchor-vehicle-campervan.mp4"),
             "width": 0.88,
             "frame_width_px": 180,
         },
         "modern_building": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-building-modern_building.mp4",
+            "path": _anchor_video("anchor-building-modern_building.mp4"),
             "width": 0.92,
             "frame_width_px": 180,
         },
         "parrot": {
-            "path": _FUTURE_DIRECTIONS_ANCHOR_VIDEO_DIR / "anchor-animal-parrot.mp4",
+            "path": _anchor_video("anchor-animal-parrot.mp4"),
             "width": 0.78,
             "frame_width_px": 180,
         },

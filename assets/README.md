@@ -11,11 +11,11 @@ This repository uses three asset categories:
 Tracked assets in this repository are limited to items that are small enough and central enough to the public source tree to justify keeping them in Git:
 
 - hand-authored presentation figures and slide assets under `assets/images/` and `assets/slides/`
-- small copied reference files needed by the public scene source
-- compact binary inputs that live scenes still reference directly, such as the retained Study 2 NIfTI overlays and `assets/images/fish_video.mp4`
+- normalized shared image assets under `assets/images/shared/`, anatomy assets under `assets/images/anatomy/`, and Study 1 stage figures under `assets/images/study1/stage*/`
+- compact binary inputs that live scenes still reference directly, such as the retained Study 2 NIfTI overlays and `assets/videos/fish_video.mp4`
 - public manifests and presenter-note inputs such as `assets/presentation_deck.toml`, `assets/presentation_frame_overrides.toml`, and `assets/presenter_notes.md`
 
-The pre-publication cleanup removed generated outputs and the oversized tracked files that were not part of the live source boundary.
+The pre-publication cleanup removed generated outputs, copied reference-image screenshots that were not required for rendering, and oversized tracked files that were not part of the live source boundary.
 
 ## Synced Locally, Not Tracked
 
@@ -45,13 +45,20 @@ Final presentation exports belong in GitHub Releases or another artifact store, 
 
 ## Source Repos Expected By The Sync Script
 
+By default, `scripts/sync_external_assets.py` looks for source repositories under the user's home directory:
+
 - `~/similarity-judgment-task-analysis`
 - `~/stable-visual-memory-design`
 - `~/sd-wltm-fmri-experiment`
 - `~/visual-memory-task-analysis`
 
-If your local paths differ, either edit the sync script or point the runtime to custom locations through `.env`.
+If your local paths differ, set these variables in `.env`:
+
+- `SIMILARITY_JUDGMENT_TASK_ANALYSIS_ROOT`
+- `STABLE_VISUAL_MEMORY_DESIGN_ROOT`
+- `SD_WLTM_FMRI_EXPERIMENT_ROOT`
+- `VISUAL_MEMORY_TASK_ANALYSIS_ROOT`
 
 ## Redistribution Status
 
-This repository does not yet apply one blanket license to all non-code assets. Before reusing tracked figures or copied reference material outside this repository, verify the origin and redistribution rights for that specific asset. If an asset later turns out to be unsuitable for public redistribution, it should move from the tracked set into the sync-only workflow.
+This repository does not yet apply one blanket license to all non-code assets. Before reusing tracked figures or copied reference material outside this repository, verify the origin and redistribution rights for that specific asset. Copied paper or dataset screenshots should not be added to the tracked tree; prefer generated schematic cards in scene code or the sync-only workflow for local-only material.

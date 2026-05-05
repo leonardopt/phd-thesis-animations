@@ -16,7 +16,6 @@ import sys
 
 import numpy as np
 from manim import *
-from PIL import Image
 
 _SCENES_DIR = Path(__file__).resolve().parent
 _SCRIPTS_DIR = _SCENES_DIR.parent / "scripts"
@@ -86,9 +85,10 @@ _INTRO_STIM_DIR = env_path(
     "STIMULI_REORDERED_DIR",
     REPO_ROOT / "assets" / "images" / "stimuli_reordered",
 )
+_ANATOMY_IMAGE_DIR = REPO_ROOT / "assets" / "images" / "anatomy"
 _INTRO_FIG_DIR = REPO_ROOT / "assets" / "images" / "intro"
 _BRAIN_ICON_PATH = REPO_ROOT / "assets" / "images" / "study2" / "brain_icon_sagittal.png"
-_HEAD_BRAIN_PATH = REPO_ROOT / "assets" / "images" / "head_brain.png"
+_HEAD_BRAIN_PATH = _ANATOMY_IMAGE_DIR / "head_brain.png"
 _REFERENCE_DIR = REPO_ROOT / "assets" / "images" / "references" / "working_memory"
 _FUNAHASHI_1989_FIG = str(_INTRO_FIG_DIR / "funahashi1989a.png")
 _JONIDES_1993_FIG = str(_INTRO_FIG_DIR / "jonides1993.png")
@@ -97,8 +97,7 @@ _HARRISON_TONG_2009_FIG = str(_INTRO_FIG_DIR / "harrisontong2009.png")
 _HARRISON_TONG_2009_PARADIGM_FIG = str(_INTRO_FIG_DIR / "harrisontong2009paradigm.png")
 _CHRISTOPHEL_2012_FIG = str(_INTRO_FIG_DIR / "christophel2012.png")
 _CHRISTOPHEL_2017_FIG = str(_INTRO_FIG_DIR / "christophel2017.png")
-_INTRO_RQ3_MUSHROOM_FIG = str(_INTRO_FIG_DIR / "mushroom_Dr. Rita Lüder:BLV Verlag.png")
-_VISUAL_CORTEX_FIG = str(REPO_ROOT / "assets" / "images" / "visual_cortex_white.png")
+_VISUAL_CORTEX_FIG = str(_ANATOMY_IMAGE_DIR / "visual_cortex_white.png")
 _INTRO_HOOK_TARGET_FISH = str(_INTRO_STIM_DIR / "animal_fish-00.png")
 _INTRO_HOOK_FOIL_FISH = str(_INTRO_STIM_DIR / "animal_fish-05.png")
 _INTRO_HOOK_CANNY_FISH = str(_INTRO_FIG_DIR / "animal_fish-00_canny.png")
@@ -1494,6 +1493,29 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
 
 def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
     """Build the visual for the third question about long-term-memory influences."""
+    def _mushroom_icon(cap_color: str, spot_color: str) -> Group:
+        cap = Circle(radius=0.34)
+        cap.stretch(1.35, 0)
+        cap.set_fill(cap_color, opacity=1.0)
+        cap.set_stroke(INK, width=1.0, opacity=0.55)
+        cap.shift(UP * 0.10)
+        stem = RoundedRectangle(
+            width=0.22,
+            height=0.42,
+            corner_radius=0.06,
+            stroke_color=INK,
+            stroke_width=0.9,
+        ).set_fill("#F4E6C8", opacity=1.0)
+        stem.next_to(cap.get_center(), DOWN, buff=-0.16)
+        spots = VGroup(
+            Dot(cap.get_center() + LEFT * 0.18 + UP * 0.09, radius=0.035),
+            Dot(cap.get_center() + RIGHT * 0.05 + UP * 0.17, radius=0.028),
+            Dot(cap.get_center() + RIGHT * 0.22 + UP * 0.05, radius=0.024),
+        )
+        spots.set_fill(spot_color, opacity=0.86)
+        spots.set_stroke(width=0)
+        return Group(stem, cap, spots)
+
     def _build_top_block() -> Group:
         fish_a = ImageMobject(_INTRO_HOOK_TARGET_FISH)
         fish_a.scale_to_fit_height(0.80)
@@ -1501,17 +1523,8 @@ def _build_intro_question_visual_ltm(spec: dict[str, str]) -> VGroup:
         fish_b.scale_to_fit_height(0.80)
         fish_row = Group(fish_a, fish_b).arrange(RIGHT, buff=0.16)
 
-        with Image.open(_INTRO_RQ3_MUSHROOM_FIG) as mushroom_source:
-            mushroom_pixels = np.array(mushroom_source.convert("RGBA"))
-        source_h, source_w = mushroom_pixels.shape[:2]
-        footer_cut = int(source_h * 0.79)
-        center_gap = int(source_w * 0.09)
-        half_w = source_w // 2
-        left_panel = mushroom_pixels[:footer_cut, : half_w - center_gap // 2]
-        right_panel = mushroom_pixels[:footer_cut, half_w + center_gap // 2 :]
-
-        left_mushroom = ImageMobject(left_panel)
-        right_mushroom = ImageMobject(right_panel)
+        left_mushroom = _mushroom_icon("#D99A3A", "#FFF7D6")
+        right_mushroom = _mushroom_icon("#C85445", "#F8E1D8")
         mushroom_row = Group(left_mushroom, right_mushroom).arrange(RIGHT, buff=0.16)
         mushroom_row.scale_to_fit_width(fish_row.width)
 

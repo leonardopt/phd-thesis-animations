@@ -103,6 +103,8 @@ BLUE = "#3E5C76"
 AMBER = "#8A6642"
 GREEN = "#4F6D5E"
 RED = "#8B5A52"
+ACCENT = BLUE
+PANEL = "#F8FAFC"
 
 
 # ── Assets ────────────────────────────────────────────────────────────────────
@@ -110,15 +112,16 @@ _INTRO_STIM_DIR = env_path(
     "STIMULI_REORDERED_DIR",
     REPO_ROOT / "assets" / "images" / "stimuli_reordered",
 )
+_ANATOMY_IMAGE_DIR = REPO_ROOT / "assets" / "images" / "anatomy"
 _BRAIN_ICON_PATH = REPO_ROOT / "assets" / "images" / "study2" / "brain_icon_sagittal.png"
 _METHODS_PROJECT_PLAN_MODEL_ICON_PATH = (
     REPO_ROOT / "assets" / "images" / "references" / "neural_network_schematic.svg"
 )
 _METHODS_PROJECT_PLAN_VALIDATION_ICON_PATH = (
-    REPO_ROOT / "assets" / "images" / "study1_stage2" / "computer.png"
+    REPO_ROOT / "assets" / "images" / "study1" / "stage2" / "computer.png"
 )
 _METHODS_PROJECT_PLAN_NEURO_ICON_PATH = (
-    REPO_ROOT / "assets" / "images" / "visual cortex.png"
+    _ANATOMY_IMAGE_DIR / "visual_cortex.png"
 )
 _METHODS_REQUIREMENTS_A_PNG_PATH = (
     REPO_ROOT / "assets" / "images" / "methods" / "requirements_a.png"
@@ -141,22 +144,6 @@ _METHODS_REQUIREMENTS_C_SVG_PATH = (
 _METHODS_REQUIREMENTS_D_V1V2V3_PNG_PATH = (
     REPO_ROOT / "assets" / "images" / "methods" / "requirements_d_v1v2v3.png"
 )
-_METHODS_SNODGRASS_VANDERWART_PATH = (
-    REPO_ROOT / "assets" / "images" / "methods" / "Snodgrass & Vanderwart (1980).png"
-)
-_METHODS_BRODEUR_2010_PATH = (
-    REPO_ROOT / "assets" / "images" / "methods" / "Brodeur et al. (2010).png"
-)
-_METHODS_COCO_DATASET_PATH = (
-    REPO_ROOT / "assets" / "images" / "methods" / "COCO dataset (Lin et al 2015) .png"
-)
-_METHODS_THINGS_GUITAR_PATH = REPO_ROOT / "assets" / "images" / "methods" / "thins_guitar.jpg"
-_METHODS_THINGS_BALLON_PATH = REPO_ROOT / "assets" / "images" / "methods" / "things_ballon.jpg"
-_METHODS_THINGS_FISH1_PATH = REPO_ROOT / "assets" / "images" / "methods" / "things_fish1.jpg"
-_METHODS_THINGS_FISH2_PATH = REPO_ROOT / "assets" / "images" / "methods" / "things_fish2.jpg"
-_METHODS_THINGS_FISH3_PATH = REPO_ROOT / "assets" / "images" / "methods" / "things_fish3.jpg"
-_METHODS_SON_2021_PATH = REPO_ROOT / "assets" / "images" / "methods" / "son2021.png"
-_METHODS_SON_2021B_PATH = REPO_ROOT / "assets" / "images" / "methods" / "son2021b.png"
 
 _EXEMPLAR_CODE = "building_observatory"
 _DIFFUSION_CODE = "animal_fish"
@@ -228,6 +215,73 @@ def make_image_card(
     ).set_fill(fill_color, opacity=fill_opacity)
     image.move_to(frame.get_center())
     return Group(frame, image)
+
+
+def make_reference_card(
+    title_text: str,
+    subtitle_text: str,
+    *,
+    width: float,
+    height: float,
+    accent: str = ACCENT,
+    fill_color: str = PANEL,
+) -> Group:
+    """Create a small schematic card for cited material without shipping copies."""
+    frame = RoundedRectangle(
+        width=width,
+        height=height,
+        corner_radius=0.10,
+        stroke_color=LGREY,
+        stroke_width=1.2,
+    ).set_fill(fill_color, opacity=1.0)
+    marker = Rectangle(
+        width=0.08,
+        height=height - 0.22,
+        stroke_width=0,
+    ).set_fill(accent, opacity=0.82)
+    marker.align_to(frame, LEFT)
+    marker.shift(RIGHT * 0.07)
+    title = Tex(_bold_tex(title_text), color=INK, font_size=15)
+    subtitle = Tex(subtitle_text, color=MGREY, font_size=11.5)
+    text = VGroup(title, subtitle).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
+    if text.width > width - 0.34:
+        text.scale_to_fit_width(width - 0.34)
+    text.move_to(frame.get_center())
+    text.align_to(frame, LEFT)
+    text.shift(RIGHT * 0.22)
+    return Group(frame, marker, text)
+
+
+def make_stimulus_mosaic(*, width: float, height: float, accent: str = ACCENT) -> Group:
+    """Create a schematic multi-image collection used in the methods overview."""
+    frame = RoundedRectangle(
+        width=width,
+        height=height,
+        corner_radius=0.10,
+        stroke_color=LGREY,
+        stroke_width=1.2,
+    ).set_fill(WHITE, opacity=1.0)
+    colors = (accent, "#B8C2CC", "#D8C3A5", "#86A6A6", "#B7A9CC", "#D6A06F")
+    tiles = VGroup()
+    tile_w = (width - 0.34) / 3
+    tile_h = (height - 0.28) / 2
+    for index, color in enumerate(colors):
+        tile = RoundedRectangle(
+            width=tile_w,
+            height=tile_h,
+            corner_radius=0.035,
+            stroke_color=WHITE,
+            stroke_width=1.0,
+        ).set_fill(color, opacity=0.82)
+        row = index // 3
+        col = index % 3
+        tile.move_to(
+            frame.get_center()
+            + LEFT * ((1 - col) * (tile_w + 0.05))
+            + UP * ((0.5 - row) * (tile_h + 0.06))
+        )
+        tiles.add(tile)
+    return Group(frame, tiles)
 
 
 def make_callout(text: str, color: str, *, font_size: float = 23) -> VGroup:
@@ -1200,39 +1254,24 @@ class MethodsExistingApproaches(Scene):
             r"\textbf{Existing approaches}",
         )
 
-        snodgrass_image = make_image_card(
-            _METHODS_SNODGRASS_VANDERWART_PATH,
-            height=0.62,
-            border_color=LGREY,
-            buff=0.02,
+        line_drawing_card = make_reference_card(
+            "Line drawings",
+            r"Snodgrass \& Vanderwart (1980)",
+            width=2.50,
+            height=0.58,
+            accent=BLUE,
         )
-        snodgrass_citation = caption_line(
-            "Snodgrass \\& Vanderwart (1980)",
-            color=MGREY,
-            font_size=14,
-            max_width=2.80,
-        )
-        snodgrass_citation.next_to(snodgrass_image, DOWN, buff=0.04)
-        snodgrass_citation.set_x(snodgrass_image.get_center()[0])
-
-        brodeur_image = make_image_card(
-            _METHODS_BRODEUR_2010_PATH,
-            height=0.62,
-            border_color=LGREY,
-            buff=0.02,
-        )
-        brodeur_citation = caption_line(
+        photo_norm_card = make_reference_card(
+            "Photo norms",
             "Brodeur et al. (2010)",
-            color=MGREY,
-            font_size=14,
-            max_width=2.80,
+            width=2.50,
+            height=0.58,
+            accent=RED,
         )
-        brodeur_citation.next_to(brodeur_image, DOWN, buff=0.04)
-        brodeur_citation.set_x(brodeur_image.get_center()[0])
 
         manual_images = Group(
-            Group(snodgrass_image, snodgrass_citation),
-            Group(brodeur_image, brodeur_citation),
+            line_drawing_card,
+            photo_norm_card,
         ).arrange(DOWN, buff=0.08, aligned_edge=LEFT)
         manual_body = Group(
             make_bullet_list(
@@ -1254,45 +1293,6 @@ class MethodsExistingApproaches(Scene):
             title_body_buff=0.17,
         )
 
-        things_top_row = Group(
-            make_image_card(
-                _METHODS_THINGS_GUITAR_PATH,
-                height=0.40,
-                border_color=LGREY,
-                buff=0.02,
-            ),
-            make_image_card(
-                _METHODS_THINGS_BALLON_PATH,
-                height=0.40,
-                border_color=LGREY,
-                buff=0.02,
-            ),
-        ).arrange(RIGHT, buff=0.05, aligned_edge=UP)
-        things_bottom_row = Group(
-            make_image_card(
-                _METHODS_THINGS_FISH1_PATH,
-                height=0.40,
-                border_color=LGREY,
-                buff=0.02,
-            ),
-            make_image_card(
-                _METHODS_THINGS_FISH2_PATH,
-                height=0.40,
-                border_color=LGREY,
-                buff=0.02,
-            ),
-            make_image_card(
-                _METHODS_THINGS_FISH3_PATH,
-                height=0.40,
-                border_color=LGREY,
-                buff=0.02,
-            ),
-        ).arrange(RIGHT, buff=0.05, aligned_edge=UP)
-        things_images = Group(
-            things_top_row,
-            things_bottom_row,
-        ).arrange(DOWN, buff=0.05, aligned_edge=LEFT)
-
         scraping_body = Group(
             make_bullet_list(
                 (
@@ -1304,21 +1304,20 @@ class MethodsExistingApproaches(Scene):
                 font_size=16,
                 width=2.95,
             ),
-            make_image_card(
-                _METHODS_COCO_DATASET_PATH,
-                height=0.66,
-                border_color=LGREY,
-                buff=0.02,
+            make_reference_card(
+                "Natural image corpora",
+                "COCO; THINGS",
+                width=2.72,
+                height=0.58,
+                accent=GREEN,
+            ),
+            make_stimulus_mosaic(
+                width=2.72,
+                height=0.80,
+                accent=ACCENT,
             ),
             caption_line(
-                "COCO dataset (Lin et al. 2015)",
-                color=MGREY,
-                font_size=14,
-                max_width=2.80,
-            ),
-            things_images,
-            caption_line(
-                "Hebart et al. (2019)",
+                "Lin et al. (2015); Hebart et al. (2019)",
                 color=MGREY,
                 font_size=14,
                 max_width=2.80,
@@ -1353,8 +1352,20 @@ class MethodsExistingApproaches(Scene):
             item_buff=0.20,
         )
         gan_images = Group(
-            make_image_card(_METHODS_SON_2021_PATH, height=0.96, border_color=LGREY, buff=0.025),
-            make_image_card(_METHODS_SON_2021B_PATH, height=1.12, border_color=LGREY, buff=0.025),
+            make_reference_card(
+                "GAN synthesis",
+                "Son et al. (2022)",
+                width=3.05,
+                height=0.72,
+                accent=ACCENT,
+            ),
+            make_reference_card(
+                "Latent stimulus wheels",
+                "continuous but model-specific",
+                width=3.05,
+                height=0.72,
+                accent="#B8894D",
+            ),
         ).arrange(DOWN, buff=0.14)
         gan_citation = caption_line(
             _SCENE_WHEELS_CITATION,
