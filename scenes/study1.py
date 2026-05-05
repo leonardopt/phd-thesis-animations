@@ -137,7 +137,7 @@ _s1_step1_BLUE = '#2563EB'
 _s1_step1_ORNG = '#EA580C'
 _s1_step1_NAT_C = '#4C7A6D'
 _s1_step1_ART_C = '#A06A4B'
-_s1_step1_ANCHOR_DIR = env_path('ANCHOR_IMAGES_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'anchor_images')
+_s1_step1_ANCHOR_DIR = env_path('ANCHOR_IMAGES_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage1' / 'anchor_images')
 _s1_step1_CAT_INFO = [('animal', 'Animals', ['dog', 'fish', 'owl']), ('plant', 'Plants', ['oak', 'palm', 'sequoia']), ('landscape_element', 'Landscape elements', ['mountain ridge', 'polar iceberg', 'sea stack']), ('building', 'Buildings', ['lighthouse', 'observatory', 'windmill']), ('vehicle', 'Vehicles', ['campervan', 'sailboat', 'scooter']), ('item', 'Items', ['teapot', 'vase', 'bottle'])]
 _s1_step1_BOX_W = 2.7
 _s1_step1_BOX_H = 1.6
@@ -359,7 +359,7 @@ _s1_step2_BG = WHITE
 _s1_step2_INK = '#1C1C1E'
 _s1_step2_GREY = '#6B7280'
 _s1_step2_LGREY = '#D1D5DB'
-_s1_step2_IMG_DIR = env_path('EXEMPLAR_FISH_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'exemplar_images' / 'animal' / 'fish')
+_s1_step2_IMG_DIR = env_path('EXEMPLAR_FISH_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage1' / 'exemplar_images' / 'animal' / 'fish')
 _s1_step2_N_SWAPS = 59
 _s1_step2_SWAP_TOTAL_DUR = 10
 _s1_step2_PROMPT_LINES = ['``award-winning marine photo', 'of a colorful fish in a coral reef,', 'centered in the scene, vibrant', "underwater scene, high detail''"]
@@ -695,7 +695,7 @@ _s1_step2_showcase_GREY = '#6B7280'
 _s1_step2_showcase_LGREY = '#D1D5DB'
 # Keep the multi-category showcase pinned to the repo-local curated clouds.
 # Using the broad external EXEMPLAR_IMAGES_DIR can silently drift scene content.
-_s1_step2_showcase_BASE = REPO_ROOT / 'assets' / 'images' / 'study1' / 'exemplar_images'
+_s1_step2_showcase_BASE = REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage1' / 'exemplar_images'
 _s1_step2_showcase_SHOWCASE = [
     dict(
         category='animal',
@@ -1146,7 +1146,7 @@ _s1_step3_C_GUIDE = '#DC2626'
 _s1_step3_C_ACCENT = '#D97706'
 _s1_step3_C_MATRIX = '#3F7F7A'
 _s1_step3_C_FLOW = '#C58A2A'
-_s1_step3_IMG_DIR = env_path('EXEMPLAR_FISH_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'exemplar_images' / 'animal' / 'fish')
+_s1_step3_IMG_DIR = env_path('EXEMPLAR_FISH_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage1' / 'exemplar_images' / 'animal' / 'fish')
 _s1_step3_NN_ICON_PATH = REPO_ROOT / 'assets' / 'images' / 'references' / 'neural_network_schematic.svg'
 _s1_step3_ANCHOR_NAME = 'ANI-FIS-3873620486.png'
 _s1_step3_GUIDE_NAME = 'ANI-FIS-4212442282.png'
@@ -1718,7 +1718,7 @@ _s1_step4_C_Z0 = '#2563EB'
 _s1_step4_C_Z1 = '#DC2626'
 _s1_step4_C_ZA = '#D97706'
 _s1_step4_C_ARC = '#93C5FD'
-_s1_step4_IMG_DIR = env_path('FISH_INTERPOLATIONS_DIR', env_path('INTERPOLATIONS_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'fish_interpolations'))
+_s1_step4_IMG_DIR = env_path('FISH_INTERPOLATIONS_DIR', env_path('INTERPOLATIONS_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage1' / 'fish_interpolations'))
 _s1_step4_PROMPT = "\\textit{``a fish swimming in the ocean''}"
 _s1_step4_PROMPT_BOX_LINES = ('"award-winning marine photo', 'of a colorful fish', 'in a coral reef,', 'centered in the scene,', 'vibrant underwater scene,', 'high detail"')
 _s1_step4_COMPACT_PROMPT_LINES = ('``award-winning marine photo', 'of a colorful fish in a coral reef,', 'centered in the scene,', 'vibrant underwater scene,', "high detail''")
@@ -1989,7 +1989,7 @@ _s1_step5_LGREY = '#D1D5DB'
 _s1_step5_MGREY = '#9CA3AF'
 _s1_step5_BLUE = '#2563EB'
 _s1_step5_ORNG = '#EA580C'
-_s1_step5__INTERP_DIR = env_path('FISH_INTERPOLATIONS_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'fish_interpolations')
+_s1_step5__INTERP_DIR = env_path('FISH_INTERPOLATIONS_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage1' / 'fish_interpolations')
 _s1_step5__LPIPS_CSV = env_path('SIMILARITY_INTERPOLATIONS_FISH_CSV', REPO_ROOT / 'assets' / 'data' / 'study1' / 'lpips-squeeze-mat-interpols-animal-fish.csv')
 _s1_step5_ANCHOR_NAME = 'ANI-FIS-interpol-000.png'
 _s1_step5_SELECTED_INDICES: list[int] = [0, 1, 12, 21, 31, 38, 42, 63, 91, 199]
@@ -2438,7 +2438,7 @@ class Study1Stage1Step5(_Study1Step5Base):
 
 _s1_stimshow_BG = WHITE
 _s1_stimshow_INK = '#1C1C1E'
-_s1_stimshow_STIMULI_TASK_DIR = env_path('STIMULI_TASK_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'stimuli_task')
+_s1_stimshow_STIMULI_TASK_DIR = env_path('STIMULI_TASK_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage2' / 'stimuli_task')
 _s1_stimshow_SHOWCASE_TARGETS = [('Tropical Karst', 'LAN-TRP'), ('Pine Mediterranean', 'PLA-PIE'), ('Observatory', 'BUI-OBS'), ('Sofa', 'ITE-SOF'), ('Passenger train', 'VEH-PAS')]
 
 def _s1_stimshow_resolve_strip_paths(display_name: str, image_code: str) -> list[Path]:
@@ -3137,7 +3137,7 @@ _s1_stage3_INK = '#1C1C1E'
 _s1_stage3_LGREY = '#D1D5DB'
 _s1_stage3_MGREY = '#9CA3AF'
 _s1_stage3_STIM_DIR = env_path('STIMULI_REORDERED_DIR', REPO_ROOT / 'assets' / 'images' / 'stimuli_reordered')
-_s1_stage3_MEMORY_TASK_STIM_DIR = env_path('MEMORY_TASK_STIM_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'memory_task')
+_s1_stage3_MEMORY_TASK_STIM_DIR = env_path('MEMORY_TASK_STIM_DIR', REPO_ROOT / 'assets' / 'images' / 'study1' / 'stage3' / 'memory_task')
 _s1_stage3_STIM_INFO_CSV = env_path('STIM_INFO_CSV', REPO_ROOT / 'assets' / 'data' / 'study1' / 'stimuli_info.csv')
 _s1_stage3_FIXATION_PATH = str(REPO_ROOT / 'assets' / 'images' / 'shared' / 'fixation_target.png')
 
@@ -3942,7 +3942,7 @@ STIM_DIR = env_path(
 )
 MEMORY_TASK_STIM_DIR = env_path(
     "MEMORY_TASK_STIM_DIR",
-    REPO_ROOT / "assets" / "images" / "study1" / "memory_task",
+    REPO_ROOT / "assets" / "images" / "study1" / "stage3" / "memory_task",
 )
 STIM_INFO_CSV = env_path(
     "STIM_INFO_CSV",
