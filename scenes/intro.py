@@ -89,6 +89,14 @@ _ANATOMY_IMAGE_DIR = REPO_ROOT / "assets" / "images" / "anatomy"
 _INTRO_FIG_DIR = REPO_ROOT / "assets" / "images" / "intro"
 _BRAIN_ICON_PATH = REPO_ROOT / "assets" / "images" / "study2" / "brain_icon_sagittal.png"
 _HEAD_BRAIN_PATH = _ANATOMY_IMAGE_DIR / "head_brain.png"
+_REFERENCE_DIR = REPO_ROOT / "assets" / "images" / "references" / "working_memory"
+_FUNAHASHI_1989_FIG = str(_INTRO_FIG_DIR / "funahashi1989a.png")
+_JONIDES_1993_FIG = str(_INTRO_FIG_DIR / "jonides1993.png")
+_AWH_JONIDES_2001_FIG = str(_REFERENCE_DIR / "awhjonides2001_spatial_wm.png")
+_HARRISON_TONG_2009_FIG = str(_INTRO_FIG_DIR / "harrisontong2009.png")
+_HARRISON_TONG_2009_PARADIGM_FIG = str(_INTRO_FIG_DIR / "harrisontong2009paradigm.png")
+_CHRISTOPHEL_2012_FIG = str(_INTRO_FIG_DIR / "christophel2012.png")
+_CHRISTOPHEL_2017_FIG = str(_INTRO_FIG_DIR / "christophel2017.png")
 _VISUAL_CORTEX_FIG = str(_ANATOMY_IMAGE_DIR / "visual_cortex_white.png")
 _INTRO_HOOK_TARGET_FISH = str(_INTRO_STIM_DIR / "animal_fish-00.png")
 _INTRO_HOOK_FOIL_FISH = str(_INTRO_STIM_DIR / "animal_fish-05.png")
@@ -97,14 +105,14 @@ _INTRO_HOOK_QUESTION_NORMAL_FISH = str(_INTRO_STIM_DIR / "animal_fish-09.png")
 _INTRO_HOOK_QUESTION_FISH = str(_INTRO_FIG_DIR / "animal_fish-09_soft.png")
 _INTRO_HOOK_QUESTION_MEMORY_FISH = str(_INTRO_FIG_DIR / "animal_fish-09_memory.png")
 _INTRO_RQ2_SIMPLE_STIMULI = (
-    ("color_probe", r"Emrich et al. (2013)"),
-    ("radial_probe", r"Sprague et al. (2014)"),
-    ("orientation_probe", r"Harrison \& Tong (2009)"),
-    ("grating_probe", r"Christophel et al. (2012)"),
+    (str(_INTRO_FIG_DIR / "emrich2013.png"), r"Emrich et al. (2013)"),
+    (str(_INTRO_FIG_DIR / "sprague2014.png"), r"Sprague et al. (2014)"),
+    (str(_INTRO_FIG_DIR / "harrison_stimulus.png"), r"Harrison \& Tong (2009)"),
+    (str(_INTRO_FIG_DIR / "christophel2012_stimulus.png"), r"Christophel et al. (2012)"),
 )
 _INTRO_RQ2_INTERMEDIATE_STIMULI = (
-    ("object_probe", r"Lee et al. (2013)"),
-    ("scene_probe", r"Xu (2023)"),
+    (str(_INTRO_FIG_DIR / "lee_2013.png"), r"Lee et al. (2013)"),
+    (str(_INTRO_FIG_DIR / "xu_2023.png"), r"Xu (2023)"),
 )
 _INTRO_RQ2_NATURALISTIC_STIMULI = (
     str(_INTRO_STIM_DIR / "landscape_element_mountain_ridge-00.png"),
@@ -387,163 +395,29 @@ def make_literature_entry(
     return group
 
 
-def make_literature_schematic(
-    kind: str,
+def make_paper_snapshot(
+    image_path: str,
+    label_text: str,
+    ref_text: str,
     *,
-    width: float,
-    height: float,
     accent: str,
+    height: float = 1.56,
 ) -> Group:
-    """Build a rights-safe schematic thumbnail for cited literature."""
-    frame = RoundedRectangle(
-        width=width,
-        height=height,
+    """Build a framed paper thumbnail with label and citation text."""
+    image = ImageMobject(image_path)
+    image.height = height
+    image_card = RoundedRectangle(
+        width=image.width + 0.26,
+        height=image.height + 0.26,
         corner_radius=0.08,
         stroke_color=LGREY,
         stroke_width=1.2,
     ).set_fill(PANEL, opacity=1.0)
-    center = frame.get_center()
-
-    def point(x: float, y: float) -> np.ndarray:
-        return center + np.array([x * width, y * height, 0.0])
-
-    def trace(points: tuple[tuple[float, float], ...], color: str = accent) -> VMobject:
-        path = VMobject(color=color, stroke_width=2.0)
-        path.set_points_smoothly([point(x, y) for x, y in points])
-        return path
-
-    elements = Group()
-    if kind == "delay_firing":
-        axes = Group(
-            Line(point(-0.38, -0.28), point(-0.38, 0.30), color=MGREY, stroke_width=1.0),
-            Line(point(-0.38, -0.28), point(0.38, -0.28), color=MGREY, stroke_width=1.0),
-        )
-        delay = Rectangle(
-            width=0.30 * width,
-            height=0.50 * height,
-            stroke_width=0,
-        ).set_fill(accent, opacity=0.10)
-        delay.move_to(point(0.10, 0.01))
-        spikes = Group(
-            trace(((-0.34, -0.20), (-0.16, -0.04), (0.02, 0.02), (0.20, 0.18), (0.36, 0.24))),
-            trace(((-0.34, -0.12), (-0.16, 0.10), (0.02, 0.20), (0.20, 0.12), (0.36, 0.16)), BLUE),
-            trace(((-0.34, 0.04), (-0.12, 0.00), (0.10, 0.08), (0.28, -0.02), (0.36, 0.06)), GREEN),
-        )
-        elements = Group(delay, axes, spikes)
-    elif kind == "activation_map":
-        head = Ellipse(
-            width=0.58 * width,
-            height=0.72 * height,
-            stroke_color=MGREY,
-            stroke_width=1.1,
-        ).set_fill(WHITE, opacity=1.0)
-        head.move_to(point(-0.04, 0.00))
-        hotspots = Group(
-            Circle(radius=0.075 * min(width, height)).set_fill(accent, opacity=0.68).set_stroke(width=0).move_to(point(-0.18, 0.12)),
-            Circle(radius=0.055 * min(width, height)).set_fill(BLUE, opacity=0.62).set_stroke(width=0).move_to(point(0.12, 0.06)),
-            Circle(radius=0.050 * min(width, height)).set_fill(GREEN, opacity=0.58).set_stroke(width=0).move_to(point(0.02, -0.16)),
-        )
-        elements = Group(head, hotspots)
-    elif kind == "orientation_decoder":
-        ring = Circle(radius=0.29 * min(width, height), color=MGREY, stroke_width=1.0)
-        ring.move_to(point(-0.16, 0.02))
-        bars = Group()
-        for index, angle in enumerate(np.linspace(0, PI, 6, endpoint=False)):
-            bar = Line(LEFT * 0.12, RIGHT * 0.12, color=accent, stroke_width=2.0)
-            bar.rotate(angle)
-            bar.move_to(point(-0.16 + 0.14 * np.cos(angle), 0.02 + 0.18 * np.sin(angle)))
-            bars.add(bar)
-        matrix = _mini_matrix(_PLOT_MEMORY_PATTERN, cell=0.055 * min(width, height))
-        matrix.move_to(point(0.24, 0.02))
-        elements = Group(ring, bars, matrix)
-    elif kind == "distributed_map":
-        brain = Ellipse(
-            width=0.70 * width,
-            height=0.62 * height,
-            stroke_color=MGREY,
-            stroke_width=1.0,
-        ).set_fill(WHITE, opacity=1.0)
-        brain.move_to(point(0.0, 0.02))
-        nodes = Group()
-        for x, y, color in (
-            (-0.22, 0.12, accent),
-            (-0.04, 0.20, BLUE),
-            (0.16, 0.10, GREEN),
-            (-0.12, -0.12, RED),
-            (0.18, -0.14, AMBER),
-        ):
-            nodes.add(
-                Circle(radius=0.045 * min(width, height))
-                .set_fill(color, opacity=0.72)
-                .set_stroke(width=0)
-                .move_to(point(x, y))
-            )
-        links = Group(
-            Line(nodes[0].get_center(), nodes[1].get_center(), color=MGREY, stroke_width=0.8),
-            Line(nodes[1].get_center(), nodes[2].get_center(), color=MGREY, stroke_width=0.8),
-            Line(nodes[0].get_center(), nodes[3].get_center(), color=MGREY, stroke_width=0.8),
-            Line(nodes[3].get_center(), nodes[4].get_center(), color=MGREY, stroke_width=0.8),
-        )
-        elements = Group(brain, links, nodes)
-    elif kind == "color_probe":
-        elements = Group(
-            *[
-                Circle(radius=0.10 * min(width, height))
-                .set_fill(color, opacity=0.92)
-                .set_stroke(WHITE, width=1.0)
-                .move_to(point(x, y))
-                for (x, y), color in zip(
-                    ((-0.18, 0.14), (0.02, 0.16), (0.18, -0.02), (-0.08, -0.16)),
-                    (BLUE, RED, GREEN, AMBER),
-                )
-            ]
-        )
-    elif kind == "radial_probe":
-        rays = Group()
-        for angle in np.linspace(0, TAU, 12, endpoint=False):
-            ray = Line(point(0.0, 0.0), point(0.28 * np.cos(angle), 0.28 * np.sin(angle)), color=accent, stroke_width=1.6)
-            rays.add(ray)
-        elements = Group(Circle(radius=0.06 * min(width, height), color=accent).set_fill(accent, opacity=0.95).move_to(point(0, 0)), rays)
-    elif kind == "orientation_probe":
-        bars = Group()
-        for x, y, angle in ((-0.24, 0.16, 0.20), (0.04, 0.16, 1.10), (0.24, -0.08, 2.10), (-0.10, -0.18, 2.65)):
-            bar = Line(LEFT * 0.16, RIGHT * 0.16, color=accent, stroke_width=3.0)
-            bar.rotate(angle)
-            bar.move_to(point(x, y))
-            bars.add(bar)
-        elements = bars
-    elif kind == "grating_probe":
-        stripes = Group()
-        for offset in np.linspace(-0.28, 0.28, 7):
-            stripe = Rectangle(width=0.075 * width, height=0.58 * height, stroke_width=0)
-            stripe.set_fill(accent if int((offset + 0.28) * 100) % 2 == 0 else MGREY, opacity=0.82)
-            stripe.rotate(0.40)
-            stripe.move_to(point(offset, 0.0))
-            stripes.add(stripe)
-        elements = stripes
-    elif kind == "object_probe":
-        body = RoundedRectangle(width=0.38 * width, height=0.34 * height, corner_radius=0.06)
-        body.set_fill(accent, opacity=0.72).set_stroke(INK, width=0.8, opacity=0.45)
-        body.move_to(point(0.0, -0.02))
-        handle = Arc(radius=0.16 * min(width, height), angle=PI, color=INK, stroke_width=1.2)
-        handle.rotate(PI)
-        handle.next_to(body, UP, buff=-0.04)
-        elements = Group(handle, body)
-    elif kind == "scene_probe":
-        sky = Rectangle(width=0.62 * width, height=0.30 * height, stroke_width=0).set_fill(BLUE, opacity=0.18)
-        sky.move_to(point(0, 0.12))
-        ground = Rectangle(width=0.62 * width, height=0.22 * height, stroke_width=0).set_fill(GREEN, opacity=0.20)
-        ground.move_to(point(0, -0.18))
-        mountain = Polygon(point(-0.28, -0.14), point(-0.06, 0.20), point(0.13, -0.14), color=MGREY)
-        mountain.set_fill(MGREY, opacity=0.55).set_stroke(width=0)
-        sun = Circle(radius=0.06 * min(width, height)).set_fill(AMBER, opacity=0.90).set_stroke(width=0).move_to(point(0.22, 0.20))
-        elements = Group(sky, ground, mountain, sun)
-    else:
-        elements = Group(_mini_matrix(_PLOT_SENSORY_PATTERN_LEFT, cell=0.075 * min(width, height)))
-        elements.move_to(center)
-
-    elements.move_to(center)
-    return Group(frame, elements)
+    image.move_to(image_card.get_center())
+    image_frame = Group(image_card, image)
+    label = Tex(label_text, color=accent, font_size=18)
+    refs = Tex(ref_text, color=INK, font_size=14)
+    return Group(image_frame, label, refs).arrange(DOWN, buff=0.10)
 
 
 def brain_icon_with_evc(*, highlight_color: str = BLUE, scale_factor: float = 1.0) -> dict[str, Mobject]:
@@ -894,7 +768,7 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
         claim_lines: tuple[str, ...],
         ref_lines: tuple[str, ...] = (),
         *,
-        schematic_kind: str | None = None,
+        image_path: str | None = None,
         image_height: float = 1.56,
         image_ref_lines: tuple[str, ...] = (),
     ) -> Group:
@@ -905,17 +779,15 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
             font_size=18,
         )
         centered_parts: list[Mobject] = [heading]
-        figure: Mobject | None = None
+        image: ImageMobject | None = None
         image_refs: VGroup | None = None
         refs: VGroup | None = None
-        if schematic_kind is not None:
-            figure = make_literature_schematic(
-                schematic_kind,
-                width=max_col_width,
-                height=image_height,
-                accent=AMBER,
-            )
-            centered_parts.append(figure)
+        if image_path is not None:
+            image = ImageMobject(image_path)
+            image.height = image_height
+            if image.width > max_col_width:
+                image.scale_to_fit_width(max_col_width)
+            centered_parts.append(image)
         if image_ref_lines:
             image_refs = VGroup(
                 *[
@@ -985,7 +857,7 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
                 "Persistent delay-period neural firing in dorsolateral PFC",
             ),
             ("Goldman-Rakic (1995)", r"Constantinidis \& Procyk (2004)"),
-            schematic_kind="delay_firing",
+            image_path=_FUNAHASHI_1989_FIG,
             image_height=2.20,
             image_ref_lines=("Funahashi et al. (1989)",),
         ),
@@ -1000,7 +872,7 @@ def _build_intro_d_layout() -> dict[str, Mobject]:
                 "Doyon et al. (1996)",
                 "Courtney et al. (1997)",
             ),
-            schematic_kind="activation_map",
+            image_path=_JONIDES_1993_FIG,
             image_height=1.82,
             image_ref_lines=("Jonides et al. (1993)",),
         ),
@@ -1088,18 +960,13 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
         return Group(*parts).arrange(DOWN, buff=0.10, aligned_edge=LEFT)
 
     def _study_figure(
-        schematic_kind: str,
+        image_path: str,
         ref_text: str | None,
         *,
-        width: float = 2.44,
         height: float = 2.24,
     ) -> Group:
-        image = make_literature_schematic(
-            schematic_kind,
-            width=width,
-            height=height,
-            accent=sensory_accent,
-        )
+        image = ImageMobject(image_path)
+        image.height = height
         if ref_text is None:
             return Group(image)
         refs = Tex(ref_text, color=INK, font_size=12)
@@ -1158,15 +1025,13 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     hero_figure = Group()
     top_row = Group(
         _study_figure(
-            "orientation_decoder",
+            _HARRISON_TONG_2009_PARADIGM_FIG,
             None,
-            width=2.32,
             height=2.10,
         ),
         _study_figure(
-            "activation_map",
+            _HARRISON_TONG_2009_FIG,
             None,
-            width=2.32,
             height=2.10,
         ),
     ).arrange(RIGHT, buff=0.20, aligned_edge=UP)
@@ -1175,9 +1040,8 @@ def _build_intro_e_layout() -> dict[str, Mobject]:
     top_row_ref.set_x(top_row.get_center()[0])
     bottom_row = Group(
         _study_figure(
-            "distributed_map",
+            _CHRISTOPHEL_2017_FIG,
             r"Christophel et al. (2017)",
-            width=4.84,
             height=2.18,
         ),
     )
@@ -1382,26 +1246,6 @@ def _intro_question_image_with_ref(
 ) -> Group:
     """Build an image card with a citation line underneath."""
     card = _intro_question_image_card(image_path, width=width, height=height)
-    ref = Tex(ref_text, color=INK, font_size=10)
-    if ref.width > width + 0.22:
-        ref.scale_to_fit_width(width + 0.22)
-    return Group(card, ref).arrange(DOWN, buff=0.10)
-
-
-def _intro_question_schematic_with_ref(
-    schematic_kind: str,
-    ref_text: str,
-    *,
-    width: float,
-    height: float,
-) -> Group:
-    """Build a rights-safe schematic card with a citation line underneath."""
-    card = make_literature_schematic(
-        schematic_kind,
-        width=width,
-        height=height,
-        accent=RQ_RED,
-    )
     ref = Tex(ref_text, color=INK, font_size=10)
     if ref.width > width + 0.22:
         ref.scale_to_fit_width(width + 0.22)
@@ -1615,16 +1459,16 @@ def _build_intro_question_visual_ecology(spec: dict[str, str]) -> Group:
 
     simple_cards = Group(
         *[
-            _intro_question_schematic_with_ref(kind, ref, width=0.96, height=0.78)
-            for kind, ref in _INTRO_RQ2_SIMPLE_STIMULI
+            _intro_question_image_with_ref(path, ref, width=0.96, height=0.78)
+            for path, ref in _INTRO_RQ2_SIMPLE_STIMULI
         ]
     ).arrange(RIGHT, buff=0.12)
     simple_block = Group(simple_cards)
 
     intermediate_cards = Group(
         *[
-            _intro_question_schematic_with_ref(kind, ref, width=1.10, height=0.90)
-            for kind, ref in _INTRO_RQ2_INTERMEDIATE_STIMULI
+            _intro_question_image_with_ref(path, ref, width=1.10, height=0.90)
+            for path, ref in _INTRO_RQ2_INTERMEDIATE_STIMULI
         ]
     ).arrange(RIGHT, buff=0.18)
     intermediate_block = Group(intermediate_cards)

@@ -39,10 +39,6 @@ presentation_narration.txt
 slerp_follow_prompt_check*.png
 media/videos/old
 
-# Local-only literature/reference screenshots without redistribution clearance
-assets/images/intro/literature_screenshots/
-assets/images/references/working_memory/
-
 # Large synced external assets (recreated via scripts/sync_external_assets.py)
 assets/images/stimuli_reordered/
 assets/images/study1/stage1/exemplar_images/
