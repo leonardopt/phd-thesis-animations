@@ -29,3 +29,6 @@ Notes:
 - If `scene.mp4` exists but no frames are available, the slides show a labeled
   placeholder instead of trying to play raw video.
 - Image formats supported by the loader are `png`, `jpg`, `jpeg`, and `webp`.
+- Paper screenshots and literature thumbnails are intentionally not tracked in
+  this folder. The public intro scenes use generated Manim schematic cards for
+  cited literature examples.

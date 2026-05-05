@@ -2,27 +2,27 @@
 
 This repository uses three asset categories:
 
-- tracked public source assets that are part of the published repo
+- tracked restricted source assets that are part of the published repo
 - synced local assets that are required for some scenes but intentionally not tracked
 - generated local outputs and intermediate specs that are ignored by Git
 
 ## Tracked In Git
 
-Tracked assets in this repository are limited to items that are small enough and central enough to the public source tree to justify keeping them in Git:
+Tracked assets in this repository are limited to items that are small enough and central enough to the public source tree to justify keeping them in Git. They are not covered by the MIT code license unless a file or directory explicitly says otherwise.
 
 - hand-authored presentation figures and slide assets under `assets/images/` and `assets/slides/`
 - normalized shared image assets under `assets/images/shared/`, anatomy assets under `assets/images/anatomy/`, and Study 1 assets under `assets/images/study1/stage1/`, `assets/images/study1/stage2/`, and `assets/images/study1/stage3/`
 - compact binary inputs that live scenes still reference directly, such as the retained Study 2 NIfTI overlays and `assets/videos/fish_video.mp4`
-- public manifests and presenter-note inputs such as `assets/presentation_deck.toml`, `assets/presentation_frame_overrides.toml`, and `assets/presenter_notes.md`
+- public-source manifests and presenter-note inputs such as `assets/presentation_deck.toml`, `assets/presentation_frame_overrides.toml`, and `assets/presenter_notes.md`
 
-The pre-publication cleanup removed generated outputs, copied reference-image screenshots that were not required for rendering, and oversized tracked files that were not part of the live source boundary.
+The pre-publication cleanup removed generated outputs, copied literature/reference screenshots, and oversized tracked files that were not part of the live source boundary. Intro literature examples now render from generated Manim schematic cards rather than copied paper figures.
 
 ## Sync Groups
 
 These asset groups are populated through `scripts/sync_external_assets.py`:
 
 - `small`
-  - refreshes compact public assets that are tracked in Git
+  - refreshes compact restricted assets that are tracked in Git
   - Study 1 fish anchor image
   - Study 1 LPIPS CSVs
   - Study 1 stimulus-task showcase subset
@@ -65,4 +65,6 @@ If your local paths differ, set these variables in `.env`:
 
 ## Redistribution Status
 
-This repository does not yet apply one blanket license to all non-code assets. Before reusing tracked figures or copied reference material outside this repository, verify the origin and redistribution rights for that specific asset. Copied paper or dataset screenshots should not be added to the tracked tree; prefer generated schematic cards in scene code or the sync-only workflow for local-only material.
+This repository does not apply one blanket open license to non-code assets. Before reusing tracked figures, stimuli, videos, data, or presenter notes outside this repository, verify the origin and redistribution rights for that specific asset. See the top-level `ASSET_RIGHTS.md`.
+
+Copied paper or dataset screenshots should not be added to the tracked tree; prefer generated schematic cards in scene code or the sync-only workflow for local-only material.
