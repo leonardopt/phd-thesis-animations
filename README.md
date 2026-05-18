@@ -13,6 +13,14 @@ Supporting project configuration lives at the repository root in `pyproject.toml
 
 For the public-release readiness checklist, see [PUBLICATION_REVIEW.md](PUBLICATION_REVIEW.md).
 
+## Preview
+
+<video src="media/videos/03_study1/1080p60/sections/003_study1_stage1_step2_showcase.mp4" controls muted playsinline width="100%">
+  Study 1 stimulus generation showcase preview.
+</video>
+
+More rendered clips are available under `media/videos/**/1080p60/sections/`.
+
 ## Quick Start
 
 Use Python 3.12+ with `uv`. Rendering the full presentation also needs the
@@ -106,7 +114,7 @@ uv run python scripts/package_emergency_bundle.py --presentation-file /path/to/d
 
 ## Generated Outputs
 
-`media/` is disposable local build output and is ignored by Git. It holds rendered clips, stills, reports, fallback bundles, and Keynote exports.
+`media/` is mostly disposable local build output. The final rendered 1080p section MP4s under `media/videos/**/1080p60/sections/` are tracked for preview and deck reuse; Manim partial movie files, stills, reports, fallback bundles, and Keynote exports remain ignored.
 
 Final `.key`, `.pptx`, and exported `.pdf` deliverables should be published as release artifacts, not committed into repository history.
 
