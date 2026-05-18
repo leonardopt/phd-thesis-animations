@@ -15,7 +15,7 @@ For the public-release readiness checklist, see [PUBLICATION_REVIEW.md](PUBLICAT
 
 ## Preview
 
-[![Study 1 stimulus generation showcase preview](assets/images/readme_video_preview.jpg)](media/videos/03_study1/1080p60/sections/003_study1_stage1_step2_showcase.mp4)
+[![Study 1 stimulus generation showcase preview](assets/images/readme_video_preview.gif)](media/videos/03_study1/1080p60/sections/003_study1_stage1_step2_showcase.mp4)
 
 Preview clip: [Study 1 stimulus generation showcase](media/videos/03_study1/1080p60/sections/003_study1_stage1_step2_showcase.mp4).
 
