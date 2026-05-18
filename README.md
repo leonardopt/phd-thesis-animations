@@ -29,10 +29,17 @@ For the public-release readiness checklist, see [PUBLICATION_REVIEW.md](PUBLICAT
 
 ### Study 2 Within-Session 1 Decoding Results
 
-[![Study 2 within-session 1 decoding results A-D preview](assets/images/readme_preview_study2_within_session1_results.gif)](media/videos/04_study2/1080p60/sections/013_016_study2_within_session1_decoding_results_abcd.mp4)
+#### A-B
 
-Combined full MP4:
-[A-D](media/videos/04_study2/1080p60/sections/013_016_study2_within_session1_decoding_results_abcd.mp4).
+[![Study 2 within-session 1 decoding results A-B preview](assets/images/readme_preview_study2_within_session1_results_ab.gif)](media/videos/04_study2/1080p60/sections/013_014_study2_within_session1_decoding_results_ab.mp4)
+
+[Open the combined A-B MP4](media/videos/04_study2/1080p60/sections/013_014_study2_within_session1_decoding_results_ab.mp4).
+
+#### B-C
+
+[![Study 2 within-session 1 decoding results B-C preview](assets/images/readme_preview_study2_within_session1_results_bc.gif)](media/videos/04_study2/1080p60/sections/014_015_study2_within_session1_decoding_results_bc.mp4)
+
+[Open the combined B-C MP4](media/videos/04_study2/1080p60/sections/014_015_study2_within_session1_decoding_results_bc.mp4).
 
 Individual clips:
 [A](media/videos/04_study2/1080p60/sections/013_study2_within_session1_decoding_results_a.mp4),
