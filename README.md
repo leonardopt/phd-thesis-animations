@@ -29,9 +29,12 @@ For the public-release readiness checklist, see [PUBLICATION_REVIEW.md](PUBLICAT
 
 ### Study 2 Within-Session 1 Decoding Results
 
-[![Study 2 within-session 1 decoding results A-D preview](assets/images/readme_preview_study2_within_session1_results.gif)](media/videos/04_study2/1080p60/sections/013_study2_within_session1_decoding_results_a.mp4)
+[![Study 2 within-session 1 decoding results A-D preview](assets/images/readme_preview_study2_within_session1_results.gif)](media/videos/04_study2/1080p60/sections/013_016_study2_within_session1_decoding_results_abcd.mp4)
 
-Full MP4s:
+Combined full MP4:
+[A-D](media/videos/04_study2/1080p60/sections/013_016_study2_within_session1_decoding_results_abcd.mp4).
+
+Individual clips:
 [A](media/videos/04_study2/1080p60/sections/013_study2_within_session1_decoding_results_a.mp4),
 [B](media/videos/04_study2/1080p60/sections/014_study2_within_session1_decoding_results_b.mp4),
 [C](media/videos/04_study2/1080p60/sections/015_study2_within_session1_decoding_results_c.mp4),
