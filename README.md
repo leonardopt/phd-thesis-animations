@@ -19,13 +19,9 @@ For the public-release readiness checklist, see [PUBLICATION_REVIEW.md](PUBLICAT
 
 [![Study 1 Stage 1 Step 2 preview](assets/images/readme_preview_study1_stage1_step2.gif)](media/videos/03_study1/1080p60/sections/002_study1_stage1_step2.mp4)
 
-[Open the full MP4](media/videos/03_study1/1080p60/sections/002_study1_stage1_step2.mp4).
-
 ### Study 1 Stage 1 Step 4 Interpolation
 
 [![Study 1 Stage 1 Step 4 interpolation preview](assets/images/readme_preview_study1_interpolation.gif)](media/videos/03_study1/1080p60/sections/007_study1_stage1_step4_interpolation.mp4)
-
-[Open the full MP4](media/videos/03_study1/1080p60/sections/007_study1_stage1_step4_interpolation.mp4).
 
 ### Study 2 Within-Session 1 Decoding Results
 
@@ -33,21 +29,9 @@ For the public-release readiness checklist, see [PUBLICATION_REVIEW.md](PUBLICAT
 
 [![Study 2 within-session 1 decoding results A-B preview](assets/images/readme_preview_study2_within_session1_results_ab.gif)](media/videos/04_study2/1080p60/sections/013_014_study2_within_session1_decoding_results_ab.mp4)
 
-[Open the combined A-B MP4](media/videos/04_study2/1080p60/sections/013_014_study2_within_session1_decoding_results_ab.mp4).
-
 #### B-C
 
 [![Study 2 within-session 1 decoding results B-C preview](assets/images/readme_preview_study2_within_session1_results_bc.gif)](media/videos/04_study2/1080p60/sections/014_015_study2_within_session1_decoding_results_bc.mp4)
-
-[Open the combined B-C MP4](media/videos/04_study2/1080p60/sections/014_015_study2_within_session1_decoding_results_bc.mp4).
-
-Individual clips:
-[A](media/videos/04_study2/1080p60/sections/013_study2_within_session1_decoding_results_a.mp4),
-[B](media/videos/04_study2/1080p60/sections/014_study2_within_session1_decoding_results_b.mp4),
-[C](media/videos/04_study2/1080p60/sections/015_study2_within_session1_decoding_results_c.mp4),
-[D](media/videos/04_study2/1080p60/sections/016_study2_within_session1_decoding_results_d.mp4).
-
-More rendered clips are available under `media/videos/**/1080p60/sections/`.
 
 ## Quick Start
 
