@@ -15,9 +15,9 @@ For the public-release readiness checklist, see [PUBLICATION_REVIEW.md](PUBLICAT
 
 ## Preview
 
-<video src="media/videos/03_study1/1080p60/sections/003_study1_stage1_step2_showcase.mp4" controls muted playsinline width="100%">
-  Study 1 stimulus generation showcase preview.
-</video>
+[![Study 1 stimulus generation showcase preview](assets/images/readme_video_preview.jpg)](media/videos/03_study1/1080p60/sections/003_study1_stage1_step2_showcase.mp4)
+
+Preview clip: [Study 1 stimulus generation showcase](media/videos/03_study1/1080p60/sections/003_study1_stage1_step2_showcase.mp4).
 
 More rendered clips are available under `media/videos/**/1080p60/sections/`.
 
@@ -41,7 +41,7 @@ The public repository keeps the scene source self-contained where possible, but 
 
 - Tracked in Git: scene-adjacent restricted figures, videos, manifests, presenter notes, and compact public-source assets
 - Synced locally: larger study inputs restored through `scripts/sync_external_assets.py`
-- Generated locally: `media/`, Keynote exports, PDFs, reports, and other disposable build products
+- Generated locally: Manim partial movie files, stills, reports, Keynote exports, PDFs, and other disposable build products
 
 For provenance notes and sync groups, see [assets/README.md](assets/README.md). For asset reuse terms, see [ASSET_RIGHTS.md](ASSET_RIGHTS.md).
 
