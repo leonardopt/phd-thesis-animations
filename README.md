@@ -21,7 +21,7 @@ For the public-release readiness checklist, see [PUBLICATION_REVIEW.md](PUBLICAT
 
 ### Study 1 Stage 1 Step 4 Interpolation
 
-[![Study 1 Stage 1 Step 4 interpolation preview](assets/images/readme_preview_study1_interpolation.gif)](media/videos/03_study1/1080p60/sections/007_study1_stage1_step4_interpolation.mp4)
+[![Study 1 Stage 1 Step 4 interpolation preview](assets/images/readme_preview_study1_interpolation.gif)](media/videos/03_study1/1080p60/sections/006_007_study1_stage1_step4_setup_interpolation.mp4)
 
 ### Study 2 Within-Session 1 Decoding Results
 
